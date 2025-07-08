@@ -1,6 +1,4 @@
 import { trainingSessionsTable, type TrainingSession, type InsertTrainingSession } from "@shared/schema";
-import { db } from "./db";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export interface IStorage {
   getTrainingSession(id: number): Promise<TrainingSession | undefined>;
@@ -10,6 +8,8 @@ export interface IStorage {
   createTrainingSession(session: InsertTrainingSession): Promise<TrainingSession>;
   deleteTrainingSession(id: number): Promise<boolean>;
   getCurrentWeeklyGoal(): Promise<TrainingSession | undefined>;
+  exportData(): Promise<string>;
+  importData(data: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -87,76 +87,30 @@ export class MemStorage implements IStorage {
   async deleteTrainingSession(id: number): Promise<boolean> {
     return this.sessions.delete(id);
   }
-}
 
-// Use DatabaseStorage instead of MemStorage for persistent data
-export class DatabaseStorage implements IStorage {
-  async getTrainingSession(id: number): Promise<TrainingSession | undefined> {
-    const [session] = await db.select().from(trainingSessionsTable).where(eq(trainingSessionsTable.id, id));
-    return session || undefined;
+  async exportData(): Promise<string> {
+    const sessions = Array.from(this.sessions.values());
+    return JSON.stringify(sessions, null, 2);
   }
 
-  async getAllTrainingSessions(): Promise<TrainingSession[]> {
-    const sessions = await db.select().from(trainingSessionsTable).orderBy(desc(trainingSessionsTable.date));
-    return sessions;
-  }
-
-  async getTrainingSessionsByType(type: string): Promise<TrainingSession[]> {
-    const sessions = await db.select()
-      .from(trainingSessionsTable)
-      .where(eq(trainingSessionsTable.type, type))
-      .orderBy(desc(trainingSessionsTable.date));
-    return sessions;
-  }
-
-  async getTrainingSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]> {
-    const sessions = await db.select()
-      .from(trainingSessionsTable)
-      .where(
-        and(
-          gte(trainingSessionsTable.date, startDate),
-          lte(trainingSessionsTable.date, endDate)
-        )
-      )
-      .orderBy(desc(trainingSessionsTable.date));
-    return sessions;
-  }
-
-  async createTrainingSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
-    const sessionData = {
-      ...insertSession,
-      goalWeekStart: insertSession.type === 'goal' && !insertSession.goalWeekStart ? new Date() : insertSession.goalWeekStart,
-    };
-
-    const [session] = await db
-      .insert(trainingSessionsTable)
-      .values(sessionData)
-      .returning();
-    return session;
-  }
-
-  async deleteTrainingSession(id: number): Promise<boolean> {
-    const result = await db.delete(trainingSessionsTable).where(eq(trainingSessionsTable.id, id));
-    return result.rowCount > 0;
-  }
-
-  async getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
-    const [goal] = await db.select()
-      .from(trainingSessionsTable)
-      .where(
-        and(
-          eq(trainingSessionsTable.type, 'goal'),
-          gte(trainingSessionsTable.goalWeekStart, oneWeekAgo)
-        )
-      )
-      .orderBy(desc(trainingSessionsTable.goalWeekStart))
-      .limit(1);
-    
-    return goal || undefined;
+  async importData(data: string): Promise<void> {
+    try {
+      const sessions: TrainingSession[] = JSON.parse(data);
+      this.sessions.clear();
+      let maxId = 0;
+      
+      for (const session of sessions) {
+        this.sessions.set(session.id, session);
+        if (session.id > maxId) {
+          maxId = session.id;
+        }
+      }
+      
+      this.currentId = maxId + 1;
+    } catch (error) {
+      throw new Error('Invalid data format');
+    }
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();

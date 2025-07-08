@@ -156,6 +156,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export data
+  app.get("/api/export", async (req, res) => {
+    try {
+      const data = await storage.exportData();
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="chess-training-data.json"');
+      res.send(data);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to export data" });
+    }
+  });
+
+  // Import data
+  app.post("/api/import", async (req, res) => {
+    try {
+      const { data } = req.body;
+      await storage.importData(data);
+      res.json({ message: "Data imported successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to import data" });
+    }
+  });
+
   // Delete a training session
   app.delete("/api/training-sessions/:id", async (req, res) => {
     try {

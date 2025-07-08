@@ -19,7 +19,7 @@ This is a full-stack web application for tracking chess training sessions. Built
 - **Database**: PostgreSQL with Drizzle ORM
 - **Database Provider**: Neon Database (serverless PostgreSQL)
 - **Validation**: Zod schemas shared between frontend and backend
-- **Session Storage**: PostgreSQL database with persistent data storage
+- **Session Storage**: In-memory storage with export/import functionality for data persistence
 
 ### Mobile-First Design
 - Responsive design optimized for mobile devices
@@ -121,7 +121,7 @@ Preferred communication style: Simple, everyday language.
   - Refined UI based on user feedback: removed redundant "game type" field, reordered fields with "Colour" first, made time controls fully optional and deselectable
   - Implemented weekly goal display on homescreen with automatic detection of week-old goals and prompts for new goals
   - Added prompt to set weekly goal when no goal currently exists
-  - Migrated from in-memory storage to persistent PostgreSQL database for permanent data storage
+  - Added data export/backup functionality to save training data as downloadable files, providing free alternative to paid database services
 
 ## Changelog
 
