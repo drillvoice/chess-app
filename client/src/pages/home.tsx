@@ -7,6 +7,7 @@ import StudyModal from "@/components/modals/study-modal";
 import GoalModal from "@/components/modals/goal-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import type { TrainingSession } from "@shared/schema";
 
 interface Statistics {
   totalHours: number;
@@ -28,12 +29,50 @@ export default function Home() {
     refetchInterval: 30000,
   });
 
+  const { data: weeklyGoal } = useQuery<TrainingSession | null>({
+    queryKey: ["/api/weekly-goal"],
+    refetchInterval: 60000,
+  });
+
+  const isGoalOld = weeklyGoal && weeklyGoal.goalWeekStart ? 
+    (new Date().getTime() - new Date(weeklyGoal.goalWeekStart).getTime()) > (7 * 24 * 60 * 60 * 1000) : false;
+
   return (
     <div className="space-y-6">
       <div className="text-center py-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Log Your Training</h2>
         <p className="text-gray-600 text-sm">Track your chess improvement journey</p>
       </div>
+
+      {weeklyGoal && (
+        <Card className="bg-purple-50 border-purple-200">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <Target className="w-5 h-5 text-purple-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800 mb-1">
+                  {isGoalOld ? "Last week's goal" : "Your goal for this week is:"}
+                </h3>
+                <p className="text-gray-700 font-medium">{weeklyGoal.goalTitle}</p>
+                {weeklyGoal.goalDescription && (
+                  <p className="text-gray-600 text-sm mt-1">{weeklyGoal.goalDescription}</p>
+                )}
+                {isGoalOld && (
+                  <div className="mt-2">
+                    <Button
+                      onClick={() => setGoalModalOpen(true)}
+                      size="sm"
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      Set New Goal
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-4">
         <Button

@@ -24,6 +24,7 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   // Goal specific fields
   goalTitle: text("goal_title"),
   goalDescription: text("goal_description"),
+  goalWeekStart: timestamp("goal_week_start"),
 });
 
 export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTable).omit({
@@ -55,24 +56,20 @@ export const gameSessionSchema = insertTrainingSessionSchema.extend({
   gameResult: z.enum(['win', 'loss'], {
     required_error: "Game result is required",
   }),
-  gameType: z.enum(['blitz', 'rapid', 'classical', 'bullet'], {
-    required_error: "Game type is required",
-  }),
   gameComments: z.string().optional(),
   playerColor: z.enum(['white', 'black'], {
-    required_error: "Player color is required",
+    required_error: "Player colour is required",
   }),
   platform: z.enum(['lichess', 'chess.com', 'otb'], {
     required_error: "Platform is required",
   }),
-  timeControl: z.enum(['5+3', '10+5', '10', '15+10'], {
-    required_error: "Time control is required",
-  }),
+  timeControl: z.enum(['5+3', '10+5', '10', '15+10']).optional(),
 }).omit({
   duration: true,
   pointsGained: true,
   finalScore: true,
   tacticsNotes: true,
+  gameType: true,
   studyType: true,
   studyNotes: true,
   goalTitle: true,
@@ -104,6 +101,7 @@ export const goalSessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('goal'),
   goalTitle: z.string().min(1, "Goal title is required"),
   goalDescription: z.string().optional(),
+  goalWeekStart: z.date().optional(),
 }).omit({
   duration: true,
   pointsGained: true,

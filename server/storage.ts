@@ -7,6 +7,7 @@ export interface IStorage {
   getTrainingSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]>;
   createTrainingSession(session: InsertTrainingSession): Promise<TrainingSession>;
   deleteTrainingSession(id: number): Promise<boolean>;
+  getCurrentWeeklyGoal(): Promise<TrainingSession | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -63,9 +64,22 @@ export class MemStorage implements IStorage {
       studyNotes: insertSession.studyNotes ?? null,
       goalTitle: insertSession.goalTitle ?? null,
       goalDescription: insertSession.goalDescription ?? null,
+      goalWeekStart: insertSession.type === 'goal' && !insertSession.goalWeekStart ? new Date() : (insertSession.goalWeekStart ?? null),
     };
     this.sessions.set(id, session);
     return session;
+  }
+
+  async getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    const goals = Array.from(this.sessions.values())
+      .filter(session => session.type === 'goal')
+      .filter(session => session.goalWeekStart && new Date(session.goalWeekStart) >= oneWeekAgo)
+      .sort((a, b) => new Date(b.goalWeekStart!).getTime() - new Date(a.goalWeekStart!).getTime());
+    
+    return goals[0];
   }
 
   async deleteTrainingSession(id: number): Promise<boolean> {

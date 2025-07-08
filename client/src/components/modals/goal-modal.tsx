@@ -41,6 +41,7 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/weekly-goal"] });
       toast({
         title: "Success",
         description: "Weekly goal set successfully!",

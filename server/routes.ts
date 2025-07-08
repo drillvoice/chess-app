@@ -93,6 +93,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current weekly goal
+  app.get("/api/weekly-goal", async (req, res) => {
+    try {
+      const goal = await storage.getCurrentWeeklyGoal();
+      res.json(goal || null);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch weekly goal" });
+    }
+  });
+
   // Get statistics
   app.get("/api/statistics", async (req, res) => {
     try {

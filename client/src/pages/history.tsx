@@ -66,7 +66,7 @@ export default function History() {
       case "tactics":
         return "Tactics Practice";
       case "game":
-        return `${session.gameType?.charAt(0).toUpperCase()}${session.gameType?.slice(1)} Game`;
+        return "Chess Game";
       case "study":
         return `${session.studyType?.charAt(0).toUpperCase()}${session.studyType?.slice(1)} Study`;
       case "goal":
@@ -81,7 +81,7 @@ export default function History() {
       case "tactics":
         return `${session.pointsGained && session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`;
       case "game":
-        return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform} ${session.timeControl}`;
+        return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
       case "study":
         return `${session.studyNotes || 'No notes'} • ${session.duration} min`;
       case "goal":

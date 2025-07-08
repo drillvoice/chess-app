@@ -37,7 +37,6 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
     defaultValues: {
       type: "game",
       gameResult: undefined,
-      gameType: undefined,
       gameComments: "",
       playerColor: undefined,
       platform: undefined,
@@ -87,8 +86,14 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
   };
 
   const handleTimeControlSelect = (timeControl: string) => {
-    setSelectedTimeControl(timeControl);
-    setValue("timeControl", timeControl as any);
+    if (selectedTimeControl === timeControl) {
+      // Deselect if clicking the same time control
+      setSelectedTimeControl(null);
+      setValue("timeControl", undefined);
+    } else {
+      setSelectedTimeControl(timeControl);
+      setValue("timeControl", timeControl as any);
+    }
   };
 
   return (
@@ -100,6 +105,45 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+              Colour
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "p-3 h-auto flex items-center justify-center space-x-2",
+                  selectedColor === "white"
+                    ? "border-gray-800 bg-gray-100 text-gray-800 ring-2 ring-gray-800"
+                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                )}
+                onClick={() => handleColorSelect("white")}
+              >
+                <Square className="w-4 h-4 fill-white stroke-gray-800" />
+                <span>White</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "p-3 h-auto flex items-center justify-center space-x-2",
+                  selectedColor === "black"
+                    ? "border-gray-800 bg-gray-800 text-white ring-2 ring-gray-800"
+                    : "border-gray-300 bg-gray-800 text-white hover:bg-gray-700"
+                )}
+                onClick={() => handleColorSelect("black")}
+              >
+                <Square className="w-4 h-4 fill-gray-800" />
+                <span>Black</span>
+              </Button>
+            </div>
+            {errors.playerColor && (
+              <p className="text-sm text-red-600 mt-1">{errors.playerColor.message}</p>
+            )}
+          </div>
+
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2 block">
               Result
@@ -139,44 +183,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
             )}
           </div>
 
-          <div>
-            <Label className="text-sm font-medium text-gray-700 mb-2 block">
-              Color
-            </Label>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className={cn(
-                  "p-3 h-auto flex items-center justify-center space-x-2",
-                  selectedColor === "white"
-                    ? "border-gray-800 bg-gray-100 text-gray-800 ring-2 ring-gray-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                )}
-                onClick={() => handleColorSelect("white")}
-              >
-                <Square className="w-4 h-4 fill-white stroke-gray-800" />
-                <span>White</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={cn(
-                  "p-3 h-auto flex items-center justify-center space-x-2",
-                  selectedColor === "black"
-                    ? "border-gray-800 bg-gray-800 text-white ring-2 ring-gray-800"
-                    : "border-gray-300 bg-gray-800 text-white hover:bg-gray-700"
-                )}
-                onClick={() => handleColorSelect("black")}
-              >
-                <Square className="w-4 h-4 fill-gray-800" />
-                <span>Black</span>
-              </Button>
-            </div>
-            {errors.playerColor && (
-              <p className="text-sm text-red-600 mt-1">{errors.playerColor.message}</p>
-            )}
-          </div>
+
 
           <div>
             <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
@@ -199,7 +206,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
 
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2 block">
-              Time Control
+              Time Control (optional)
             </Label>
             <div className="grid grid-cols-2 gap-2">
               {["5+3", "10+5", "10", "15+10"].map((tc) => (
@@ -220,28 +227,9 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
                 </Button>
               ))}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Click to select, click again to deselect</p>
             {errors.timeControl && (
               <p className="text-sm text-red-600 mt-1">{errors.timeControl.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="gameType" className="text-sm font-medium text-gray-700">
-              Game Type
-            </Label>
-            <Select onValueChange={(value) => setValue("gameType", value as any)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select game type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="blitz">Blitz</SelectItem>
-                <SelectItem value="rapid">Rapid</SelectItem>
-                <SelectItem value="classical">Classical</SelectItem>
-                <SelectItem value="bullet">Bullet</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.gameType && (
-              <p className="text-sm text-red-600 mt-1">{errors.gameType.message}</p>
             )}
           </div>
 
