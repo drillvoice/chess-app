@@ -44,7 +44,7 @@ export default function Home() {
         <p className="text-gray-600 text-sm">Track your chess improvement journey</p>
       </div>
 
-      {weeklyGoal && (
+      {weeklyGoal ? (
         <Card className="bg-purple-50 border-purple-200">
           <CardContent className="p-4">
             <div className="flex items-start space-x-3">
@@ -69,6 +69,29 @@ export default function Home() {
                   </div>
                 )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-purple-50 border-purple-200 border-dashed">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <Target className="w-5 h-5 text-purple-600" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800 mb-1">
+                  Set a weekly goal to focus your training
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  Having a specific goal helps you stay motivated and track progress
+                </p>
+              </div>
+              <Button
+                onClick={() => setGoalModalOpen(true)}
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                Set Goal
+              </Button>
             </div>
           </CardContent>
         </Card>

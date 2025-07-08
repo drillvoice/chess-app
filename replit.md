@@ -113,11 +113,14 @@ Preferred communication style: Simple, everyday language.
 
 - July 08, 2025: Enhanced training session logging with additional fields
   - Added tactics notes field for quick observations
-  - Added game logging fields: player color (white/black), platform (lichess/chess.com/otb), time control buttons (5+3, 10+5, 10, 15+10)
+  - Added game logging fields: player colour selection (white/black), platform (lichess/chess.com/otb), time control buttons (5+3, 10+5, 10, 15+10)
   - Added weekly goal setting feature with title and description
   - Updated schema to support all new fields
   - Added goal filtering in history page
   - Fixed TypeScript errors in storage layer
+  - Refined UI based on user feedback: removed redundant "game type" field, reordered fields with "Colour" first, made time controls fully optional and deselectable
+  - Implemented weekly goal display on homescreen with automatic detection of week-old goals and prompts for new goals
+  - Added prompt to set weekly goal when no goal currently exists
 
 ## Changelog
 
