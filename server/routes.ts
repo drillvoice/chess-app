@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { 
   tacticsSessionSchema, 
   gameSessionSchema, 
-  studySessionSchema 
+  studySessionSchema,
+  goalSessionSchema 
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
@@ -126,6 +127,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Create a goal session
+  app.post("/api/training-sessions/goal", async (req, res) => {
+    try {
+      const validatedData = goalSessionSchema.parse(req.body);
+      const session = await storage.createTrainingSession(validatedData);
+      res.status(201).json(session);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        const validationError = fromZodError(error);
+        res.status(400).json({ message: validationError.message });
+      } else {
+        res.status(500).json({ message: "Failed to create goal session" });
+      }
     }
   });
 

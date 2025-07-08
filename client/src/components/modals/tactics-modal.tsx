@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,6 +32,7 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
       duration: 0,
       pointsGained: 0,
       finalScore: 0,
+      tacticsNotes: "",
     },
   });
 
@@ -117,6 +119,19 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
             {errors.finalScore && (
               <p className="text-sm text-red-600 mt-1">{errors.finalScore.message}</p>
             )}
+          </div>
+
+          <div>
+            <Label htmlFor="tacticsNotes" className="text-sm font-medium text-gray-700">
+              Notes (optional)
+            </Label>
+            <Textarea
+              id="tacticsNotes"
+              placeholder="Struggled with knight endgames..."
+              className="mt-1"
+              rows={3}
+              {...register("tacticsNotes")}
+            />
           </div>
 
           <div className="flex space-x-3 pt-4">

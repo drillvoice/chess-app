@@ -49,6 +49,20 @@ export class MemStorage implements IStorage {
       ...insertSession,
       id,
       date: new Date(),
+      duration: insertSession.duration ?? null,
+      pointsGained: insertSession.pointsGained ?? null,
+      finalScore: insertSession.finalScore ?? null,
+      tacticsNotes: insertSession.tacticsNotes ?? null,
+      gameResult: insertSession.gameResult ?? null,
+      gameType: insertSession.gameType ?? null,
+      gameComments: insertSession.gameComments ?? null,
+      playerColor: insertSession.playerColor ?? null,
+      platform: insertSession.platform ?? null,
+      timeControl: insertSession.timeControl ?? null,
+      studyType: insertSession.studyType ?? null,
+      studyNotes: insertSession.studyNotes ?? null,
+      goalTitle: insertSession.goalTitle ?? null,
+      goalDescription: insertSession.goalDescription ?? null,
     };
     this.sessions.set(id, session);
     return session;

@@ -109,6 +109,16 @@ This is a full-stack web application for tracking chess training sessions. Built
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+- July 08, 2025: Enhanced training session logging with additional fields
+  - Added tactics notes field for quick observations
+  - Added game logging fields: player color (white/black), platform (lichess/chess.com/otb), time control buttons (5+3, 10+5, 10, 15+10)
+  - Added weekly goal setting feature with title and description
+  - Updated schema to support all new fields
+  - Added goal filtering in history page
+  - Fixed TypeScript errors in storage layer
+
 ## Changelog
 
 Changelog:

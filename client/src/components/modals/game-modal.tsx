@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { gameSessionSchema, type GameSession } from "@shared/schema";
-import { Trophy, X } from "lucide-react";
+import { Trophy, X, Clock, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GameModalProps {
@@ -22,6 +22,8 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedResult, setSelectedResult] = useState<"win" | "loss" | null>(null);
+  const [selectedColor, setSelectedColor] = useState<"white" | "black" | null>(null);
+  const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
 
   const {
     register,
@@ -37,6 +39,9 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
       gameResult: undefined,
       gameType: undefined,
       gameComments: "",
+      playerColor: undefined,
+      platform: undefined,
+      timeControl: undefined,
     },
   });
 
@@ -54,6 +59,8 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
       });
       reset();
       setSelectedResult(null);
+      setSelectedColor(null);
+      setSelectedTimeControl(null);
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -72,6 +79,16 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
   const handleResultSelect = (result: "win" | "loss") => {
     setSelectedResult(result);
     setValue("gameResult", result);
+  };
+
+  const handleColorSelect = (color: "white" | "black") => {
+    setSelectedColor(color);
+    setValue("playerColor", color);
+  };
+
+  const handleTimeControlSelect = (timeControl: string) => {
+    setSelectedTimeControl(timeControl);
+    setValue("timeControl", timeControl as any);
   };
 
   return (
@@ -119,6 +136,92 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
             </div>
             {errors.gameResult && (
               <p className="text-sm text-red-600 mt-1">{errors.gameResult.message}</p>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+              Color
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "p-3 h-auto flex items-center justify-center space-x-2",
+                  selectedColor === "white"
+                    ? "border-gray-800 bg-gray-100 text-gray-800 ring-2 ring-gray-800"
+                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                )}
+                onClick={() => handleColorSelect("white")}
+              >
+                <Square className="w-4 h-4 fill-white stroke-gray-800" />
+                <span>White</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "p-3 h-auto flex items-center justify-center space-x-2",
+                  selectedColor === "black"
+                    ? "border-gray-800 bg-gray-800 text-white ring-2 ring-gray-800"
+                    : "border-gray-300 bg-gray-800 text-white hover:bg-gray-700"
+                )}
+                onClick={() => handleColorSelect("black")}
+              >
+                <Square className="w-4 h-4 fill-gray-800" />
+                <span>Black</span>
+              </Button>
+            </div>
+            {errors.playerColor && (
+              <p className="text-sm text-red-600 mt-1">{errors.playerColor.message}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
+              Platform
+            </Label>
+            <Select onValueChange={(value) => setValue("platform", value as any)}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lichess">Lichess</SelectItem>
+                <SelectItem value="chess.com">Chess.com</SelectItem>
+                <SelectItem value="otb">Over the Board</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.platform && (
+              <p className="text-sm text-red-600 mt-1">{errors.platform.message}</p>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+              Time Control
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              {["5+3", "10+5", "10", "15+10"].map((tc) => (
+                <Button
+                  key={tc}
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "p-2 h-auto flex items-center justify-center space-x-1",
+                    selectedTimeControl === tc
+                      ? "border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  )}
+                  onClick={() => handleTimeControlSelect(tc)}
+                >
+                  <Clock className="w-3 h-3" />
+                  <span className="text-sm">{tc}</span>
+                </Button>
+              ))}
+            </div>
+            {errors.timeControl && (
+              <p className="text-sm text-red-600 mt-1">{errors.timeControl.message}</p>
             )}
           </div>
 

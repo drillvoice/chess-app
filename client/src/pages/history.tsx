@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Puzzle, Crown, Book, Clock } from "lucide-react";
+import { Puzzle, Crown, Book, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +39,8 @@ export default function History() {
         return <Crown className="w-5 h-5 text-[#059669]" />;
       case "study":
         return <Book className="w-5 h-5 text-[#F59E0B]" />;
+      case "goal":
+        return <Target className="w-5 h-5 text-purple-600" />;
       default:
         return <Clock className="w-5 h-5 text-gray-500" />;
     }
@@ -52,6 +54,8 @@ export default function History() {
         return "bg-emerald-100";
       case "study":
         return "bg-amber-100";
+      case "goal":
+        return "bg-purple-100";
       default:
         return "bg-gray-100";
     }
@@ -65,6 +69,8 @@ export default function History() {
         return `${session.gameType?.charAt(0).toUpperCase()}${session.gameType?.slice(1)} Game`;
       case "study":
         return `${session.studyType?.charAt(0).toUpperCase()}${session.studyType?.slice(1)} Study`;
+      case "goal":
+        return session.goalTitle || "Weekly Goal";
       default:
         return "Training Session";
     }
@@ -73,11 +79,13 @@ export default function History() {
   const getSessionSubtitle = (session: TrainingSession) => {
     switch (session.type) {
       case "tactics":
-        return `${session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`;
+        return `${session.pointsGained && session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`;
       case "game":
-        return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} • ${session.gameComments || 'No comments'}`;
+        return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform} ${session.timeControl}`;
       case "study":
         return `${session.studyNotes || 'No notes'} • ${session.duration} min`;
+      case "goal":
+        return session.goalDescription || "Weekly focus area";
       default:
         return "";
     }
@@ -91,6 +99,8 @@ export default function History() {
         return session.gameResult === "win" ? "W" : "L";
       case "study":
         return session.studyType?.charAt(0).toUpperCase() || "";
+      case "goal":
+        return "🎯";
       default:
         return "";
     }
@@ -104,6 +114,8 @@ export default function History() {
         return session.gameResult === "win" ? "text-green-600" : "text-red-600";
       case "study":
         return "text-gray-800";
+      case "goal":
+        return "text-purple-600";
       default:
         return "text-gray-800";
     }
@@ -180,6 +192,18 @@ export default function History() {
           )}
         >
           Study
+        </Button>
+        <Button
+          variant={filter === "goal" ? "default" : "secondary"}
+          size="sm"
+          onClick={() => setFilter("goal")}
+          className={cn(
+            filter === "goal" 
+              ? "bg-[#1E40AF] text-white" 
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          )}
+        >
+          Goals
         </Button>
       </div>
 

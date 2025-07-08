@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Puzzle, Crown, Book } from "lucide-react";
+import { Puzzle, Crown, Book, Target } from "lucide-react";
 import TacticsModal from "@/components/modals/tactics-modal";
 import GameModal from "@/components/modals/game-modal";
 import StudyModal from "@/components/modals/study-modal";
+import GoalModal from "@/components/modals/goal-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -20,6 +21,7 @@ export default function Home() {
   const [tacticsModalOpen, setTacticsModalOpen] = useState(false);
   const [gameModalOpen, setGameModalOpen] = useState(false);
   const [studyModalOpen, setStudyModalOpen] = useState(false);
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ["/api/statistics"],
@@ -72,6 +74,19 @@ export default function Home() {
             </div>
           </div>
         </Button>
+
+        <Button
+          onClick={() => setGoalModalOpen(true)}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+        >
+          <div className="flex items-center justify-center space-x-3">
+            <Target className="w-6 h-6" />
+            <div className="text-left">
+              <div className="text-lg">Set Weekly Goal</div>
+              <div className="text-sm opacity-90">Focus Area</div>
+            </div>
+          </div>
+        </Button>
       </div>
 
       <Card className="bg-gray-100 rounded-xl mt-6">
@@ -105,6 +120,10 @@ export default function Home() {
       <StudyModal 
         open={studyModalOpen} 
         onOpenChange={setStudyModalOpen}
+      />
+      <GoalModal 
+        open={goalModalOpen} 
+        onOpenChange={setGoalModalOpen}
       />
     </div>
   );
