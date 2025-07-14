@@ -1,6 +1,6 @@
 {
   "name": "Chess Training Logger",
-  "short_name": "ChessTrainer",
+  "short_name": "Chess Training Logger", 
   "description": "Track your chess training sessions, tactics practice, and game results",
   "start_url": "/",
   "display": "standalone",
@@ -16,13 +16,12 @@
       "purpose": "maskable any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.svg", 
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable any"
     }
   ],
   "categories": ["sports", "utilities", "productivity"],
-  "lang": "en",
-
+  "lang": "en"
 }
