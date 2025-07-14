@@ -8,8 +8,21 @@ import {
   goalSessionSchema 
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // PWA routes with proper headers
+  app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'));
+  });
+  
+  app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(process.cwd(), 'public', 'sw.js'));
+  });
+
   // Get all training sessions
   app.get("/api/training-sessions", async (req, res) => {
     try {
