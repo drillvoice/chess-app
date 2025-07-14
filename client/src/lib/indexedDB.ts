@@ -8,6 +8,16 @@ export class IndexedDBStorage {
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
+    // Request persistent storage for maximum data protection
+    if ('storage' in navigator && 'persist' in navigator.storage) {
+      try {
+        const isPersistent = await navigator.storage.persist();
+        console.log('Persistent storage status:', isPersistent ? 'granted' : 'denied');
+      } catch (error) {
+        console.warn('Could not request persistent storage:', error);
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -215,6 +225,29 @@ export class IndexedDBStorage {
       todayTotalTime,
       todaySessions: todaySessionsCount
     };
+  }
+
+  async getStorageInfo() {
+    if ('storage' in navigator && 'estimate' in navigator.storage) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        const used = estimate.usage || 0;
+        const quota = estimate.quota || 0;
+        const persistent = await navigator.storage.persist();
+        
+        return {
+          used: Math.round(used / 1024 / 1024 * 100) / 100, // MB
+          quota: Math.round(quota / 1024 / 1024 * 100) / 100, // MB
+          persistent,
+          percentage: quota > 0 ? Math.round((used / quota) * 100) : 0
+        };
+      } catch (error) {
+        console.warn('Could not get storage estimate:', error);
+        return null;
+      }
+    }
+    
+    return null;
   }
 }
 

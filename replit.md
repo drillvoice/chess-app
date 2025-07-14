@@ -135,6 +135,8 @@ Preferred communication style: Simple, everyday language.
   - Implemented automatic data migration from localStorage to IndexedDB
   - Added fallback mechanism: uses IndexedDB when available, falls back to localStorage if needed
   - Enhanced PWA with better offline data reliability and larger storage capacity
+  - Added `navigator.storage.persist()` calls for maximum data protection against browser cleanup
+  - Implemented storage quota monitoring for usage tracking and optimization
 
 ## Changelog
 

@@ -11,6 +11,16 @@ class LocalStorage {
     if (this.initialized) return;
     
     try {
+      // Request persistent storage to protect from browser cleanup
+      if ('storage' in navigator && 'persist' in navigator.storage) {
+        const isPersistent = await navigator.storage.persist();
+        if (isPersistent) {
+          console.log('Persistent storage granted - your data is protected');
+        } else {
+          console.log('Persistent storage not granted - data may be cleared under storage pressure');
+        }
+      }
+      
       await indexedDBStorage.init();
       await this.migrateFromLocalStorage();
       this.initialized = true;
@@ -275,6 +285,31 @@ class LocalStorage {
       todayTotalTime,
       todaySessions: todaySessions.length
     };
+  }
+
+  async getStorageInfo() {
+    await this.init();
+    
+    if ('storage' in navigator && 'estimate' in navigator.storage) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        const used = estimate.usage || 0;
+        const quota = estimate.quota || 0;
+        const persistent = await navigator.storage.persist();
+        
+        return {
+          used: Math.round(used / 1024 / 1024 * 100) / 100, // MB
+          quota: Math.round(quota / 1024 / 1024 * 100) / 100, // MB
+          persistent,
+          percentage: quota > 0 ? Math.round((used / quota) * 100) : 0
+        };
+      } catch (error) {
+        console.warn('Could not get storage estimate:', error);
+        return null;
+      }
+    }
+    
+    return null;
   }
 }
 
