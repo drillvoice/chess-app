@@ -45,6 +45,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendFile(path.join(process.cwd(), 'public', 'icon-512.png'));
   });
 
+  // Screenshot route
+  app.get('/screenshot-mobile.png', (req, res) => {
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(path.join(process.cwd(), 'public', 'screenshot-mobile.png'));
+  });
+
   // Get all training sessions
   app.get("/api/training-sessions", async (req, res) => {
     try {

@@ -1,6 +1,7 @@
 {
   "name": "Chess Training Logger",
-  "short_name": "Chess Training Logger", 
+  "short_name": "Chess Training Logger",
+  "id": "chess-training-logger",
   "description": "Track your chess training sessions, tactics practice, and game results",
   "start_url": "/",
   "display": "standalone",
@@ -8,6 +9,19 @@
   "theme_color": "#1E40AF",
   "orientation": "portrait-primary",
   "scope": "/",
+  "dir": "ltr",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "360x640",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Chess Training Logger - Mobile View"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.svg",

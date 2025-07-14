@@ -3,8 +3,23 @@ const urlsToCache = [
   '/',
   '/manifest.json',
   '/icon-192.svg',
-  '/icon-512.svg'
+  '/icon-512.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/screenshot-mobile.png'
 ];
+
+// Background sync for offline actions
+self.addEventListener('sync', event => {
+  if (event.tag === 'background-sync') {
+    event.waitUntil(handleBackgroundSync());
+  }
+});
+
+async function handleBackgroundSync() {
+  // Handle any offline actions that need to be synced
+  console.log('Background sync triggered');
+}
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
