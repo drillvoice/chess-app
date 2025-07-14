@@ -23,6 +23,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendFile(path.join(process.cwd(), 'public', 'sw.js'));
   });
 
+  // SVG icon routes with proper Content-Type
+  app.get('/icon-192.svg', (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.sendFile(path.join(process.cwd(), 'public', 'icon-192.svg'));
+  });
+
+  app.get('/icon-512.svg', (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.sendFile(path.join(process.cwd(), 'public', 'icon-512.svg'));
+  });
+
+  // PNG icon routes with proper Content-Type
+  app.get('/icon-192.png', (req, res) => {
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(path.join(process.cwd(), 'public', 'icon-192.png'));
+  });
+
+  app.get('/icon-512.png', (req, res) => {
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(path.join(process.cwd(), 'public', 'icon-512.png'));
+  });
+
   // Get all training sessions
   app.get("/api/training-sessions", async (req, res) => {
     try {

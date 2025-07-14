@@ -129,6 +129,8 @@ Preferred communication style: Simple, everyday language.
   - Fixed PWA validation errors: manifest JSON syntax, service worker registration, required fields
   - Added proper Content-Type headers for PWA files (manifest.json, sw.js)
   - Created PWA test page for validation and troubleshooting
+  - Fixed Content-Type error for PWA Builder: SVG icons now serve with correct image/svg+xml headers
+  - Added PNG icon alternatives and proper routes for Google Play Store packaging compatibility
 
 ## Changelog
 
