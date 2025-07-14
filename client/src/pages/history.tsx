@@ -96,7 +96,7 @@ export default function History() {
       case "tactics":
         return session.finalScore?.toString() || "";
       case "game":
-        return session.gameResult === "win" ? "W" : "L";
+        return session.gameResult === "win" ? "W" : session.gameResult === "draw" ? "D" : "L";
       case "study":
         return session.studyType?.charAt(0).toUpperCase() || "";
       case "goal":
@@ -111,7 +111,7 @@ export default function History() {
       case "tactics":
         return "text-gray-800";
       case "game":
-        return session.gameResult === "win" ? "text-green-600" : "text-red-600";
+        return session.gameResult === "win" ? "text-green-600" : session.gameResult === "draw" ? "text-gray-600" : "text-red-600";
       case "study":
         return "text-gray-800";
       case "goal":

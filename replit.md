@@ -137,6 +137,9 @@ Preferred communication style: Simple, everyday language.
   - Enhanced PWA with better offline data reliability and larger storage capacity
   - Added `navigator.storage.persist()` calls for maximum data protection against browser cleanup
   - Implemented storage quota monitoring for usage tracking and optimization
+  - Enhanced game logging to include draw results alongside wins and losses
+  - Updated statistics calculations to properly track wins, draws, and losses
+  - Modified history display to show draws with appropriate color coding
 
 ## Changelog
 

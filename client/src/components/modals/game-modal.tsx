@@ -21,7 +21,7 @@ interface GameModalProps {
 export default function GameModal({ open, onOpenChange }: GameModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedResult, setSelectedResult] = useState<"win" | "loss" | null>(null);
+  const [selectedResult, setSelectedResult] = useState<"win" | "loss" | "draw" | null>(null);
   const [selectedColor, setSelectedColor] = useState<"white" | "black" | null>(null);
   const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
     mutation.mutate(data);
   };
 
-  const handleResultSelect = (result: "win" | "loss") => {
+  const handleResultSelect = (result: "win" | "loss" | "draw") => {
     setSelectedResult(result);
     setValue("gameResult", result);
   };
@@ -148,7 +148,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
             <Label className="text-sm font-medium text-gray-700 mb-2 block">
               Result
             </Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Button
                 type="button"
                 variant="outline"
@@ -162,6 +162,20 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
               >
                 <Trophy className="w-4 h-4" />
                 <span>Win</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "p-3 h-auto flex items-center justify-center space-x-2",
+                  selectedResult === "draw"
+                    ? "border-gray-500 bg-gray-50 text-gray-800 ring-2 ring-gray-500"
+                    : "border-gray-300 bg-gray-50 text-gray-800 hover:bg-gray-100"
+                )}
+                onClick={() => handleResultSelect("draw")}
+              >
+                <Square className="w-4 h-4" />
+                <span>Draw</span>
               </Button>
               <Button
                 type="button"

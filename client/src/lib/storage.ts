@@ -272,6 +272,8 @@ class LocalStorage {
     
     const gamesSessions = sessions.filter(s => s.type === 'game');
     const wins = gamesSessions.filter(s => s.gameResult === 'win').length;
+    const draws = gamesSessions.filter(s => s.gameResult === 'draw').length;
+    const losses = gamesSessions.filter(s => s.gameResult === 'loss').length;
     const winRate = gamesSessions.length > 0 ? Math.round((wins / gamesSessions.length) * 100) : 0;
     
     const todaySessions = sessions.filter(s => new Date(s.date) >= today);
@@ -283,7 +285,13 @@ class LocalStorage {
       tacticsRating,
       winRate,
       todayTotalTime,
-      todaySessions: todaySessions.length
+      todaySessions: todaySessions.length,
+      gameStats: {
+        wins,
+        draws,
+        losses,
+        total: gamesSessions.length
+      }
     };
   }
 

@@ -202,8 +202,10 @@ export class IndexedDBStorage {
       .reduce((sum, s) => sum + (s.finalScore || 0), 0) / 
       sessions.filter(s => s.type === 'tactics' && s.finalScore).length || 0;
 
-    const gameResults = sessions.filter(s => s.type === 'game' && s.result);
-    const wins = gameResults.filter(s => s.result === 'win').length;
+    const gameResults = sessions.filter(s => s.type === 'game' && s.gameResult);
+    const wins = gameResults.filter(s => s.gameResult === 'win').length;
+    const draws = gameResults.filter(s => s.gameResult === 'draw').length;
+    const losses = gameResults.filter(s => s.gameResult === 'loss').length;
     const winRate = gameResults.length > 0 ? (wins / gameResults.length) * 100 : 0;
 
     const todaySessions = sessions.filter(session => {
@@ -223,7 +225,13 @@ export class IndexedDBStorage {
       tacticsRating: Math.round(tacticsRating) || 0,
       winRate: Math.round(winRate * 10) / 10,
       todayTotalTime,
-      todaySessions: todaySessionsCount
+      todaySessions: todaySessionsCount,
+      gameStats: {
+        wins,
+        draws,
+        losses,
+        total: gameResults.length
+      }
     };
   }
 

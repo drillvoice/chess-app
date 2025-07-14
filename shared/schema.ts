@@ -12,7 +12,7 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   finalScore: integer("final_score"),
   tacticsNotes: text("tactics_notes"),
   // Game specific fields
-  gameResult: text("game_result"), // 'win', 'loss'
+  gameResult: text("game_result"), // 'win', 'loss', 'draw'
   gameType: text("game_type"), // 'blitz', 'rapid', 'classical', 'bullet'
   gameComments: text("game_comments"),
   playerColor: text("player_color"), // 'white', 'black'
@@ -53,7 +53,7 @@ export const tacticsSessionSchema = insertTrainingSessionSchema.extend({
 
 export const gameSessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('game'),
-  gameResult: z.enum(['win', 'loss'], {
+  gameResult: z.enum(['win', 'loss', 'draw'], {
     required_error: "Game result is required",
   }),
   gameComments: z.string().optional(),
