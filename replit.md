@@ -122,6 +122,10 @@ Preferred communication style: Simple, everyday language.
   - Implemented weekly goal display on homescreen with automatic detection of week-old goals and prompts for new goals
   - Added prompt to set weekly goal when no goal currently exists
   - Added data export/backup functionality to save training data as downloadable files, providing free alternative to paid database services
+  - Converted to Progressive Web App (PWA) with offline functionality for mobile installation
+  - Added localStorage-based offline storage system for complete offline functionality
+  - Implemented service worker for app caching and offline access
+  - Added install prompt for "Add to Home Screen" functionality on mobile devices
 
 ## Changelog
 

@@ -5,6 +5,7 @@ import TacticsModal from "@/components/modals/tactics-modal";
 import GameModal from "@/components/modals/game-modal";
 import StudyModal from "@/components/modals/study-modal";
 import GoalModal from "@/components/modals/goal-modal";
+import InstallPrompt from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TrainingSession } from "@shared/schema";
@@ -39,6 +40,8 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      <InstallPrompt />
+      
       <div className="text-center py-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Log Your Training</h2>
         <p className="text-gray-600 text-sm">Track your chess improvement journey</p>
