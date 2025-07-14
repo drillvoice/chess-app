@@ -3,35 +3,35 @@ import { localStorage } from "./storage";
 // Offline API that mimics the server API but uses localStorage
 export const offlineApi = {
   async getStatistics() {
-    return localStorage.getStatistics();
+    return await localStorage.getStatistics();
   },
 
   async getAllTrainingSessions() {
-    return localStorage.getAllSessions();
+    return await localStorage.getAllSessions();
   },
 
   async getTrainingSessionsByType(type: string) {
-    return localStorage.getSessionsByType(type);
+    return await localStorage.getSessionsByType(type);
   },
 
   async createTrainingSession(session: any) {
-    return localStorage.createSession(session);
+    return await localStorage.createSession(session);
   },
 
   async deleteTrainingSession(id: number) {
-    return localStorage.deleteSession(id);
+    return await localStorage.deleteSession(id);
   },
 
   async getCurrentWeeklyGoal() {
-    return localStorage.getCurrentWeeklyGoal();
+    return await localStorage.getCurrentWeeklyGoal();
   },
 
   async exportData() {
-    return localStorage.exportData();
+    return await localStorage.exportData();
   },
 
   async importData(data: string) {
-    return localStorage.importData(data);
+    return await localStorage.importData(data);
   }
 };
 
@@ -59,7 +59,7 @@ export const apiCall = async (endpoint: string, options?: RequestInit) => {
     }
     if (endpoint === '/api/import' && options?.method === 'POST') {
       const body = options.body ? JSON.parse(options.body as string) : {};
-      offlineApi.importData(body.data);
+      await offlineApi.importData(body.data);
       return { ok: true, json: () => Promise.resolve({ message: 'Data imported successfully' }) };
     }
   }

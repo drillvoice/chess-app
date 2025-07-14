@@ -131,6 +131,10 @@ Preferred communication style: Simple, everyday language.
   - Created PWA test page for validation and troubleshooting
   - Fixed Content-Type error for PWA Builder: SVG icons now serve with correct image/svg+xml headers
   - Added PNG icon alternatives and proper routes for Google Play Store packaging compatibility
+  - Upgraded storage from localStorage to IndexedDB for more reliable data persistence
+  - Implemented automatic data migration from localStorage to IndexedDB
+  - Added fallback mechanism: uses IndexedDB when available, falls back to localStorage if needed
+  - Enhanced PWA with better offline data reliability and larger storage capacity
 
 ## Changelog
 

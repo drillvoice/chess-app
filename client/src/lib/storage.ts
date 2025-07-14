@@ -1,8 +1,48 @@
 import { TrainingSession, InsertTrainingSession } from "@shared/schema";
+import { indexedDBStorage } from "./indexedDB";
 
 class LocalStorage {
   private storageKey = 'chess-training-sessions';
   private currentIdKey = 'chess-training-current-id';
+  private useIndexedDB = true;
+  private initialized = false;
+
+  async init() {
+    if (this.initialized) return;
+    
+    try {
+      await indexedDBStorage.init();
+      await this.migrateFromLocalStorage();
+      this.initialized = true;
+    } catch (error) {
+      console.warn('Failed to initialize IndexedDB, using localStorage:', error);
+      this.useIndexedDB = false;
+      this.initialized = true;
+    }
+  }
+
+  private async migrateFromLocalStorage() {
+    // Check if we have data in localStorage but not in IndexedDB
+    const localData = this.getSessions();
+    if (localData.size === 0) return;
+
+    try {
+      const indexedData = await indexedDBStorage.getAllSessions();
+      if (indexedData.length === 0) {
+        console.log('Migrating data from localStorage to IndexedDB...');
+        
+        // Migrate each session
+        for (const session of localData.values()) {
+          await indexedDBStorage.createSession(session);
+        }
+        
+        console.log(`Migrated ${localData.size} sessions to IndexedDB`);
+      }
+    } catch (error) {
+      console.warn('Migration failed, continuing with localStorage:', error);
+      this.useIndexedDB = false;
+    }
+  }
 
   private getSessions(): Map<number, TrainingSession> {
     const stored = localStorage.getItem(this.storageKey);
@@ -26,23 +66,74 @@ class LocalStorage {
     localStorage.setItem(this.currentIdKey, id.toString());
   }
 
-  getAllSessions(): TrainingSession[] {
+  async getAllSessions(): Promise<TrainingSession[]> {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.getAllSessions();
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
     return Array.from(this.getSessions().values())
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
-  getSessionsByType(type: string): TrainingSession[] {
-    return this.getAllSessions().filter(session => session.type === type);
+  async getSessionsByType(type: string): Promise<TrainingSession[]> {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.getSessionsByType(type);
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
+    const sessions = await this.getAllSessions();
+    return sessions.filter(session => session.type === type);
   }
 
-  getSessionsByDateRange(startDate: Date, endDate: Date): TrainingSession[] {
-    return this.getAllSessions().filter(session => {
+  async getSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]> {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.getSessionsByDateRange(startDate, endDate);
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
+    const sessions = await this.getAllSessions();
+    return sessions.filter(session => {
       const sessionDate = new Date(session.date);
       return sessionDate >= startDate && sessionDate <= endDate;
     });
   }
 
-  createSession(insertSession: InsertTrainingSession): TrainingSession {
+  async createSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        const sessionData = {
+          ...insertSession,
+          date: insertSession.date || new Date(),
+          goalWeekStart: insertSession.type === 'goal' && !insertSession.goalWeekStart ? new Date() : insertSession.goalWeekStart,
+        };
+        return await indexedDBStorage.createSession(sessionData);
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
     const sessions = this.getSessions();
     const currentId = this.getCurrentId();
     
@@ -60,7 +151,18 @@ class LocalStorage {
     return session;
   }
 
-  deleteSession(id: number): boolean {
+  async deleteSession(id: number): Promise<boolean> {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.deleteSession(id);
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
     const sessions = this.getSessions();
     const deleted = sessions.delete(id);
     if (deleted) {
@@ -69,11 +171,23 @@ class LocalStorage {
     return deleted;
   }
 
-  getCurrentWeeklyGoal(): TrainingSession | undefined {
+  async getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.getCurrentWeeklyGoal();
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
-    const goals = this.getAllSessions()
+    const sessions = await this.getAllSessions();
+    const goals = sessions
       .filter(session => session.type === 'goal')
       .filter(session => session.goalWeekStart && new Date(session.goalWeekStart) >= oneWeekAgo)
       .sort((a, b) => new Date(b.goalWeekStart!).getTime() - new Date(a.goalWeekStart!).getTime());
@@ -81,12 +195,30 @@ class LocalStorage {
     return goals[0];
   }
 
-  exportData(): string {
-    const sessions = this.getAllSessions();
+  async exportData(): Promise<string> {
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.exportData();
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
+    const sessions = await this.getAllSessions();
     return JSON.stringify(sessions, null, 2);
   }
 
-  importData(data: string): void {
+  async importData(data: string): Promise<void> {
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.importData(data);
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
     try {
       const sessions: TrainingSession[] = JSON.parse(data);
       const sessionMap = new Map<number, TrainingSession>();
@@ -106,8 +238,19 @@ class LocalStorage {
     }
   }
 
-  getStatistics() {
-    const sessions = this.getAllSessions();
+  async getStatistics() {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.getStatistics();
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
+    const sessions = await this.getAllSessions();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
