@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database } from "lucide-react";
+import { Download, Upload, Database, FolderOpen, FolderX } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
+import { localStorage } from "@/lib/storage";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -70,6 +73,67 @@ export default function DataManagement() {
     }
   };
 
+  const handleEnableFileSync = async () => {
+    if (!localStorage.isFileSystemSyncSupported()) {
+      toast({
+        title: "Not Supported",
+        description: "File System Access API not supported in this browser",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncLoading(true);
+    try {
+      const success = await localStorage.enableFileSystemSync();
+      if (success) {
+        setSyncEnabled(true);
+        toast({
+          title: "Success",
+          description: "Automatic file backup enabled! Your data will be automatically saved to the selected folder.",
+        });
+      } else {
+        toast({
+          title: "Cancelled",
+          description: "Folder selection was cancelled",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to enable automatic backup",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleDisableFileSync = async () => {
+    setSyncLoading(true);
+    try {
+      await localStorage.disableFileSystemSync();
+      setSyncEnabled(false);
+      toast({
+        title: "Success",
+        description: "Automatic file backup disabled",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to disable automatic backup",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Check sync status on component mount
+  useEffect(() => {
+    setSyncEnabled(localStorage.isFileSystemSyncEnabled());
+  }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -116,10 +180,48 @@ export default function DataManagement() {
           />
         </div>
 
+        <div>
+          <Label className="text-sm font-medium text-gray-700 mb-2 block">
+            Automatic File Backup
+          </Label>
+          <p className="text-sm text-gray-600 mb-3">
+            {syncEnabled 
+              ? "Your data is automatically saved to a local folder after every change" 
+              : "Enable automatic backup to save your data to a local folder"}
+          </p>
+          {syncEnabled ? (
+            <Button 
+              onClick={handleDisableFileSync} 
+              className="w-full" 
+              variant="outline"
+              disabled={syncLoading}
+            >
+              <FolderX className="w-4 h-4 mr-2" />
+              {syncLoading ? "Disabling..." : "Disable Auto-Backup"}
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleEnableFileSync} 
+              className="w-full" 
+              variant="outline"
+              disabled={syncLoading || !localStorage.isFileSystemSyncSupported()}
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              {syncLoading ? "Enabling..." : "Enable Auto-Backup"}
+            </Button>
+          )}
+          {!localStorage.isFileSystemSyncSupported() && (
+            <p className="text-xs text-gray-500 mt-2">
+              Auto-backup requires a modern browser with File System Access API support
+            </p>
+          )}
+        </div>
+
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Data is stored locally while you use the app. 
-            Export regularly to keep a backup of your training history.
+            <strong>Note:</strong> {syncEnabled 
+              ? "With auto-backup enabled, your data is automatically saved to your chosen folder after every session. You can still export manually as needed."
+              : "Data is stored locally while you use the app. Export regularly to keep a backup of your training history."}
           </p>
         </div>
       </CardContent>

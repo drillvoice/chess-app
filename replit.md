@@ -140,6 +140,10 @@ Preferred communication style: Simple, everyday language.
   - Enhanced game logging to include draw results alongside wins and losses
   - Updated statistics calculations to properly track wins, draws, and losses
   - Modified history display to show draws with appropriate color coding
+  - Implemented automatic file system synchronization using File System Access API
+  - Added bulletproof data persistence by auto-saving to user-selected folder
+  - Created file system sync controls in data management interface
+  - Added automatic data restoration from file system on app startup
 
 ## Changelog
 

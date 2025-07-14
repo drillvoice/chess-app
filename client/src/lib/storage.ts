@@ -1,14 +1,22 @@
 import { TrainingSession, InsertTrainingSession } from "@shared/schema";
 import { indexedDBStorage } from "./indexedDB";
+import { createChessDataSync, FileSystemSync } from "./fileSystemSync";
 
 class LocalStorage {
   private storageKey = 'chess-training-sessions';
   private currentIdKey = 'chess-training-current-id';
   private useIndexedDB = true;
   private initialized = false;
+  private fileSystemSync: FileSystemSync;
 
   async init() {
     if (this.initialized) return;
+    
+    // Initialize file system sync
+    this.fileSystemSync = createChessDataSync({
+      onError: (error) => console.error('FileSystem sync error:', error),
+      onSuccess: (message) => console.log('FileSystem sync:', message)
+    });
     
     try {
       // Request persistent storage to protect from browser cleanup
@@ -22,7 +30,15 @@ class LocalStorage {
       }
       
       await indexedDBStorage.init();
+      
+      // Initialize file system sync and try to load data
+      await this.fileSystemSync.initialize();
+      
       await this.migrateFromLocalStorage();
+      
+      // Try to load from file system if IndexedDB is empty
+      await this.loadFromFileSystemIfEmpty();
+      
       this.initialized = true;
     } catch (error) {
       console.warn('Failed to initialize IndexedDB, using localStorage:', error);
@@ -51,6 +67,51 @@ class LocalStorage {
     } catch (error) {
       console.warn('Migration failed, continuing with localStorage:', error);
       this.useIndexedDB = false;
+    }
+  }
+
+  /**
+   * Loads data from file system backup if IndexedDB is empty
+   * This helps restore data after browser cleanup or on new devices
+   * @private
+   */
+  private async loadFromFileSystemIfEmpty(): Promise<void> {
+    if (!this.fileSystemSync.isAutoSyncEnabled()) return;
+    
+    try {
+      const indexedData = await indexedDBStorage.getAllSessions();
+      if (indexedData.length === 0) {
+        console.log('IndexedDB is empty, attempting to load from file system...');
+        
+        const fileSystemData = await this.fileSystemSync.autoLoadData();
+        if (fileSystemData.length > 0) {
+          console.log(`Loading ${fileSystemData.length} sessions from file system backup...`);
+          
+          // Import each session to IndexedDB
+          for (const session of fileSystemData) {
+            await indexedDBStorage.createSession(session);
+          }
+          
+          console.log('File system data restored successfully!');
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load from file system:', error);
+    }
+  }
+
+  /**
+   * Automatically saves all sessions to file system after any data change
+   * @private
+   */
+  private async autoSaveToFileSystem(): Promise<void> {
+    if (!this.fileSystemSync.isAutoSyncEnabled()) return;
+    
+    try {
+      const sessions = await this.getAllSessions();
+      await this.fileSystemSync.autoSaveData(sessions);
+    } catch (error) {
+      console.warn('Auto-save to file system failed:', error);
     }
   }
 
@@ -137,7 +198,12 @@ class LocalStorage {
           date: insertSession.date || new Date(),
           goalWeekStart: insertSession.type === 'goal' && !insertSession.goalWeekStart ? new Date() : insertSession.goalWeekStart,
         };
-        return await indexedDBStorage.createSession(sessionData);
+        const session = await indexedDBStorage.createSession(sessionData);
+        
+        // Auto-save to file system after successful creation
+        await this.autoSaveToFileSystem();
+        
+        return session;
       } catch (error) {
         console.warn('IndexedDB failed, falling back to localStorage:', error);
         this.useIndexedDB = false;
@@ -158,6 +224,9 @@ class LocalStorage {
     this.saveSessions(sessions);
     this.setCurrentId(currentId + 1);
     
+    // Auto-save to file system after successful creation
+    await this.autoSaveToFileSystem();
+    
     return session;
   }
 
@@ -166,7 +235,14 @@ class LocalStorage {
     
     if (this.useIndexedDB) {
       try {
-        return await indexedDBStorage.deleteSession(id);
+        const result = await indexedDBStorage.deleteSession(id);
+        
+        // Auto-save to file system after successful deletion
+        if (result) {
+          await this.autoSaveToFileSystem();
+        }
+        
+        return result;
       } catch (error) {
         console.warn('IndexedDB failed, falling back to localStorage:', error);
         this.useIndexedDB = false;
@@ -177,6 +253,9 @@ class LocalStorage {
     const deleted = sessions.delete(id);
     if (deleted) {
       this.saveSessions(sessions);
+      
+      // Auto-save to file system after successful deletion
+      await this.autoSaveToFileSystem();
     }
     return deleted;
   }
@@ -293,6 +372,73 @@ class LocalStorage {
         total: gamesSessions.length
       }
     };
+  }
+
+  async getStorageInfo() {
+    await this.init();
+    
+    if (this.useIndexedDB) {
+      try {
+        return await indexedDBStorage.getStorageInfo();
+      } catch (error) {
+        console.warn('IndexedDB failed, falling back to localStorage:', error);
+        this.useIndexedDB = false;
+      }
+    }
+    
+    const sessions = await this.getAllSessions();
+    const totalSessions = sessions.length;
+    const storageSize = JSON.stringify(sessions).length;
+    
+    return {
+      totalSessions,
+      storageSize,
+      storageType: 'localStorage'
+    };
+  }
+
+  /**
+   * Enables automatic file system synchronization
+   * @returns {Promise<boolean>} True if sync was successfully enabled
+   */
+  async enableFileSystemSync(): Promise<boolean> {
+    await this.init();
+    
+    if (!this.fileSystemSync.isFileSystemAccessSupported()) {
+      throw new Error('File System Access API not supported in this browser');
+    }
+    
+    const success = await this.fileSystemSync.requestDirectoryAccess();
+    if (success) {
+      // Perform initial sync
+      await this.autoSaveToFileSystem();
+    }
+    
+    return success;
+  }
+
+  /**
+   * Disables automatic file system synchronization
+   */
+  async disableFileSystemSync(): Promise<void> {
+    await this.init();
+    await this.fileSystemSync.disableAutoSync();
+  }
+
+  /**
+   * Checks if file system sync is currently enabled
+   * @returns {boolean} True if auto-sync is active
+   */
+  isFileSystemSyncEnabled(): boolean {
+    return this.fileSystemSync?.isAutoSyncEnabled() || false;
+  }
+
+  /**
+   * Checks if file system sync is supported in current browser
+   * @returns {boolean} True if API is available
+   */
+  isFileSystemSyncSupported(): boolean {
+    return this.fileSystemSync?.isFileSystemAccessSupported() || false;
   }
 
   async getStorageInfo() {
