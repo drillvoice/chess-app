@@ -354,8 +354,10 @@ class LocalStorage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const totalSessions = sessions.length;
-    const totalHours = sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / 60;
+    // Filter out goal sessions from session counts
+    const actualSessions = sessions.filter(s => s.type !== 'goal');
+    const totalSessions = actualSessions.length;
+    const totalHours = actualSessions.reduce((sum, session) => sum + (session.duration || 0), 0) / 60;
     
     const tacticsSession = sessions.filter(s => s.type === 'tactics').pop();
     const tacticsRating = tacticsSession?.finalScore || 0;
@@ -366,7 +368,8 @@ class LocalStorage {
     const losses = gamesSessions.filter(s => s.gameResult === 'loss').length;
     const winRate = gamesSessions.length > 0 ? Math.round((wins / gamesSessions.length) * 100) : 0;
     
-    const todaySessions = sessions.filter(s => new Date(s.date) >= today);
+    // Today's sessions should also exclude goal sessions
+    const todaySessions = actualSessions.filter(s => new Date(s.date) >= today);
     const todayTotalTime = todaySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
     
     return {
