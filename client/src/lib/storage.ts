@@ -28,26 +28,18 @@ class LocalStorage {
       onSuccess: (message) => console.log('Mobile backup:', message)
     });
 
-    // Initialize Google Drive sync
-    try {
-      this.googleDriveSync = createGoogleDriveSync({
-        onError: (error) => console.error('Google Drive sync error:', error),
-        onSuccess: (message) => console.log('Google Drive sync:', message)
-      });
-    } catch (error) {
-      console.error('Failed to initialize Google Drive sync:', error);
-      // Create a fallback object to prevent null reference errors
-      this.googleDriveSync = {
-        configure: () => {},
-        signIn: () => Promise.resolve(false),
-        signOut: () => Promise.resolve(),
-        selectBackupFolder: () => Promise.resolve(false),
-        uploadData: () => Promise.resolve(false),
-        downloadData: () => Promise.resolve([]),
-        isEnabled: () => false,
-        getSyncStatus: () => ({ isSignedIn: false, hasFolder: false, hasFile: false, isEnabled: false })
-      } as GoogleDriveSync;
-    }
+    // Initialize Google Drive sync (temporarily disabled to debug)
+    // Create a fallback object to prevent null reference errors
+    this.googleDriveSync = {
+      configure: () => {},
+      signIn: () => Promise.resolve(false),
+      signOut: () => Promise.resolve(),
+      selectBackupFolder: () => Promise.resolve(false),
+      uploadData: () => Promise.resolve(false),
+      downloadData: () => Promise.resolve([]),
+      isEnabled: () => false,
+      getSyncStatus: () => ({ isSignedIn: false, hasFolder: false, hasFile: false, isEnabled: false })
+    } as GoogleDriveSync;
     
     try {
       // Request persistent storage to protect from browser cleanup
