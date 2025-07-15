@@ -1,111 +1,158 @@
 import { TrainingSession, InsertTrainingSession } from "@shared/schema";
-import { hybridStorage } from "./hybridStorage";
+import { indexedDBStorage } from "./indexedDB";
+import { createChessDataSync } from "./fileSystemSync";
 
 class LocalStorage {
   private initialized = false;
+  private fileSystemSync: ReturnType<typeof createChessDataSync>;
+
+  constructor() {
+    this.fileSystemSync = createChessDataSync({
+      onError: (error) => console.warn('File system sync error:', error),
+      onSuccess: (message) => console.log('File system sync:', message)
+    });
+  }
 
   async init() {
     if (this.initialized) return;
     
-    await hybridStorage.init();
+    await indexedDBStorage.init();
+    await this.fileSystemSync.initialize();
     this.initialized = true;
   }
 
   async getAllSessions(): Promise<TrainingSession[]> {
     await this.init();
-    return hybridStorage.getAllSessions();
+    return indexedDBStorage.getAllSessions();
   }
 
   async getSessionsByType(type: string): Promise<TrainingSession[]> {
     await this.init();
-    return hybridStorage.getSessionsByType(type);
+    return indexedDBStorage.getSessionsByType(type);
   }
 
   async getSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]> {
     await this.init();
-    return hybridStorage.getSessionsByDateRange(startDate, endDate);
+    return indexedDBStorage.getSessionsByDateRange(startDate, endDate);
   }
 
   async createSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
     await this.init();
-    return hybridStorage.createSession(insertSession);
+    const session = await indexedDBStorage.createSession(insertSession);
+    
+    // Auto-save to file system if enabled
+    if (this.isFileSystemSyncEnabled()) {
+      try {
+        const allSessions = await indexedDBStorage.getAllSessions();
+        await this.fileSystemSync.autoSaveData(allSessions);
+      } catch (error) {
+        console.warn('Auto-save failed:', error);
+      }
+    }
+    
+    return session;
   }
 
   async deleteSession(id: number): Promise<boolean> {
     await this.init();
-    return hybridStorage.deleteSession(id);
+    const result = await indexedDBStorage.deleteSession(id);
+    
+    // Auto-save to file system if enabled
+    if (this.isFileSystemSyncEnabled()) {
+      try {
+        const allSessions = await indexedDBStorage.getAllSessions();
+        await this.fileSystemSync.autoSaveData(allSessions);
+      } catch (error) {
+        console.warn('Auto-save failed:', error);
+      }
+    }
+    
+    return result;
   }
 
   async getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
     await this.init();
-    return hybridStorage.getCurrentWeeklyGoal();
+    return indexedDBStorage.getCurrentWeeklyGoal();
   }
 
   async exportData(): Promise<string> {
     await this.init();
-    return hybridStorage.exportData();
+    return indexedDBStorage.exportData();
   }
 
   async importData(data: string): Promise<void> {
     await this.init();
-    return hybridStorage.importData(data);
+    return indexedDBStorage.importData(data);
   }
 
   async getStatistics() {
     await this.init();
-    return hybridStorage.getStatistics();
+    return indexedDBStorage.getStatistics();
   }
 
   async getStorageInfo() {
     await this.init();
-    return hybridStorage.getStorageInfo();
+    return indexedDBStorage.getStorageInfo();
   }
 
   // File system sync methods
   async enableFileSystemSync(): Promise<boolean> {
     await this.init();
-    return hybridStorage.enableFileSystemSync();
+    const success = await this.fileSystemSync.requestDirectoryAccess();
+    if (success) {
+      // Auto-save current data to file system
+      try {
+        const allSessions = await indexedDBStorage.getAllSessions();
+        await this.fileSystemSync.autoSaveData(allSessions);
+      } catch (error) {
+        console.warn('Initial auto-save failed:', error);
+      }
+    }
+    return success;
   }
 
   async disableFileSystemSync(): Promise<void> {
     await this.init();
-    return hybridStorage.disableFileSystemSync();
+    await this.fileSystemSync.disableAutoSync();
   }
 
   isFileSystemSyncEnabled(): boolean {
-    return hybridStorage.isFileSystemSyncEnabled();
+    return this.fileSystemSync.isAutoSyncEnabled();
   }
 
   isFileSystemSyncSupported(): boolean {
-    return hybridStorage.isFileSystemSyncSupported();
+    return this.fileSystemSync.isFileSystemAccessSupported();
   }
 
-  // Cloud sync methods
+  // Cloud sync methods (simplified - no actual cloud sync)
   isSyncEnabled(): boolean {
-    return hybridStorage.isSyncEnabled();
+    return false; // No cloud sync without Firebase
   }
 
   async forceSyncNow(): Promise<void> {
     await this.init();
-    return hybridStorage.forceSyncNow();
+    // Just sync to file system if enabled
+    if (this.isFileSystemSyncEnabled()) {
+      const allSessions = await indexedDBStorage.getAllSessions();
+      await this.fileSystemSync.autoSaveData(allSessions);
+    }
   }
 
   subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
-    return hybridStorage.subscribeToSessions(callback);
+    // No real-time subscriptions without Firebase
+    return () => {};
   }
 
   async goOnline() {
-    await this.init();
-    return hybridStorage.goOnline();
+    // No-op without cloud sync
   }
 
   async goOffline() {
-    await this.init();
-    return hybridStorage.goOffline();
+    // No-op without cloud sync
   }
 
   cleanup() {
-    hybridStorage.cleanup();
+    // No cleanup needed
   }
 }
 

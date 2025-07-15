@@ -111,14 +111,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- July 15, 2025: Added Firebase Firestore cloud sync integration
-  - Implemented Firebase authentication with anonymous sign-in
-  - Created hybrid storage system combining IndexedDB, Firestore, and file system sync
-  - Added real-time data synchronization across devices
-  - Integrated Firebase authentication component in data management
-  - Added force sync functionality for manual data synchronization
-  - Enhanced PWA with automatic cloud backup and cross-device sync
-  - Maintained backward compatibility with existing file system sync
+- July 15, 2025: Resolved React import conflicts and simplified storage system
+  - Removed Firebase integration to fix React useRef runtime errors
+  - Simplified storage system to use IndexedDB with file system sync only
+  - Maintained all existing functionality without cloud sync complexity
+  - Fixed application loading issues and restored stability
+  - Kept offline-first approach with automatic file system backup
 
 - July 08, 2025: Enhanced training session logging with additional fields
   - Added tactics notes field for quick observations

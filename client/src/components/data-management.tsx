@@ -143,12 +143,12 @@ export default function DataManagement() {
       
       toast({
         title: "Success",
-        description: "Data synchronized successfully!",
+        description: "Data backed up to file system!",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to sync data. Please check your connection.",
+        description: "Failed to backup data to file system.",
         variant: "destructive",
       });
     } finally {
@@ -170,24 +170,25 @@ export default function DataManagement() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Firebase Cloud Sync - Temporarily disabled */}
-        {/* <div>
+        {/* File System Backup */}
+        <div>
           <Label className="text-sm font-medium text-gray-700 mb-3 block">
-            Cloud Sync
+            File System Backup
           </Label>
           <div className="space-y-3">
-            <FirebaseAuth />
-            <Button 
-              onClick={handleForceSync} 
-              className="w-full" 
-              variant="outline"
-              disabled={forceSyncLoading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${forceSyncLoading ? 'animate-spin' : ''}`} />
-              {forceSyncLoading ? "Syncing..." : "Force Sync Now"}
-            </Button>
+            {localStorage.isFileSystemSyncSupported() && (
+              <Button 
+                onClick={handleForceSync} 
+                className="w-full" 
+                variant="outline"
+                disabled={forceSyncLoading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${forceSyncLoading ? 'animate-spin' : ''}`} />
+                {forceSyncLoading ? "Backing up..." : "Backup to File System"}
+              </Button>
+            )}
           </div>
-        </div> */}
+        </div>
 
         <div>
           <Label className="text-sm font-medium text-gray-700 mb-2 block">
