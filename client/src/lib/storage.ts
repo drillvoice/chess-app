@@ -2,6 +2,7 @@ import { TrainingSession, InsertTrainingSession } from "@shared/schema";
 import { indexedDBStorage } from "./indexedDB";
 import { createChessDataSync, FileSystemSync } from "./fileSystemSync";
 import { createMobileBackup, type MobileBackup } from "./mobileBackup";
+import { createGoogleDriveSync, GoogleDriveSync } from "./googleDrive";
 
 class LocalStorage {
   private storageKey = 'chess-training-sessions';
@@ -10,6 +11,7 @@ class LocalStorage {
   private initialized = false;
   private fileSystemSync: FileSystemSync;
   private mobileBackup: MobileBackup;
+  private googleDriveSync: GoogleDriveSync;
 
   async init() {
     if (this.initialized) return;
@@ -24,6 +26,12 @@ class LocalStorage {
     this.mobileBackup = createMobileBackup({
       onError: (error) => console.error('Mobile backup error:', error),
       onSuccess: (message) => console.log('Mobile backup:', message)
+    });
+
+    // Initialize Google Drive sync
+    this.googleDriveSync = createGoogleDriveSync({
+      onError: (error) => console.error('Google Drive sync error:', error),
+      onSuccess: (message) => console.log('Google Drive sync:', message)
     });
     
     try {
@@ -46,6 +54,9 @@ class LocalStorage {
       
       // Try to load from file system if IndexedDB is empty
       await this.loadFromFileSystemIfEmpty();
+      
+      // Try to load from Google Drive
+      await this.loadFromGoogleDriveIfAvailable();
       
       this.initialized = true;
     } catch (error) {
@@ -120,6 +131,41 @@ class LocalStorage {
       await this.fileSystemSync.autoSaveData(sessions);
     } catch (error) {
       console.warn('Auto-save to file system failed:', error);
+    }
+  }
+
+  /**
+   * Loads data from Google Drive if available and local storage is empty
+   * @private
+   */
+  private async loadFromGoogleDriveIfAvailable(): Promise<void> {
+    try {
+      if (this.googleDriveSync.isEnabled()) {
+        const sessions = await this.getAllSessions();
+        if (sessions.length === 0) {
+          const driveData = await this.googleDriveSync.downloadData();
+          if (driveData.length > 0) {
+            await this.importData(JSON.stringify(driveData));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load from Google Drive:', error);
+    }
+  }
+
+  /**
+   * Automatically saves all sessions to Google Drive after any data change
+   * @private
+   */
+  private async autoSaveToGoogleDrive(): Promise<void> {
+    try {
+      if (this.googleDriveSync.isEnabled()) {
+        const sessions = await this.getAllSessions();
+        await this.googleDriveSync.uploadData(sessions);
+      }
+    } catch (error) {
+      console.error('Auto-save to Google Drive failed:', error);
     }
   }
 
@@ -208,8 +254,9 @@ class LocalStorage {
         };
         const session = await indexedDBStorage.createSession(sessionData);
         
-        // Auto-save to file system after successful creation
+        // Auto-save to file system and Google Drive after successful creation
         await this.autoSaveToFileSystem();
+        await this.autoSaveToGoogleDrive();
         
         return session;
       } catch (error) {
@@ -232,8 +279,9 @@ class LocalStorage {
     this.saveSessions(sessions);
     this.setCurrentId(currentId + 1);
     
-    // Auto-save to file system after successful creation
+    // Auto-save to file system and Google Drive after successful creation
     await this.autoSaveToFileSystem();
+    await this.autoSaveToGoogleDrive();
     
     // Schedule periodic backup for mobile devices
     await this.schedulePeriodicBackup();
@@ -248,9 +296,10 @@ class LocalStorage {
       try {
         const result = await indexedDBStorage.deleteSession(id);
         
-        // Auto-save to file system after successful deletion
+        // Auto-save to file system and Google Drive after successful deletion
         if (result) {
           await this.autoSaveToFileSystem();
+          await this.autoSaveToGoogleDrive();
         }
         
         return result;
@@ -265,8 +314,9 @@ class LocalStorage {
     if (deleted) {
       this.saveSessions(sessions);
       
-      // Auto-save to file system after successful deletion
+      // Auto-save to file system and Google Drive after successful deletion
       await this.autoSaveToFileSystem();
+      await this.autoSaveToGoogleDrive();
     }
     return deleted;
   }
@@ -470,6 +520,88 @@ class LocalStorage {
     await this.mobileBackup.schedulePeriodicBackup(sessions);
   }
 
+  /**
+   * Configure Google Drive API credentials
+   */
+  configureGoogleDrive(clientId: string, apiKey: string): void {
+    this.googleDriveSync.configure(clientId, apiKey);
+  }
+
+  /**
+   * Sign in to Google Drive
+   */
+  async signInToGoogleDrive(): Promise<boolean> {
+    await this.init();
+    return await this.googleDriveSync.signIn();
+  }
+
+  /**
+   * Sign out from Google Drive
+   */
+  async signOutFromGoogleDrive(): Promise<void> {
+    await this.googleDriveSync.signOut();
+  }
+
+  /**
+   * Enable Google Drive sync by selecting backup folder
+   */
+  async enableGoogleDriveSync(): Promise<boolean> {
+    await this.init();
+    return await this.googleDriveSync.selectBackupFolder();
+  }
+
+  /**
+   * Disable Google Drive sync
+   */
+  async disableGoogleDriveSync(): Promise<void> {
+    await this.googleDriveSync.signOut();
+  }
+
+  /**
+   * Check if Google Drive sync is enabled
+   */
+  isGoogleDriveSyncEnabled(): boolean {
+    return this.googleDriveSync.isEnabled();
+  }
+
+  /**
+   * Get Google Drive sync status
+   */
+  getGoogleDriveSyncStatus(): {
+    isSignedIn: boolean;
+    hasFolder: boolean;
+    hasFile: boolean;
+    isEnabled: boolean;
+  } {
+    return this.googleDriveSync.getSyncStatus();
+  }
+
+  /**
+   * Manually sync data to Google Drive
+   */
+  async syncToGoogleDrive(): Promise<boolean> {
+    await this.init();
+    const sessions = await this.getAllSessions();
+    return await this.googleDriveSync.uploadData(sessions);
+  }
+
+  /**
+   * Manually sync data from Google Drive
+   */
+  async syncFromGoogleDrive(): Promise<boolean> {
+    await this.init();
+    try {
+      const sessions = await this.googleDriveSync.downloadData();
+      if (sessions.length > 0) {
+        await this.importData(JSON.stringify(sessions));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to sync from Google Drive:', error);
+      return false;
+    }
+  }
 
 }
 
