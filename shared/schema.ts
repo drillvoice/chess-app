@@ -19,7 +19,7 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   platform: text("platform"), // 'lichess', 'chess.com', 'otb'
   timeControl: text("time_control"), // '5+3', '10+5', '10', '15+10'
   // Study specific fields
-  studyType: text("study_type"), // 'video', 'book', 'analysis', 'opening', 'endgame', 'chessable', 'online_course', 'coaching'
+  studyType: text("study_type"), // 'video', 'book', 'analysis', 'opening', 'endgame'
   studyNotes: text("study_notes"),
   // Goal specific fields
   goalTitle: text("goal_title"),
@@ -79,7 +79,7 @@ export const gameSessionSchema = insertTrainingSessionSchema.extend({
 export const studySessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('study'),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
-  studyType: z.enum(['video', 'book', 'analysis', 'opening', 'endgame', 'chessable', 'online_course', 'coaching'], {
+  studyType: z.enum(['video', 'book', 'analysis', 'opening', 'endgame'], {
     required_error: "Study type is required",
   }),
   studyNotes: z.string().optional(),

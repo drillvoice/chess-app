@@ -149,11 +149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const sessions = await storage.getAllTrainingSessions();
       
-      // Filter out goal sessions from session counts
-      const actualSessions = sessions.filter(s => s.type !== 'goal');
-      
-      const totalSessions = actualSessions.length;
-      const totalHours = actualSessions.reduce((sum, session) => {
+      const totalSessions = sessions.length;
+      const totalHours = sessions.reduce((sum, session) => {
         return sum + (session.duration || 0);
       }, 0) / 60;
 
@@ -162,14 +159,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const gameSessions = sessions.filter(s => s.type === 'game');
       const wins = gameSessions.filter(s => s.gameResult === 'win').length;
-      const draws = gameSessions.filter(s => s.gameResult === 'draw').length;
-      const losses = gameSessions.filter(s => s.gameResult === 'loss').length;
       const winRate = gameSessions.length > 0 ? Math.round((wins / gameSessions.length) * 100) : 0;
 
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      // Today's sessions should also exclude goal sessions
-      const todaySessions = actualSessions.filter(s => new Date(s.date) >= startOfDay);
+      const todaySessions = sessions.filter(s => new Date(s.date) >= startOfDay);
       const todayTotalTime = todaySessions.reduce((sum, session) => {
         return sum + (session.duration || 0);
       }, 0);
@@ -181,12 +175,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         winRate,
         todayTotalTime,
         todaySessions: todaySessions.length,
-        gameStats: {
-          wins,
-          draws,
-          losses,
-          total: gameSessions.length
-        }
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch statistics" });

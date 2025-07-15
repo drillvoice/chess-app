@@ -191,14 +191,11 @@ export class IndexedDBStorage {
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     
-    // Filter out goal sessions from session counts
-    const actualSessions = sessions.filter(s => s.type !== 'goal');
-    
-    const totalHours = actualSessions.reduce((sum, session) => {
+    const totalHours = sessions.reduce((sum, session) => {
       return sum + (session.duration || 0);
     }, 0);
 
-    const totalSessions = actualSessions.length;
+    const totalSessions = sessions.length;
 
     const tacticsRating = sessions
       .filter(s => s.type === 'tactics' && s.finalScore)
@@ -211,8 +208,7 @@ export class IndexedDBStorage {
     const losses = gameResults.filter(s => s.gameResult === 'loss').length;
     const winRate = gameResults.length > 0 ? (wins / gameResults.length) * 100 : 0;
 
-    // Today's sessions should also exclude goal sessions
-    const todaySessions = actualSessions.filter(session => {
+    const todaySessions = sessions.filter(session => {
       const sessionDate = new Date(session.date);
       return sessionDate >= startOfToday;
     });

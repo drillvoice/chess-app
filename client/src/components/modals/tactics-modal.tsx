@@ -80,6 +80,7 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
             <Input
               id="duration"
               type="number"
+              placeholder="25"
               className="mt-1"
               {...register("duration", { valueAsNumber: true })}
             />
@@ -95,6 +96,7 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
             <Input
               id="pointsGained"
               type="number"
+              placeholder="+35"
               className="mt-1"
               {...register("pointsGained", { valueAsNumber: true })}
             />
@@ -110,6 +112,7 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
             <Input
               id="finalScore"
               type="number"
+              placeholder="2156"
               className="mt-1"
               {...register("finalScore", { valueAsNumber: true })}
             />
