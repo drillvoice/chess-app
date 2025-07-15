@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        console.log("JavaScript is executing!");
+        
+        const rootElement = document.getElementById("root");
+        console.log("Root element:", rootElement);
+        
+        if (rootElement) {
+            console.log("Root element found");
+            rootElement.innerHTML = "<h1>Test App</h1><p>If you see this, JavaScript is working properly</p>";
+            console.log("HTML injected directly");
+        } else {
+            console.error("Root element not found!");
+        }
+    </script>
+</body>
+</html>
