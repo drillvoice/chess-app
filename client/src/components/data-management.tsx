@@ -4,21 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database, FolderOpen, FolderX, Smartphone, Share, Cloud, CloudOff, Settings } from "lucide-react";
+import { Download, Upload, Database, FolderOpen, FolderX, Smartphone, Share } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
-import { storage } from "@/lib/storage";
+import { localStorage } from "@/lib/storage";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [mobileBackupLoading, setMobileBackupLoading] = useState(false);
-  const [googleDriveEnabled, setGoogleDriveEnabled] = useState(false);
-  const [googleDriveLoading, setGoogleDriveLoading] = useState(false);
-  const [showGoogleDriveConfig, setShowGoogleDriveConfig] = useState(false);
-  const [clientId, setClientId] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -80,7 +75,7 @@ export default function DataManagement() {
   };
 
   const handleEnableFileSync = async () => {
-    if (!storage.isFileSystemSyncSupported()) {
+    if (!localStorage.isFileSystemSyncSupported()) {
       toast({
         title: "Not Supported",
         description: "File System Access API not supported in this browser",
@@ -91,7 +86,7 @@ export default function DataManagement() {
 
     setSyncLoading(true);
     try {
-      const success = await storage.enableFileSystemSync();
+      const success = await localStorage.enableFileSystemSync();
       if (success) {
         setSyncEnabled(true);
         toast({
@@ -118,7 +113,7 @@ export default function DataManagement() {
   const handleDisableFileSync = async () => {
     setSyncLoading(true);
     try {
-      await storage.disableFileSystemSync();
+      await localStorage.disableFileSystemSync();
       setSyncEnabled(false);
       toast({
         title: "Success",
@@ -137,14 +132,13 @@ export default function DataManagement() {
 
   // Check sync status on component mount
   useEffect(() => {
-    setSyncEnabled(storage.isFileSystemSyncEnabled());
-    setGoogleDriveEnabled(storage.isGoogleDriveSyncEnabled());
+    setSyncEnabled(localStorage.isFileSystemSyncEnabled());
   }, []);
 
   const handleMobileBackup = async () => {
     setMobileBackupLoading(true);
     try {
-      await storage.createMobileBackup();
+      await localStorage.createMobileBackup();
       toast({
         title: "Success",
         description: "Backup created! You can now save it to your device.",
@@ -160,132 +154,9 @@ export default function DataManagement() {
     }
   };
 
-  const handleGoogleDriveConfig = () => {
-    if (clientId && apiKey) {
-      storage.configureGoogleDrive(clientId, apiKey);
-      setShowGoogleDriveConfig(false);
-      toast({
-        title: "Success",
-        description: "Google Drive credentials configured. You can now enable sync.",
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "Please enter both Client ID and API Key",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEnableGoogleDrive = async () => {
-    setGoogleDriveLoading(true);
-    try {
-      const success = await storage.enableGoogleDriveSync();
-      if (success) {
-        setGoogleDriveEnabled(true);
-        toast({
-          title: "Success",
-          description: "Google Drive sync enabled! Your data will now sync automatically.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to enable Google Drive sync. Please check your credentials.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to enable Google Drive sync",
-        variant: "destructive",
-      });
-    } finally {
-      setGoogleDriveLoading(false);
-    }
-  };
-
-  const handleDisableGoogleDrive = async () => {
-    setGoogleDriveLoading(true);
-    try {
-      await storage.disableGoogleDriveSync();
-      setGoogleDriveEnabled(false);
-      toast({
-        title: "Success",
-        description: "Google Drive sync disabled",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to disable Google Drive sync",
-        variant: "destructive",
-      });
-    } finally {
-      setGoogleDriveLoading(false);
-    }
-  };
-
-  const handleSyncToGoogleDrive = async () => {
-    setGoogleDriveLoading(true);
-    try {
-      const success = await storage.syncToGoogleDrive();
-      if (success) {
-        toast({
-          title: "Success",
-          description: "Data synced to Google Drive successfully!",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to sync to Google Drive",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sync to Google Drive",
-        variant: "destructive",
-      });
-    } finally {
-      setGoogleDriveLoading(false);
-    }
-  };
-
-  const handleSyncFromGoogleDrive = async () => {
-    setGoogleDriveLoading(true);
-    try {
-      const success = await storage.syncFromGoogleDrive();
-      if (success) {
-        // Refresh all queries to show synced data
-        queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/weekly-goal"] });
-        
-        toast({
-          title: "Success",
-          description: "Data synced from Google Drive successfully!",
-        });
-      } else {
-        toast({
-          title: "Info",
-          description: "No new data found in Google Drive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sync from Google Drive",
-        variant: "destructive",
-      });
-    } finally {
-      setGoogleDriveLoading(false);
-    }
-  };
-
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const isFileSystemSupported = storage.isFileSystemSyncSupported();
-  const isMobileBackupSupported = storage.isMobileBackupSupported();
+  const isFileSystemSupported = localStorage.isFileSystemSyncSupported();
+  const isMobileBackupSupported = localStorage.isMobileBackupSupported();
 
   return (
     <Card>
@@ -393,7 +264,7 @@ export default function DataManagement() {
               )}
               {mobileBackupLoading ? "Creating..." : isMobileBackupSupported ? "Share Backup" : "Download Backup"}
             </Button>
-            {storage.isBackupNeeded() && (
+            {localStorage.isBackupNeeded() && (
               <p className="text-xs text-amber-600 mt-2">
                 💡 It's been a while since your last backup. Consider creating one now.
               </p>
@@ -401,130 +272,13 @@ export default function DataManagement() {
           </div>
         )}
 
-        {/* Google Drive Cloud Sync */}
-        <div>
-          <Label className="text-sm font-medium text-gray-700 mb-2 block">
-            <Cloud className="w-4 h-4 inline mr-1" />
-            Google Drive Cloud Sync
-          </Label>
-          <p className="text-sm text-gray-600 mb-3">
-            {googleDriveEnabled 
-              ? "Your data automatically syncs to Google Drive after every change" 
-              : "Enable automatic sync to Google Drive for cloud backup"}
-          </p>
-          
-          {!showGoogleDriveConfig && !googleDriveEnabled && (
-            <Button 
-              onClick={() => setShowGoogleDriveConfig(true)}
-              className="w-full mb-2" 
-              variant="outline"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Configure Google Drive
-            </Button>
-          )}
-
-          {showGoogleDriveConfig && (
-            <div className="space-y-3 mb-3 p-3 border rounded-md">
-              <div>
-                <Label htmlFor="client-id" className="text-sm font-medium">
-                  Google Client ID
-                </Label>
-                <Input
-                  id="client-id"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  placeholder="Enter your Google Client ID"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="api-key" className="text-sm font-medium">
-                  Google API Key
-                </Label>
-                <Input
-                  id="api-key"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your Google API Key"
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={handleGoogleDriveConfig}
-                  className="flex-1"
-                  variant="outline"
-                >
-                  Save Configuration
-                </Button>
-                <Button 
-                  onClick={() => setShowGoogleDriveConfig(false)}
-                  className="flex-1"
-                  variant="outline"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {googleDriveEnabled ? (
-            <div className="space-y-2">
-              <Button 
-                onClick={handleDisableGoogleDrive} 
-                className="w-full" 
-                variant="outline"
-                disabled={googleDriveLoading}
-              >
-                <CloudOff className="w-4 h-4 mr-2" />
-                {googleDriveLoading ? "Disabling..." : "Disable Google Drive Sync"}
-              </Button>
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={handleSyncToGoogleDrive}
-                  className="flex-1 text-xs"
-                  variant="outline"
-                  disabled={googleDriveLoading}
-                >
-                  <Upload className="w-3 h-3 mr-1" />
-                  Sync To Drive
-                </Button>
-                <Button 
-                  onClick={handleSyncFromGoogleDrive}
-                  className="flex-1 text-xs"
-                  variant="outline"
-                  disabled={googleDriveLoading}
-                >
-                  <Download className="w-3 h-3 mr-1" />
-                  Sync From Drive
-                </Button>
-              </div>
-            </div>
-          ) : (
-            !showGoogleDriveConfig && (
-              <Button 
-                onClick={handleEnableGoogleDrive} 
-                className="w-full" 
-                variant="outline"
-                disabled={googleDriveLoading}
-              >
-                <Cloud className="w-4 h-4 mr-2" />
-                {googleDriveLoading ? "Enabling..." : "Enable Google Drive Sync"}
-              </Button>
-            )
-          )}
-        </div>
-
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-sm text-blue-800">
-            <strong>Note:</strong> {googleDriveEnabled 
-              ? "With Google Drive sync enabled, your data is automatically backed up to the cloud after every session. You can also use manual sync buttons as needed."
-              : syncEnabled 
-                ? "With auto-backup enabled, your data is automatically saved to your chosen folder after every session. You can still export manually as needed."
-                : isFileSystemSupported 
-                  ? "Data is stored locally while you use the app. Export regularly to keep a backup of your training history."
-                  : "Your data is stored locally on your device. Use the mobile backup feature to save copies to your Downloads folder or share with other apps. The app will remind you when it's time to backup."}
+            <strong>Note:</strong> {syncEnabled 
+              ? "With auto-backup enabled, your data is automatically saved to your chosen folder after every session. You can still export manually as needed."
+              : isFileSystemSupported 
+                ? "Data is stored locally while you use the app. Export regularly to keep a backup of your training history."
+                : "Your data is stored locally on your device. Use the mobile backup feature to save copies to your Downloads folder or share with other apps. The app will remind you when it's time to backup."}
           </p>
         </div>
       </CardContent>

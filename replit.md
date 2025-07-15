@@ -147,11 +147,6 @@ Preferred communication style: Simple, everyday language.
   - Implemented mobile-compatible backup system using Web Share API for mobile Chrome compatibility
   - Added smart backup detection that automatically adapts to browser capabilities
   - Created periodic backup reminders for mobile users when File System Access API is unavailable
-  - Implemented Google Drive integration for automatic cloud backup and sync
-  - Added OAuth2 authentication flow for Google Drive API access
-  - Created automatic bidirectional sync: uploads data to Drive after each session, loads from Drive on startup
-  - Added manual sync controls and configuration UI for Google Drive credentials
-  - Integrated Google Drive sync into main storage layer with fallback mechanisms
 
 ## Changelog
 
