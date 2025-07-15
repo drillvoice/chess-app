@@ -87,6 +87,9 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
                 <SelectItem value="analysis">Analysis</SelectItem>
                 <SelectItem value="opening">Opening Study</SelectItem>
                 <SelectItem value="endgame">Endgame Study</SelectItem>
+                <SelectItem value="chessable">Chessable</SelectItem>
+                <SelectItem value="online-course">Online Course</SelectItem>
+                <SelectItem value="coaching">Coaching</SelectItem>
               </SelectContent>
             </Select>
             {errors.studyType && (

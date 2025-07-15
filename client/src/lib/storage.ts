@@ -354,19 +354,23 @@ class LocalStorage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const totalSessions = sessions.length;
-    const totalHours = sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / 60;
+    // Filter out goal sessions from statistics (they're not training sessions)
+    const trainingSessions = sessions.filter(s => s.type !== 'goal');
     
-    const tacticsSession = sessions.filter(s => s.type === 'tactics').pop();
+    const totalSessions = trainingSessions.length;
+    const totalHours = trainingSessions.reduce((sum, session) => sum + (session.duration || 0), 0) / 60;
+    
+    const tacticsSession = trainingSessions.filter(s => s.type === 'tactics').pop();
     const tacticsRating = tacticsSession?.finalScore || 0;
     
-    const gamesSessions = sessions.filter(s => s.type === 'game');
+    const gamesSessions = trainingSessions.filter(s => s.type === 'game');
     const wins = gamesSessions.filter(s => s.gameResult === 'win').length;
     const draws = gamesSessions.filter(s => s.gameResult === 'draw').length;
     const losses = gamesSessions.filter(s => s.gameResult === 'loss').length;
     const winRate = gamesSessions.length > 0 ? Math.round((wins / gamesSessions.length) * 100) : 0;
     
-    const todaySessions = sessions.filter(s => new Date(s.date) >= today);
+    // Today's sessions should also exclude goals
+    const todaySessions = trainingSessions.filter(s => new Date(s.date) >= today);
     const todayTotalTime = todaySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
     
     return {

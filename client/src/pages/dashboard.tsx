@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Clock, Play, Trophy, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import DataManagement from "@/components/data-management";
 
 interface Statistics {
   totalHours: number;
@@ -127,7 +126,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <DataManagement />
     </div>
   );
 }
