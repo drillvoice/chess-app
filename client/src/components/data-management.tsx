@@ -8,7 +8,7 @@ import { Download, Upload, Database, FolderOpen, FolderX, RefreshCw } from "luci
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { localStorage } from "@/lib/storage";
-import FirebaseAuth from "./firebase-auth";
+// import FirebaseAuth from "./firebase-auth";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
@@ -170,8 +170,8 @@ export default function DataManagement() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Firebase Cloud Sync */}
-        <div>
+        {/* Firebase Cloud Sync - Temporarily disabled */}
+        {/* <div>
           <Label className="text-sm font-medium text-gray-700 mb-3 block">
             Cloud Sync
           </Label>
@@ -187,7 +187,7 @@ export default function DataManagement() {
               {forceSyncLoading ? "Syncing..." : "Force Sync Now"}
             </Button>
           </div>
-        </div>
+        </div> */}
 
         <div>
           <Label className="text-sm font-medium text-gray-700 mb-2 block">
