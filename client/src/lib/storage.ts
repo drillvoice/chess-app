@@ -374,28 +374,7 @@ class LocalStorage {
     };
   }
 
-  async getStorageInfo() {
-    await this.init();
-    
-    if (this.useIndexedDB) {
-      try {
-        return await indexedDBStorage.getStorageInfo();
-      } catch (error) {
-        console.warn('IndexedDB failed, falling back to localStorage:', error);
-        this.useIndexedDB = false;
-      }
-    }
-    
-    const sessions = await this.getAllSessions();
-    const totalSessions = sessions.length;
-    const storageSize = JSON.stringify(sessions).length;
-    
-    return {
-      totalSessions,
-      storageSize,
-      storageType: 'localStorage'
-    };
-  }
+
 
   /**
    * Enables automatic file system synchronization
