@@ -4,15 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database, FolderOpen, FolderX } from "lucide-react";
+import { Download, Upload, Database, FolderOpen, FolderX, RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { localStorage } from "@/lib/storage";
+import FirebaseAuth from "./firebase-auth";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [forceSyncLoading, setForceSyncLoading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -129,6 +131,31 @@ export default function DataManagement() {
     }
   };
 
+  const handleForceSync = async () => {
+    setForceSyncLoading(true);
+    try {
+      await localStorage.forceSyncNow();
+      
+      // Refresh all queries to show synced data
+      queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/weekly-goal"] });
+      
+      toast({
+        title: "Success",
+        description: "Data synchronized successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sync data. Please check your connection.",
+        variant: "destructive",
+      });
+    } finally {
+      setForceSyncLoading(false);
+    }
+  };
+
   // Check sync status on component mount
   useEffect(() => {
     setSyncEnabled(localStorage.isFileSystemSyncEnabled());
@@ -142,7 +169,26 @@ export default function DataManagement() {
           <span>Data Management</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Firebase Cloud Sync */}
+        <div>
+          <Label className="text-sm font-medium text-gray-700 mb-3 block">
+            Cloud Sync
+          </Label>
+          <div className="space-y-3">
+            <FirebaseAuth />
+            <Button 
+              onClick={handleForceSync} 
+              className="w-full" 
+              variant="outline"
+              disabled={forceSyncLoading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${forceSyncLoading ? 'animate-spin' : ''}`} />
+              {forceSyncLoading ? "Syncing..." : "Force Sync Now"}
+            </Button>
+          </div>
+        </div>
+
         <div>
           <Label className="text-sm font-medium text-gray-700 mb-2 block">
             Backup Your Data

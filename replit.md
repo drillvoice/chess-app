@@ -111,6 +111,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- July 15, 2025: Added Firebase Firestore cloud sync integration
+  - Implemented Firebase authentication with anonymous sign-in
+  - Created hybrid storage system combining IndexedDB, Firestore, and file system sync
+  - Added real-time data synchronization across devices
+  - Integrated Firebase authentication component in data management
+  - Added force sync functionality for manual data synchronization
+  - Enhanced PWA with automatic cloud backup and cross-device sync
+  - Maintained backward compatibility with existing file system sync
+
 - July 08, 2025: Enhanced training session logging with additional fields
   - Added tactics notes field for quick observations
   - Added game logging fields: player colour selection (white/black), platform (lichess/chess.com/otb), time control buttons (5+3, 10+5, 10, 15+10)
