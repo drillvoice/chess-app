@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, Database, FolderOpen, FolderX, Smartphone, Share, Cloud, CloudOff, Settings } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
-import { localStorage } from "@/lib/storage";
+import { storage } from "@/lib/storage";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
@@ -80,7 +80,7 @@ export default function DataManagement() {
   };
 
   const handleEnableFileSync = async () => {
-    if (!localStorage.isFileSystemSyncSupported()) {
+    if (!storage.isFileSystemSyncSupported()) {
       toast({
         title: "Not Supported",
         description: "File System Access API not supported in this browser",
@@ -91,7 +91,7 @@ export default function DataManagement() {
 
     setSyncLoading(true);
     try {
-      const success = await localStorage.enableFileSystemSync();
+      const success = await storage.enableFileSystemSync();
       if (success) {
         setSyncEnabled(true);
         toast({
@@ -118,7 +118,7 @@ export default function DataManagement() {
   const handleDisableFileSync = async () => {
     setSyncLoading(true);
     try {
-      await localStorage.disableFileSystemSync();
+      await storage.disableFileSystemSync();
       setSyncEnabled(false);
       toast({
         title: "Success",
@@ -137,14 +137,14 @@ export default function DataManagement() {
 
   // Check sync status on component mount
   useEffect(() => {
-    setSyncEnabled(localStorage.isFileSystemSyncEnabled());
-    setGoogleDriveEnabled(localStorage.isGoogleDriveSyncEnabled());
+    setSyncEnabled(storage.isFileSystemSyncEnabled());
+    setGoogleDriveEnabled(storage.isGoogleDriveSyncEnabled());
   }, []);
 
   const handleMobileBackup = async () => {
     setMobileBackupLoading(true);
     try {
-      await localStorage.createMobileBackup();
+      await storage.createMobileBackup();
       toast({
         title: "Success",
         description: "Backup created! You can now save it to your device.",
@@ -162,7 +162,7 @@ export default function DataManagement() {
 
   const handleGoogleDriveConfig = () => {
     if (clientId && apiKey) {
-      localStorage.configureGoogleDrive(clientId, apiKey);
+      storage.configureGoogleDrive(clientId, apiKey);
       setShowGoogleDriveConfig(false);
       toast({
         title: "Success",
@@ -180,7 +180,7 @@ export default function DataManagement() {
   const handleEnableGoogleDrive = async () => {
     setGoogleDriveLoading(true);
     try {
-      const success = await localStorage.enableGoogleDriveSync();
+      const success = await storage.enableGoogleDriveSync();
       if (success) {
         setGoogleDriveEnabled(true);
         toast({
@@ -208,7 +208,7 @@ export default function DataManagement() {
   const handleDisableGoogleDrive = async () => {
     setGoogleDriveLoading(true);
     try {
-      await localStorage.disableGoogleDriveSync();
+      await storage.disableGoogleDriveSync();
       setGoogleDriveEnabled(false);
       toast({
         title: "Success",
@@ -228,7 +228,7 @@ export default function DataManagement() {
   const handleSyncToGoogleDrive = async () => {
     setGoogleDriveLoading(true);
     try {
-      const success = await localStorage.syncToGoogleDrive();
+      const success = await storage.syncToGoogleDrive();
       if (success) {
         toast({
           title: "Success",
@@ -255,7 +255,7 @@ export default function DataManagement() {
   const handleSyncFromGoogleDrive = async () => {
     setGoogleDriveLoading(true);
     try {
-      const success = await localStorage.syncFromGoogleDrive();
+      const success = await storage.syncFromGoogleDrive();
       if (success) {
         // Refresh all queries to show synced data
         queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
@@ -284,8 +284,8 @@ export default function DataManagement() {
   };
 
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const isFileSystemSupported = localStorage.isFileSystemSyncSupported();
-  const isMobileBackupSupported = localStorage.isMobileBackupSupported();
+  const isFileSystemSupported = storage.isFileSystemSyncSupported();
+  const isMobileBackupSupported = storage.isMobileBackupSupported();
 
   return (
     <Card>
@@ -393,7 +393,7 @@ export default function DataManagement() {
               )}
               {mobileBackupLoading ? "Creating..." : isMobileBackupSupported ? "Share Backup" : "Download Backup"}
             </Button>
-            {localStorage.isBackupNeeded() && (
+            {storage.isBackupNeeded() && (
               <p className="text-xs text-amber-600 mt-2">
                 💡 It's been a while since your last backup. Consider creating one now.
               </p>

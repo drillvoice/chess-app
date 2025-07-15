@@ -1,37 +1,37 @@
-import { localStorage } from "./storage";
+import { storage } from "./storage";
 
 // Offline API that mimics the server API but uses localStorage
 export const offlineApi = {
   async getStatistics() {
-    return await localStorage.getStatistics();
+    return await storage.getStatistics();
   },
 
   async getAllTrainingSessions() {
-    return await localStorage.getAllSessions();
+    return await storage.getAllSessions();
   },
 
   async getTrainingSessionsByType(type: string) {
-    return await localStorage.getSessionsByType(type);
+    return await storage.getSessionsByType(type);
   },
 
   async createTrainingSession(session: any) {
-    return await localStorage.createSession(session);
+    return await storage.createSession(session);
   },
 
   async deleteTrainingSession(id: number) {
-    return await localStorage.deleteSession(id);
+    return await storage.deleteSession(id);
   },
 
   async getCurrentWeeklyGoal() {
-    return await localStorage.getCurrentWeeklyGoal();
+    return await storage.getCurrentWeeklyGoal();
   },
 
   async exportData() {
-    return await localStorage.exportData();
+    return await storage.exportData();
   },
 
   async importData(data: string) {
-    return await localStorage.importData(data);
+    return await storage.importData(data);
   }
 };
 
