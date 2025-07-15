@@ -1,6 +1,7 @@
 import { TrainingSession, InsertTrainingSession } from "@shared/schema";
 import { indexedDBStorage } from "./indexedDB";
 import { createChessDataSync, FileSystemSync } from "./fileSystemSync";
+import { createMobileBackup, type MobileBackup } from "./mobileBackup";
 
 class LocalStorage {
   private storageKey = 'chess-training-sessions';
@@ -8,6 +9,7 @@ class LocalStorage {
   private useIndexedDB = true;
   private initialized = false;
   private fileSystemSync: FileSystemSync;
+  private mobileBackup: MobileBackup;
 
   async init() {
     if (this.initialized) return;
@@ -16,6 +18,12 @@ class LocalStorage {
     this.fileSystemSync = createChessDataSync({
       onError: (error) => console.error('FileSystem sync error:', error),
       onSuccess: (message) => console.log('FileSystem sync:', message)
+    });
+    
+    // Initialize mobile backup
+    this.mobileBackup = createMobileBackup({
+      onError: (error) => console.error('Mobile backup error:', error),
+      onSuccess: (message) => console.log('Mobile backup:', message)
     });
     
     try {
@@ -227,6 +235,9 @@ class LocalStorage {
     // Auto-save to file system after successful creation
     await this.autoSaveToFileSystem();
     
+    // Schedule periodic backup for mobile devices
+    await this.schedulePeriodicBackup();
+    
     return session;
   }
 
@@ -374,28 +385,7 @@ class LocalStorage {
     };
   }
 
-  async getStorageInfo() {
-    await this.init();
-    
-    if (this.useIndexedDB) {
-      try {
-        return await indexedDBStorage.getStorageInfo();
-      } catch (error) {
-        console.warn('IndexedDB failed, falling back to localStorage:', error);
-        this.useIndexedDB = false;
-      }
-    }
-    
-    const sessions = await this.getAllSessions();
-    const totalSessions = sessions.length;
-    const storageSize = JSON.stringify(sessions).length;
-    
-    return {
-      totalSessions,
-      storageSize,
-      storageType: 'localStorage'
-    };
-  }
+
 
   /**
    * Enables automatic file system synchronization
@@ -441,30 +431,42 @@ class LocalStorage {
     return this.fileSystemSync?.isFileSystemAccessSupported() || false;
   }
 
-  async getStorageInfo() {
+  /**
+   * Creates a mobile-compatible backup using Web Share API or download
+   * @returns {Promise<void>}
+   */
+  async createMobileBackup(): Promise<void> {
     await this.init();
-    
-    if ('storage' in navigator && 'estimate' in navigator.storage) {
-      try {
-        const estimate = await navigator.storage.estimate();
-        const used = estimate.usage || 0;
-        const quota = estimate.quota || 0;
-        const persistent = await navigator.storage.persist();
-        
-        return {
-          used: Math.round(used / 1024 / 1024 * 100) / 100, // MB
-          quota: Math.round(quota / 1024 / 1024 * 100) / 100, // MB
-          persistent,
-          percentage: quota > 0 ? Math.round((used / quota) * 100) : 0
-        };
-      } catch (error) {
-        console.warn('Could not get storage estimate:', error);
-        return null;
-      }
-    }
-    
-    return null;
+    const sessions = await this.getAllSessions();
+    await this.mobileBackup.createBackup(sessions);
   }
+
+  /**
+   * Checks if mobile backup is supported (Web Share API)
+   * @returns {boolean} True if Web Share API is available
+   */
+  isMobileBackupSupported(): boolean {
+    return this.mobileBackup?.isWebShareSupported() || false;
+  }
+
+  /**
+   * Checks if a backup is needed (mobile backup system)
+   * @returns {boolean} True if backup is older than 1 day
+   */
+  isBackupNeeded(): boolean {
+    return this.mobileBackup?.isBackupNeeded() || false;
+  }
+
+  /**
+   * Creates a periodic backup for mobile devices
+   */
+  async schedulePeriodicBackup(): Promise<void> {
+    await this.init();
+    const sessions = await this.getAllSessions();
+    await this.mobileBackup.schedulePeriodicBackup(sessions);
+  }
+
+
 }
 
 export const localStorage = new LocalStorage();

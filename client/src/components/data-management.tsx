@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database, FolderOpen, FolderX } from "lucide-react";
+import { Download, Upload, Database, FolderOpen, FolderX, Smartphone, Share } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { localStorage } from "@/lib/storage";
@@ -13,6 +13,7 @@ export default function DataManagement() {
   const [importing, setImporting] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [mobileBackupLoading, setMobileBackupLoading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -134,6 +135,29 @@ export default function DataManagement() {
     setSyncEnabled(localStorage.isFileSystemSyncEnabled());
   }, []);
 
+  const handleMobileBackup = async () => {
+    setMobileBackupLoading(true);
+    try {
+      await localStorage.createMobileBackup();
+      toast({
+        title: "Success",
+        description: "Backup created! You can now save it to your device.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create backup",
+        variant: "destructive",
+      });
+    } finally {
+      setMobileBackupLoading(false);
+    }
+  };
+
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isFileSystemSupported = localStorage.isFileSystemSyncSupported();
+  const isMobileBackupSupported = localStorage.isMobileBackupSupported();
+
   return (
     <Card>
       <CardHeader>
@@ -180,48 +204,81 @@ export default function DataManagement() {
           />
         </div>
 
-        <div>
-          <Label className="text-sm font-medium text-gray-700 mb-2 block">
-            Automatic File Backup
-          </Label>
-          <p className="text-sm text-gray-600 mb-3">
-            {syncEnabled 
-              ? "Your data is automatically saved to a local folder after every change" 
-              : "Enable automatic backup to save your data to a local folder"}
-          </p>
-          {syncEnabled ? (
-            <Button 
-              onClick={handleDisableFileSync} 
-              className="w-full" 
-              variant="outline"
-              disabled={syncLoading}
-            >
-              <FolderX className="w-4 h-4 mr-2" />
-              {syncLoading ? "Disabling..." : "Disable Auto-Backup"}
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleEnableFileSync} 
-              className="w-full" 
-              variant="outline"
-              disabled={syncLoading || !localStorage.isFileSystemSyncSupported()}
-            >
-              <FolderOpen className="w-4 h-4 mr-2" />
-              {syncLoading ? "Enabling..." : "Enable Auto-Backup"}
-            </Button>
-          )}
-          {!localStorage.isFileSystemSyncSupported() && (
-            <p className="text-xs text-gray-500 mt-2">
-              Auto-backup requires a modern browser with File System Access API support
+        {/* Desktop File System Backup */}
+        {isFileSystemSupported && (
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+              Automatic File Backup
+            </Label>
+            <p className="text-sm text-gray-600 mb-3">
+              {syncEnabled 
+                ? "Your data is automatically saved to a local folder after every change" 
+                : "Enable automatic backup to save your data to a local folder"}
             </p>
-          )}
-        </div>
+            {syncEnabled ? (
+              <Button 
+                onClick={handleDisableFileSync} 
+                className="w-full" 
+                variant="outline"
+                disabled={syncLoading}
+              >
+                <FolderX className="w-4 h-4 mr-2" />
+                {syncLoading ? "Disabling..." : "Disable Auto-Backup"}
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleEnableFileSync} 
+                className="w-full" 
+                variant="outline"
+                disabled={syncLoading}
+              >
+                <FolderOpen className="w-4 h-4 mr-2" />
+                {syncLoading ? "Enabling..." : "Enable Auto-Backup"}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Mobile Backup */}
+        {!isFileSystemSupported && (
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+              <Smartphone className="w-4 h-4 inline mr-1" />
+              Mobile Backup
+            </Label>
+            <p className="text-sm text-gray-600 mb-3">
+              {isMobileBackupSupported 
+                ? "Create a backup file that you can share or save to your device" 
+                : "Create a backup file that will be downloaded to your device"}
+            </p>
+            <Button 
+              onClick={handleMobileBackup} 
+              className="w-full" 
+              variant="outline"
+              disabled={mobileBackupLoading}
+            >
+              {isMobileBackupSupported ? (
+                <Share className="w-4 h-4 mr-2" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {mobileBackupLoading ? "Creating..." : isMobileBackupSupported ? "Share Backup" : "Download Backup"}
+            </Button>
+            {localStorage.isBackupNeeded() && (
+              <p className="text-xs text-amber-600 mt-2">
+                💡 It's been a while since your last backup. Consider creating one now.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-sm text-blue-800">
             <strong>Note:</strong> {syncEnabled 
               ? "With auto-backup enabled, your data is automatically saved to your chosen folder after every session. You can still export manually as needed."
-              : "Data is stored locally while you use the app. Export regularly to keep a backup of your training history."}
+              : isFileSystemSupported 
+                ? "Data is stored locally while you use the app. Export regularly to keep a backup of your training history."
+                : "Your data is stored locally on your device. Use the mobile backup feature to save copies to your Downloads folder or share with other apps. The app will remind you when it's time to backup."}
           </p>
         </div>
       </CardContent>
