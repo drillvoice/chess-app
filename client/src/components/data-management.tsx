@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database, FolderOpen, FolderX, Smartphone, Share, Cloud, CloudCheck, Settings } from "lucide-react";
+import { Download, Upload, Database, FolderOpen, FolderX, Smartphone, Share, Cloud, CloudOff, Settings } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { localStorage } from "@/lib/storage";
@@ -477,7 +477,7 @@ export default function DataManagement() {
                 variant="outline"
                 disabled={googleDriveLoading}
               >
-                <CloudCheck className="w-4 h-4 mr-2" />
+                <CloudOff className="w-4 h-4 mr-2" />
                 {googleDriveLoading ? "Disabling..." : "Disable Google Drive Sync"}
               </Button>
               <div className="flex space-x-2">

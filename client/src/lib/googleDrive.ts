@@ -41,6 +41,7 @@ export class GoogleDriveSync {
   } = {}) {
     this.onError = options.onError;
     this.onSuccess = options.onSuccess;
+    this.restoreState();
   }
 
   /**
@@ -332,11 +333,30 @@ export class GoogleDriveSync {
   }
 
   private restoreState(): void {
-    const folderId = localStorage.getItem('googleDrive_folderId');
-    const fileId = localStorage.getItem('googleDrive_fileId');
-    
-    if (folderId) this.backupFolderId = folderId;
-    if (fileId) this.dataFileId = fileId;
+    try {
+      // Restore configuration from localStorage
+      const savedConfig = localStorage.getItem('googleDriveConfig');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        this.config.clientId = config.clientId || '';
+        this.config.apiKey = config.apiKey || '';
+      }
+
+      // Restore state from localStorage
+      const folderId = localStorage.getItem('googleDrive_folderId');
+      const fileId = localStorage.getItem('googleDrive_fileId');
+      
+      if (folderId) this.backupFolderId = folderId;
+      if (fileId) this.dataFileId = fileId;
+    } catch (error) {
+      console.error('Failed to restore Google Drive state:', error);
+      // Reset to defaults if restore fails
+      this.config.clientId = '';
+      this.config.apiKey = '';
+      this.backupFolderId = null;
+      this.dataFileId = null;
+      this.isSignedIn = false;
+    }
   }
 }
 

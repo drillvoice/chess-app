@@ -29,10 +29,25 @@ class LocalStorage {
     });
 
     // Initialize Google Drive sync
-    this.googleDriveSync = createGoogleDriveSync({
-      onError: (error) => console.error('Google Drive sync error:', error),
-      onSuccess: (message) => console.log('Google Drive sync:', message)
-    });
+    try {
+      this.googleDriveSync = createGoogleDriveSync({
+        onError: (error) => console.error('Google Drive sync error:', error),
+        onSuccess: (message) => console.log('Google Drive sync:', message)
+      });
+    } catch (error) {
+      console.error('Failed to initialize Google Drive sync:', error);
+      // Create a fallback object to prevent null reference errors
+      this.googleDriveSync = {
+        configure: () => {},
+        signIn: () => Promise.resolve(false),
+        signOut: () => Promise.resolve(),
+        selectBackupFolder: () => Promise.resolve(false),
+        uploadData: () => Promise.resolve(false),
+        downloadData: () => Promise.resolve([]),
+        isEnabled: () => false,
+        getSyncStatus: () => ({ isSignedIn: false, hasFolder: false, hasFile: false, isEnabled: false })
+      } as GoogleDriveSync;
+    }
     
     try {
       // Request persistent storage to protect from browser cleanup
@@ -56,7 +71,9 @@ class LocalStorage {
       await this.loadFromFileSystemIfEmpty();
       
       // Try to load from Google Drive
-      await this.loadFromGoogleDriveIfAvailable();
+      if (this.googleDriveSync && typeof this.googleDriveSync.downloadData === 'function') {
+        await this.loadFromGoogleDriveIfAvailable();
+      }
       
       this.initialized = true;
     } catch (error) {
@@ -140,7 +157,7 @@ class LocalStorage {
    */
   private async loadFromGoogleDriveIfAvailable(): Promise<void> {
     try {
-      if (this.googleDriveSync.isEnabled()) {
+      if (this.googleDriveSync && this.googleDriveSync.isEnabled()) {
         const sessions = await this.getAllSessions();
         if (sessions.length === 0) {
           const driveData = await this.googleDriveSync.downloadData();
@@ -160,7 +177,7 @@ class LocalStorage {
    */
   private async autoSaveToGoogleDrive(): Promise<void> {
     try {
-      if (this.googleDriveSync.isEnabled()) {
+      if (this.googleDriveSync && this.googleDriveSync.isEnabled()) {
         const sessions = await this.getAllSessions();
         await this.googleDriveSync.uploadData(sessions);
       }
