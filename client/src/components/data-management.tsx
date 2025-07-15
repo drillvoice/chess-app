@@ -8,7 +8,7 @@ import { Download, Upload, Database, FolderOpen, FolderX, RefreshCw } from "luci
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { localStorage } from "@/lib/storage";
-// import FirebaseAuth from "./firebase-auth";
+import FirebaseAuth from "./firebase-auth";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
@@ -143,12 +143,12 @@ export default function DataManagement() {
       
       toast({
         title: "Success",
-        description: "Data backed up to file system!",
+        description: "Data synchronized successfully!",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to backup data to file system.",
+        description: "Failed to sync data. Please check your connection.",
         variant: "destructive",
       });
     } finally {
@@ -170,23 +170,22 @@ export default function DataManagement() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* File System Backup */}
+        {/* Firebase Cloud Sync */}
         <div>
           <Label className="text-sm font-medium text-gray-700 mb-3 block">
-            File System Backup
+            Cloud Sync
           </Label>
           <div className="space-y-3">
-            {localStorage.isFileSystemSyncSupported() && (
-              <Button 
-                onClick={handleForceSync} 
-                className="w-full" 
-                variant="outline"
-                disabled={forceSyncLoading}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${forceSyncLoading ? 'animate-spin' : ''}`} />
-                {forceSyncLoading ? "Backing up..." : "Backup to File System"}
-              </Button>
-            )}
+            <FirebaseAuth />
+            <Button 
+              onClick={handleForceSync} 
+              className="w-full" 
+              variant="outline"
+              disabled={forceSyncLoading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${forceSyncLoading ? 'animate-spin' : ''}`} />
+              {forceSyncLoading ? "Syncing..." : "Force Sync Now"}
+            </Button>
           </div>
         </div>
 
