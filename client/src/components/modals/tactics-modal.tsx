@@ -61,7 +61,12 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
   });
 
   const onSubmit = (data: TacticsSession) => {
-    mutation.mutate(data);
+    // Add current date to the session data
+    const sessionData = {
+      ...data,
+      date: new Date()
+    };
+    mutation.mutate(sessionData);
   };
 
   return (

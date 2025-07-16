@@ -72,7 +72,12 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
   });
 
   const onSubmit = (data: GameSession) => {
-    mutation.mutate(data);
+    // Add current date to the session data
+    const sessionData = {
+      ...data,
+      date: new Date()
+    };
+    mutation.mutate(sessionData);
   };
 
   const handleResultSelect = (result: "win" | "loss" | "draw") => {

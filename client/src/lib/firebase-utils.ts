@@ -130,10 +130,14 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     
     // Generate a unique ID based on timestamp
     const id = Date.now();
+    
+    // Ensure date is set to current date if not provided
+    const sessionDate = insertSession.date || new Date();
+    
     const sessionData = {
       ...insertSession,
       id,
-      date: Timestamp.fromDate(insertSession.date),
+      date: Timestamp.fromDate(sessionDate),
       createdAt: serverTimestamp()
     };
     
@@ -144,7 +148,7 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     return {
       ...sessionData,
       id,
-      date: insertSession.date
+      date: sessionDate
     } as TrainingSession;
   } catch (error) {
     console.error('Error creating session:', error);

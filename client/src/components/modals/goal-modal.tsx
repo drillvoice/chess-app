@@ -58,7 +58,13 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
   });
 
   const onSubmit = (data: GoalSession) => {
-    mutation.mutate(data);
+    // Add current date and goal week start to the session data
+    const sessionData = {
+      ...data,
+      date: new Date(),
+      goalWeekStart: new Date()
+    };
+    mutation.mutate(sessionData);
   };
 
   return (

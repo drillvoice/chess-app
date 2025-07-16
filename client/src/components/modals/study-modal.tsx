@@ -61,7 +61,12 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
   });
 
   const onSubmit = (data: StudySession) => {
-    mutation.mutate(data);
+    // Add current date to the session data
+    const sessionData = {
+      ...data,
+      date: new Date()
+    };
+    mutation.mutate(sessionData);
   };
 
   return (
