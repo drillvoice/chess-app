@@ -37,19 +37,7 @@
     ],
     "rewrites": [
       {
-        "source": "!/manifest.json",
-        "destination": "/index.html"
-      },
-      {
-        "source": "!/sw.js",
-        "destination": "/index.html"
-      },
-      {
-        "source": "!/icon-*.{png,svg}",
-        "destination": "/index.html"
-      },
-      {
-        "source": "**",
+        "source": "!/{manifest.json,sw.js,icon-*.png,icon-*.svg}",
         "destination": "/index.html"
       }
     ]
