@@ -79,7 +79,7 @@ export const gameSessionSchema = insertTrainingSessionSchema.extend({
 export const studySessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('study'),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
-  studyType: z.enum(['video', 'book', 'analysis', 'opening', 'endgame'], {
+  studyType: z.enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course'], {
     required_error: "Study type is required",
   }),
   studyNotes: z.string().optional(),
