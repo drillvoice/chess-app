@@ -375,29 +375,33 @@ export async function subscribeToSessions(callback: (sessions: TrainingSession[]
       const { auth } = await getFirebaseInstances();
       // Wait for auth and then subscribe
       const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        currentUserId = user.uid;
-        unsubscribeAuth();
-        subscribeToSessions(callback);
-      }
-    });
-    return () => unsubscribeAuth();
-  }
+        if (user) {
+          currentUserId = user.uid;
+          unsubscribeAuth();
+          subscribeToSessions(callback);
+        }
+      });
+      return () => unsubscribeAuth();
+    }
 
-  const { db } = await getFirebaseInstances();
-  const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
-  const q = query(sessionsRef, orderBy('date', 'desc'));
-  
-  return onSnapshot(q, (snapshot) => {
-    const sessions = snapshot.docs.map(doc => ({
-      id: parseInt(doc.id),
-      ...doc.data(),
-      date: doc.data().date.toDate()
-    })) as TrainingSession[];
+    const { db } = await getFirebaseInstances();
+    const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
+    const q = query(sessionsRef, orderBy('date', 'desc'));
     
-    callback(sessions);
-  }, (error) => {
-    console.error('Error listening to sessions:', error);
+    return onSnapshot(q, (snapshot) => {
+      const sessions = snapshot.docs.map(doc => ({
+        id: parseInt(doc.id),
+        ...doc.data(),
+        date: doc.data().date.toDate()
+      })) as TrainingSession[];
+      
+      callback(sessions);
+    }, (error) => {
+      console.error('Error listening to sessions:', error);
+      callback([]);
+    });
+  } catch (error) {
+    console.error('Error setting up sessions listener:', error);
     callback([]);
-  });
+  }
 }
