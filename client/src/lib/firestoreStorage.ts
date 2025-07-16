@@ -4,6 +4,7 @@ import {
   getDocs, 
   addDoc, 
   deleteDoc, 
+  setDoc,
   query, 
   where, 
   orderBy, 
@@ -144,8 +145,9 @@ export class FirestoreStorage {
         createdAt: serverTimestamp()
       };
       
+      // Use setDoc with custom ID for consistent document reference
       const docRef = doc(sessionsRef, id.toString());
-      await addDoc(sessionsRef, sessionData);
+      await setDoc(docRef, sessionData);
       
       return {
         ...sessionData,
