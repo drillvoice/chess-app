@@ -127,6 +127,13 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 16, 2025: CSS loading fix and performance improvement
+  - Fixed CSS loading issue that was causing styling problems
+  - Replaced complex deferred CSS loading system with direct CSS import
+  - Removed duplicate critical.css file to eliminate conflicts
+  - Simplified CSS loading to use standard Vite CSS handling
+  - App now loads styles correctly without render blocking issues
+
 - July 16, 2025: Bug fix for application startup issues
   - Fixed syntax error in firebase-utils.ts that was causing app startup failures
   - Resolved missing try-catch block structure in subscribeToSessions function
