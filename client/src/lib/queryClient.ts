@@ -12,45 +12,57 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Use offline API when offline
-  const res = await (navigator.onLine ? fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  }) : mockOfflineRequest(method, url, data));
-
+  // Always use offline/local storage for Firebase Hosting (static hosting)
+  // Since there's no backend server, we route all API calls to local storage
+  const res = await mockOfflineRequest(method, url, data);
   await throwIfResNotOk(res);
   return res;
 }
 
-// Mock offline requests to use localStorage
+// Route all API calls to hybrid storage for Firebase Hosting (static hosting)
 async function mockOfflineRequest(method: string, url: string, data?: unknown): Promise<Response> {
-  const { localStorage } = await import("./storage");
+  const { hybridStorage } = await import("./hybridStorage");
   
-  if (url === '/api/statistics') {
-    return new Response(JSON.stringify(localStorage.getStatistics()), { status: 200 });
-  }
-  if (url === '/api/training-sessions') {
-    return new Response(JSON.stringify(localStorage.getAllSessions()), { status: 200 });
-  }
-  if (url === '/api/weekly-goal') {
-    return new Response(JSON.stringify(localStorage.getCurrentWeeklyGoal()), { status: 200 });
-  }
-  if (url.startsWith('/api/training-sessions/') && method === 'POST') {
-    const result = localStorage.createSession(data);
-    return new Response(JSON.stringify(result), { status: 200 });
-  }
-  if (url === '/api/export') {
-    return new Response(localStorage.exportData(), { status: 200 });
-  }
-  if (url === '/api/import' && method === 'POST') {
-    const body = data as { data: string };
-    localStorage.importData(body.data);
-    return new Response(JSON.stringify({ message: 'Data imported successfully' }), { status: 200 });
-  }
+  // Ensure storage is initialized
+  await hybridStorage.init();
   
-  return new Response(JSON.stringify({ error: 'Endpoint not available offline' }), { status: 503 });
+  try {
+    if (url === '/api/statistics') {
+      const stats = await hybridStorage.getStatistics();
+      return new Response(JSON.stringify(stats), { status: 200 });
+    }
+    if (url === '/api/training-sessions') {
+      const sessions = await hybridStorage.getAllSessions();
+      return new Response(JSON.stringify(sessions), { status: 200 });
+    }
+    if (url === '/api/weekly-goal') {
+      const goal = await hybridStorage.getCurrentWeeklyGoal();
+      return new Response(JSON.stringify(goal), { status: 200 });
+    }
+    if (url.startsWith('/api/training-sessions/') && method === 'POST') {
+      const result = await hybridStorage.createSession(data);
+      return new Response(JSON.stringify(result), { status: 200 });
+    }
+    if (url.startsWith('/api/training-sessions/') && method === 'DELETE') {
+      const id = parseInt(url.split('/').pop() || '0');
+      const result = await hybridStorage.deleteSession(id);
+      return new Response(JSON.stringify({ success: result }), { status: 200 });
+    }
+    if (url === '/api/export') {
+      const data = await hybridStorage.exportData();
+      return new Response(data, { status: 200 });
+    }
+    if (url === '/api/import' && method === 'POST') {
+      const body = data as { data: string };
+      await hybridStorage.importData(body.data);
+      return new Response(JSON.stringify({ message: 'Data imported successfully' }), { status: 200 });
+    }
+    
+    return new Response(JSON.stringify({ error: 'Endpoint not found' }), { status: 404 });
+  } catch (error) {
+    console.error('Storage operation failed:', error);
+    return new Response(JSON.stringify({ error: 'Internal storage error' }), { status: 500 });
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -59,9 +71,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await (navigator.onLine ? fetch(queryKey[0] as string, {
-      credentials: "include",
-    }) : mockOfflineRequest('GET', queryKey[0] as string));
+    // Always use local storage for Firebase Hosting (static hosting)
+    const res = await mockOfflineRequest('GET', queryKey[0] as string);
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
