@@ -60,9 +60,7 @@ export const gameSessionSchema = insertTrainingSessionSchema.extend({
   playerColor: z.enum(['white', 'black'], {
     required_error: "Player colour is required",
   }),
-  platform: z.enum(['lichess', 'chess.com', 'otb'], {
-    required_error: "Platform is required",
-  }),
+  platform: z.enum(['lichess', 'chess.com', 'otb']).optional(),
   timeControl: z.enum(['5+3', '10+5', '10', '15+10']).optional(),
 }).omit({
   duration: true,

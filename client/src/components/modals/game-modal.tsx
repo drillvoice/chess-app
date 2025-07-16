@@ -227,7 +227,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
 
           <div>
             <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
-              Platform
+              Platform (optional)
             </Label>
             <Select onValueChange={(value) => setValue("platform", value as any)}>
               <SelectTrigger className="mt-1">
