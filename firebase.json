@@ -6,7 +6,48 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "headers": [
+      {
+        "source": "/manifest.json",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      {
+        "source": "/sw.js",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/javascript"
+          }
+        ]
+      },
+      {
+        "source": "**/*.svg",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "image/svg+xml"
+          }
+        ]
+      }
+    ],
     "rewrites": [
+      {
+        "source": "!/manifest.json",
+        "destination": "/index.html"
+      },
+      {
+        "source": "!/sw.js",
+        "destination": "/index.html"
+      },
+      {
+        "source": "!/icon-*.{png,svg}",
+        "destination": "/index.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
