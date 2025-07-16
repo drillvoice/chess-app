@@ -92,13 +92,13 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-800">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg font-bold text-gray-800">
             Log Study Session
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
             <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
               Study Type
@@ -108,12 +108,12 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
                 <SelectValue placeholder="Select study type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="book">Book</SelectItem>
                 <SelectItem value="analysis">Analysis</SelectItem>
+                <SelectItem value="book">Book</SelectItem>
                 <SelectItem value="chessable">Chessable</SelectItem>
                 <SelectItem value="coaching">Coaching session</SelectItem>
                 <SelectItem value="online-course">Online course</SelectItem>
+                <SelectItem value="video">Video</SelectItem>
               </SelectContent>
             </Select>
             {errors.studyType && (
@@ -128,9 +128,9 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
             <Input
               id="duration"
               type="number"
-              placeholder="45"
               className="mt-1"
               {...register("duration", { valueAsNumber: true })}
+              onFocus={(e) => e.target.select()}
             />
             {errors.duration && (
               <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
@@ -139,18 +139,18 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
 
           <div>
             <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
-              Notes
+              Notes (optional)
             </Label>
             <Textarea
               id="studyNotes"
-              placeholder="Learned about Caro-Kann defense..."
               className="mt-1"
-              rows={3}
+              rows={2}
               {...register("studyNotes")}
+              onFocus={(e) => e.target.select()}
             />
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-3 pt-2">
             <Button
               type="button"
               variant="outline"
