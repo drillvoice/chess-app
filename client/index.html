@@ -16,11 +16,132 @@
     <link rel="apple-touch-icon" href="/icon-192.svg" />
     
     <title>Chess Training Logger</title>
+    
+    <!-- Critical CSS inlined to eliminate render blocking -->
+    <style>
+      /* Critical CSS variables */
+      :root {
+        --background: hsl(0, 0%, 100%);
+        --foreground: hsl(20, 14.3%, 4.1%);
+        --muted: hsl(60, 4.8%, 95.9%);
+        --muted-foreground: hsl(25, 5.3%, 44.7%);
+        --popover: hsl(0, 0%, 100%);
+        --popover-foreground: hsl(20, 14.3%, 4.1%);
+        --card: hsl(0, 0%, 100%);
+        --card-foreground: hsl(20, 14.3%, 4.1%);
+        --border: hsl(20, 5.9%, 90%);
+        --input: hsl(20, 5.9%, 90%);
+        --primary: hsl(217, 91%, 60%);
+        --primary-foreground: hsl(211, 100%, 99%);
+        --secondary: hsl(162, 88%, 40%);
+        --secondary-foreground: hsl(60, 9.1%, 97.8%);
+        --accent: hsl(43, 96%, 56%);
+        --accent-foreground: hsl(24, 9.8%, 10%);
+        --destructive: hsl(0, 84.2%, 60.2%);
+        --destructive-foreground: hsl(60, 9.1%, 97.8%);
+        --ring: hsl(20, 14.3%, 4.1%);
+        --radius: 0.5rem;
+      }
+
+      /* Critical base styles */
+      * {
+        border-color: hsl(20, 5.9%, 90%);
+      }
+
+      body {
+        font-family: 'Inter', sans-serif, system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: hsl(0, 0%, 100%);
+        color: hsl(20, 14.3%, 4.1%);
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+      }
+
+      /* Critical layout styles */
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Critical app container */
+      .app-container {
+        max-width: 28rem;
+        margin: 0 auto;
+        background-color: white;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        min-height: 100vh;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Critical navigation styles */
+      .nav-container {
+        background-color: #1E40AF;
+        color: white;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Critical loading state */
+      .loading-spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #f3f4f6;
+        border-radius: 50%;
+        border-top-color: #1E40AF;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Critical button styles */
+      .btn-primary {
+        background-color: #1E40AF;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .btn-primary:hover {
+        background-color: #1E3A8A;
+      }
+
+      /* Hide initial flash */
+      .initial-loading {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      }
+
+      .initial-loading.loaded {
+        opacity: 1;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root" class="initial-loading"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js" defer></script>
+    
+    <!-- Show loaded state after DOM is ready -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('root').classList.add('loaded');
+      });
+    </script>
   </body>
 </html>

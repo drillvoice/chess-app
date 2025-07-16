@@ -26,7 +26,7 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+          <div className="app-container">
             <Navigation />
             <main className="p-4">
               <Router />
