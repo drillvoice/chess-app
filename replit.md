@@ -123,9 +123,15 @@ firebase deploy           # Deploy to Firebase Hosting
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-Version numbering: Update to v1.1.1 for next release (incremental fixes/improvements).
+Version numbering: Update to v1.1.2 for next release (incremental fixes/improvements).
 
 ## Recent Changes
+
+- July 16, 2025: Bug fix for application startup issues
+  - Fixed syntax error in firebase-utils.ts that was causing app startup failures
+  - Resolved missing try-catch block structure in subscribeToSessions function
+  - App now starts successfully without compilation errors
+  - Updated to version 1.1.2 ready for Git push
 
 - July 16, 2025: Performance optimization and CSS inlining implementation
   - Implemented CSS inlining in HTML head to eliminate render blocking requests
