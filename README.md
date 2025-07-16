@@ -1,158 +1,122 @@
 # Chess Training Logger
 
-A comprehensive Progressive Web App for tracking chess training sessions with cloud synchronization using Firebase.
+A Progressive Web App for tracking chess training sessions with cloud synchronization and offline functionality.
 
 ## Features
 
-- 📱 **Progressive Web App (PWA)**: Install on any device
-- 🔄 **Cloud Sync**: Data synchronized across all devices with Firebase Firestore
-- 💾 **Offline Support**: Full functionality without internet connection
-- 📊 **Statistics Tracking**: Monitor progress and performance
-- 🎯 **Goal Setting**: Set and track weekly training goals
-- 📈 **Session History**: Complete history of all training sessions
-- 🔐 **Anonymous Authentication**: Secure cloud sync without account creation
-- 💽 **File System Backup**: Automatic backup to local file system
+- **Training Session Logging**: Track tactics, games, and study sessions
+- **Cloud Sync**: Firebase Firestore integration for cross-device synchronization
+- **Offline Support**: Works offline with IndexedDB storage
+- **Progressive Web App**: Installable on mobile devices
+- **Statistics Dashboard**: Track your progress over time
+- **Data Export**: Backup your training data
 
-## Training Types
+## Tech Stack
 
-- **Tactics**: Points gained, final score, notes
-- **Games**: Win/loss/draw results, color, platform, time control
-- **Study**: Study type, notes, duration
-- **Goals**: Weekly goal setting with title and description
-
-## Quick Start
-
-### Development
-```bash
-npm install
-npm run dev
-```
-
-### Production Build
-```bash
-npm run build
-```
+- **Frontend**: React 18 with TypeScript
+- **Storage**: Hybrid system (IndexedDB + Firebase Firestore)
+- **UI**: Tailwind CSS with shadcn/ui components
+- **Build**: Vite
+- **Hosting**: Firebase Hosting
 
 ## Firebase Hosting Deployment
 
-### Prerequisites
-- Firebase project "chess-logger" already configured
-- Firebase CLI installed (already included in dependencies)
+This app is configured for Firebase Hosting deployment (static hosting), not Firebase App Hosting.
 
-### Deploy Steps
-1. **Login to Firebase**
+### Prerequisites
+
+1. Install Firebase CLI:
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. Login to Firebase:
    ```bash
    firebase login
    ```
 
-2. **Build and Deploy**
+### Deploy to Firebase Hosting
+
+1. **Build the app:**
+   ```bash
+   npm run build
+   ```
+
+2. **Deploy to Firebase Hosting:**
+   ```bash
+   firebase deploy --only hosting
+   ```
+
+   Or use the deployment script:
    ```bash
    ./deploy.sh
    ```
-   
-   Or manually:
-   ```bash
-   npm run build
-   firebase deploy
-   ```
-
-3. **Access Your App**
-   - Live URL: `https://chess-logger.web.app`
-   - Alternative: `https://chess-logger.firebaseapp.com`
 
 ### Configuration Files
-- `firebase.json`: Firebase hosting configuration
-- `.firebaserc`: Firebase project configuration  
-- `deploy.sh`: Automated deployment script
 
-## Technology Stack
+- `firebase.json` - Firebase Hosting configuration
+- `.firebaserc` - Firebase project configuration
+- `deploy.sh` - Automated deployment script
 
-- **Frontend**: React 18 + TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **State Management**: TanStack React Query
-- **Database**: Firebase Firestore (cloud) + IndexedDB (offline)
-- **Authentication**: Firebase Anonymous Auth
-- **Build**: Vite + ESBuild
-- **Hosting**: Firebase Hosting
+### Live URLs
 
-## Architecture
+- Primary: https://chess-logger.web.app
+- Alternative: https://chess-logger.firebaseapp.com
 
-### Storage System
-- **Hybrid Storage**: Combines IndexedDB (offline) with Firestore (cloud sync)
-- **File System Sync**: Automatic backup to user-selected folder
-- **Conflict Resolution**: Cloud data takes precedence in sync conflicts
+## Development
 
-### PWA Features
-- Service Worker for offline functionality
-- Web App Manifest for installation
-- Background sync for data synchronization
-- Push notification capability (future feature)
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-## Environment Variables
+2. **Start development server:**
+   ```bash
+   npm run dev
+   ```
 
-For production deployment, the app uses built-in Firebase configuration:
-- Project ID: `chess-logger`
-- Authentication: Anonymous sign-in enabled
-- Firestore: Cloud sync with offline persistence
+3. **Build for production:**
+   ```bash
+   npm run build
+   ```
 
-## Security
-
-- Firebase security rules protect user data
-- Anonymous authentication provides security without accounts
-- HTTPS enforced automatically by Firebase Hosting
-- Client-side validation with server-side backup
-
-## Browser Support
-
-- Chrome/Edge 88+
-- Firefox 78+
-- Safari 14+
-- Mobile browsers with PWA support
-
-## File Structure
+## Project Structure
 
 ```
-├── client/src/          # React frontend
-├── server/             # Express backend (development)
-├── shared/             # Shared TypeScript schemas
-├── public/             # Static assets and PWA files
-├── firebase.json       # Firebase hosting config
-├── deploy.sh          # Deployment script
-└── FIREBASE_HOSTING_GUIDE.md  # Detailed deployment guide
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/    # UI components
+│   │   ├── lib/          # Storage and Firebase logic
+│   │   └── hooks/        # Custom React hooks
+├── server/                # Express backend (dev only)
+├── shared/               # Shared types and schemas
+├── public/               # PWA assets
+├── firebase.json         # Firebase Hosting config
+└── deploy.sh            # Deployment script
 ```
 
-## Development Commands
+## Storage System
 
-```bash
-# Development server
-npm run dev
+The app uses a hybrid storage approach:
 
-# Production build
-npm run build
+- **IndexedDB**: Primary offline storage
+- **Firebase Firestore**: Cloud sync for cross-device access
+- **File System API**: Optional local backup
 
-# Type checking
-npm run check
+## PWA Features
 
-# Database schema push
-npm run db:push
+- Offline functionality
+- Install prompt for mobile devices
+- Service worker for caching
+- App-like experience on mobile
 
-# Firebase deployment
-./deploy.sh
-```
+## Contributing
 
-## Deployment Checklist
-
-- [ ] Firebase project configured
-- [ ] Build completes successfully
-- [ ] PWA functionality tested
-- [ ] Cloud sync working
-- [ ] Offline mode tested
-- [ ] Mobile responsiveness verified
-- [ ] Custom domain configured (optional)
-
-## Support
-
-For detailed deployment instructions, see `FIREBASE_HOSTING_GUIDE.md`.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 

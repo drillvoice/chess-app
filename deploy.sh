@@ -16,7 +16,7 @@ fi
 
 # Step 2: Deploy to Firebase Hosting (NOT Cloud Run)
 echo "🔥 Deploying to Firebase Hosting..."
-firebase deploy --only hosting
+firebase deploy --only hosting --project chess-logger
 
 if [ $? -eq 0 ]; then
     echo "✅ Deployment successful! Your app is now live on Firebase Hosting."
