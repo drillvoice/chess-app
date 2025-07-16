@@ -123,6 +123,7 @@ firebase deploy           # Deploy to Firebase Hosting
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Version numbering: Update to v1.1.1 for next release (incremental fixes/improvements).
 
 ## Recent Changes
 
@@ -148,6 +149,10 @@ Preferred communication style: Simple, everyday language.
   - Added optimistic updates for tactics modal to provide instant feedback
   - Improved query caching with staleTime configuration for better performance
   - Added Suspense boundaries for lazy-loaded components
+  - Fixed modal stuck issue: moved modal close to onMutate for immediate UX response
+  - Added timeout protection (10s) to Firebase operations to prevent hanging
+  - Added authentication timeout (5s) to prevent infinite waiting
+  - Enhanced error handling with better timeout detection and user feedback
 
 - July 15, 2025: Complete Firebase integration and hosting setup
   - Successfully integrated Firebase Firestore cloud sync with hybrid storage system
