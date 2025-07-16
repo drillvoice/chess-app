@@ -14,30 +14,45 @@ import {
   signInAnonymously, 
   onAuthStateChanged,
 } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { getFirebaseInstances } from './firebase';
 import { TrainingSession, InsertTrainingSession } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 
 // Firebase utilities for direct Firestore operations
 let currentUserId: string | null = null;
 
-// Initialize authentication
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    currentUserId = user.uid;
-  } else {
-    try {
-      const userCred = await signInAnonymously(auth);
-      currentUserId = userCred.user.uid;
-    } catch (error) {
-      console.error('Firebase auth failed:', error);
-    }
+// Initialize authentication when Firebase is ready
+const initializeAuth = async () => {
+  try {
+    const { auth } = await getFirebaseInstances();
+    
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUserId = user.uid;
+      } else {
+        try {
+          const userCred = await signInAnonymously(auth);
+          currentUserId = userCred.user.uid;
+        } catch (error) {
+          console.error('Firebase auth failed:', error);
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Firebase initialization failed:', error);
   }
-});
+};
+
+// Initialize auth when Firebase is ready
+setTimeout(() => {
+  initializeAuth();
+}, 200);
 
 // Helper to wait for authentication with timeout
 async function waitForAuth(): Promise<void> {
   if (currentUserId) return;
+  
+  const { auth } = await getFirebaseInstances();
   
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -57,8 +72,9 @@ async function waitForAuth(): Promise<void> {
 }
 
 // Helper to get user's sessions collection
-function getSessionsCollection() {
+async function getSessionsCollection() {
   if (!currentUserId) throw new Error('User not authenticated');
+  const { db } = await getFirebaseInstances();
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
 
@@ -80,7 +96,7 @@ async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
   await waitForAuth();
   
   try {
-    const sessionsRef = getSessionsCollection();
+    const sessionsRef = await getSessionsCollection();
     const q = query(sessionsRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
     
@@ -114,7 +130,7 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
   await waitForAuth();
   
   try {
-    const sessionsRef = getSessionsCollection();
+    const sessionsRef = await getSessionsCollection();
     const q = query(
       sessionsRef, 
       where('type', '==', type),
@@ -137,7 +153,7 @@ export async function getSessionsByDateRange(startDate: Date, endDate: Date): Pr
   await waitForAuth();
   
   try {
-    const sessionsRef = getSessionsCollection();
+    const sessionsRef = await getSessionsCollection();
     const q = query(
       sessionsRef,
       where('date', '>=', Timestamp.fromDate(startDate)),
@@ -161,7 +177,7 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
   try {
     await waitForAuth();
     
-    const sessionsRef = getSessionsCollection();
+    const sessionsRef = await getSessionsCollection();
     
     // Generate a unique ID based on timestamp
     const id = Date.now();
@@ -210,7 +226,7 @@ export async function deleteSession(id: number): Promise<boolean> {
   await waitForAuth();
   
   try {
-    const sessionsRef = getSessionsCollection();
+    const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
     await deleteDoc(docRef);
     return true;
