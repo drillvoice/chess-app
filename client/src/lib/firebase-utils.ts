@@ -41,8 +41,8 @@ async function waitForAuth(): Promise<void> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       unsubscribe();
-      reject(new Error('Authentication timeout'));
-    }, 5000);
+      reject(new Error('Authentication timeout - please refresh the page'));
+    }, 15000);
     
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -151,10 +151,10 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     // Use setDoc with custom ID for consistent document reference
     const docRef = doc(sessionsRef, id.toString());
     
-    // Add timeout to Firebase operation
+    // Add timeout to Firebase operation (increased to 30 seconds)
     const savePromise = setDoc(docRef, sessionData);
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Save operation timed out')), 10000);
+      setTimeout(() => reject(new Error('Save operation timed out - please check your internet connection')), 30000);
     });
     
     await Promise.race([savePromise, timeoutPromise]);

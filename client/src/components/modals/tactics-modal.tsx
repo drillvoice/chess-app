@@ -88,19 +88,29 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
     },
     onError: (error: any, newSession, context) => {
-      // Rollback optimistic updates on error
-      if (context?.previousSessions) {
-        queryClient.setQueryData(["sessions"], context.previousSessions);
+      // Check if it's a timeout error but session might have been saved
+      if (error.message?.includes('timeout')) {
+        toast({
+          title: "Slow Connection",
+          description: "Session may have been saved. Please check your history to confirm.",
+          variant: "destructive",
+        });
+        // Don't rollback on timeout - session might have been saved
+      } else {
+        // Rollback optimistic updates on real errors
+        if (context?.previousSessions) {
+          queryClient.setQueryData(["sessions"], context.previousSessions);
+        }
+        if (context?.previousStats) {
+          queryClient.setQueryData(["statistics"], context.previousStats);
+        }
+        
+        toast({
+          title: "Error",
+          description: error.message || "Failed to log tactics session",
+          variant: "destructive",
+        });
       }
-      if (context?.previousStats) {
-        queryClient.setQueryData(["statistics"], context.previousStats);
-      }
-      
-      toast({
-        title: "Error",
-        description: error.message || "Failed to log tactics session",
-        variant: "destructive",
-      });
     },
   });
 

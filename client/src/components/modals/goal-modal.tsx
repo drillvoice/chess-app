@@ -61,11 +61,20 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to set weekly goal",
-        variant: "destructive",
-      });
+      // Check if it's a timeout error but session might have been saved
+      if (error.message?.includes('timeout')) {
+        toast({
+          title: "Slow Connection",
+          description: "Goal may have been saved. Please check your history to confirm.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to set weekly goal",
+          variant: "destructive",
+        });
+      }
     },
   });
 
