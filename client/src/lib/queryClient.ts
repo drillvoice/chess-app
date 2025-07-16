@@ -29,10 +29,12 @@ async function mockOfflineRequest(method: string, url: string, data?: unknown): 
   try {
     if (url === '/api/statistics') {
       const stats = await hybridStorage.getStatistics();
+      console.log('Stats fetched:', stats);
       return new Response(JSON.stringify(stats), { status: 200 });
     }
     if (url === '/api/training-sessions') {
       const sessions = await hybridStorage.getAllSessions();
+      console.log('Sessions fetched:', sessions.length, 'sessions');
       return new Response(JSON.stringify(sessions), { status: 200 });
     }
     if (url === '/api/weekly-goal') {
@@ -40,7 +42,9 @@ async function mockOfflineRequest(method: string, url: string, data?: unknown): 
       return new Response(JSON.stringify(goal), { status: 200 });
     }
     if (url.startsWith('/api/training-sessions/') && method === 'POST') {
+      console.log('Creating session with data:', data);
       const result = await hybridStorage.createSession(data);
+      console.log('Session created:', result);
       return new Response(JSON.stringify(result), { status: 200 });
     }
     if (url.startsWith('/api/training-sessions/') && method === 'DELETE') {
@@ -88,7 +92,7 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 0, // Don't cache data, always fetch fresh
       retry: false,
     },
     mutations: {

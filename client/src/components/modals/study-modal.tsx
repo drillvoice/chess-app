@@ -42,8 +42,11 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      // Add a small delay to ensure data is saved before invalidating cache
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      }, 100);
       toast({
         title: "Success",
         description: "Study session logged successfully!",

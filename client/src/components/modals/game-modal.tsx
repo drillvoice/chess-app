@@ -50,8 +50,11 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      // Add a small delay to ensure data is saved before invalidating cache
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      }, 100);
       toast({
         title: "Success",
         description: "Game session logged successfully!",
