@@ -1,17 +1,8 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 
-// Defer non-critical CSS loading to avoid render blocking
-const loadNonCriticalCSS = () => {
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = '/src/index.css';
-  link.media = 'print';
-  link.onload = () => {
-    link.media = 'all';
-  };
-  document.head.appendChild(link);
-};
+// Load main CSS file normally - let Vite handle the CSS loading
+import "./index.css";
 
 // Lazy load Firebase to break critical request chain
 const initializeFirebase = async () => {
@@ -54,8 +45,7 @@ const initializeFirebase = async () => {
   }
 };
 
-// Load CSS after initial render
-requestAnimationFrame(loadNonCriticalCSS);
+// CSS is now loaded directly via import statement above
 
 // Initialize Firebase immediately after DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
