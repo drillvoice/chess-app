@@ -48,7 +48,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
     mutationFn: async (data: GameSession) => {
       return await createSession(data);
     },
-    onSuccess: () => {
+    onMutate: async () => {
       // Close modal immediately for better UX
       onOpenChange(false);
       reset();
@@ -56,6 +56,13 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
       setSelectedColor(null);
       setSelectedTimeControl(null);
       
+      // Show immediate feedback
+      toast({
+        title: "Saving...",
+        description: "Game session is being saved",
+      });
+    },
+    onSuccess: () => {
       // Show success notification
       toast({
         title: "Success",

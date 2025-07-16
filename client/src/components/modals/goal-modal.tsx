@@ -37,11 +37,18 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
     mutationFn: async (data: GoalSession) => {
       return await createSession(data);
     },
-    onSuccess: () => {
+    onMutate: async () => {
       // Close modal immediately for better UX
       onOpenChange(false);
       reset();
       
+      // Show immediate feedback
+      toast({
+        title: "Saving...",
+        description: "Weekly goal is being saved",
+      });
+    },
+    onSuccess: () => {
       // Show success notification
       toast({
         title: "Success",

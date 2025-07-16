@@ -41,6 +41,16 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
       return await createSession(data);
     },
     onMutate: async (newSession) => {
+      // Close modal immediately for better UX - don't wait for server
+      onOpenChange(false);
+      reset();
+      
+      // Show immediate feedback
+      toast({
+        title: "Saving...",
+        description: "Tactics session is being saved",
+      });
+
       // Optimistic update: update caches immediately
       const tempId = Date.now();
       const optimisticSession = {
@@ -66,10 +76,6 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
       return { previousSessions, previousStats };
     },
     onSuccess: () => {
-      // Close modal immediately for better UX
-      onOpenChange(false);
-      reset();
-      
       // Show success notification
       toast({
         title: "Success",

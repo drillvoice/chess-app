@@ -40,11 +40,18 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
     mutationFn: async (data: StudySession) => {
       return await createSession(data);
     },
-    onSuccess: () => {
+    onMutate: async () => {
       // Close modal immediately for better UX
       onOpenChange(false);
       reset();
       
+      // Show immediate feedback
+      toast({
+        title: "Saving...",
+        description: "Study session is being saved",
+      });
+    },
+    onSuccess: () => {
       // Show success notification
       toast({
         title: "Success",

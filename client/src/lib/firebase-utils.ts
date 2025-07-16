@@ -34,14 +34,20 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Helper to wait for authentication
+// Helper to wait for authentication with timeout
 async function waitForAuth(): Promise<void> {
   if (currentUserId) return;
   
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      reject(new Error('Authentication timeout'));
+    }, 5000);
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         currentUserId = user.uid;
+        clearTimeout(timeout);
         unsubscribe();
         resolve();
       }
@@ -123,9 +129,9 @@ export async function getSessionsByDateRange(startDate: Date, endDate: Date): Pr
 }
 
 export async function createSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
-  await waitForAuth();
-  
   try {
+    await waitForAuth();
+    
     const sessionsRef = getSessionsCollection();
     
     // Generate a unique ID based on timestamp
@@ -144,7 +150,14 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     
     // Use setDoc with custom ID for consistent document reference
     const docRef = doc(sessionsRef, id.toString());
-    await setDoc(docRef, sessionData);
+    
+    // Add timeout to Firebase operation
+    const savePromise = setDoc(docRef, sessionData);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Save operation timed out')), 10000);
+    });
+    
+    await Promise.race([savePromise, timeoutPromise]);
     
     return {
       ...sessionData,
@@ -153,7 +166,7 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     } as TrainingSession;
   } catch (error) {
     console.error('Error creating session:', error);
-    throw error;
+    throw new Error(error instanceof Error ? error.message : 'Failed to save session');
   }
 }
 
