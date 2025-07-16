@@ -93,7 +93,7 @@ export default function DataManagement() {
           <div className="space-y-3">
             <FirebaseAuth />
             <p className="text-sm text-gray-600">
-              Your data is automatically synced to Firebase Cloud when you're online.
+              Your data is automatically synced to Firebase Cloud for this device when you're online.
             </p>
           </div>
         </div>
