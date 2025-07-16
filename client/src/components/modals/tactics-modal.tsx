@@ -125,13 +125,14 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-800">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg font-bold text-gray-800">
             Log Tactics Session
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          {/* Duration on its own row */}
           <div>
             <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
               Duration (minutes)
@@ -139,61 +140,65 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
             <Input
               id="duration"
               type="number"
-              placeholder="25"
               className="mt-1"
               {...register("duration", { valueAsNumber: true })}
+              onFocus={(e) => e.target.select()}
             />
             {errors.duration && (
               <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
             )}
           </div>
 
-          <div>
-            <Label htmlFor="pointsGained" className="text-sm font-medium text-gray-700">
-              Points Gained
-            </Label>
-            <Input
-              id="pointsGained"
-              type="number"
-              placeholder="+35"
-              className="mt-1"
-              {...register("pointsGained", { valueAsNumber: true })}
-            />
-            {errors.pointsGained && (
-              <p className="text-sm text-red-600 mt-1">{errors.pointsGained.message}</p>
-            )}
+          {/* Points Gained and Final Score on same row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="pointsGained" className="text-sm font-medium text-gray-700">
+                Points Gained
+              </Label>
+              <Input
+                id="pointsGained"
+                type="number"
+                className="mt-1"
+                {...register("pointsGained", { valueAsNumber: true })}
+                onFocus={(e) => e.target.select()}
+              />
+              {errors.pointsGained && (
+                <p className="text-sm text-red-600 mt-1">{errors.pointsGained.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="finalScore" className="text-sm font-medium text-gray-700">
+                Final Score
+              </Label>
+              <Input
+                id="finalScore"
+                type="number"
+                className="mt-1"
+                {...register("finalScore", { valueAsNumber: true })}
+                onFocus={(e) => e.target.select()}
+              />
+              {errors.finalScore && (
+                <p className="text-sm text-red-600 mt-1">{errors.finalScore.message}</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="finalScore" className="text-sm font-medium text-gray-700">
-              Final Score
-            </Label>
-            <Input
-              id="finalScore"
-              type="number"
-              placeholder="2156"
-              className="mt-1"
-              {...register("finalScore", { valueAsNumber: true })}
-            />
-            {errors.finalScore && (
-              <p className="text-sm text-red-600 mt-1">{errors.finalScore.message}</p>
-            )}
-          </div>
-
+          {/* Notes section - more compact */}
           <div>
             <Label htmlFor="tacticsNotes" className="text-sm font-medium text-gray-700">
               Notes (optional)
             </Label>
             <Textarea
               id="tacticsNotes"
-              placeholder="Struggled with knight endgames..."
               className="mt-1"
-              rows={3}
+              rows={2}
               {...register("tacticsNotes")}
+              onFocus={(e) => e.target.select()}
             />
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          {/* Action buttons */}
+          <div className="flex space-x-3 pt-2">
             <Button
               type="button"
               variant="outline"
