@@ -46,7 +46,7 @@ const initializeAuth = async () => {
 // Initialize auth when Firebase is ready
 setTimeout(() => {
   initializeAuth();
-}, 200);
+}, 100);
 
 // Helper to wait for authentication with timeout
 async function waitForAuth(): Promise<void> {
@@ -237,32 +237,44 @@ export async function deleteSession(id: number): Promise<boolean> {
 }
 
 export async function getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
-  // Try cache first for instant loading
-  const cachedGoal = WeeklyGoalCache.get();
-  if (cachedGoal !== null) {
-    // Return cached data immediately, then update in background
-    updateWeeklyGoalInBackground();
-    return cachedGoal || undefined;
+  try {
+    // Try cache first for instant loading
+    const cachedGoal = WeeklyGoalCache.get();
+    if (cachedGoal !== null) {
+      // Return cached data immediately, then update in background
+      updateWeeklyGoalInBackground();
+      return cachedGoal || undefined;
+    }
+    
+    // If no cache, calculate from sessions
+    return await calculateWeeklyGoal();
+  } catch (error) {
+    console.error('Error getting weekly goal:', error);
+    return undefined;
   }
-  
-  // If no cache, calculate from sessions
-  return await calculateWeeklyGoal();
 }
 
 async function calculateWeeklyGoal(): Promise<TrainingSession | undefined> {
-  const sessions = await getAllSessions();
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  
-  const goal = sessions.find(session => 
-    session.type === 'goal' && 
-    session.date >= oneWeekAgo
-  );
-  
-  // Cache the result (including null/undefined)
-  WeeklyGoalCache.set(goal || null);
-  
-  return goal;
+  try {
+    const sessions = await getAllSessions();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const goal = sessions.find(session => 
+      session.type === 'goal' && 
+      session.date >= oneWeekAgo
+    );
+    
+    // Cache the result (including null/undefined)
+    WeeklyGoalCache.set(goal || null);
+    
+    return goal;
+  } catch (error) {
+    console.error('Error calculating weekly goal:', error);
+    // Cache null on error to prevent repeated failures
+    WeeklyGoalCache.set(null);
+    return undefined;
+  }
 }
 
 async function updateWeeklyGoalInBackground(): Promise<void> {
@@ -357,10 +369,12 @@ async function updateStatisticsInBackground(): Promise<void> {
 }
 
 // Real-time listener for sessions
-export function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
-  if (!currentUserId) {
-    // Wait for auth and then subscribe
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+export async function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
+  try {
+    if (!currentUserId) {
+      const { auth } = await getFirebaseInstances();
+      // Wait for auth and then subscribe
+      const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUserId = user.uid;
         unsubscribeAuth();
@@ -370,6 +384,7 @@ export function subscribeToSessions(callback: (sessions: TrainingSession[]) => v
     return () => unsubscribeAuth();
   }
 
+  const { db } = await getFirebaseInstances();
   const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
   const q = query(sessionsRef, orderBy('date', 'desc'));
   

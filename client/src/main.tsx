@@ -57,10 +57,11 @@ const initializeFirebase = async () => {
 // Load CSS after initial render
 requestAnimationFrame(loadNonCriticalCSS);
 
-// Initialize Firebase after app renders
-setTimeout(() => {
-  initializeFirebase();
-}, 100);
+// Initialize Firebase immediately after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  // Small delay to ensure app starts rendering first
+  setTimeout(initializeFirebase, 50);
+});
 
 // Register service worker for offline functionality
 if ('serviceWorker' in navigator) {
