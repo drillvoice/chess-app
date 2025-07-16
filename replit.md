@@ -90,20 +90,29 @@ This is a full-stack web application for tracking chess training sessions. Built
 
 ## Deployment Strategy
 
-### Build Process
+### Firebase Hosting Production
 1. **Frontend**: Vite builds React app to `dist/public`
-2. **Backend**: ESBuild bundles server code to `dist/index.js`
-3. **Database**: Drizzle migrations applied via `db:push` command
+2. **Database**: Firebase Firestore (cloud) + IndexedDB (offline)
+3. **Authentication**: Firebase Anonymous Auth
+4. **Hosting**: Firebase Hosting with CDN, SSL, and custom domain support
+
+### Build Process
+```bash
+npm run build              # Build frontend to dist/public
+firebase deploy           # Deploy to Firebase Hosting
+```
 
 ### Environment Configuration
-- **Development**: TSX for hot reloading, in-memory storage
-- **Production**: Compiled JavaScript, PostgreSQL database
-- **Database URL**: Required environment variable for database connection
+- **Development**: TSX for hot reloading, hybrid storage
+- **Production**: Firebase Hosting, Firestore cloud sync
+- **URLs**: https://chess-logger.web.app (primary), https://chess-logger.firebaseapp.com (alternate)
 
-### Replit Integration
-- **Development Banner**: Automatic development environment detection
-- **Error Overlay**: Runtime error modal for development
-- **Hot Reloading**: Full-stack development with automatic restarts
+### Deployment Files
+- `firebase.json`: Firebase hosting configuration
+- `.firebaserc`: Firebase project configuration
+- `deploy.sh`: Automated deployment script
+- `README.md`: Production deployment guide
+- `FIREBASE_HOSTING_GUIDE.md`: Detailed hosting instructions
 
 ## User Preferences
 
@@ -111,14 +120,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- July 15, 2025: Successfully integrated Firebase Firestore cloud sync
+- July 15, 2025: Complete Firebase integration and hosting setup
+  - Successfully integrated Firebase Firestore cloud sync with hybrid storage system
   - Fixed React import conflicts by carefully implementing Firebase step-by-step
-  - Created hybrid storage system combining IndexedDB (offline) with Firestore (cloud sync)
+  - Created hybrid storage combining IndexedDB (offline) with Firestore (cloud sync)
   - Added Firebase authentication with anonymous sign-in for secure cloud access
   - Implemented real-time data synchronization across devices
   - Added cloud sync controls and force sync functionality in data management
   - Maintained offline-first approach with automatic file system backup
   - Enhanced PWA with seamless cloud backup and cross-device synchronization
+  - Prepared complete Firebase hosting deployment with detailed guides
+  - Created firebase.json, .firebaserc, and deploy.sh for easy deployment
+  - Added comprehensive README.md and FIREBASE_HOSTING_GUIDE.md
+  - Ready for production deployment to https://chess-logger.web.app
 
 - July 08, 2025: Enhanced training session logging with additional fields
   - Added tactics notes field for quick observations

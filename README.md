@@ -1,53 +1,159 @@
 # Chess Training Logger
 
-A full-stack web application for tracking chess training sessions including tactics practice, games, and study sessions.
+A comprehensive Progressive Web App for tracking chess training sessions with cloud synchronization using Firebase.
 
 ## Features
 
-- Log tactics training with points and scores
-- Track games with results, colours, platforms, and time controls
-- Record study sessions with notes
-- Set and track weekly goals
-- Export/import training data for backup
-- Mobile-first responsive design
+- 📱 **Progressive Web App (PWA)**: Install on any device
+- 🔄 **Cloud Sync**: Data synchronized across all devices with Firebase Firestore
+- 💾 **Offline Support**: Full functionality without internet connection
+- 📊 **Statistics Tracking**: Monitor progress and performance
+- 🎯 **Goal Setting**: Set and track weekly training goals
+- 📈 **Session History**: Complete history of all training sessions
+- 🔐 **Anonymous Authentication**: Secure cloud sync without account creation
+- 💽 **File System Backup**: Automatic backup to local file system
 
-## Deployment Options
+## Training Types
 
-### Option 1: Railway (Recommended)
-1. Go to [railway.app](https://railway.app)
-2. Connect your GitHub account
-3. Deploy this repository
-4. Railway will automatically detect the Node.js app and deploy it
+- **Tactics**: Points gained, final score, notes
+- **Games**: Win/loss/draw results, color, platform, time control
+- **Study**: Study type, notes, duration
+- **Goals**: Weekly goal setting with title and description
 
-### Option 2: Render
-1. Go to [render.com](https://render.com)
-2. Connect GitHub and select this repository
-3. Choose "Web Service"
-4. Build Command: `npm run build`
-5. Start Command: `npm start`
+## Quick Start
 
-### Option 3: Vercel (Requires setup)
-1. Push the included `vercel.json` file to your repository
-2. Deploy on Vercel
-
-## Local Development
-
+### Development
 ```bash
 npm install
 npm run dev
 ```
 
-## Data Management
+### Production Build
+```bash
+npm run build
+```
 
-This app uses in-memory storage with export/import functionality:
-- Data persists during your session
-- Export your training data regularly to create backups
-- Import previously exported files to restore your training history
-- Completely free - no database subscription required
+## Firebase Hosting Deployment
 
-## Tech Stack
+### Prerequisites
+- Firebase project "chess-logger" already configured
+- Firebase CLI installed (already included in dependencies)
 
-- **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Express.js, Node.js
-- **Storage**: In-memory with JSON export/import
-- **Build**: Vite for frontend, esbuild for backend
+### Deploy Steps
+1. **Login to Firebase**
+   ```bash
+   firebase login
+   ```
+
+2. **Build and Deploy**
+   ```bash
+   ./deploy.sh
+   ```
+   
+   Or manually:
+   ```bash
+   npm run build
+   firebase deploy
+   ```
+
+3. **Access Your App**
+   - Live URL: `https://chess-logger.web.app`
+   - Alternative: `https://chess-logger.firebaseapp.com`
+
+### Configuration Files
+- `firebase.json`: Firebase hosting configuration
+- `.firebaserc`: Firebase project configuration  
+- `deploy.sh`: Automated deployment script
+
+## Technology Stack
+
+- **Frontend**: React 18 + TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **State Management**: TanStack React Query
+- **Database**: Firebase Firestore (cloud) + IndexedDB (offline)
+- **Authentication**: Firebase Anonymous Auth
+- **Build**: Vite + ESBuild
+- **Hosting**: Firebase Hosting
+
+## Architecture
+
+### Storage System
+- **Hybrid Storage**: Combines IndexedDB (offline) with Firestore (cloud sync)
+- **File System Sync**: Automatic backup to user-selected folder
+- **Conflict Resolution**: Cloud data takes precedence in sync conflicts
+
+### PWA Features
+- Service Worker for offline functionality
+- Web App Manifest for installation
+- Background sync for data synchronization
+- Push notification capability (future feature)
+
+## Environment Variables
+
+For production deployment, the app uses built-in Firebase configuration:
+- Project ID: `chess-logger`
+- Authentication: Anonymous sign-in enabled
+- Firestore: Cloud sync with offline persistence
+
+## Security
+
+- Firebase security rules protect user data
+- Anonymous authentication provides security without accounts
+- HTTPS enforced automatically by Firebase Hosting
+- Client-side validation with server-side backup
+
+## Browser Support
+
+- Chrome/Edge 88+
+- Firefox 78+
+- Safari 14+
+- Mobile browsers with PWA support
+
+## File Structure
+
+```
+├── client/src/          # React frontend
+├── server/             # Express backend (development)
+├── shared/             # Shared TypeScript schemas
+├── public/             # Static assets and PWA files
+├── firebase.json       # Firebase hosting config
+├── deploy.sh          # Deployment script
+└── FIREBASE_HOSTING_GUIDE.md  # Detailed deployment guide
+```
+
+## Development Commands
+
+```bash
+# Development server
+npm run dev
+
+# Production build
+npm run build
+
+# Type checking
+npm run check
+
+# Database schema push
+npm run db:push
+
+# Firebase deployment
+./deploy.sh
+```
+
+## Deployment Checklist
+
+- [ ] Firebase project configured
+- [ ] Build completes successfully
+- [ ] PWA functionality tested
+- [ ] Cloud sync working
+- [ ] Offline mode tested
+- [ ] Mobile responsiveness verified
+- [ ] Custom domain configured (optional)
+
+## Support
+
+For detailed deployment instructions, see `FIREBASE_HOSTING_GUIDE.md`.
+
+## License
+
+MIT License
