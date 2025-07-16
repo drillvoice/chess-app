@@ -14,9 +14,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Step 2: Deploy to Firebase Hosting
+# Step 2: Deploy to Firebase Hosting (NOT Cloud Run)
 echo "🔥 Deploying to Firebase Hosting..."
-firebase deploy
+firebase deploy --only hosting
 
 if [ $? -eq 0 ]; then
     echo "✅ Deployment successful! Your app is now live on Firebase Hosting."

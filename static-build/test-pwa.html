@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+    <h1>PWA Installation Test</h1>
+    <button id="install-button" style="display: none;">Install App</button>
+    <div id="status"></div>
+    
+    <script>
+        let deferredPrompt;
+        const installButton = document.getElementById('install-button');
+        const status = document.getElementById('status');
+        
+        // Check if PWA is installable
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.style.display = 'block';
+            status.innerHTML = 'App can be installed!';
+        });
+        
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const result = await deferredPrompt.userChoice;
+                status.innerHTML = `Install result: ${result.outcome}`;
+                deferredPrompt = null;
+                installButton.style.display = 'none';
+            }
+        });
+        
+        // Check service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(() => {
+                status.innerHTML += '<br>Service Worker registered';
+            }).catch(err => {
+                status.innerHTML += '<br>Service Worker failed: ' + err;
+            });
+        }
+        
+        // Check manifest
+        fetch('/manifest.json').then(res => res.json()).then(manifest => {
+            status.innerHTML += '<br>Manifest loaded: ' + manifest.name;
+        }).catch(err => {
+            status.innerHTML += '<br>Manifest error: ' + err;
+        });
+    </script>
+</body>
+</html>
