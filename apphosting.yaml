@@ -1,0 +1,25 @@
+# Firebase App Hosting Configuration
+# This builds the React app and serves it as static files
+
+runConfig:
+  runtime: nodejs20
+
+env:
+  - variable: NODE_ENV
+    value: production
+  - variable: FIREBASE_CONFIG
+    value: |
+      {
+        "apiKey": "AIzaSyAi_YUEMC5-9-iSKChB2TBCor9hU3b5oDI",
+        "authDomain": "chess-logger.firebaseapp.com",
+        "projectId": "chess-logger",
+        "storageBucket": "chess-logger.firebasestorage.app",
+        "messagingSenderId": "174377329737",
+        "appId": "1:174377329737:web:003bfcbb44e2700e290b98"
+      }
+
+# Build the static React app
+buildCommand: npm run build
+
+# Use custom static server that listens on port 8080
+startCommand: node start-static.js
