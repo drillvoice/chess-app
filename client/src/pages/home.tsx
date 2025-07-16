@@ -213,7 +213,7 @@ export default function Home() {
       {/* Version Control Note */}
       <div className="text-center mt-8 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500">
-          Chess Training Logger v1.1.1 - July 16, 2025
+          Chess Training Logger v1.1.2 - July 16, 2025
         </p>
       </div>
     </div>
