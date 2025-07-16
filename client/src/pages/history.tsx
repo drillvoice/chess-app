@@ -16,6 +16,7 @@ export default function History() {
       const { getAllSessions } = await import("@/lib/firebase-utils");
       return await getAllSessions();
     },
+    staleTime: 30000,
     refetchInterval: 30000,
   });
 

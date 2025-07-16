@@ -1,13 +1,11 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Puzzle, Crown, Book, Target } from "lucide-react";
-import TacticsModal from "@/components/modals/tactics-modal";
-import GameModal from "@/components/modals/game-modal";
-import StudyModal from "@/components/modals/study-modal";
-import GoalModal from "@/components/modals/goal-modal";
+import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
 import InstallPrompt from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TrainingSession } from "@shared/schema";
 
 interface Statistics {
@@ -31,6 +29,7 @@ export default function Home() {
       const { getStatistics } = await import("@/lib/firebase-utils");
       return await getStatistics();
     },
+    staleTime: 30000,
     refetchInterval: 30000,
   });
 
@@ -40,6 +39,7 @@ export default function Home() {
       const { getCurrentWeeklyGoal } = await import("@/lib/firebase-utils");
       return await getCurrentWeeklyGoal();
     },
+    staleTime: 60000,
     refetchInterval: 60000,
   });
 
@@ -165,39 +165,48 @@ export default function Home() {
       <Card className="bg-gray-100 rounded-xl mt-6">
         <CardContent className="p-4">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Today's Progress</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#1E40AF]">
-                {isLoading ? "..." : `${stats?.todayTotalTime || 0}m`}
-              </div>
-              <div className="text-sm text-gray-600">Total Time</div>
+          {isLoading ? (
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#059669]">
-                {isLoading ? "..." : stats?.todaySessions || 0}
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-[#1E40AF]">
+                  {`${stats?.todayTotalTime || 0}m`}
+                </div>
+                <div className="text-sm text-gray-600">Total Time</div>
               </div>
-              <div className="text-sm text-gray-600">Sessions</div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-[#059669]">
+                  {stats?.todaySessions || 0}
+                </div>
+                <div className="text-sm text-gray-600">Sessions</div>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      <TacticsModal 
-        open={tacticsModalOpen} 
-        onOpenChange={setTacticsModalOpen}
-      />
-      <GameModal 
-        open={gameModalOpen} 
-        onOpenChange={setGameModalOpen}
-      />
-      <StudyModal 
-        open={studyModalOpen} 
-        onOpenChange={setStudyModalOpen}
-      />
-      <GoalModal 
-        open={goalModalOpen} 
-        onOpenChange={setGoalModalOpen}
-      />
+      <Suspense fallback={<div />}>
+        <TacticsModal 
+          open={tacticsModalOpen} 
+          onOpenChange={setTacticsModalOpen}
+        />
+        <GameModal 
+          open={gameModalOpen} 
+          onOpenChange={setGameModalOpen}
+        />
+        <StudyModal 
+          open={studyModalOpen} 
+          onOpenChange={setStudyModalOpen}
+        />
+        <GoalModal 
+          open={goalModalOpen} 
+          onOpenChange={setGoalModalOpen}
+        />
+      </Suspense>
       
       {/* Version Control Note */}
       <div className="text-center mt-8 pt-4 border-t border-gray-200">

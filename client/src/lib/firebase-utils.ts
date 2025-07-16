@@ -7,7 +7,7 @@ import {
   query, 
   where, 
   orderBy, 
-  serverTimestamp,
+  onSnapshot,
   Timestamp
 } from 'firebase/firestore';
 import { 
@@ -235,4 +235,35 @@ export async function getStatistics() {
     todayTotalTime,
     todaySessions: todaySessions.length
   };
+}
+
+// Real-time listener for sessions
+export function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
+  if (!currentUserId) {
+    // Wait for auth and then subscribe
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUserId = user.uid;
+        unsubscribeAuth();
+        subscribeToSessions(callback);
+      }
+    });
+    return () => unsubscribeAuth();
+  }
+
+  const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
+  const q = query(sessionsRef, orderBy('date', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const sessions = snapshot.docs.map(doc => ({
+      id: parseInt(doc.id),
+      ...doc.data(),
+      date: doc.data().date.toDate()
+    })) as TrainingSession[];
+    
+    callback(sessions);
+  }, (error) => {
+    console.error('Error listening to sessions:', error);
+    callback([]);
+  });
 }

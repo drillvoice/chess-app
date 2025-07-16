@@ -137,6 +137,17 @@ Preferred communication style: Simple, everyday language.
   - Removed firestoreStorage.ts class in favor of functional Firebase utilities
   - Improved performance by eliminating abstraction layers and fake API calls
   - Cleaned up unused imports and removed technical debt from previous hybrid storage approach
+  - Fixed modal UX: replaced serverTimestamp() with direct timestamp for faster saving
+  - Modals now close immediately after save operation instead of lingering with "Saving..." state
+
+- July 16, 2025: Architecture improvements and UX enhancements
+  - Added comprehensive error boundaries for better error handling
+  - Implemented lazy loading for modal components to improve initial page load performance
+  - Added skeleton loading states for better user experience during data fetching
+  - Implemented real-time Firebase listeners for live data updates
+  - Added optimistic updates for tactics modal to provide instant feedback
+  - Improved query caching with staleTime configuration for better performance
+  - Added Suspense boundaries for lazy-loaded components
 
 - July 15, 2025: Complete Firebase integration and hosting setup
   - Successfully integrated Firebase Firestore cloud sync with hybrid storage system

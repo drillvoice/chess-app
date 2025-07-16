@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/lib/firebase-utils";
-import { tacticsSessionSchema, type TacticsSession } from "@shared/schema";
+import { tacticsSessionSchema, type TacticsSession, type TrainingSession } from "@shared/schema";
 
 interface TacticsModalProps {
   open: boolean;
@@ -40,6 +40,31 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
     mutationFn: async (data: TacticsSession) => {
       return await createSession(data);
     },
+    onMutate: async (newSession) => {
+      // Optimistic update: update caches immediately
+      const tempId = Date.now();
+      const optimisticSession = {
+        ...newSession,
+        id: tempId,
+        date: new Date()
+      };
+
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["sessions"] });
+      await queryClient.cancelQueries({ queryKey: ["statistics"] });
+
+      // Snapshot previous values
+      const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
+      const previousStats = queryClient.getQueryData(["statistics"]);
+
+      // Optimistically update sessions
+      queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
+        optimisticSession,
+        ...old
+      ]);
+
+      return { previousSessions, previousStats };
+    },
     onSuccess: () => {
       // Close modal immediately for better UX
       onOpenChange(false);
@@ -56,7 +81,15 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
     },
-    onError: (error: any) => {
+    onError: (error: any, newSession, context) => {
+      // Rollback optimistic updates on error
+      if (context?.previousSessions) {
+        queryClient.setQueryData(["sessions"], context.previousSessions);
+      }
+      if (context?.previousStats) {
+        queryClient.setQueryData(["statistics"], context.previousStats);
+      }
+      
       toast({
         title: "Error",
         description: error.message || "Failed to log tactics session",
