@@ -41,15 +41,20 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
       return await createSession(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+      // Close modal immediately for better UX
+      onOpenChange(false);
+      reset();
+      
+      // Show success notification
       toast({
         title: "Success",
         description: "Study session logged successfully!",
       });
-      reset();
-      onOpenChange(false);
+      
+      // Refresh data in background
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
     },
     onError: (error: any) => {
       toast({

@@ -133,12 +133,13 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     
     // Ensure date is set to current date if not provided
     const sessionDate = insertSession.date || new Date();
+    const now = new Date();
     
     const sessionData = {
       ...insertSession,
       id,
       date: Timestamp.fromDate(sessionDate),
-      createdAt: serverTimestamp()
+      createdAt: Timestamp.fromDate(now)
     };
     
     // Use setDoc with custom ID for consistent document reference

@@ -49,18 +49,23 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
       return await createSession(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
-      toast({
-        title: "Success",
-        description: "Game session logged successfully!",
-      });
+      // Close modal immediately for better UX
+      onOpenChange(false);
       reset();
       setSelectedResult(null);
       setSelectedColor(null);
       setSelectedTimeControl(null);
-      onOpenChange(false);
+      
+      // Show success notification
+      toast({
+        title: "Success",
+        description: "Game session logged successfully!",
+      });
+      
+      // Refresh data in background
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
     },
     onError: (error: any) => {
       toast({

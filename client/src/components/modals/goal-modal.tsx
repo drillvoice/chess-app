@@ -38,15 +38,20 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
       return await createSession(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+      // Close modal immediately for better UX
+      onOpenChange(false);
+      reset();
+      
+      // Show success notification
       toast({
         title: "Success",
         description: "Weekly goal set successfully!",
       });
-      reset();
-      onOpenChange(false);
+      
+      // Refresh data in background
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
     },
     onError: (error: any) => {
       toast({
