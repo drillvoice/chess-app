@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { User, signInAnonymously, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { getFirebaseInstances } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cloud, CloudOff, User as UserIcon, LogOut } from "lucide-react";
@@ -12,17 +12,33 @@ export default function FirebaseAuth() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
+    const initAuth = async () => {
+      try {
+        const { auth } = await getFirebaseInstances();
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          setUser(user);
+          setLoading(false);
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        console.error('Firebase auth initialization failed:', error);
+        setLoading(false);
+      }
+    };
+
+    let unsubscribe: (() => void) | undefined;
+    initAuth().then(unsub => {
+      unsubscribe = unsub;
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, []);
 
   const handleSignIn = async () => {
     try {
       setLoading(true);
+      const { auth } = await getFirebaseInstances();
       await signInAnonymously(auth);
       toast({
         title: "Connected",
@@ -42,6 +58,7 @@ export default function FirebaseAuth() {
   const handleSignOut = async () => {
     try {
       setLoading(true);
+      const { auth } = await getFirebaseInstances();
       await signOut(auth);
       toast({
         title: "Disconnected",

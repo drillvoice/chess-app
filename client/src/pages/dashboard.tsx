@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Suspense } from "react";
+
 import { Clock, Play, Trophy, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataManagement } from "@/components/lazy-components";
+import DataManagement from "@/components/data-management";
 
 interface Statistics {
   totalHours: number;
@@ -134,9 +134,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <Suspense fallback={<Skeleton className="h-32 w-full" />}>
-        <DataManagement />
-      </Suspense>
+      <DataManagement />
     </div>
   );
 }
