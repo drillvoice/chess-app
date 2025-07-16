@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { createSession } from "@/lib/firebase-utils";
 import { goalSessionSchema, type GoalSession } from "@shared/schema";
 
 interface GoalModalProps {
@@ -35,13 +35,12 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: GoalSession) => {
-      const response = await apiRequest("POST", "/api/training-sessions/goal", data);
-      return response.json();
+      return await createSession(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/weekly-goal"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       toast({
         title: "Success",
         description: "Weekly goal set successfully!",

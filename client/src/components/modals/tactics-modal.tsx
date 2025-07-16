@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { createSession } from "@/lib/firebase-utils";
 import { tacticsSessionSchema, type TacticsSession } from "@shared/schema";
 
 interface TacticsModalProps {
@@ -38,15 +38,12 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
 
   const mutation = useMutation({
     mutationFn: async (data: TacticsSession) => {
-      const response = await apiRequest("POST", "/api/training-sessions/tactics", data);
-      return response.json();
+      return await createSession(data);
     },
     onSuccess: () => {
-      // Add a small delay to ensure data is saved before invalidating cache
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-      }, 100);
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       toast({
         title: "Success",
         description: "Tactics session logged successfully!",

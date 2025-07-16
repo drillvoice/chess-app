@@ -11,7 +11,11 @@ export default function History() {
   const [filter, setFilter] = useState<string>("all");
 
   const { data: sessions, isLoading } = useQuery<TrainingSession[]>({
-    queryKey: ["/api/training-sessions"],
+    queryKey: ["sessions"],
+    queryFn: async () => {
+      const { getAllSessions } = await import("@/lib/firebase-utils");
+      return await getAllSessions();
+    },
     refetchInterval: 30000,
   });
 

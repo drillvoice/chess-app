@@ -26,12 +26,20 @@ export default function Home() {
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
-    queryKey: ["/api/statistics"],
+    queryKey: ["statistics"],
+    queryFn: async () => {
+      const { getStatistics } = await import("@/lib/firebase-utils");
+      return await getStatistics();
+    },
     refetchInterval: 30000,
   });
 
   const { data: weeklyGoal } = useQuery<TrainingSession | null>({
-    queryKey: ["/api/weekly-goal"],
+    queryKey: ["weekly-goal"],
+    queryFn: async () => {
+      const { getCurrentWeeklyGoal } = await import("@/lib/firebase-utils");
+      return await getCurrentWeeklyGoal();
+    },
     refetchInterval: 60000,
   });
 

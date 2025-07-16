@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, Database } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+
 import { useQueryClient } from "@tanstack/react-query";
 import FirebaseAuth from "./firebase-auth";
 
@@ -16,8 +16,10 @@ export default function DataManagement() {
 
   const handleExport = async () => {
     try {
-      const response = await fetch("/api/export");
-      const blob = await response.blob();
+      const { exportData } = await import("@/lib/firebase-utils");
+      const data = await exportData();
+      
+      const blob = new Blob([data], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -47,12 +49,13 @@ export default function DataManagement() {
     setImporting(true);
     try {
       const text = await file.text();
-      await apiRequest("POST", "/api/import", { data: text });
+      const { importData } = await import("@/lib/firebase-utils");
+      await importData(text);
       
       // Refresh all queries to show imported data
-      queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/weekly-goal"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       
       toast({
         title: "Success",

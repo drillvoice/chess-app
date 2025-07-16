@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { createSession } from "@/lib/firebase-utils";
 import { studySessionSchema, type StudySession } from "@shared/schema";
 
 interface StudyModalProps {
@@ -38,15 +38,12 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
-      const response = await apiRequest("POST", "/api/training-sessions/study", data);
-      return response.json();
+      return await createSession(data);
     },
     onSuccess: () => {
-      // Add a small delay to ensure data is saved before invalidating cache
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/training-sessions"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
-      }, 100);
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       toast({
         title: "Success",
         description: "Study session logged successfully!",

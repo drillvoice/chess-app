@@ -15,7 +15,11 @@ interface Statistics {
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useQuery<Statistics>({
-    queryKey: ["/api/statistics"],
+    queryKey: ["statistics"],
+    queryFn: async () => {
+      const { getStatistics } = await import("@/lib/firebase-utils");
+      return await getStatistics();
+    },
     refetchInterval: 30000,
   });
 

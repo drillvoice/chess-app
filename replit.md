@@ -15,11 +15,11 @@ This is a full-stack web application for tracking chess training sessions. Built
 - **Build Tool**: Vite
 
 ### Backend Architecture
-- **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
-- **Database Provider**: Neon Database (serverless PostgreSQL)
+- **Database**: Firebase Firestore (cloud NoSQL database)
+- **Authentication**: Firebase Anonymous Authentication
+- **Data Layer**: Direct Firebase utilities for CRUD operations
 - **Validation**: Zod schemas shared between frontend and backend
-- **Session Storage**: In-memory storage with export/import functionality for data persistence
+- **Storage**: Firestore-only approach with export/import functionality for data portability
 
 ### Mobile-First Design
 - Responsive design optimized for mobile devices
@@ -102,6 +102,12 @@ npm run build              # Build frontend to dist/public
 firebase deploy           # Deploy to Firebase Hosting
 ```
 
+### Data Layer Architecture
+- **Firebase Utils**: Direct Firestore operations without abstraction layers
+- **Authentication**: Streamlined anonymous auth initialization
+- **Query Pattern**: React Query with Firebase functions, no fake API layer
+- **Performance**: Eliminated complexity from hybrid storage and fake REST endpoints
+
 ### Environment Configuration
 - **Development**: TSX for hot reloading, hybrid storage
 - **Production**: Firebase Hosting, Firestore cloud sync
@@ -119,6 +125,18 @@ firebase deploy           # Deploy to Firebase Hosting
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+
+- July 16, 2025: Critical technical debt cleanup and performance optimization
+  - Removed unused hybrid storage files: storage.ts, hybridStorage.ts, indexedDB.ts, fileSystemSync.ts
+  - Eliminated fake API layer in queryClient.ts that was causing unnecessary complexity
+  - Migrated all components to use Firebase utilities directly instead of fake REST endpoints
+  - Streamlined Firebase authentication flow by removing duplicate auth methods
+  - Updated all modal components (tactics, game, study, goal) to call Firestore directly
+  - Updated pages (home, history, dashboard) to use new Firebase utilities
+  - Simplified query keys from "/api/xxx" to clean names like "statistics", "sessions"
+  - Removed firestoreStorage.ts class in favor of functional Firebase utilities
+  - Improved performance by eliminating abstraction layers and fake API calls
+  - Cleaned up unused imports and removed technical debt from previous hybrid storage approach
 
 - July 15, 2025: Complete Firebase integration and hosting setup
   - Successfully integrated Firebase Firestore cloud sync with hybrid storage system
