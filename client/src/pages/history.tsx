@@ -16,8 +16,9 @@ export default function History() {
       const { getAllSessions } = await import("@/lib/firebase-utils");
       return await getAllSessions();
     },
-    staleTime: 30000,
-    refetchInterval: 30000,
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
   });
 
   const filteredSessions = sessions?.filter(session => 

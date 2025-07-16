@@ -21,8 +21,9 @@ export default function Dashboard() {
       const { getStatistics } = await import("@/lib/firebase-utils");
       return await getStatistics();
     },
-    staleTime: 30000,
-    refetchInterval: 30000,
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
   });
 
   const weeklyData = [

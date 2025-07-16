@@ -29,8 +29,9 @@ export default function Home() {
       const { getStatistics } = await import("@/lib/firebase-utils");
       return await getStatistics();
     },
-    staleTime: 30000,
-    refetchInterval: 30000,
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 60000, // Refetch every minute
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
   const { data: weeklyGoal } = useQuery<TrainingSession | null>({
@@ -39,8 +40,9 @@ export default function Home() {
       const { getCurrentWeeklyGoal } = await import("@/lib/firebase-utils");
       return await getCurrentWeeklyGoal();
     },
-    staleTime: 60000,
-    refetchInterval: 60000,
+    staleTime: 300000, // Cache for 5 minutes (goals don't change often)
+    refetchInterval: 300000,
+    refetchOnWindowFocus: true,
   });
 
   const isGoalOld = weeklyGoal && weeklyGoal.goalWeekStart ? 

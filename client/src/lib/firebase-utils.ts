@@ -16,6 +16,7 @@ import {
 } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { TrainingSession, InsertTrainingSession } from '@shared/schema';
+import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 
 // Firebase utilities for direct Firestore operations
 let currentUserId: string | null = null;
@@ -61,8 +62,21 @@ function getSessionsCollection() {
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
 
-// Firebase operations
+// Firebase operations with caching
 export async function getAllSessions(): Promise<TrainingSession[]> {
+  // Try cache first for instant loading
+  const cachedSessions = SessionsCache.get();
+  if (cachedSessions) {
+    // Return cached data immediately, then update in background
+    updateSessionsInBackground();
+    return cachedSessions;
+  }
+  
+  // If no cache, fetch from Firebase
+  return await fetchSessionsFromFirebase();
+}
+
+async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
   await waitForAuth();
   
   try {
@@ -70,14 +84,29 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
     const q = query(sessionsRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(doc => ({
+    const sessions = snapshot.docs.map(doc => ({
       id: parseInt(doc.id),
       ...doc.data(),
       date: doc.data().date.toDate()
     })) as TrainingSession[];
+    
+    // Cache the results
+    SessionsCache.set(sessions);
+    
+    return sessions;
   } catch (error) {
     console.error('Error getting sessions:', error);
     return [];
+  }
+}
+
+// Background update function
+async function updateSessionsInBackground(): Promise<void> {
+  try {
+    const freshSessions = await fetchSessionsFromFirebase();
+    // Cache will be updated in fetchSessionsFromFirebase
+  } catch (error) {
+    console.error('Background update failed:', error);
   }
 }
 
@@ -159,11 +188,18 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     
     await Promise.race([savePromise, timeoutPromise]);
     
-    return {
+    const newSession = {
       ...sessionData,
       id,
       date: sessionDate
     } as TrainingSession;
+    
+    // Clear cache to force fresh data on next load
+    SessionsCache.remove();
+    StatisticsCache.remove();
+    WeeklyGoalCache.remove();
+    
+    return newSession;
   } catch (error) {
     console.error('Error creating session:', error);
     throw new Error(error instanceof Error ? error.message : 'Failed to save session');
@@ -185,14 +221,41 @@ export async function deleteSession(id: number): Promise<boolean> {
 }
 
 export async function getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
+  // Try cache first for instant loading
+  const cachedGoal = WeeklyGoalCache.get();
+  if (cachedGoal !== null) {
+    // Return cached data immediately, then update in background
+    updateWeeklyGoalInBackground();
+    return cachedGoal || undefined;
+  }
+  
+  // If no cache, calculate from sessions
+  return await calculateWeeklyGoal();
+}
+
+async function calculateWeeklyGoal(): Promise<TrainingSession | undefined> {
   const sessions = await getAllSessions();
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   
-  return sessions.find(session => 
+  const goal = sessions.find(session => 
     session.type === 'goal' && 
     session.date >= oneWeekAgo
   );
+  
+  // Cache the result (including null/undefined)
+  WeeklyGoalCache.set(goal || null);
+  
+  return goal;
+}
+
+async function updateWeeklyGoalInBackground(): Promise<void> {
+  try {
+    const freshGoal = await calculateWeeklyGoal();
+    // Cache will be updated in calculateWeeklyGoal
+  } catch (error) {
+    console.error('Weekly goal background update failed:', error);
+  }
 }
 
 export async function exportData(): Promise<string> {
@@ -211,6 +274,19 @@ export async function importData(data: string): Promise<void> {
 }
 
 export async function getStatistics() {
+  // Try cache first for instant loading
+  const cachedStats = StatisticsCache.get();
+  if (cachedStats) {
+    // Return cached data immediately, then update in background
+    updateStatisticsInBackground();
+    return cachedStats;
+  }
+  
+  // If no cache, calculate from sessions
+  return await calculateStatistics();
+}
+
+async function calculateStatistics() {
   const sessions = await getAllSessions();
   
   const totalSessions = sessions.length;
@@ -240,7 +316,7 @@ export async function getStatistics() {
   const wins = gameSessions.filter(session => session.gameResult === 'win').length;
   const winRate = gameSessions.length > 0 ? Math.round((wins / gameSessions.length) * 100) : 0;
   
-  return {
+  const stats = {
     totalHours: Math.round(totalHours * 10) / 10,
     totalSessions,
     tacticsRating,
@@ -248,6 +324,20 @@ export async function getStatistics() {
     todayTotalTime,
     todaySessions: todaySessions.length
   };
+  
+  // Cache the results
+  StatisticsCache.set(stats);
+  
+  return stats;
+}
+
+async function updateStatisticsInBackground(): Promise<void> {
+  try {
+    const freshStats = await calculateStatistics();
+    // Cache will be updated in calculateStatistics
+  } catch (error) {
+    console.error('Statistics background update failed:', error);
+  }
 }
 
 // Real-time listener for sessions
