@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { createSession } from "@/lib/firebase-utils";
+// Dynamic import for firebase-utils to maintain code splitting
 import { tacticsSessionSchema, type TacticsSession, type TrainingSession } from "@shared/schema";
 
 interface TacticsModalProps {
@@ -46,6 +46,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
 
   const mutation = useMutation({
     mutationFn: async (data: TacticsSession) => {
+      const { createSession } = await import("@/lib/firebase-utils");
       return await createSession(data);
     },
     onMutate: async (newSession) => {

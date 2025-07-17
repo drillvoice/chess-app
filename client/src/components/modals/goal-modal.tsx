@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { createSession } from "@/lib/firebase-utils";
+// Dynamic import for firebase-utils to maintain code splitting
 import { goalSessionSchema, type GoalSession } from "@shared/schema";
 
 interface GoalModalProps {
@@ -35,6 +35,7 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: GoalSession) => {
+      const { createSession } = await import("@/lib/firebase-utils");
       return await createSession(data);
     },
     onMutate: async () => {

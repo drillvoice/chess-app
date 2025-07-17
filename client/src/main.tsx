@@ -4,13 +4,14 @@ import App from "./App";
 // Load main CSS file normally - let Vite handle the CSS loading
 import "./index.css";
 
-// Lazy load Firebase to break critical request chain
+// Import Firebase modules statically to avoid dynamic/static conflict
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+
+// Initialize Firebase synchronously
 const initializeFirebase = async () => {
   try {
-    // Dynamic import Firebase modules only when needed
-    const { initializeApp } = await import('firebase/app');
-    const { getAuth } = await import('firebase/auth');
-    const { getFirestore, enableIndexedDbPersistence } = await import('firebase/firestore');
     
     // Initialize Firebase with hardcoded config for this project
     const firebaseConfig = {

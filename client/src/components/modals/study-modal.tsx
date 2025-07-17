@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createSession } from "@/lib/firebase-utils";
+// Dynamic import for firebase-utils to maintain code splitting
 import { studySessionSchema, type StudySession } from "@shared/schema";
 
 interface StudyModalProps {
@@ -38,6 +38,7 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
+      const { createSession } = await import("@/lib/firebase-utils");
       return await createSession(data);
     },
     onMutate: async () => {

@@ -127,6 +127,23 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 17, 2025: Build optimization and import conflict resolution
+  - Fixed dynamic/static import conflicts that were causing build warnings
+  - Made Firebase modules consistently static imports to avoid conflicts
+  - Made firebase-utils.ts consistently dynamic imports for better code splitting
+  - Improved build efficiency by eliminating mixed import patterns
+  - Created separate firebase-utils chunk for better code organization
+  - Build now completes without warnings about module import conflicts
+
+- July 17, 2025: Enhanced UI improvements and visual chart implementation
+  - Created visual column chart for weekly activity stats with color-coded activity types
+  - Added sequential activity display showing order of completion each day
+  - Implemented game duration estimates using time control rules (5+3=7m, 10=12m, 10+5=18m, 15+10=25m)
+  - Added color legend for activity types (blue=tactics, green=games, orange=study, purple=goals)
+  - Reorganized training history into chronological sections (Today, Yesterday, Earlier)
+  - Updated app branding from "Chess Training Logger" to "Pawn Star Chess Log"
+  - Set version to v0.1.0b to reflect beta status
+
 - July 16, 2025: CSS loading fix and performance improvement
   - Fixed CSS loading issue that was causing styling problems
   - Replaced complex deferred CSS loading system with direct CSS import
