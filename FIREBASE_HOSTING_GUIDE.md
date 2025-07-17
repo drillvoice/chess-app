@@ -1,4 +1,4 @@
-# Firebase Hosting Setup Guide for Chess Training Logger
+# Firebase Hosting Setup Guide for Pawn Star Chess Log
 
 This guide will walk you through deploying your chess training app to Firebase Hosting, making it accessible from anywhere on the web.
 

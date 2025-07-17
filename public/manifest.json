@@ -1,7 +1,7 @@
 {
-  "name": "Chess Training Logger",
-  "short_name": "Chess Logger",
-  "id": "chess-training-logger",
+  "name": "Pawn Star Chess Log",
+  "short_name": "Pawn Star",
+  "id": "pawn-star-chess-log",
   "description": "Track your chess training sessions, tactics practice, and game results",
   "start_url": "/?utm_source=pwa",
   "display": "standalone",

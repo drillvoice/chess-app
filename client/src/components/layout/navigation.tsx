@@ -13,7 +13,7 @@ export default function Navigation() {
 
   return (
     <header className="bg-[#1E40AF] text-white p-4 shadow-md">
-      <h1 className="text-xl font-semibold text-center">Chess Training Logger</h1>
+      <h1 className="text-xl font-semibold text-center">Pawn Star Chess Log</h1>
       <nav className="mt-4">
         <div className="flex space-x-1 bg-blue-800 rounded-lg p-1">
           {navItems.map((item) => {

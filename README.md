@@ -1,4 +1,4 @@
-# Chess Training Logger
+# Pawn Star Chess Log
 
 A Progressive Web App for tracking chess training sessions with cloud synchronization and offline functionality.
 
