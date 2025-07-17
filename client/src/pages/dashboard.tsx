@@ -4,6 +4,8 @@ import { Clock, Play, Trophy, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import DataManagement from "@/components/data-management";
+import WeeklyActivityChart from "@/components/weekly-activity-chart";
+import { TrainingSession } from "@shared/schema";
 
 interface Statistics {
   totalHours: number;
@@ -32,18 +34,18 @@ export default function Dashboard() {
     refetchOnWindowFocus: true,
   });
 
-  const { data: weeklyData, isLoading: weeklyLoading } = useQuery<WeeklyActivity[]>({
-    queryKey: ["weekly-activity"],
+  const { data: allSessions, isLoading: sessionsLoading } = useQuery<TrainingSession[]>({
+    queryKey: ["sessions"],
     queryFn: async () => {
-      const { getWeeklyActivity } = await import("@/lib/firebase-utils");
-      return await getWeeklyActivity();
+      const { getAllSessions } = await import("@/lib/firebase-utils");
+      return await getAllSessions();
     },
     staleTime: 60000, // Cache for 1 minute
     refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
 
-  if (isLoading || weeklyLoading) {
+  if (isLoading || sessionsLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center py-4">
@@ -128,26 +130,8 @@ export default function Dashboard() {
       <Card className="border-gray-200">
         <CardContent className="p-4">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">This Week's Activity</h3>
-          {weeklyData && weeklyData.length > 0 ? (
-            <div className="flex justify-between items-end h-32 space-x-2">
-              {weeklyData.map((day, index) => {
-                const maxDuration = Math.max(...weeklyData.map(d => d.duration), 1);
-                const height = day.duration > 0 ? Math.max((day.duration / maxDuration) * 100, 5) : 0;
-                
-                return (
-                  <div key={index} className="flex-1 flex flex-col items-center">
-                    <div className="text-xs text-gray-600 mb-1 h-4">
-                      {day.duration > 0 ? `${day.duration}m` : ''}
-                    </div>
-                    <div 
-                      className="bg-[#1E40AF] rounded-t w-full mb-2 transition-all duration-300"
-                      style={{ height: `${height}%` }}
-                    />
-                    <div className="text-xs text-gray-500">{day.day}</div>
-                  </div>
-                );
-              })}
-            </div>
+          {allSessions && allSessions.length > 0 ? (
+            <WeeklyActivityChart sessions={allSessions} />
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500">
               <div className="text-center">
