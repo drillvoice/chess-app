@@ -14,6 +14,12 @@ interface Statistics {
   todaySessions: number;
 }
 
+interface WeeklyActivity {
+  day: string;
+  duration: number;
+  sessions: number;
+}
+
 export default function Dashboard() {
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ["statistics"],
@@ -26,17 +32,18 @@ export default function Dashboard() {
     refetchOnWindowFocus: true,
   });
 
-  const weeklyData = [
-    { day: "Mon", height: "40%" },
-    { day: "Tue", height: "60%" },
-    { day: "Wed", height: "80%" },
-    { day: "Thu", height: "50%" },
-    { day: "Fri", height: "100%" },
-    { day: "Sat", height: "30%" },
-    { day: "Sun", height: "70%" },
-  ];
+  const { data: weeklyData, isLoading: weeklyLoading } = useQuery<WeeklyActivity[]>({
+    queryKey: ["weekly-activity"],
+    queryFn: async () => {
+      const { getWeeklyActivity } = await import("@/lib/firebase-utils");
+      return await getWeeklyActivity();
+    },
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
 
-  if (isLoading) {
+  if (isLoading || weeklyLoading) {
     return (
       <div className="space-y-6">
         <div className="text-center py-4">
@@ -48,6 +55,7 @@ export default function Dashboard() {
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
+        <Skeleton className="h-48 rounded-xl" />
       </div>
     );
   }
@@ -120,17 +128,34 @@ export default function Dashboard() {
       <Card className="border-gray-200">
         <CardContent className="p-4">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">This Week's Activity</h3>
-          <div className="flex justify-between items-end h-32 space-x-2">
-            {weeklyData.map((day, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="bg-[#1E40AF] rounded-t w-full mb-2"
-                  style={{ height: day.height }}
-                />
-                <div className="text-xs text-gray-500">{day.day}</div>
+          {weeklyData && weeklyData.length > 0 ? (
+            <div className="flex justify-between items-end h-32 space-x-2">
+              {weeklyData.map((day, index) => {
+                const maxDuration = Math.max(...weeklyData.map(d => d.duration), 1);
+                const height = day.duration > 0 ? Math.max((day.duration / maxDuration) * 100, 5) : 0;
+                
+                return (
+                  <div key={index} className="flex-1 flex flex-col items-center">
+                    <div className="text-xs text-gray-600 mb-1 h-4">
+                      {day.duration > 0 ? `${day.duration}m` : ''}
+                    </div>
+                    <div 
+                      className="bg-[#1E40AF] rounded-t w-full mb-2 transition-all duration-300"
+                      style={{ height: `${height}%` }}
+                    />
+                    <div className="text-xs text-gray-500">{day.day}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-gray-500">
+              <div className="text-center">
+                <div className="text-sm">No activity this week</div>
+                <div className="text-xs mt-1">Start logging sessions to see your progress</div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

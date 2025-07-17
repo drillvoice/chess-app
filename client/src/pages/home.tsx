@@ -116,7 +116,7 @@ export default function Home() {
           className="w-full bg-[#1E40AF] hover:bg-blue-800 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Puzzle className="w-6 h-6" />
+            <Puzzle className="w-8 h-8" />
             <div className="text-left">
               <div className="text-lg">Log Tactics</div>
               <div className="text-sm opacity-90">Practice & Score</div>
@@ -129,7 +129,7 @@ export default function Home() {
           className="w-full bg-[#059669] hover:bg-emerald-700 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Crown className="w-6 h-6" />
+            <Crown className="w-8 h-8" />
             <div className="text-left">
               <div className="text-lg">Log Game</div>
               <div className="text-sm opacity-90">Win/Loss & Notes</div>
@@ -142,7 +142,7 @@ export default function Home() {
           className="w-full bg-[#F59E0B] hover:bg-amber-600 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Book className="w-6 h-6" />
+            <Book className="w-8 h-8" />
             <div className="text-left">
               <div className="text-lg">Log Study</div>
               <div className="text-sm opacity-90">Videos & Analysis</div>
@@ -155,7 +155,7 @@ export default function Home() {
           className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Target className="w-6 h-6" />
+            <Target className="w-8 h-8" />
             <div className="text-left">
               <div className="text-lg">Set Weekly Goal</div>
               <div className="text-sm opacity-90">Focus Area</div>

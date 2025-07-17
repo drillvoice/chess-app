@@ -59,6 +59,7 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
     },
     onError: (error: any) => {
       // Check if it's a timeout error but session might have been saved
@@ -90,13 +91,13 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-800">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg font-bold text-gray-800">
             Set Weekly Goal
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
             <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
               Goal Title
@@ -106,6 +107,7 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
               placeholder="Improve endgame technique"
               className="mt-1"
               {...register("goalTitle")}
+              onFocus={(e) => e.target.select()}
             />
             {errors.goalTitle && (
               <p className="text-sm text-red-600 mt-1">{errors.goalTitle.message}</p>
@@ -120,8 +122,9 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
               id="goalDescription"
               placeholder="Focus on king and pawn endgames, practice basic techniques..."
               className="mt-1"
-              rows={4}
+              rows={3}
               {...register("goalDescription")}
+              onFocus={(e) => e.target.select()}
             />
           </div>
 

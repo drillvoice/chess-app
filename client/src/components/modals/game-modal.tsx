@@ -73,6 +73,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
     },
     onError: (error: any) => {
       // Check if it's a timeout error but session might have been saved

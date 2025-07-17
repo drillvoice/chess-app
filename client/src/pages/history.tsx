@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Puzzle, Crown, Book, Clock, Target } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Puzzle, Crown, Book, Clock, Target, Trash2, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { TrainingSession } from "@shared/schema";
 
 export default function History() {
   const [filter, setFilter] = useState<string>("all");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: sessions, isLoading } = useQuery<TrainingSession[]>({
     queryKey: ["sessions"],
@@ -21,6 +25,29 @@ export default function History() {
     refetchOnWindowFocus: true,
   });
 
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sessionId: number) => {
+      const { deleteSession } = await import("@/lib/firebase-utils");
+      return await deleteSession(sessionId);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Session deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete session",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredSessions = sessions?.filter(session => 
     filter === "all" || session.type === filter
   ) || [];
@@ -28,12 +55,17 @@ export default function History() {
   const formatDate = (date: string | Date) => {
     const d = new Date(date);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - d.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 1) return "Today";
-    if (diffDays === 2) return "Yesterday";
-    if (diffDays <= 7) return `${diffDays - 1} days ago`;
+    // Reset time to get accurate day comparison
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sessionDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    
+    const diffTime = today.getTime() - sessionDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays <= 7) return `${diffDays} days ago`;
     return d.toLocaleDateString();
   };
 
@@ -244,15 +276,61 @@ export default function History() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className={cn(
-                      "text-sm font-medium",
-                      getSessionValueColor(session)
-                    )}>
-                      {getSessionValue(session)}
+                  <div className="flex items-center space-x-3">
+                    <div className="text-right">
+                      <div className={cn(
+                        "text-sm font-medium",
+                        getSessionValueColor(session)
+                      )}>
+                        {getSessionValue(session)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {formatDate(session.date)}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {formatDate(session.date)}
+                    <div className="flex space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
+                        onClick={() => {
+                          // TODO: Implement edit functionality
+                          toast({
+                            title: "Coming Soon",
+                            description: "Edit functionality will be available soon",
+                          });
+                        }}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this {session.type} session? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteSessionMutation.mutate(session.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>

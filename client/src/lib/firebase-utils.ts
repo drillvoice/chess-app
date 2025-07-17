@@ -229,6 +229,12 @@ export async function deleteSession(id: number): Promise<boolean> {
     const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
     await deleteDoc(docRef);
+    
+    // Clear cache to force fresh data on next load
+    SessionsCache.remove();
+    StatisticsCache.remove();
+    WeeklyGoalCache.remove();
+    
     return true;
   } catch (error) {
     console.error('Error deleting session:', error);
@@ -357,6 +363,46 @@ async function calculateStatistics() {
   StatisticsCache.set(stats);
   
   return stats;
+}
+
+export async function getWeeklyActivity() {
+  const sessions = await getAllSessions();
+  
+  // Get current week's data (Monday to Sunday)
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  startOfWeek.setDate(diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+  
+  const weeklyData = [];
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  for (let i = 0; i < 7; i++) {
+    const currentDay = new Date(startOfWeek);
+    currentDay.setDate(startOfWeek.getDate() + i);
+    
+    const dayEnd = new Date(currentDay);
+    dayEnd.setHours(23, 59, 59, 999);
+    
+    // Get sessions for this day
+    const daySessions = sessions.filter(session => {
+      const sessionDate = new Date(session.date);
+      return sessionDate >= currentDay && sessionDate <= dayEnd;
+    });
+    
+    // Calculate total duration for the day
+    const totalDuration = daySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+    
+    weeklyData.push({
+      day: dayNames[i],
+      duration: totalDuration,
+      sessions: daySessions.length
+    });
+  }
+  
+  return weeklyData;
 }
 
 async function updateStatisticsInBackground(): Promise<void> {
