@@ -14,9 +14,11 @@ import { tacticsSessionSchema, type TacticsSession, type TrainingSession } from 
 interface TacticsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editingSession?: TrainingSession;
+  isEditMode?: boolean;
 }
 
-export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) {
+export default function TacticsModal({ open, onOpenChange, editingSession, isEditMode = false }: TacticsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -27,7 +29,13 @@ export default function TacticsModal({ open, onOpenChange }: TacticsModalProps) 
     reset,
   } = useForm<TacticsSession>({
     resolver: zodResolver(tacticsSessionSchema),
-    defaultValues: {
+    defaultValues: isEditMode && editingSession ? {
+      type: "tactics",
+      duration: editingSession.duration || 0,
+      pointsGained: editingSession.pointsGained || 0,
+      finalScore: editingSession.finalScore || 0,
+      tacticsNotes: editingSession.tacticsNotes || "",
+    } : {
       type: "tactics",
       duration: 0,
       pointsGained: 0,

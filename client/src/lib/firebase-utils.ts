@@ -222,6 +222,37 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
   }
 }
 
+export async function updateSession(id: number, updateData: Partial<InsertTrainingSession>): Promise<TrainingSession | null> {
+  await waitForAuth();
+  
+  try {
+    const sessionsRef = await getSessionsCollection();
+    const docRef = doc(sessionsRef, id.toString());
+    
+    // Update the document with new data
+    const updatePayload = {
+      ...updateData,
+      updatedAt: Timestamp.fromDate(new Date())
+    };
+    
+    await setDoc(docRef, updatePayload, { merge: true });
+    
+    // Get the current sessions to find the updated one
+    const sessions = await getAllSessions();
+    const updatedSession = sessions.find(session => session.id === id);
+    
+    // Clear cache to force fresh data on next load
+    SessionsCache.remove();
+    StatisticsCache.remove();
+    WeeklyGoalCache.remove();
+    
+    return updatedSession || null;
+  } catch (error) {
+    console.error('Error updating session:', error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to update session');
+  }
+}
+
 export async function deleteSession(id: number): Promise<boolean> {
   await waitForAuth();
   

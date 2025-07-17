@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Puzzle, Crown, Book, Clock, Target, Trash2, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { TrainingSession } from "@shared/schema";
+import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
 
 export default function History() {
   const [filter, setFilter] = useState<string>("all");
+  const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -293,13 +295,7 @@ export default function History() {
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
-                        onClick={() => {
-                          // TODO: Implement edit functionality
-                          toast({
-                            title: "Coming Soon",
-                            description: "Edit functionality will be available soon",
-                          });
-                        }}
+                        onClick={() => setEditingSession(session)}
                       >
                         <Edit3 className="h-4 w-4" />
                       </Button>
@@ -339,6 +335,44 @@ export default function History() {
           ))
         )}
       </div>
+      
+      {/* Edit Modals */}
+      {editingSession && (
+        <Suspense fallback={<div>Loading...</div>}>
+          {editingSession.type === 'tactics' && (
+            <TacticsModal
+              open={true}
+              onOpenChange={(open) => !open && setEditingSession(null)}
+              editingSession={editingSession}
+              isEditMode={true}
+            />
+          )}
+          {editingSession.type === 'game' && (
+            <GameModal
+              open={true}
+              onOpenChange={(open) => !open && setEditingSession(null)}
+              editingSession={editingSession}
+              isEditMode={true}
+            />
+          )}
+          {editingSession.type === 'study' && (
+            <StudyModal
+              open={true}
+              onOpenChange={(open) => !open && setEditingSession(null)}
+              editingSession={editingSession}
+              isEditMode={true}
+            />
+          )}
+          {editingSession.type === 'goal' && (
+            <GoalModal
+              open={true}
+              onOpenChange={(open) => !open && setEditingSession(null)}
+              editingSession={editingSession}
+              isEditMode={true}
+            />
+          )}
+        </Suspense>
+      )}
     </div>
   );
 }
