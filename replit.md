@@ -180,7 +180,7 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
   - Added color legend for activity types (blue=tactics, green=games, orange=study, purple=goals)
   - Reorganized training history into chronological sections (Today, Yesterday, Earlier)
   - Updated app branding from "Chess Training Logger" to "Pawn Star Chess Log"
-  - Set version to v0.1.0b to reflect beta status
+  - Set version to v0.1.0c to reflect beta status
 
 - July 16, 2025: CSS loading fix and performance improvement
   - Fixed CSS loading issue that was causing styling problems
