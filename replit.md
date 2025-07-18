@@ -98,7 +98,13 @@ This is a full-stack web application for tracking chess training sessions. Built
 
 ### Build Process
 ```bash
-npm run build              # Build frontend to dist/public
+# Option 1: Use build script (recommended)
+./build-with-pwa.sh       # Build with PWA files + deploy
+firebase deploy           # Deploy to Firebase Hosting
+
+# Option 2: Manual build
+node copy-pwa-files.js    # Copy PWA files to client/public
+npm run build             # Build frontend to dist/public
 firebase deploy           # Deploy to Firebase Hosting
 ```
 

@@ -1,0 +1,51 @@
+{
+  "name": "Pawn Star Chess Log",
+  "short_name": "Pawn Star",
+  "id": "pawn-star-chess-log",
+  "description": "Track your chess training sessions, tactics practice, and game results",
+  "start_url": "/?utm_source=pwa",
+  "display": "standalone",
+  "background_color": "#1a2b3d",
+  "theme_color": "#1a2b3d",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["sports", "utilities", "productivity"],
+  "lang": "en"
+}
