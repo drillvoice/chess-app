@@ -127,6 +127,15 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 18, 2025: Configured Firebase and Bubblewrap TWA deployment
+  - Enhanced firebase.json with proper Content-Type headers for manifest.json
+  - Added CORS headers to allow Bubblewrap to fetch manifest remotely
+  - Created .well-known/assetlinks.json placeholder for Google Play Store verification
+  - Added comprehensive BUBBLEWRAP_GUIDE.md with step-by-step TWA creation instructions
+  - Configured proper headers for all JSON files to ensure application/json content type
+  - Set up caching headers for better performance
+  - Ready for Bubblewrap TWA generation after Firebase deployment
+
 - July 18, 2025: Updated app icon to custom PawnStar Chess Log branding
   - Replaced generic chess icons with beautiful custom PawnStar design
   - Generated all required PWA icon sizes (16x16 to 512x512 pixels)
