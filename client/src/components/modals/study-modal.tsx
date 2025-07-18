@@ -94,7 +94,7 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto mx-4 my-2 max-w-[calc(100vw-2rem)]">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold text-gray-800">
             Log Study Session
@@ -156,14 +156,14 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className="flex-1 modal-button"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-[#F59E0B] hover:bg-amber-600"
+              className="flex-1 bg-[#F59E0B] hover:bg-amber-600 modal-button"
               disabled={mutation.isPending}
             >
               {mutation.isPending ? "Saving..." : "Save"}

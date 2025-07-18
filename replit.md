@@ -127,7 +127,11 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
-- July 17, 2025: Build optimization and import conflict resolution
+- July 17, 2025: Mobile modal UI improvements and build optimization
+  - Fixed mobile keyboard overlay issues in all modals (tactics, study, game, goal)
+  - Improved modal sizing and positioning for better mobile experience
+  - Added responsive height adjustments for devices with limited screen space
+  - Added touch-friendly button sizes and prevented iOS zoom on form inputs
   - Fixed dynamic/static import conflicts that were causing build warnings
   - Made Firebase modules consistently static imports to avoid conflicts
   - Made firebase-utils.ts consistently dynamic imports for better code splitting

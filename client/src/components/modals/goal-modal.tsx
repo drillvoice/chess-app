@@ -92,7 +92,7 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto mx-4 my-2 max-w-[calc(100vw-2rem)]">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold text-gray-800">
             Set Weekly Goal
@@ -133,14 +133,14 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className="flex-1 modal-button"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              className="flex-1 bg-purple-600 hover:bg-purple-700 modal-button"
               disabled={mutation.isPending}
             >
               {mutation.isPending ? "Saving..." : "Set Goal"}

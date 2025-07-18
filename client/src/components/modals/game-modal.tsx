@@ -126,7 +126,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto mx-4 my-2 max-w-[calc(100vw-2rem)]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-800">
             Log Game
@@ -292,14 +292,14 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className="flex-1 modal-button"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-[#059669] hover:bg-emerald-700"
+              className="flex-1 bg-[#059669] hover:bg-emerald-700 modal-button"
               disabled={mutation.isPending}
             >
               {mutation.isPending ? "Saving..." : "Save"}

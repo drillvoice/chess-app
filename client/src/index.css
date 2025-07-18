@@ -72,3 +72,41 @@
     background-color: #F59E0B;
   }
 }
+
+/* Mobile-specific modal improvements */
+@media (max-height: 700px) {
+  [data-radix-dialog-content] {
+    max-height: 90vh !important;
+    margin-top: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+@media (max-height: 600px) {
+  [data-radix-dialog-content] {
+    max-height: 85vh !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+/* Handle viewport units for mobile keyboards */
+@supports (height: 100dvh) {
+  [data-radix-dialog-content] {
+    max-height: 90dvh;
+  }
+}
+
+/* Improve touch target sizes for mobile */
+@media (max-width: 768px) {
+  .modal-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input[type="number"], 
+  input[type="text"], 
+  textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
