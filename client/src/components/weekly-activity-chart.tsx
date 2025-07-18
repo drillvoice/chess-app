@@ -106,40 +106,44 @@ const WeeklyActivityChart: React.FC<WeeklyActivityChartProps> = ({ sessions }) =
     <div className="space-y-4">
       <div className="flex justify-between items-end h-32 space-x-2">
         {weekData.map((dayData, dayIndex) => {
-          const totalHeight = dayData.totalDuration > 0 ? Math.max((dayData.totalDuration / maxDuration) * 100, 5) : 0;
+          // Scale column height to maximum value in the week (100% = highest column)
+          const columnHeight = dayData.totalDuration > 0 ? (dayData.totalDuration / maxDuration) * 100 : 0;
           
           return (
-            <div key={dayIndex} className="flex-1 flex flex-col items-center">
-              <div className="text-xs text-gray-600 mb-1 h-4">
-                {dayData.totalDuration > 0 ? `${dayData.totalDuration}m` : ''}
+            <div key={dayIndex} className="flex-1 flex flex-col items-center h-full">
+              {/* Column container - scaled to fit available height */}
+              <div className="flex-1 flex flex-col justify-end w-full mb-2">
+                <div 
+                  className="relative w-full transition-all duration-300"
+                  style={{ height: `${columnHeight}%` }}
+                >
+                  {dayData.blocks.length > 0 ? (
+                    <div className="flex flex-col h-full w-full rounded-t overflow-hidden">
+                      {dayData.blocks.map((block, blockIndex) => {
+                        const blockHeight = block.duration > 0 ? (block.duration / dayData.totalDuration) * 100 : 0;
+                        const color = getActivityColor(block.type);
+                        
+                        return blockHeight > 0 ? (
+                          <div
+                            key={blockIndex}
+                            className="transition-all duration-300 flex-shrink-0"
+                            style={{
+                              backgroundColor: color,
+                              height: `${blockHeight}%`,
+                              minHeight: '2px'
+                            }}
+                            title={`${block.type} - ${block.duration}m${block.timeControl ? ` (${block.timeControl})` : ''}`}
+                          />
+                        ) : null;
+                      })}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full bg-transparent" />
+                  )}
+                </div>
               </div>
               
-              <div className="relative w-full mb-2" style={{ height: `${totalHeight}%` }}>
-                {dayData.blocks.length > 0 ? (
-                  <div className="flex flex-col h-full w-full rounded-t overflow-hidden">
-                    {dayData.blocks.map((block, blockIndex) => {
-                      const blockHeight = block.duration > 0 ? (block.duration / dayData.totalDuration) * 100 : 0;
-                      const color = getActivityColor(block.type);
-                      
-                      return blockHeight > 0 ? (
-                        <div
-                          key={blockIndex}
-                          className="transition-all duration-300 flex-shrink-0"
-                          style={{
-                            backgroundColor: color,
-                            height: `${blockHeight}%`,
-                            minHeight: '2px'
-                          }}
-                          title={`${block.type} - ${block.duration}m${block.timeControl ? ` (${block.timeControl})` : ''}`}
-                        />
-                      ) : null;
-                    })}
-                  </div>
-                ) : (
-                  <div className="w-full h-full bg-transparent" />
-                )}
-              </div>
-              
+              {/* Day label */}
               <div className="text-xs text-gray-500">{dayData.day}</div>
             </div>
           );
