@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { Clock, Play, Trophy, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import DataManagement from "@/components/data-management";
-import WeeklyActivityChart from "@/components/weekly-activity-chart";
+import { WeeklyActivityChart, DataManagement } from "@/components/lazy-components";
 import { TrainingSession } from "@shared/schema";
 
 interface Statistics {
@@ -131,7 +131,11 @@ export default function Dashboard() {
         <CardContent className="p-4">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">This Week's Activity</h3>
           {allSessions && allSessions.length > 0 ? (
-            <WeeklyActivityChart sessions={allSessions} />
+            <Suspense fallback={
+              <div className="h-32 animate-pulse bg-gray-100 rounded"></div>
+            }>
+              <WeeklyActivityChart sessions={allSessions} />
+            </Suspense>
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500">
               <div className="text-center">
@@ -143,7 +147,9 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <DataManagement />
+      <Suspense fallback={<Skeleton className="h-20 w-full" />}>
+        <DataManagement />
+      </Suspense>
     </div>
   );
 }

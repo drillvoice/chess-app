@@ -1,27 +1,15 @@
-const CACHE_NAME = 'chess-training-v2';
+const CACHE_NAME = 'chess-training-v3';
+const RUNTIME_CACHE = 'chess-training-runtime';
+
+// Critical resources to cache immediately
 const urlsToCache = [
   '/',
   '/manifest.json',
   '/icon-192.svg',
-  '/icon-512.svg',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/screenshot-mobile.png'
+  '/icon-512.svg'
 ];
 
-// Background sync for offline actions
-self.addEventListener('sync', event => {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(handleBackgroundSync());
-  }
-});
-
-async function handleBackgroundSync() {
-  // Handle any offline actions that need to be synced
-  console.log('Background sync triggered');
-}
-
-// Install event - cache resources
+// Install event - cache only critical resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -40,7 +28,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE) {
             return caches.delete(cacheName);
           }
         })
@@ -50,13 +38,77 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - optimized caching strategy
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
+  const { request } = event;
+  const url = new URL(request.url);
+  
+  // Skip caching for non-GET requests
+  if (request.method !== 'GET') return;
+  
+  // Skip caching for Firebase URLs
+  if (url.hostname.includes('firebaseapp.com') || 
+      url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('firebase.com')) {
+    return;
+  }
+  
+  // Network-first strategy for API calls
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(RUNTIME_CACHE).then(cache => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+  
+  // Cache-first strategy for assets
+  if (request.destination === 'script' || 
+      request.destination === 'style' || 
+      request.destination === 'image' ||
+      request.destination === 'font') {
+    event.respondWith(
+      caches.match(request).then(response => {
+        if (response) return response;
+        
+        return fetch(request).then(response => {
+          if (!response || response.status !== 200) {
+            return response;
+          }
+          
+          const responseClone = response.clone();
+          caches.open(RUNTIME_CACHE).then(cache => {
+            cache.put(request, responseClone);
+          });
+          
+          return response;
+        });
       })
+    );
+    return;
+  }
+  
+  // Network-first for HTML
+  event.respondWith(
+    fetch(request)
+      .then(response => {
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });

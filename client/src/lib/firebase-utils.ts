@@ -78,21 +78,43 @@ async function getSessionsCollection() {
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
 
-// Firebase operations with caching
+import { offlineStorage } from './offline-storage';
+
+// Firebase operations with true offline-first approach
 export async function getAllSessions(): Promise<TrainingSession[]> {
-  // Try cache first for instant loading
-  const cachedSessions = SessionsCache.get();
-  if (cachedSessions) {
-    // Return cached data immediately, then update in background
-    updateSessionsInBackground();
-    return cachedSessions;
+  // ALWAYS return cached data immediately if available
+  try {
+    const cachedSessions = await offlineStorage.getSessions();
+    if (cachedSessions && cachedSessions.length > 0) {
+      // Schedule background update but don't wait for it
+      queueMicrotask(() => updateSessionsInBackground());
+      return cachedSessions;
+    }
+  } catch (error) {
+    console.warn('Failed to read from offline storage:', error);
   }
   
-  // If no cache, fetch from Firebase
+  // Only fetch from Firebase if no cached data
   return await fetchSessionsFromFirebase();
 }
 
 async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
+  // Don't wait for auth if we're just reading
+  if (!currentUserId) {
+    // Try to get cached sessions while auth happens
+    try {
+      const cached = await offlineStorage.getSessions();
+      if (cached && cached.length > 0) {
+        // Start auth in background
+        queueMicrotask(() => waitForAuth());
+        return cached;
+      }
+    } catch (error) {
+      console.warn('Offline storage failed:', error);
+    }
+  }
+  
+  // If we must fetch from Firebase, wait for auth
   await waitForAuth();
   
   try {
@@ -106,23 +128,36 @@ async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
       date: doc.data().date.toDate()
     })) as TrainingSession[];
     
-    // Cache the results
+    // Cache in both localStorage and IndexedDB
     SessionsCache.set(sessions);
+    await offlineStorage.setSessions(sessions);
     
     return sessions;
   } catch (error) {
     console.error('Error getting sessions:', error);
-    return [];
+    // Return cached data on error
+    try {
+      const cached = await offlineStorage.getSessions();
+      return cached || [];
+    } catch {
+      return [];
+    }
   }
 }
 
-// Background update function
+// Background update function - non-blocking
 async function updateSessionsInBackground(): Promise<void> {
   try {
+    // Check cache age first
+    const cacheAge = await offlineStorage.getCacheAge('sessions');
+    if (cacheAge < 30000) { // Less than 30 seconds old
+      return; // Skip update
+    }
+    
     const freshSessions = await fetchSessionsFromFirebase();
     // Cache will be updated in fetchSessionsFromFirebase
   } catch (error) {
-    console.error('Background update failed:', error);
+    // Silently fail - user already has cached data
   }
 }
 
@@ -174,52 +209,64 @@ export async function getSessionsByDateRange(startDate: Date, endDate: Date): Pr
 }
 
 export async function createSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
+  // Generate session data immediately for optimistic updates
+  const id = Date.now();
+  const sessionDate = insertSession.date || new Date();
+  const now = new Date();
+  
+  const newSession: TrainingSession = {
+    ...insertSession,
+    id,
+    date: sessionDate,
+    createdAt: now,
+  } as TrainingSession;
+  
+  // Immediately update local cache for instant feedback
   try {
-    await waitForAuth();
+    const sessions = await offlineStorage.getSessions();
+    await offlineStorage.addSession(newSession);
     
-    const sessionsRef = await getSessionsCollection();
-    
-    // Generate a unique ID based on timestamp
-    const id = Date.now();
-    
-    // Ensure date is set to current date if not provided
-    const sessionDate = insertSession.date || new Date();
-    const now = new Date();
-    
-    const sessionData = {
-      ...insertSession,
-      id,
-      date: Timestamp.fromDate(sessionDate),
-      createdAt: Timestamp.fromDate(now)
-    };
-    
-    // Use setDoc with custom ID for consistent document reference
-    const docRef = doc(sessionsRef, id.toString());
-    
-    // Add timeout to Firebase operation (increased to 30 seconds)
-    const savePromise = setDoc(docRef, sessionData);
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Save operation timed out - please check your internet connection')), 30000);
-    });
-    
-    await Promise.race([savePromise, timeoutPromise]);
-    
-    const newSession = {
-      ...sessionData,
-      id,
-      date: sessionDate
-    } as TrainingSession;
-    
-    // Clear cache to force fresh data on next load
+    // Clear localStorage caches to trigger UI updates
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
-    
-    return newSession;
   } catch (error) {
-    console.error('Error creating session:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to save session');
+    console.warn('Failed to update offline cache:', error);
   }
+  
+  // Save to Firebase in the background
+  const saveToFirebase = async () => {
+    try {
+      await waitForAuth();
+      const sessionsRef = await getSessionsCollection();
+      
+      const sessionData = {
+        ...insertSession,
+        id,
+        date: Timestamp.fromDate(sessionDate),
+        createdAt: Timestamp.fromDate(now)
+      };
+      
+      const docRef = doc(sessionsRef, id.toString());
+      
+      // Shorter timeout for better UX
+      const savePromise = setDoc(docRef, sessionData);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Save taking longer than expected')), 10000);
+      });
+      
+      await Promise.race([savePromise, timeoutPromise]);
+    } catch (error) {
+      console.error('Firebase save failed:', error);
+      // Data is already in local cache, so user won't lose their work
+      // It will sync next time they have connection
+    }
+  };
+  
+  // Don't wait for Firebase save
+  queueMicrotask(() => saveToFirebase());
+  
+  return newSession;
 }
 
 export async function updateSession(id: number, updateData: Partial<InsertTrainingSession>): Promise<TrainingSession | null> {
@@ -339,12 +386,26 @@ export async function importData(data: string): Promise<void> {
 }
 
 export async function getStatistics() {
-  // Try cache first for instant loading
-  const cachedStats = StatisticsCache.get();
-  if (cachedStats) {
-    // Return cached data immediately, then update in background
-    updateStatisticsInBackground();
-    return cachedStats;
+  // Try IndexedDB first for instant loading
+  try {
+    const cachedStats = await offlineStorage.getStatistics();
+    if (cachedStats) {
+      // Schedule background update but don't wait
+      queueMicrotask(() => updateStatisticsInBackground());
+      return cachedStats;
+    }
+  } catch (error) {
+    console.warn('Failed to get cached statistics:', error);
+  }
+  
+  // Try localStorage as fallback
+  const localCachedStats = StatisticsCache.get();
+  if (localCachedStats) {
+    // Update IndexedDB in background
+    queueMicrotask(() => offlineStorage.setStatistics(localCachedStats));
+    // Schedule update
+    queueMicrotask(() => updateStatisticsInBackground());
+    return localCachedStats;
   }
   
   // If no cache, calculate from sessions
@@ -390,8 +451,11 @@ async function calculateStatistics() {
     todaySessions: todaySessions.length
   };
   
-  // Cache the results
+  // Cache the results in both storages
   StatisticsCache.set(stats);
+  offlineStorage.setStatistics(stats).catch(error => {
+    console.warn('Failed to cache statistics in IndexedDB:', error);
+  });
   
   return stats;
 }

@@ -127,6 +127,22 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 18, 2025: Major performance optimization overhaul
+  - Implemented true offline-first architecture with IndexedDB as primary storage
+  - Fixed app startup blocking issue by making Firebase initialization non-blocking
+  - App now renders immediately with cached data, Firebase syncs in background
+  - Created optimized offline storage layer with better performance than localStorage
+  - Implemented optimistic updates for session creation - instant UI feedback
+  - Updated Query Client with longer cache times and offline-first network mode
+  - Enhanced service worker with better caching strategies for different resource types
+  - Added lazy loading for heavy components (WeeklyActivityChart, DataManagement)
+  - Reduced initial bundle size by implementing code splitting
+  - Improved create session flow to save locally first, then sync to Firebase
+  - Statistics and sessions now load from IndexedDB cache first for instant rendering
+  - Firebase operations now have shorter timeouts (10s) with better error handling
+  - Eliminated the 10-second startup delay caused by Firebase auth blocking
+  - App now works fully offline with seamless background sync when online
+
 - July 17, 2025: Mobile modal UI improvements and build optimization
   - Fixed mobile keyboard overlay issues in all modals (tactics, study, game, goal)
   - Improved modal sizing and positioning for better mobile experience

@@ -48,10 +48,13 @@ const initializeFirebase = async () => {
 
 // CSS is now loaded directly via import statement above
 
-// Initialize Firebase immediately after DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  // Small delay to ensure app starts rendering first
-  setTimeout(initializeFirebase, 50);
+// Initialize Firebase in the background without blocking app startup
+// The app will use cached data first, then sync when Firebase is ready
+queueMicrotask(() => {
+  initializeFirebase().catch(error => {
+    console.error('Firebase initialization failed:', error);
+    // App continues to work with cached data
+  });
 });
 
 // Register service worker for offline functionality
