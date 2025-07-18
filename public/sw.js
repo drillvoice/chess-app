@@ -5,8 +5,10 @@ const RUNTIME_CACHE = 'chess-training-runtime';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/icon-192.svg',
-  '/icon-512.svg'
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-32x32.png',
+  '/icon-16x16.png'
 ];
 
 // Install event - cache only critical resources

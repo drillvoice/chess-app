@@ -127,6 +127,15 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 18, 2025: Updated app icon to custom PawnStar Chess Log branding
+  - Replaced generic chess icons with beautiful custom PawnStar design
+  - Generated all required PWA icon sizes (16x16 to 512x512 pixels)
+  - Updated manifest.json with comprehensive icon definitions
+  - Added proper favicon and Apple Touch icon support
+  - Updated theme colors to match the dark navy PawnStar branding (#1a2b3d)
+  - Cleaned up old SVG icons and updated service worker caching
+  - App now shows the professional PawnStar branding across all platforms
+
 - July 18, 2025: Major performance optimization overhaul
   - Implemented true offline-first architecture with IndexedDB as primary storage
   - Fixed app startup blocking issue by making Firebase initialization non-blocking
