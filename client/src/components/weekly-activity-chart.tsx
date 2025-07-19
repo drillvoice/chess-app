@@ -118,7 +118,7 @@ const WeeklyActivityChart: React.FC<WeeklyActivityChartProps> = ({ sessions }) =
                   style={{ height: `${columnHeight}%` }}
                 >
                   {dayData.blocks.length > 0 ? (
-                    <div className="flex flex-col h-full w-full rounded-t overflow-hidden">
+                    <div className="flex flex-col-reverse h-full w-full rounded-t overflow-hidden">
                       {dayData.blocks.map((block, blockIndex) => {
                         const blockHeight = block.duration > 0 ? (block.duration / dayData.totalDuration) * 100 : 0;
                         const color = getActivityColor(block.type);
