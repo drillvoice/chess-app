@@ -74,26 +74,38 @@
 }
 
 /* Mobile-specific modal improvements */
+/* Mobile modal positioning - position higher to avoid keyboard overlap */
+@media (max-width: 640px) {
+  [data-radix-dialog-content] {
+    top: 15% !important;
+    transform: translateX(-50%) translateY(0) !important;
+    max-height: 70vh !important;
+    margin: 0.5rem !important;
+  }
+}
+
 @media (max-height: 700px) {
   [data-radix-dialog-content] {
-    max-height: 90vh !important;
-    margin-top: 1rem !important;
-    margin-bottom: 1rem !important;
+    top: 10% !important;
+    transform: translateX(-50%) translateY(0) !important;
+    max-height: 70vh !important;
+    margin: 0.5rem !important;
   }
 }
 
 @media (max-height: 600px) {
   [data-radix-dialog-content] {
-    max-height: 85vh !important;
-    margin-top: 0.5rem !important;
-    margin-bottom: 0.5rem !important;
+    top: 5% !important;
+    transform: translateX(-50%) translateY(0) !important;
+    max-height: 65vh !important;
+    margin: 0.25rem !important;
   }
 }
 
 /* Handle viewport units for mobile keyboards */
 @supports (height: 100dvh) {
   [data-radix-dialog-content] {
-    max-height: 90dvh;
+    max-height: 70dvh;
   }
 }
 

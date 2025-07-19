@@ -135,7 +135,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto mx-4 my-2 max-w-[calc(100vw-2rem)]">
+      <DialogContent className="sm:max-w-md max-h-[70vh] overflow-y-auto mx-4 max-w-[calc(100vw-2rem)] mobile-modal">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold text-gray-800">
             Log Tactics Session
