@@ -133,6 +133,11 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 18, 2025: Fixed tactics rating display issue
+  - Changed tactics rating from averaging all sessions to showing most recent tactics final score
+  - Tactics rating now properly updates when new tactics sessions are logged
+  - Provides more accurate representation of current tactics performance
+
 - July 18, 2025: Configured Firebase and Bubblewrap TWA deployment
   - Enhanced firebase.json with proper Content-Type headers for manifest.json
   - Added CORS headers to allow Bubblewrap to fetch manifest remotely

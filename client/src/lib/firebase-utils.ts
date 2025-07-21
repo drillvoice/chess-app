@@ -429,12 +429,13 @@ async function calculateStatistics() {
   
   const todayTotalTime = todaySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
   
-  // Calculate tactics rating (average of final scores)
-  const tacticsSessionsWithScores = sessions.filter(session => 
-    session.type === 'tactics' && session.finalScore
-  );
+  // Calculate tactics rating (most recent final score)
+  const tacticsSessionsWithScores = sessions
+    .filter(session => session.type === 'tactics' && session.finalScore)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date, most recent first
+  
   const tacticsRating = tacticsSessionsWithScores.length > 0 
-    ? Math.round(tacticsSessionsWithScores.reduce((sum, session) => sum + (session.finalScore || 0), 0) / tacticsSessionsWithScores.length)
+    ? tacticsSessionsWithScores[0].finalScore || 0  // Get the most recent tactics score
     : 0;
   
   // Calculate win rate
