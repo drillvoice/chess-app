@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 // Dynamic import for firebase-utils to maintain code splitting
 import { tacticsSessionSchema, type TacticsSession, type TrainingSession } from "@shared/schema";
 
@@ -21,12 +22,14 @@ interface TacticsModalProps {
 export default function TacticsModal({ open, onOpenChange, editingSession, isEditMode = false }: TacticsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<TacticsSession>({
     resolver: zodResolver(tacticsSessionSchema),
     defaultValues: isEditMode && editingSession ? {
@@ -53,6 +56,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
       // Close modal immediately for better UX - don't wait for server
       onOpenChange(false);
       reset();
+      setSelectedDuration(null);
       
       // Show immediate feedback
       toast({
@@ -140,6 +144,11 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
     },
   });
 
+  const handleDurationSelect = (duration: number) => {
+    setSelectedDuration(duration);
+    setValue("duration", duration);
+  };
+
   const onSubmit = (data: TacticsSession) => {
     // Add current date to the session data
     const sessionData = {
@@ -159,18 +168,30 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto space-y-3 pb-2">
-            {/* Duration on its own row */}
+            {/* Duration buttons */}
             <div>
-              <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-                Duration (minutes)
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                Duration
               </Label>
-              <Input
-                id="duration"
-                type="number"
-                className="mt-1"
-                {...register("duration", { valueAsNumber: true })}
-                onFocus={(e) => e.target.select()}
-              />
+              <div className="grid grid-cols-3 gap-2">
+                {[5, 10, 15, 20, 25, 30].map((duration) => (
+                  <Button
+                    key={duration}
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "p-3 h-auto flex items-center justify-center",
+                      selectedDuration === duration
+                        ? "bg-[#1E40AF] text-white border-[#1E40AF]"
+                        : "hover:bg-gray-50"
+                    )}
+                    onClick={() => handleDurationSelect(duration)}
+                  >
+                    {duration}m
+                  </Button>
+                ))}
+              </div>
+              <input type="hidden" {...register("duration", { valueAsNumber: true })} />
               {errors.duration && (
                 <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
               )}

@@ -133,6 +133,17 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
+- July 24, 2025: Enhanced tactics session UI with duration buttons
+  - Replaced duration input field with preset duration buttons (5m, 10m, 15m, 20m, 25m, 30m)
+  - Improved user experience with common duration selections similar to game logging interface
+  - Maintained touch-friendly design with proper button highlighting
+
+- July 24, 2025: Fixed mobile modal UI issues
+  - Centered all modals properly on mobile devices
+  - Made save buttons sticky at bottom, always visible above keyboard
+  - Improved form layouts with scrollable content areas and better height management
+  - Fixed mobile keyboard overlap issues across all modals (tactics, study, goal)
+
 - July 18, 2025: Fixed tactics rating display issue
   - Changed tactics rating from averaging all sessions to showing most recent tactics final score
   - Tactics rating now properly updates when new tactics sessions are logged
