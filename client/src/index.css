@@ -75,12 +75,38 @@
 
 /* Mobile-specific modal improvements */
 /* Mobile modal positioning - position higher to avoid keyboard overlap */
+.mobile-modal {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
+
 @media (max-width: 640px) {
-  [data-radix-dialog-content] {
-    top: 15% !important;
-    transform: translateX(-50%) translateY(0) !important;
-    max-height: 70vh !important;
-    margin: 0.5rem !important;
+  .mobile-modal {
+    top: 5% !important;
+    transform: translateX(-50%) !important;
+    max-height: 60vh !important;
+    margin: 0 !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+  }
+  
+  /* Make buttons sticky at bottom for visibility above keyboard */
+  .mobile-modal form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .mobile-modal form > div:last-child {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    z-index: 10;
   }
 }
 

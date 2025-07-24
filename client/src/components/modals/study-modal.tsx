@@ -94,65 +94,67 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[70vh] overflow-y-auto mx-4 max-w-[calc(100vw-2rem)] mobile-modal">
+      <DialogContent className="sm:max-w-md mobile-modal">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold text-gray-800">
             Log Study Session
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div>
-            <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
-              Study Type
-            </Label>
-            <Select onValueChange={(value) => setValue("studyType", value as any)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select study type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="analysis">Analysis</SelectItem>
-                <SelectItem value="book">Book</SelectItem>
-                <SelectItem value="chessable">Chessable</SelectItem>
-                <SelectItem value="coaching">Coaching session</SelectItem>
-                <SelectItem value="online-course">Online course</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.studyType && (
-              <p className="text-sm text-red-600 mt-1">{errors.studyType.message}</p>
-            )}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+            <div>
+              <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
+                Study Type
+              </Label>
+              <Select onValueChange={(value) => setValue("studyType", value as any)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select study type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="analysis">Analysis</SelectItem>
+                  <SelectItem value="book">Book</SelectItem>
+                  <SelectItem value="chessable">Chessable</SelectItem>
+                  <SelectItem value="coaching">Coaching session</SelectItem>
+                  <SelectItem value="online-course">Online course</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.studyType && (
+                <p className="text-sm text-red-600 mt-1">{errors.studyType.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
+                Duration (minutes)
+              </Label>
+              <Input
+                id="duration"
+                type="number"
+                className="mt-1"
+                {...register("duration", { valueAsNumber: true })}
+                onFocus={(e) => e.target.select()}
+              />
+              {errors.duration && (
+                <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
+                Notes (optional)
+              </Label>
+              <Textarea
+                id="studyNotes"
+                className="mt-1"
+                rows={2}
+                {...register("studyNotes")}
+                onFocus={(e) => e.target.select()}
+              />
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-              Duration (minutes)
-            </Label>
-            <Input
-              id="duration"
-              type="number"
-              className="mt-1"
-              {...register("duration", { valueAsNumber: true })}
-              onFocus={(e) => e.target.select()}
-            />
-            {errors.duration && (
-              <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
-              Notes (optional)
-            </Label>
-            <Textarea
-              id="studyNotes"
-              className="mt-1"
-              rows={2}
-              {...register("studyNotes")}
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-
-          <div className="flex space-x-3 pt-2">
+          <div className="flex space-x-3 pt-3">
             <Button
               type="button"
               variant="outline"

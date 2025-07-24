@@ -62,10 +62,26 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
 
       // Optimistic update: update caches immediately
       const tempId = Date.now();
-      const optimisticSession = {
-        ...newSession,
+      const optimisticSession: TrainingSession = {
         id: tempId,
-        date: new Date()
+        type: 'tactics',
+        date: new Date(),
+        duration: newSession.duration,
+        pointsGained: newSession.pointsGained,
+        finalScore: newSession.finalScore,
+        tacticsNotes: newSession.tacticsNotes || null,
+        // Required fields that are null for tactics sessions
+        gameResult: null,
+        gameType: null,
+        gameComments: null,
+        playerColor: null,
+        platform: null,
+        timeControl: null,
+        studyType: null,
+        studyNotes: null,
+        goalTitle: null,
+        goalDescription: null,
+        goalWeekStart: null
       };
 
       // Cancel outgoing refetches
@@ -135,80 +151,82 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[70vh] overflow-y-auto mx-4 max-w-[calc(100vw-2rem)] mobile-modal">
+      <DialogContent className="sm:max-w-md mobile-modal">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold text-gray-800">
             Log Tactics Session
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          {/* Duration on its own row */}
-          <div>
-            <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-              Duration (minutes)
-            </Label>
-            <Input
-              id="duration"
-              type="number"
-              className="mt-1"
-              {...register("duration", { valueAsNumber: true })}
-              onFocus={(e) => e.target.select()}
-            />
-            {errors.duration && (
-              <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
-            )}
-          </div>
-
-          {/* Points Gained and Final Score on same row */}
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+            {/* Duration on its own row */}
             <div>
-              <Label htmlFor="pointsGained" className="text-sm font-medium text-gray-700">
-                Points Gained
+              <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
+                Duration (minutes)
               </Label>
               <Input
-                id="pointsGained"
+                id="duration"
                 type="number"
                 className="mt-1"
-                {...register("pointsGained", { valueAsNumber: true })}
+                {...register("duration", { valueAsNumber: true })}
                 onFocus={(e) => e.target.select()}
               />
-              {errors.pointsGained && (
-                <p className="text-sm text-red-600 mt-1">{errors.pointsGained.message}</p>
+              {errors.duration && (
+                <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
               )}
             </div>
+
+            {/* Points Gained and Final Score on same row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="pointsGained" className="text-sm font-medium text-gray-700">
+                  Points Gained
+                </Label>
+                <Input
+                  id="pointsGained"
+                  type="number"
+                  className="mt-1"
+                  {...register("pointsGained", { valueAsNumber: true })}
+                  onFocus={(e) => e.target.select()}
+                />
+                {errors.pointsGained && (
+                  <p className="text-sm text-red-600 mt-1">{errors.pointsGained.message}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="finalScore" className="text-sm font-medium text-gray-700">
+                  Final Score
+                </Label>
+                <Input
+                  id="finalScore"
+                  type="number"
+                  className="mt-1"
+                  {...register("finalScore", { valueAsNumber: true })}
+                  onFocus={(e) => e.target.select()}
+                />
+                {errors.finalScore && (
+                  <p className="text-sm text-red-600 mt-1">{errors.finalScore.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Notes section - more compact */}
             <div>
-              <Label htmlFor="finalScore" className="text-sm font-medium text-gray-700">
-                Final Score
+              <Label htmlFor="tacticsNotes" className="text-sm font-medium text-gray-700">
+                Notes (optional)
               </Label>
-              <Input
-                id="finalScore"
-                type="number"
+              <Textarea
+                id="tacticsNotes"
                 className="mt-1"
-                {...register("finalScore", { valueAsNumber: true })}
+                rows={2}
+                {...register("tacticsNotes")}
                 onFocus={(e) => e.target.select()}
               />
-              {errors.finalScore && (
-                <p className="text-sm text-red-600 mt-1">{errors.finalScore.message}</p>
-              )}
             </div>
           </div>
 
-          {/* Notes section - more compact */}
-          <div>
-            <Label htmlFor="tacticsNotes" className="text-sm font-medium text-gray-700">
-              Notes (optional)
-            </Label>
-            <Textarea
-              id="tacticsNotes"
-              className="mt-1"
-              rows={2}
-              {...register("tacticsNotes")}
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex space-x-3 pt-2">
+          {/* Action buttons - sticky at bottom */}
+          <div className="flex space-x-3 pt-3">
             <Button
               type="button"
               variant="outline"

@@ -126,7 +126,7 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto mx-4 my-2 max-w-[calc(100vw-2rem)]">
+      <DialogContent className="sm:max-w-md mobile-modal">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-800">
             Log Game

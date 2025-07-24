@@ -92,44 +92,46 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[70vh] overflow-y-auto mx-4 max-w-[calc(100vw-2rem)] mobile-modal">
+      <DialogContent className="sm:max-w-md mobile-modal">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold text-gray-800">
             Set Weekly Goal
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div>
-            <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
-              Goal Title
-            </Label>
-            <Input
-              id="goalTitle"
-              placeholder="Improve endgame technique"
-              className="mt-1"
-              {...register("goalTitle")}
-              onFocus={(e) => e.target.select()}
-            />
-            {errors.goalTitle && (
-              <p className="text-sm text-red-600 mt-1">{errors.goalTitle.message}</p>
-            )}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+            <div>
+              <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
+                Goal Title
+              </Label>
+              <Input
+                id="goalTitle"
+                placeholder="Improve endgame technique"
+                className="mt-1"
+                {...register("goalTitle")}
+                onFocus={(e) => e.target.select()}
+              />
+              {errors.goalTitle && (
+                <p className="text-sm text-red-600 mt-1">{errors.goalTitle.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="goalDescription" className="text-sm font-medium text-gray-700">
+                Description (optional)
+              </Label>
+              <Textarea
+                id="goalDescription"
+                placeholder="Focus on king and pawn endgames, practice basic techniques..."
+                className="mt-1"
+                rows={2}
+                {...register("goalDescription")}
+                onFocus={(e) => e.target.select()}
+              />
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="goalDescription" className="text-sm font-medium text-gray-700">
-              Description (optional)
-            </Label>
-            <Textarea
-              id="goalDescription"
-              placeholder="Focus on king and pawn endgames, practice basic techniques..."
-              className="mt-1"
-              rows={2}
-              {...register("goalDescription")}
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-3 pt-3">
             <Button
               type="button"
               variant="outline"
