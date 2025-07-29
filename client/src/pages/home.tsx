@@ -6,6 +6,7 @@ import InstallPrompt from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getStreakEmoji } from "@/lib/firebase-utils";
 import type { TrainingSession, DailyGoal } from "@shared/schema";
 
 interface Statistics {
@@ -150,10 +151,7 @@ export default function Home() {
                   {dailyProgress && dailyProgress.streak > 0 && (
                     <div className="flex items-center space-x-1">
                       <span className="text-lg">
-                        {(() => {
-                          const { getStreakEmoji } = require("@/lib/firebase-utils");
-                          return getStreakEmoji(dailyProgress.streak);
-                        })()}
+                        {getStreakEmoji(dailyProgress.streak)}
                       </span>
                       <span className="text-sm font-medium text-blue-700">
                         {dailyProgress.streak} day{dailyProgress.streak !== 1 ? 's' : ''}
