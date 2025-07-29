@@ -1,12 +1,12 @@
 import { useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Puzzle, Crown, Book, Target } from "lucide-react";
-import { TacticsModal, GameModal, StudyModal, CombinedGoalModal } from "@/components/lazy-components";
+import { TacticsModal, GameModal, StudyModal } from "@/components/lazy-components";
+import CombinedGoalModal from "@/components/modals/combined-goal-modal";
 import InstallPrompt from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getStreakEmoji } from "@/lib/firebase-utils";
 import type { TrainingSession, DailyGoal } from "@shared/schema";
 
 interface Statistics {
@@ -151,7 +151,14 @@ export default function Home() {
                   {dailyProgress && dailyProgress.streak > 0 && (
                     <div className="flex items-center space-x-1">
                       <span className="text-lg">
-                        {getStreakEmoji(dailyProgress.streak)}
+                        {(() => {
+                          if (dailyProgress.streak < 5) return '';
+                          if (dailyProgress.streak < 10) return '🔥';
+                          if (dailyProgress.streak < 20) return '⚡';
+                          if (dailyProgress.streak < 50) return '💎';
+                          if (dailyProgress.streak < 100) return '🏆';
+                          return '👑';
+                        })()}
                       </span>
                       <span className="text-sm font-medium text-blue-700">
                         {dailyProgress.streak} day{dailyProgress.streak !== 1 ? 's' : ''}
