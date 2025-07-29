@@ -15,7 +15,7 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import { getFirebaseInstances } from './firebase';
-import { TrainingSession, InsertTrainingSession } from '@shared/schema';
+import { TrainingSession, InsertTrainingSession, DailyGoal, DailyProgress } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 
 // Firebase utilities for direct Firestore operations
@@ -546,4 +546,170 @@ export async function subscribeToSessions(callback: (sessions: TrainingSession[]
     console.error('Error setting up sessions listener:', error);
     callback([]);
   }
+}
+
+// Daily Goal Functions
+export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
+  try {
+    await waitForAuth();
+    const { db } = await getFirebaseInstances();
+    
+    const dailyGoalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const docSnap = await getDocs(query(collection(db, 'users', currentUserId!, 'dailyGoal')));
+    
+    if (docSnap.empty) return null;
+    
+    const goalDoc = docSnap.docs[0];
+    const data = goalDoc.data();
+    
+    return {
+      id: goalDoc.id,
+      type: data.type,
+      target: data.target,
+      active: data.active,
+      createdDate: data.createdDate.toDate(),
+      currentStreak: data.currentStreak || 0,
+      lastCompletedDate: data.lastCompletedDate || null,
+    } as DailyGoal;
+  } catch (error) {
+    console.error('Error getting daily goal:', error);
+    return null;
+  }
+}
+
+export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: number }): Promise<void> {
+  try {
+    await waitForAuth();
+    const { db } = await getFirebaseInstances();
+    
+    // Remove existing daily goal first
+    await removeDailyGoal();
+    
+    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const newGoal: Omit<DailyGoal, 'id'> = {
+      type: goalData.type,
+      target: goalData.target,
+      active: true,
+      createdDate: new Date(),
+      currentStreak: 0,
+      lastCompletedDate: null,
+    };
+    
+    await setDoc(goalRef, {
+      ...newGoal,
+      createdDate: Timestamp.fromDate(newGoal.createdDate),
+    });
+  } catch (error) {
+    console.error('Error setting daily goal:', error);
+    throw error;
+  }
+}
+
+export async function removeDailyGoal(): Promise<void> {
+  try {
+    await waitForAuth();
+    const { db } = await getFirebaseInstances();
+    
+    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    await deleteDoc(goalRef);
+  } catch (error) {
+    console.error('Error removing daily goal:', error);
+    // Don't throw error if document doesn't exist
+  }
+}
+
+export async function getDailyProgress(): Promise<{ progress: number; completed: boolean; streak: number } | null> {
+  try {
+    const dailyGoal = await getCurrentDailyGoal();
+    if (!dailyGoal) return null;
+    
+    const today = new Date();
+    const todayStr = formatDateString(today);
+    
+    // Get today's sessions
+    const sessions = await getAllSessions();
+    const todaySessions = sessions.filter(session => {
+      const sessionDate = new Date(session.date);
+      return formatDateString(sessionDate) === todayStr;
+    });
+    
+    let progress = 0;
+    
+    // Calculate progress based on goal type
+    switch (dailyGoal.type) {
+      case 'tactics-time':
+        progress = todaySessions
+          .filter(session => session.type === 'tactics')
+          .reduce((sum, session) => sum + (session.duration || 0), 0);
+        break;
+      case 'games-count':
+        progress = todaySessions.filter(session => session.type === 'game').length;
+        break;
+      case 'study-time':
+        progress = todaySessions
+          .filter(session => session.type === 'study')
+          .reduce((sum, session) => sum + (session.duration || 0), 0);
+        break;
+    }
+    
+    const completed = progress >= dailyGoal.target;
+    
+    // Update streak if goal was completed and it's a new day
+    if (completed && dailyGoal.lastCompletedDate !== todayStr) {
+      await updateDailyGoalStreak(dailyGoal, todayStr);
+    }
+    
+    return {
+      progress,
+      completed,
+      streak: dailyGoal.currentStreak,
+    };
+  } catch (error) {
+    console.error('Error getting daily progress:', error);
+    return null;
+  }
+}
+
+async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise<void> {
+  try {
+    await waitForAuth();
+    const { db } = await getFirebaseInstances();
+    
+    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    
+    let newStreak = 1;
+    
+    // Check if yesterday was completed to maintain streak
+    if (goal.lastCompletedDate) {
+      const lastCompleted = new Date(goal.lastCompletedDate);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (formatDateString(lastCompleted) === formatDateString(yesterday)) {
+        newStreak = goal.currentStreak + 1;
+      }
+    }
+    
+    await setDoc(goalRef, {
+      ...goal,
+      currentStreak: newStreak,
+      lastCompletedDate: todayStr,
+      createdDate: Timestamp.fromDate(goal.createdDate),
+    });
+  } catch (error) {
+    console.error('Error updating daily goal streak:', error);
+  }
+}
+
+function formatDateString(date: Date): string {
+  return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+}
+
+export function getStreakEmoji(streak: number): string {
+  if (streak < 5) return '';
+  if (streak < 10) return '🔥';
+  if (streak < 20) return '⚡';
+  if (streak < 50) return '💎';
+  if (streak < 100) return '🏆';
+  return '👑';
 }
