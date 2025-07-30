@@ -50,10 +50,12 @@ export default function Home() {
     queryKey: ["daily-goal"],
     queryFn: async () => {
       const { getCurrentDailyGoal } = await import("@/lib/firebase-utils");
-      return await getCurrentDailyGoal();
+      const result = await getCurrentDailyGoal();
+      console.log('Daily goal query result:', result); // Debug log
+      return result;
     },
-    staleTime: 60000, // Cache for 1 minute
-    refetchInterval: 60000,
+    staleTime: 30000, // Reduced cache time for faster updates
+    refetchInterval: 30000,
     refetchOnWindowFocus: true,
   });
 

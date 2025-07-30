@@ -2,6 +2,7 @@ import {
   collection, 
   doc, 
   getDocs, 
+  getDoc,
   deleteDoc, 
   setDoc,
   query, 
@@ -555,21 +556,20 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
     const { db } = await getFirebaseInstances();
     
     const dailyGoalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
-    const docSnap = await getDocs(query(collection(db, 'users', currentUserId!, 'dailyGoal')));
+    const docSnap = await getDoc(dailyGoalRef);
     
-    if (docSnap.empty) return null;
+    if (!docSnap.exists()) return null;
     
-    const goalDoc = docSnap.docs[0];
-    const data = goalDoc.data();
+    const data = docSnap.data();
     
     return {
-      id: goalDoc.id,
+      id: docSnap.id,
       type: data.type,
       target: data.target,
       active: data.active,
       createdDate: data.createdDate.toDate(),
       currentStreak: data.currentStreak || 0,
-      lastCompletedDate: data.lastCompletedDate || null,
+      lastCompletedDate: data.lastCompletedDate ? data.lastCompletedDate.toDate() : null,
     } as DailyGoal;
   } catch (error) {
     console.error('Error getting daily goal:', error);
