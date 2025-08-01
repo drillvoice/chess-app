@@ -4,3 +4,21 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+/.firebase
+/.gradle
+/.idea
+/app
+/gradle
+android.keystore
+*.aab
+*.apk
+app-release-signed.apk.idsig
+build.gradle
+build/reports/problems/problems-report.html
+gradle.properties
+gradlew
+gradlew.bat
+public/pawnstar-icon-new - Copy.png
+local.properties
+manifest-checksum.txt
+settings.gradle
