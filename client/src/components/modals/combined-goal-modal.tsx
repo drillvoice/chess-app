@@ -102,10 +102,10 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
       queryClient.invalidateQueries({ queryKey: ["daily-goal"] });
       queryClient.invalidateQueries({ queryKey: ["daily-progress"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to set daily goal",
+        description: error instanceof Error ? error.message : "Failed to set daily goal",
         variant: "destructive",
       });
     },
@@ -131,10 +131,10 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
       queryClient.invalidateQueries({ queryKey: ["daily-goal"] });
       queryClient.invalidateQueries({ queryKey: ["daily-progress"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to remove daily goal",
+        description: error instanceof Error ? error.message : "Failed to remove daily goal",
         variant: "destructive",
       });
     },
