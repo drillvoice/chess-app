@@ -152,7 +152,9 @@ export default function History() {
       case "game":
         return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
       case "study":
-        return `${session.studyNotes || 'No notes'} • ${session.duration} min`;
+        return session.studyNotes
+          ? `${session.studyNotes} • ${session.duration} min`
+          : `${session.duration} min`;
       case "goal":
         return session.goalDescription || "Weekly focus area";
       default:
