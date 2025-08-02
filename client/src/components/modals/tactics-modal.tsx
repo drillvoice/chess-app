@@ -35,14 +35,14 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
     defaultValues: isEditMode && editingSession ? {
       type: "tactics",
       duration: editingSession.duration || 0,
-      pointsGained: editingSession.pointsGained || 0,
-      finalScore: editingSession.finalScore || 0,
+      pointsGained: editingSession.pointsGained ?? undefined,
+      finalScore: editingSession.finalScore ?? undefined,
       tacticsNotes: editingSession.tacticsNotes || "",
     } : {
       type: "tactics",
       duration: 0,
-      pointsGained: 0,
-      finalScore: 0,
+      pointsGained: undefined,
+      finalScore: undefined,
       tacticsNotes: "",
     },
   });
@@ -71,8 +71,8 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
         type: 'tactics',
         date: new Date(),
         duration: newSession.duration,
-        pointsGained: newSession.pointsGained,
-        finalScore: newSession.finalScore,
+        pointsGained: newSession.pointsGained ?? null,
+        finalScore: newSession.finalScore ?? null,
         tacticsNotes: newSession.tacticsNotes || null,
         // Required fields that are null for tactics sessions
         gameResult: null,
