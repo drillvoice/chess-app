@@ -9,16 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 // Dynamic import for firebase-utils to maintain code splitting
-import { gameSessionSchema, type GameSession } from "@shared/schema";
+import { gameSessionSchema, type GameSession, type TrainingSession } from "@shared/schema";
 import { Trophy, X, Clock, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GameModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editingSession?: TrainingSession;
+  isEditMode?: boolean;
 }
 
-export default function GameModal({ open, onOpenChange }: GameModalProps) {
+export default function GameModal({ open, onOpenChange, editingSession, isEditMode = false }: GameModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedResult, setSelectedResult] = useState<"win" | "loss" | "draw" | null>(null);
@@ -34,7 +36,14 @@ export default function GameModal({ open, onOpenChange }: GameModalProps) {
     watch,
   } = useForm<GameSession>({
     resolver: zodResolver(gameSessionSchema),
-    defaultValues: {
+      defaultValues: isEditMode && editingSession ? {
+        type: "game",
+        gameResult: editingSession.gameResult as "win" | "loss" | "draw" | undefined,
+        gameComments: editingSession.gameComments || "",
+        playerColor: editingSession.playerColor as "white" | "black" | undefined,
+        platform: editingSession.platform as "lichess" | "chess.com" | "otb" | undefined,
+        timeControl: editingSession.timeControl as "5+3" | "10+5" | "10" | "15+10" | undefined,
+      } : {
       type: "game",
       gameResult: undefined,
       gameComments: "",

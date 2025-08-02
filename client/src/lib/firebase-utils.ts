@@ -400,7 +400,7 @@ export async function importData(data: string): Promise<void> {
   
   // Import each session
   for (const session of sessions) {
-    const { id, createdAt, updatedAt, ...insertSession } = session;
+    const { id: _id, ...insertSession } = session;
     await createSession(insertSession);
   }
 }

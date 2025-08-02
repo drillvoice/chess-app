@@ -29,7 +29,6 @@ export const trainingSessionsTable = pgTable("training_sessions", {
 
 export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTable).omit({
   id: true,
-  date: true,
 });
 
 export const tacticsSessionSchema = insertTrainingSessionSchema.extend({
