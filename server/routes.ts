@@ -61,6 +61,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get today's training sessions
+  app.get("/api/training-sessions/today", async (req, res) => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+      const sessions = await storage.getTrainingSessionsByDateRange(startOfDay, endOfDay);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch today's sessions" });
+    }
+  });
+
   // Get training sessions by type
   app.get("/api/training-sessions/:type", async (req, res) => {
     try {
@@ -69,20 +83,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(sessions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch training sessions" });
-    }
-  });
-
-  // Get today's training sessions
-  app.get("/api/training-sessions/today", async (req, res) => {
-    try {
-      const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-      
-      const sessions = await storage.getTrainingSessionsByDateRange(startOfDay, endOfDay);
-      res.json(sessions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch today's sessions" });
     }
   });
 
