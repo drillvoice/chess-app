@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
   plugins: [
@@ -13,6 +14,14 @@ export default defineConfig({
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer(),
           ),
+        ]
+      : []),
+    ...(process.env.ANALYZE === "true"
+      ? [
+          visualizer({
+            filename: "dist/bundle-analysis.html",
+            open: true,
+          }),
         ]
       : []),
   ],
