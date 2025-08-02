@@ -540,7 +540,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
       active: data.active,
       createdDate: data.createdDate.toDate(),
       currentStreak: data.currentStreak || 0,
-      lastCompletedDate: data.lastCompletedDate ? data.lastCompletedDate.toDate() : null,
+      lastCompletedDate: data.lastCompletedDate || null,
     } as DailyGoal;
   } catch (error) {
     console.error('Error getting daily goal:', error);
@@ -622,7 +622,10 @@ export async function getDailyProgress(): Promise<{ progress: number; completed:
     const completed = progress >= dailyGoal.target;
     
     // Update streak if goal was completed and it's a new day
-    if (completed && dailyGoal.lastCompletedDate !== todayStr) {
+    if (
+      completed &&
+      (!dailyGoal.lastCompletedDate || formatDateString(dailyGoal.lastCompletedDate) !== todayStr)
+    ) {
       await updateDailyGoalStreak(dailyGoal, todayStr);
     }
     
@@ -646,11 +649,10 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
     
     // Check if yesterday was completed to maintain streak
     if (goal.lastCompletedDate) {
-      const lastCompleted = new Date(goal.lastCompletedDate);
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      
-      if (formatDateString(lastCompleted) === formatDateString(yesterday)) {
+
+      if (goal.lastCompletedDate === formatDateString(yesterday)) {
         newStreak = goal.currentStreak + 1;
       }
     }
@@ -666,8 +668,9 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
   }
 }
 
-function formatDateString(date: Date): string {
-  return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+function formatDateString(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
 }
 
 export function getStreakEmoji(streak: number): string {
