@@ -57,6 +57,20 @@ async function getSessionsCollection() {
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
 
+// Ensure the root user document exists before accessing subcollections
+async function ensureUserDoc(): Promise<void> {
+  try {
+    await setDoc(
+      doc(db, 'users', currentUserId!),
+      { createdAt: Timestamp.now() },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error('Error ensuring user document:', error);
+    throw error;
+  }
+}
+
 // Firebase operations with true offline-first approach
 export async function getAllSessions(): Promise<TrainingSession[]> {
   // ALWAYS return cached data immediately if available
@@ -555,6 +569,7 @@ export async function subscribeToSessions(callback: (sessions: TrainingSession[]
 export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   try {
     await waitForAuth();
+    await ensureUserDoc();
     const dailyGoalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     const docSnap = await getDoc(dailyGoalRef);
     
@@ -580,6 +595,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
 export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: number }): Promise<void> {
   try {
     await waitForAuth();
+    await ensureUserDoc();
     // Remove existing daily goal first
     await removeDailyGoal();
     
@@ -606,6 +622,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
 export async function removeDailyGoal(): Promise<void> {
   try {
     await waitForAuth();
+    await ensureUserDoc();
     const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     await deleteDoc(goalRef);
   } catch (error) {
@@ -672,6 +689,7 @@ export async function getDailyProgress(): Promise<{ progress: number; completed:
 async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise<void> {
   try {
     await waitForAuth();
+    await ensureUserDoc();
     const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     
     let newStreak = 1;
