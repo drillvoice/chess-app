@@ -18,6 +18,7 @@ import {
 import { auth, db } from './firebase';
 import { TrainingSession, InsertTrainingSession, DailyGoal, DailyProgress } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
+import { offlineStorage } from './offline-storage';
 
 // Firebase utilities for direct Firestore operations
 let currentUserId: string | null = null;
@@ -63,8 +64,6 @@ async function getSessionsCollection() {
   if (!currentUserId) throw new Error('User not authenticated');
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
-
-import { offlineStorage } from './offline-storage';
 
 // Firebase operations with true offline-first approach
 export async function getAllSessions(): Promise<TrainingSession[]> {
