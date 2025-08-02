@@ -25,27 +25,19 @@ let currentUserId: string | null = null;
 
 // Module-scoped promise that resolves when a user is authenticated
 const authReady = new Promise<void>((resolve, reject) => {
-  const timeout = setTimeout(() => {
-    unsubscribe();
-    reject(new Error('Authentication timeout - please refresh the page'));
-  }, 15000);
-
   const unsubscribe = onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUserId = user.uid;
-      clearTimeout(timeout);
       unsubscribe();
       resolve();
     } else {
       try {
         const userCred = await signInAnonymously(auth);
         currentUserId = userCred.user.uid;
-        clearTimeout(timeout);
         unsubscribe();
         resolve();
       } catch (error) {
         console.error('Firebase auth failed:', error);
-        clearTimeout(timeout);
         unsubscribe();
         reject(error);
       }
