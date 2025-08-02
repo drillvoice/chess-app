@@ -55,6 +55,17 @@
             navigator.serviceWorker.register("/sw.js")
                 .then(registration => {
                     swTest.innerHTML = `<div class="status success">✓ Service Worker registered</div>`;
+                    navigator.serviceWorker.ready
+                        .then(() => {
+                            if (navigator.serviceWorker.controller) {
+                                swTest.innerHTML += `<div class="status success">✓ Service Worker active and controlling the page</div>`;
+                            } else {
+                                swTest.innerHTML += `<div class="status warning">⚠ Service Worker active but not controlling this page yet</div>`;
+                            }
+                        })
+                        .catch(err => {
+                            swTest.innerHTML += `<div class="status warning">⚠ Service Worker readiness check failed: ${err.message}</div>`;
+                        });
                 })
                 .catch(err => {
                     swTest.innerHTML = `<div class="status error">✗ Service Worker error: ${err.message}</div>`;
