@@ -42,7 +42,7 @@ const initializeFirebase = async () => {
 
     // Initialize authentication for Firestore utilities
     const { initializeAuth } = await import('@/lib/firebase-utils');
-    initializeAuth();
+    await initializeAuth();
 
     console.log('Firebase initialized asynchronously');
   } catch (error) {
