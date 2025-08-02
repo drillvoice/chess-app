@@ -22,47 +22,40 @@ import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 // Firebase utilities for direct Firestore operations
 let currentUserId: string | null = null;
 
-// Initialize authentication when Firebase is ready
-const initializeAuth = async () => {
-  try {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        currentUserId = user.uid;
-      } else {
-        try {
-          const userCred = await signInAnonymously(auth);
-          currentUserId = userCred.user.uid;
-        } catch (error) {
-          console.error('Firebase auth failed:', error);
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Firebase initialization failed:', error);
-  }
-};
+// Module-scoped promise that resolves when a user is authenticated
+const authReady = new Promise<void>((resolve, reject) => {
+  const timeout = setTimeout(() => {
+    unsubscribe();
+    reject(new Error('Authentication timeout - please refresh the page'));
+  }, 15000);
 
-// Initialize auth when Firebase is ready
-initializeAuth();
-
-// Helper to wait for authentication with timeout
-async function waitForAuth(): Promise<void> {
-  if (currentUserId) return;
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      currentUserId = user.uid;
+      clearTimeout(timeout);
       unsubscribe();
-      reject(new Error('Authentication timeout - please refresh the page'));
-    }, 15000);
-    
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUserId = user.uid;
+      resolve();
+    } else {
+      try {
+        const userCred = await signInAnonymously(auth);
+        currentUserId = userCred.user.uid;
         clearTimeout(timeout);
         unsubscribe();
         resolve();
+      } catch (error) {
+        console.error('Firebase auth failed:', error);
+        clearTimeout(timeout);
+        unsubscribe();
+        reject(error);
       }
-    });
+    }
   });
+});
+
+// Helper to wait for authentication
+async function waitForAuth(): Promise<void> {
+  if (currentUserId) return;
+  return authReady;
 }
 
 // Helper to get user's sessions collection
