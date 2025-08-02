@@ -148,7 +148,9 @@ export default function History() {
   const getSessionSubtitle = (session: TrainingSession) => {
     switch (session.type) {
       case "tactics":
-        return `${session.pointsGained && session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`;
+        return session.pointsGained != null
+          ? `${session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`
+          : `${session.duration} min`;
       case "game":
         return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
       case "study":

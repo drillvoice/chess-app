@@ -34,8 +34,14 @@ export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTa
 export const tacticsSessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('tactics'),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
-  pointsGained: z.number().int("Points must be a whole number"),
-  finalScore: z.number().min(0, "Final score must be positive"),
+  pointsGained: z.preprocess(
+    (val) => val === '' || val === null || Number.isNaN(val) ? undefined : val,
+    z.number().int("Points must be a whole number").optional(),
+  ),
+  finalScore: z.preprocess(
+    (val) => val === '' || val === null || Number.isNaN(val) ? undefined : val,
+    z.number().min(0, "Final score must be positive").optional(),
+  ),
   tacticsNotes: z.string().optional(),
 }).omit({
   gameResult: true,
