@@ -9,7 +9,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
-// Initialize Firebase synchronously
+// Initialize Firebase asynchronously
 const initializeFirebase = async () => {
   try {
     
@@ -48,8 +48,8 @@ const initializeFirebase = async () => {
 
 // CSS is now loaded directly via import statement above
 
-// Initialize Firebase in the background without blocking app startup
-// The app will use cached data first, then sync when Firebase is ready
+// Kick off Firebase initialization in the background without blocking startup
+// The app uses cached data first and syncs when Firebase is ready
 queueMicrotask(() => {
   initializeFirebase().catch(error => {
     console.error('Firebase initialization failed:', error);
