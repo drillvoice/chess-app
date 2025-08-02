@@ -139,22 +139,36 @@ async function updateSessionsInBackground(): Promise<void> {
 }
 
 export async function getSessionsByType(type: string): Promise<TrainingSession[]> {
+  try {
+    const cachedSessions = await offlineStorage.getSessions();
+    if (cachedSessions && cachedSessions.length > 0) {
+      return cachedSessions.filter(session => session.type === type);
+    }
+  } catch (error) {
+    console.warn('Failed to read from offline storage:', error);
+  }
+
   await waitForAuth();
-  
+
   try {
     const sessionsRef = await getSessionsCollection();
     const q = query(
-      sessionsRef, 
+      sessionsRef,
       where('type', '==', type),
       orderBy('date', 'desc')
     );
     const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(doc => ({
+
+    const sessions = snapshot.docs.map(doc => ({
       id: parseInt(doc.id),
       ...doc.data(),
       date: doc.data().date.toDate()
     })) as TrainingSession[];
+
+    SessionsCache.set(sessions);
+    await offlineStorage.setSessions(sessions);
+
+    return sessions;
   } catch (error) {
     console.error('Error getting sessions by type:', error);
     return [];
@@ -162,8 +176,19 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
 }
 
 export async function getSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]> {
+  try {
+    const cachedSessions = await offlineStorage.getSessions();
+    if (cachedSessions && cachedSessions.length > 0) {
+      return cachedSessions.filter(
+        session => session.date >= startDate && session.date <= endDate
+      );
+    }
+  } catch (error) {
+    console.warn('Failed to read from offline storage:', error);
+  }
+
   await waitForAuth();
-  
+
   try {
     const sessionsRef = await getSessionsCollection();
     const q = query(
@@ -173,12 +198,17 @@ export async function getSessionsByDateRange(startDate: Date, endDate: Date): Pr
       orderBy('date', 'desc')
     );
     const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(doc => ({
+
+    const sessions = snapshot.docs.map(doc => ({
       id: parseInt(doc.id),
       ...doc.data(),
       date: doc.data().date.toDate()
     })) as TrainingSession[];
+
+    SessionsCache.set(sessions);
+    await offlineStorage.setSessions(sessions);
+
+    return sessions;
   } catch (error) {
     console.error('Error getting sessions by date range:', error);
     return [];
