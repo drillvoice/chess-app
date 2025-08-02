@@ -200,9 +200,8 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
   
   // Immediately update local cache for instant feedback
   try {
-    const sessions = await offlineStorage.getSessions();
     await offlineStorage.addSession(newSession);
-    
+
     // Clear localStorage caches to trigger UI updates
     SessionsCache.remove();
     StatisticsCache.remove();
