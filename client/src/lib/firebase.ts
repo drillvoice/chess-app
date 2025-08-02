@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, indexedDBLocalPersistence } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -12,8 +12,11 @@ const firebaseConfig = {
   measurementId: "G-8J3PQJQCYK"
 };
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const apps = getApps();
+const app = apps.length ? apps[0] : initializeApp(firebaseConfig);
+const auth = apps.length
+  ? getAuth(app)
+  : initializeAuth(app, { persistence: indexedDBLocalPersistence });
 const db = getFirestore(app);
 
 enableIndexedDbPersistence(db).catch(err => {
