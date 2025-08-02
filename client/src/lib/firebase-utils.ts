@@ -615,6 +615,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     });
   } catch (error) {
     console.error('Error setting daily goal:', error);
+    // Rethrow so calling functions can handle the failure
     throw error;
   }
 }
@@ -627,7 +628,8 @@ export async function removeDailyGoal(): Promise<void> {
     await deleteDoc(goalRef);
   } catch (error) {
     console.error('Error removing daily goal:', error);
-    // Don't throw error if document doesn't exist
+    // Rethrow to allow the caller to display the error message
+    throw error;
   }
 }
 
