@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { User, signInAnonymously, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import type { User } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cloud, CloudOff, User as UserIcon, LogOut } from "lucide-react";
@@ -14,6 +14,8 @@ export default function FirebaseAuth() {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        const auth = await getFirebaseAuth();
+        const { onAuthStateChanged } = await import("firebase/auth");
         const unsubscribe = onAuthStateChanged(auth, (user) => {
           setUser(user);
           setLoading(false);
@@ -37,6 +39,8 @@ export default function FirebaseAuth() {
   const handleSignIn = async () => {
     try {
       setLoading(true);
+      const auth = await getFirebaseAuth();
+      const { signInAnonymously } = await import("firebase/auth");
       await signInAnonymously(auth);
       toast({
         title: "Connected",
@@ -56,6 +60,8 @@ export default function FirebaseAuth() {
   const handleSignOut = async () => {
     try {
       setLoading(true);
+      const auth = await getFirebaseAuth();
+      const { signOut } = await import("firebase/auth");
       await signOut(auth);
       toast({
         title: "Disconnected",
