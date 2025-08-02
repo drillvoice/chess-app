@@ -27,6 +27,23 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          firebase: [
+            "firebase/app",
+            "firebase/auth",
+            "firebase/firestore",
+          ],
+          vendor: ["react", "react-dom"],
+          ui: [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-popover",
+          ],
+        },
+      },
+    },
   },
   server: {
     fs: {
