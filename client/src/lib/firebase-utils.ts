@@ -23,7 +23,7 @@ import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 let currentUserId: string | null = null;
 
 // Initialize authentication when Firebase is ready
-const initializeAuth = async () => {
+export const initializeAuth = async () => {
   try {
     const { auth } = await getFirebaseInstances();
     
@@ -43,11 +43,6 @@ const initializeAuth = async () => {
     console.error('Firebase initialization failed:', error);
   }
 };
-
-// Initialize auth when Firebase is ready
-setTimeout(() => {
-  initializeAuth();
-}, 100);
 
 // Helper to wait for authentication with timeout
 async function waitForAuth(): Promise<void> {

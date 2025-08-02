@@ -39,7 +39,11 @@ const initializeFirebase = async () => {
     window.__firebaseApp = app;
     window.__firebaseAuth = auth;
     window.__firebaseDB = db;
-    
+
+    // Initialize authentication for Firestore utilities
+    const { initializeAuth } = await import('@/lib/firebase-utils');
+    initializeAuth();
+
     console.log('Firebase initialized asynchronously');
   } catch (error) {
     console.error('Firebase initialization failed:', error);
