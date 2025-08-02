@@ -8,14 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 // Dynamic import for firebase-utils to maintain code splitting
-import { goalSessionSchema, type GoalSession } from "@shared/schema";
+import { goalSessionSchema, type GoalSession, type TrainingSession } from "@shared/schema";
 
 interface GoalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editingSession?: TrainingSession;
+  isEditMode?: boolean;
 }
 
-export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
+export default function GoalModal({ open, onOpenChange, editingSession, isEditMode = false }: GoalModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -26,7 +28,11 @@ export default function GoalModal({ open, onOpenChange }: GoalModalProps) {
     reset,
   } = useForm<GoalSession>({
     resolver: zodResolver(goalSessionSchema),
-    defaultValues: {
+    defaultValues: isEditMode && editingSession ? {
+      type: "goal",
+      goalTitle: editingSession.goalTitle || "",
+      goalDescription: editingSession.goalDescription || "",
+    } : {
       type: "goal",
       goalTitle: "",
       goalDescription: "",

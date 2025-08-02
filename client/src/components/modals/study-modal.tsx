@@ -9,14 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 // Dynamic import for firebase-utils to maintain code splitting
-import { studySessionSchema, type StudySession } from "@shared/schema";
+import { studySessionSchema, type StudySession, type TrainingSession } from "@shared/schema";
 
 interface StudyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editingSession?: TrainingSession;
+  isEditMode?: boolean;
 }
 
-export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
+export default function StudyModal({ open, onOpenChange, editingSession, isEditMode = false }: StudyModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -28,7 +30,12 @@ export default function StudyModal({ open, onOpenChange }: StudyModalProps) {
     setValue,
   } = useForm<StudySession>({
     resolver: zodResolver(studySessionSchema),
-    defaultValues: {
+      defaultValues: isEditMode && editingSession ? {
+        type: "study",
+        duration: editingSession.duration || 0,
+        studyType: editingSession.studyType as "video" | "book" | "analysis" | "chessable" | "coaching" | "online-course" | undefined,
+        studyNotes: editingSession.studyNotes || "",
+      } : {
       type: "study",
       duration: 0,
       studyType: undefined,
