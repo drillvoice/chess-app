@@ -11,11 +11,11 @@ import {
   onSnapshot,
   Timestamp
 } from 'firebase/firestore';
-import { 
-  signInAnonymously, 
+import {
+  signInAnonymously,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { getFirebaseInstances } from './firebase';
+import { auth, db } from './firebase';
 import { TrainingSession, InsertTrainingSession, DailyGoal, DailyProgress } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 
@@ -25,8 +25,6 @@ let currentUserId: string | null = null;
 // Initialize authentication when Firebase is ready
 const initializeAuth = async () => {
   try {
-    const { auth } = await getFirebaseInstances();
-    
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUserId = user.uid;
@@ -45,16 +43,11 @@ const initializeAuth = async () => {
 };
 
 // Initialize auth when Firebase is ready
-setTimeout(() => {
-  initializeAuth();
-}, 100);
+initializeAuth();
 
 // Helper to wait for authentication with timeout
 async function waitForAuth(): Promise<void> {
   if (currentUserId) return;
-  
-  const { auth } = await getFirebaseInstances();
-  
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       unsubscribe();
@@ -75,7 +68,6 @@ async function waitForAuth(): Promise<void> {
 // Helper to get user's sessions collection
 async function getSessionsCollection() {
   if (!currentUserId) throw new Error('User not authenticated');
-  const { db } = await getFirebaseInstances();
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
 
@@ -515,7 +507,6 @@ async function updateStatisticsInBackground(): Promise<void> {
 export async function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
   try {
     if (!currentUserId) {
-      const { auth } = await getFirebaseInstances();
       // Wait for auth and then subscribe
       const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -526,8 +517,6 @@ export async function subscribeToSessions(callback: (sessions: TrainingSession[]
       });
       return () => unsubscribeAuth();
     }
-
-    const { db } = await getFirebaseInstances();
     const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
     const q = query(sessionsRef, orderBy('date', 'desc'));
     
@@ -553,8 +542,6 @@ export async function subscribeToSessions(callback: (sessions: TrainingSession[]
 export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   try {
     await waitForAuth();
-    const { db } = await getFirebaseInstances();
-    
     const dailyGoalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     const docSnap = await getDoc(dailyGoalRef);
     
@@ -580,8 +567,6 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
 export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: number }): Promise<void> {
   try {
     await waitForAuth();
-    const { db } = await getFirebaseInstances();
-    
     // Remove existing daily goal first
     await removeDailyGoal();
     
@@ -608,8 +593,6 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
 export async function removeDailyGoal(): Promise<void> {
   try {
     await waitForAuth();
-    const { db } = await getFirebaseInstances();
-    
     const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     await deleteDoc(goalRef);
   } catch (error) {
@@ -673,8 +656,6 @@ export async function getDailyProgress(): Promise<{ progress: number; completed:
 async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise<void> {
   try {
     await waitForAuth();
-    const { db } = await getFirebaseInstances();
-    
     const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     
     let newStreak = 1;

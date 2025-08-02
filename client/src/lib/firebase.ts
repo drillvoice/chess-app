@@ -1,51 +1,23 @@
-// Lazy-loaded Firebase instances - initialized asynchronously in main.tsx
-declare global {
-  interface Window {
-    __firebaseApp?: any;
-    __firebaseAuth?: any;
-    __firebaseDB?: any;
-  }
-}
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
-// Wait for Firebase to be initialized
-const waitForFirebase = async (maxRetries = 100, delay = 100): Promise<void> => {
-  for (let i = 0; i < maxRetries; i++) {
-    if (window.__firebaseApp && window.__firebaseAuth && window.__firebaseDB) {
-      return;
-    }
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-  throw new Error('Firebase initialization timeout - please refresh the page');
+const firebaseConfig = {
+  apiKey: "AIzaSyAi_YUEMC5-9-iSKChB2TBCor9hU3b5oDI",
+  authDomain: "chess-logger.firebaseapp.com",
+  projectId: "chess-logger",
+  storageBucket: "chess-logger.firebasestorage.app",
+  messagingSenderId: "174377329737",
+  appId: "1:174377329737:web:003bfcbb44e2700e290b98",
+  measurementId: "G-8J3PQJQCYK"
 };
 
-// Get Firebase instances with lazy loading
-export const getFirebaseInstances = async () => {
-  await waitForFirebase();
-  return {
-    app: window.__firebaseApp,
-    auth: window.__firebaseAuth,
-    db: window.__firebaseDB,
-  };
-};
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// Backward compatibility exports with lazy loading
-export const db = new Proxy({}, {
-  get: async () => {
-    const instances = await getFirebaseInstances();
-    return instances.db;
-  }
+enableIndexedDbPersistence(db).catch(err => {
+  console.warn('IndexedDB persistence failed:', err);
 });
 
-export const auth = new Proxy({}, {
-  get: async () => {
-    const instances = await getFirebaseInstances();
-    return instances.auth;
-  }
-});
-
-export const app = new Proxy({}, {
-  get: async () => {
-    const instances = await getFirebaseInstances();
-    return instances.app;
-  }
-});
+export { app, auth, db };
