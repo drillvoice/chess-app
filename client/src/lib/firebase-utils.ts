@@ -1,49 +1,71 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc,
-  deleteDoc, 
-  setDoc,
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot,
-  Timestamp
-} from 'firebase/firestore';
-import {
-  signInAnonymously,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import { auth, db } from './firebase';
 import { TrainingSession, InsertTrainingSession, DailyGoal, DailyProgress } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 import { offlineStorage } from './offline-storage';
+import { getFirebaseAuth, getFirestoreDb } from './firebaseClient';
+
+// Dynamic Firebase imports with caching
+let auth: Awaited<ReturnType<typeof getFirebaseAuth>>;
+let db: Awaited<ReturnType<typeof getFirestoreDb>>;
+
+let collection: typeof import('firebase/firestore').collection;
+let doc: typeof import('firebase/firestore').doc;
+let getDocs: typeof import('firebase/firestore').getDocs;
+let getDoc: typeof import('firebase/firestore').getDoc;
+let deleteDoc: typeof import('firebase/firestore').deleteDoc;
+let setDoc: typeof import('firebase/firestore').setDoc;
+let query: typeof import('firebase/firestore').query;
+let where: typeof import('firebase/firestore').where;
+let orderBy: typeof import('firebase/firestore').orderBy;
+let onSnapshot: typeof import('firebase/firestore').onSnapshot;
+let Timestamp: typeof import('firebase/firestore').Timestamp;
+
+let signInAnonymously: typeof import('firebase/auth').signInAnonymously;
+let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
+
+async function ensureFirebase() {
+  if (!auth) {
+    auth = await getFirebaseAuth();
+  }
+  if (!db) {
+    db = await getFirestoreDb();
+  }
+  if (!collection) {
+    const firestore = await import('firebase/firestore');
+    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp } = firestore);
+  }
+  if (!signInAnonymously) {
+    const authModule = await import('firebase/auth');
+    ({ signInAnonymously, onAuthStateChanged } = authModule);
+  }
+}
 
 // Firebase utilities for direct Firestore operations
 let currentUserId: string | null = null;
 
 // Module-scoped promise that resolves when a user is authenticated
-const authReady = new Promise<void>((resolve, reject) => {
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      currentUserId = user.uid;
-      unsubscribe();
-      resolve();
-    } else {
-      try {
-        const userCred = await signInAnonymously(auth);
-        currentUserId = userCred.user.uid;
+const authReady = (async () => {
+  await ensureFirebase();
+  return new Promise<void>((resolve, reject) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUserId = user.uid;
         unsubscribe();
         resolve();
-      } catch (error) {
-        console.error('Firebase auth failed:', error);
-        unsubscribe();
-        reject(error);
+      } else {
+        try {
+          const userCred = await signInAnonymously(auth);
+          currentUserId = userCred.user.uid;
+          unsubscribe();
+          resolve();
+        } catch (error) {
+          console.error('Firebase auth failed:', error);
+          unsubscribe();
+          reject(error);
+        }
       }
-    }
+    });
   });
-});
+})();
 
 // Helper to wait for authentication
 async function waitForAuth(): Promise<void> {

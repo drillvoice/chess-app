@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import "./lib/firebase";
 
 // Register service worker for offline functionality
 if ('serviceWorker' in navigator) {
