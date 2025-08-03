@@ -101,7 +101,7 @@ class OfflineStorage {
       const transaction = db.transaction(['sessions'], 'readwrite');
       const store = transaction.objectStore('sessions');
       
-      store.add({
+      store.put({
         ...session,
         date: session.date.toISOString()
       });

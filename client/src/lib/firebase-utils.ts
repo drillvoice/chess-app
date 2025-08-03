@@ -303,19 +303,22 @@ export async function getSessionsByDateRange(startDate: Date, endDate: Date): Pr
   }
 }
 
-export async function createSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
-  // Generate session data immediately for optimistic updates
-  const id = Date.now();
+export async function createSession(
+  insertSession: InsertTrainingSession,
+  id?: number
+): Promise<TrainingSession> {
+  // Use provided id or generate a new one for optimistic updates
+  const sessionId = id ?? Date.now();
   const sessionDate = insertSession.date || new Date();
   const now = new Date();
-  
+
   const newSession: TrainingSession = {
     ...insertSession,
-    id,
+    id: sessionId,
     date: sessionDate,
     createdAt: now,
   } as TrainingSession;
-  
+
   // Immediately update local cache for instant feedback
   try {
     await offlineStorage.addSession(newSession);
@@ -326,29 +329,31 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
     WeeklyGoalCache.remove();
   } catch (error) {
     console.warn('Failed to update offline cache:', error);
+    // Bubble up the error so callers can detect failures
+    throw error;
   }
-  
+
   // Save to Firebase in the background
   const saveToFirebase = async () => {
     try {
       await waitForAuth();
       const sessionsRef = await getSessionsCollection();
-      
+
       const sessionData = {
         ...insertSession,
-        id,
+        id: sessionId,
         date: Timestamp.fromDate(sessionDate),
         createdAt: Timestamp.fromDate(now)
       };
-      
-      const docRef = doc(sessionsRef, id.toString());
-      
+
+      const docRef = doc(sessionsRef, sessionId.toString());
+
       // Shorter timeout for better UX
       const savePromise = setDoc(docRef, sessionData);
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Save taking longer than expected')), 10000);
       });
-      
+
       await Promise.race([savePromise, timeoutPromise]);
     } catch (error) {
       console.error('Firebase save failed:', error);
@@ -356,10 +361,10 @@ export async function createSession(insertSession: InsertTrainingSession): Promi
       // It will sync next time they have connection
     }
   };
-  
+
   // Don't wait for Firebase save
   queueMicrotask(() => saveToFirebase());
-  
+
   return newSession;
 }
 
@@ -471,11 +476,20 @@ export async function exportData(): Promise<string> {
 
 export async function importData(data: string): Promise<void> {
   const sessions: TrainingSession[] = JSON.parse(data);
-  
-  // Import each session
+  const errors: Array<{ id: number; error: unknown }> = [];
+
+  // Import each session, preserving IDs when provided
   for (const session of sessions) {
-    const { id: _id, ...insertSession } = session;
-    await createSession(insertSession);
+    const { id, ...insertSession } = session;
+    try {
+      await createSession(insertSession, id);
+    } catch (error) {
+      errors.push({ id, error });
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Failed to import ${errors.length} sessions`);
   }
 }
 
