@@ -10,6 +10,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 - **Progressive Web App**: Installable on mobile devices
 - **Statistics Dashboard**: Track your progress over time
 - **Data Export**: Backup your training data
+- **Clear Local Data Option**: Disabling cloud sync retains existing data locally; clear it manually when needed
 
 ## Tech Stack
 
