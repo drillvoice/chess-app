@@ -25,6 +25,10 @@ let linkWithCredential: typeof import('firebase/auth').linkWithCredential;
 let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
 let provider!: import('firebase/auth').GoogleAuthProvider;
 
+let currentUserId: string | null = null;
+let authListenerInitialized = false;
+let authResolvers: Array<() => void> = [];
+
 async function ensureFirebase() {
   if (!auth) {
     auth = await getFirebaseAuth();
@@ -41,36 +45,25 @@ async function ensureFirebase() {
     ({ GoogleAuthProvider, signInWithPopup, linkWithCredential, onAuthStateChanged } = authModule);
     provider = new GoogleAuthProvider();
   }
-}
 
-// Firebase utilities for direct Firestore operations
-let currentUserId: string | null = null;
-
-// Module-scoped promise that resolves when a user is authenticated
-const authReady = (async () => {
-  await ensureFirebase();
-  return new Promise<void>((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          currentUserId = user.uid;
-          await ensureUserDoc();
-          unsubscribe();
-          resolve();
-        } catch (error) {
-          console.error('Firebase auth failed:', error);
-          unsubscribe();
-          reject(error);
-        }
+  if (!authListenerInitialized) {
+    onAuthStateChanged(auth, async (user) => {
+      currentUserId = user ? user.uid : null;
+      if (currentUserId) {
+        await ensureUserDoc();
+        authResolvers.forEach(res => res());
+        authResolvers = [];
       }
     });
-  });
-})();
+    authListenerInitialized = true;
+  }
+}
 
 // Helper to wait for authentication
 async function waitForAuth(): Promise<void> {
+  await ensureFirebase();
   if (currentUserId) return;
-  return authReady;
+  return new Promise(resolve => authResolvers.push(resolve));
 }
 
 // Helper to get user's sessions collection
@@ -100,6 +93,10 @@ export async function refreshAuthState(): Promise<void> {
   if (currentUserId) {
     await ensureUserDoc();
   }
+}
+
+export function getCurrentUserId(): string | null {
+  return currentUserId;
 }
 
 export async function startAuthFlow(): Promise<void> {

@@ -164,6 +164,10 @@ class OfflineStorage {
     });
   }
 
+  async clear(): Promise<void> {
+    return this.clearAll();
+  }
+
   async clearAll(): Promise<void> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {

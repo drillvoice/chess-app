@@ -70,6 +70,12 @@ export default function FirebaseAuth() {
       const auth = await getFirebaseAuth();
       const { signOut } = await import("firebase/auth");
       await signOut(auth);
+      const { refreshAuthState } = await import("@/lib/firebase-utils");
+      const { SessionsCache } = await import("@/lib/cache-utils");
+      const { offlineStorage } = await import("@/lib/offline-storage");
+      await refreshAuthState();
+      SessionsCache.remove();
+      await offlineStorage.clear();
       toast({
         title: "Disconnected",
         description: "Cloud sync has been disabled.",
