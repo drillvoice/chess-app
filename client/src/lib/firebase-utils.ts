@@ -53,28 +53,7 @@ const authReady = (async () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          if (user.isAnonymous) {
-            const result = await signInWithPopup(auth, provider);
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            if (credential) {
-              const linked = await linkWithCredential(user, credential);
-              currentUserId = linked.user.uid;
-            }
-          } else {
-            currentUserId = user.uid;
-          }
-          await ensureUserDoc();
-          unsubscribe();
-          resolve();
-        } catch (error) {
-          console.error('Firebase auth failed:', error);
-          unsubscribe();
-          reject(error);
-        }
-      } else {
-        try {
-          const userCred = await signInWithPopup(auth, provider);
-          currentUserId = userCred.user.uid;
+          currentUserId = user.uid;
           await ensureUserDoc();
           unsubscribe();
           resolve();
@@ -121,6 +100,19 @@ export async function refreshAuthState(): Promise<void> {
   if (currentUserId) {
     await ensureUserDoc();
   }
+}
+
+export async function startAuthFlow(): Promise<void> {
+  await ensureFirebase();
+  const anonUser = auth.currentUser;
+  const result = await signInWithPopup(auth, provider);
+  if (anonUser && anonUser.isAnonymous) {
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential) {
+      await linkWithCredential(anonUser, credential);
+    }
+  }
+  await refreshAuthState();
 }
 
 export async function verifyDataPresence(): Promise<void> {
