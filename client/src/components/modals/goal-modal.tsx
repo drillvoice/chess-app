@@ -105,7 +105,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+          <div className="flex-1 overflow-y-auto space-y-3 p-2">
             <div>
               <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
                 Goal Title

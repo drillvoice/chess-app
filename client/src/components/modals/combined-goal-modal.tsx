@@ -205,7 +205,7 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
 
           <TabsContent value="weekly" className="flex-1 mt-3">
             <form onSubmit={weeklyForm.handleSubmit(onWeeklySubmit)} className="flex flex-col h-full">
-              <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+              <div className="flex-1 overflow-y-auto space-y-3 p-2">
                 <div>
                   <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
                     Goal Title
@@ -259,7 +259,7 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
 
           <TabsContent value="daily" className="flex-1 mt-3">
             <div className="flex flex-col h-full">
-              <div className="flex-1 overflow-y-auto space-y-4 pb-2">
+              <div className="flex-1 overflow-y-auto space-y-4 p-2">
                 {/* Goal Type Selection */}
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">

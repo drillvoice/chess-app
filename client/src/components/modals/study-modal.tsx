@@ -108,7 +108,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+          <div className="flex-1 overflow-y-auto space-y-3 p-2">
             <div>
               <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
                 Study Type
