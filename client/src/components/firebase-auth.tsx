@@ -43,7 +43,19 @@ export default function FirebaseAuth() {
       const { startAuthFlow, refreshAuthState, verifyDataPresence } = await import(
         "@/lib/firebase-utils"
       );
-      await startAuthFlow();
+      try {
+        await startAuthFlow();
+      } catch (error: any) {
+        if (
+          error &&
+          (error.code === "auth/popup-blocked" ||
+            error.code === "auth/cancelled-popup-request")
+        ) {
+          await startAuthFlow(true);
+        } else {
+          throw error;
+        }
+      }
       await refreshAuthState();
       const verified = await verifyDataPresence();
       if (!verified) {

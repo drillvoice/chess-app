@@ -24,7 +24,9 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('firebase/auth', () => ({
   GoogleAuthProvider: class { static credentialFromResult() { return null; } },
   signInWithPopup: vi.fn(),
+  signInWithRedirect: vi.fn(),
   linkWithCredential: vi.fn(),
+  linkWithRedirect: vi.fn(),
   signOut: vi.fn(),
   onAuthStateChanged: vi.fn(),
 }));
@@ -137,6 +139,37 @@ describe('FirebaseAuth sign-in', () => {
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Verification Failed' })
+    );
+  });
+
+  it('falls back to redirect when popup is blocked', async () => {
+    const mockAuth: any = { currentUser: null };
+    const firebaseClient = await import('@/lib/firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const popupError = { code: 'auth/popup-blocked' } as any;
+    const startAuthFlowSpy = vi
+      .spyOn(firebaseUtils, 'startAuthFlow')
+      .mockRejectedValueOnce(popupError)
+      .mockResolvedValueOnce();
+    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
+    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
+
+    render(<FirebaseAuth />);
+    const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
+    fireEvent.click(signInButton);
+
+    await waitFor(() => expect(startAuthFlowSpy).toHaveBeenCalledTimes(2));
+    expect(startAuthFlowSpy.mock.calls[1][0]).toBe(true);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Connected' })
     );
   });
 });
