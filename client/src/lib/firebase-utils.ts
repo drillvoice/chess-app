@@ -112,7 +112,7 @@ export async function startAuthFlow(): Promise<void> {
   await refreshAuthState();
 }
 
-export async function verifyDataPresence(): Promise<void> {
+export async function verifyDataPresence(): Promise<boolean> {
   try {
     const cached = await offlineStorage.getSessions();
     await fetchSessionsFromFirebase();
@@ -121,8 +121,10 @@ export async function verifyDataPresence(): Promise<void> {
       cached?.length || 0,
       'live read successful'
     );
+    return true;
   } catch (error) {
     console.error('Migration verification failed:', error);
+    return false;
   }
 }
 
