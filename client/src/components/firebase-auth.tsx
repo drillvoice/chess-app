@@ -16,11 +16,53 @@ export default function FirebaseAuth() {
     const initAuth = async () => {
       try {
         const auth = await getFirebaseAuth();
-        const { onAuthStateChanged } = await import("firebase/auth");
+        const { onAuthStateChanged, getRedirectResult } = await import(
+          "firebase/auth"
+        );
+        const { refreshAuthState, verifyDataPresence } = await import(
+          "@/lib/firebase-utils"
+        );
+
         const unsubscribe = onAuthStateChanged(auth, (user) => {
           setUser(user);
           setLoading(false);
         });
+
+        // Handle redirect result or persisted intent
+        try {
+          const redirectResult = await getRedirectResult(auth).catch(() => null);
+          const redirectIntent = sessionStorage.getItem("redirectAuth");
+          if (redirectResult || redirectIntent) {
+            sessionStorage.removeItem("redirectAuth");
+            try {
+              await refreshAuthState();
+              const verified = await verifyDataPresence();
+              if (!verified) {
+                toast({
+                  title: "Verification Failed",
+                  description: "Could not verify cloud data. Please try again.",
+                  variant: "destructive",
+                });
+              } else {
+                toast({
+                  title: "Connected",
+                  description: "Cloud sync enabled successfully!",
+                });
+              }
+            } catch (error) {
+              toast({
+                title: "Connection Failed",
+                description:
+                  error instanceof Error
+                    ? error.message
+                    : "Could not enable cloud sync. Please try again.",
+                variant: "destructive",
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Redirect result handling failed:", error);
+        }
 
         return unsubscribe;
       } catch (error) {
@@ -30,12 +72,12 @@ export default function FirebaseAuth() {
     };
 
     let unsubscribe: (() => void) | undefined;
-    initAuth().then(unsub => {
+    initAuth().then((unsub) => {
       unsubscribe = unsub;
     });
 
     return () => unsubscribe?.();
-  }, []);
+  }, [toast]);
 
   const handleSignIn = async () => {
     try {
@@ -51,6 +93,7 @@ export default function FirebaseAuth() {
           (error.code === "auth/popup-blocked" ||
             error.code === "auth/cancelled-popup-request")
         ) {
+          sessionStorage.setItem("redirectAuth", "true");
           await startAuthFlow(true);
         } else {
           throw error;

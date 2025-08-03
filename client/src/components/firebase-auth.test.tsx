@@ -29,6 +29,7 @@ vi.mock('firebase/auth', () => ({
   linkWithRedirect: vi.fn(),
   signOut: vi.fn(),
   onAuthStateChanged: vi.fn(),
+  getRedirectResult: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock('@/lib/cache-utils', () => ({
@@ -50,6 +51,7 @@ import * as firebaseUtils from '@/lib/firebase-utils';
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  sessionStorage.clear();
 });
 
 describe('FirebaseAuth sign-out', () => {
@@ -61,7 +63,7 @@ describe('FirebaseAuth sign-out', () => {
 
     const authModule = await import('firebase/auth');
     let authChange: any;
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       authChange = cb;
       cb(mockAuth.currentUser);
       return () => {};
@@ -97,7 +99,7 @@ describe('FirebaseAuth sign-in', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -123,7 +125,7 @@ describe('FirebaseAuth sign-in', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -149,7 +151,7 @@ describe('FirebaseAuth sign-in', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -168,8 +170,60 @@ describe('FirebaseAuth sign-in', () => {
 
     await waitFor(() => expect(startAuthFlowSpy).toHaveBeenCalledTimes(2));
     expect(startAuthFlowSpy.mock.calls[1][0]).toBe(true);
+    expect(sessionStorage.getItem('redirectAuth')).toBe('true');
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Connected' })
+    );
+  });
+});
+
+describe('FirebaseAuth redirect handling', () => {
+  it('handles redirect result and shows success toast', async () => {
+    const mockAuth: any = { currentUser: { uid: 'user123' } };
+    const firebaseClient = await import('@/lib/firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+    (authModule.getRedirectResult as any).mockResolvedValue({});
+
+    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
+    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
+
+    render(<FirebaseAuth />);
+
+    await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Connected' })
+    );
+  });
+
+  it('shows failure toast when verification fails after redirect', async () => {
+    const mockAuth: any = { currentUser: { uid: 'user123' } };
+    const firebaseClient = await import('@/lib/firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+    (authModule.getRedirectResult as any).mockResolvedValue(null);
+    sessionStorage.setItem('redirectAuth', 'true');
+
+    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
+    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(false);
+
+    render(<FirebaseAuth />);
+
+    await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Verification Failed' })
     );
   });
 });
