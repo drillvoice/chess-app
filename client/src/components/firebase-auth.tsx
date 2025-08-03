@@ -45,7 +45,15 @@ export default function FirebaseAuth() {
       );
       await startAuthFlow();
       await refreshAuthState();
-      await verifyDataPresence();
+      const verified = await verifyDataPresence();
+      if (!verified) {
+        toast({
+          title: "Verification Failed",
+          description: "Could not verify cloud data. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Connected",
         description: "Cloud sync enabled successfully!",

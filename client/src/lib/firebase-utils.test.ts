@@ -76,7 +76,7 @@ describe('firebase auth utilities', () => {
     expect(setDocMock).not.toHaveBeenCalled();
   });
 
-  it('verifyDataPresence checks cache and firebase', async () => {
+  it('verifyDataPresence returns true when cache and firebase are accessible', async () => {
     const offline = await import('./offline-storage');
     offline.offlineStorage.getSessions.mockResolvedValue([{ id: 1 }]);
 
@@ -86,12 +86,29 @@ describe('firebase auth utilities', () => {
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await utils.verifyDataPresence();
+    const result = await utils.verifyDataPresence();
 
+    expect(result).toBe(true);
     expect(offline.offlineStorage.getSessions).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith('Migration verification: cached', 1, 'live read successful');
 
     logSpy.mockRestore();
+  });
+
+  it('verifyDataPresence returns false when verification fails', async () => {
+    const offline = await import('./offline-storage');
+    offline.offlineStorage.getSessions.mockRejectedValue(new Error('fail'));
+
+    const utils = await import('./firebase-utils');
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await utils.verifyDataPresence();
+
+    expect(result).toBe(false);
+    expect(errorSpy).toHaveBeenCalled();
+
+    errorSpy.mockRestore();
   });
 
   it('startAuthFlow signs in and links anonymous user', async () => {
