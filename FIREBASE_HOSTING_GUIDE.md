@@ -95,8 +95,8 @@ firebase deploy
 # Deploy only hosting
 firebase deploy --only hosting
 
-# Deploy only Firestore rules/indexes
-firebase deploy --only firestore
+# Deploy only Firestore rules
+firebase deploy --only firestore:rules
 ```
 
 ## Firebase Hosting Features
