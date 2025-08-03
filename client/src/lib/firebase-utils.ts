@@ -21,7 +21,9 @@ let Timestamp: typeof import('firebase/firestore').Timestamp;
 
 let GoogleAuthProvider: typeof import('firebase/auth').GoogleAuthProvider;
 let signInWithPopup: typeof import('firebase/auth').signInWithPopup;
+let signInWithRedirect: typeof import('firebase/auth').signInWithRedirect;
 let linkWithCredential: typeof import('firebase/auth').linkWithCredential;
+let linkWithRedirect: typeof import('firebase/auth').linkWithRedirect;
 let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
 let provider!: import('firebase/auth').GoogleAuthProvider;
 
@@ -42,7 +44,14 @@ async function ensureFirebase() {
   }
   if (!signInWithPopup) {
     const authModule = await import('firebase/auth');
-    ({ GoogleAuthProvider, signInWithPopup, linkWithCredential, onAuthStateChanged } = authModule);
+    ({
+      GoogleAuthProvider,
+      signInWithPopup,
+      signInWithRedirect,
+      linkWithCredential,
+      linkWithRedirect,
+      onAuthStateChanged,
+    } = authModule);
     provider = new GoogleAuthProvider();
   }
 
@@ -99,14 +108,22 @@ export function getCurrentUserId(): string | null {
   return currentUserId;
 }
 
-export async function startAuthFlow(): Promise<void> {
+export async function startAuthFlow(useRedirect = false): Promise<void> {
   await ensureFirebase();
   const anonUser = auth.currentUser;
-  const result = await signInWithPopup(auth, provider);
-  if (anonUser && anonUser.isAnonymous) {
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (credential) {
-      await linkWithCredential(anonUser, credential);
+  if (useRedirect) {
+    if (anonUser && anonUser.isAnonymous) {
+      await linkWithRedirect(anonUser, provider);
+    } else {
+      await signInWithRedirect(auth, provider);
+    }
+  } else {
+    const result = await signInWithPopup(auth, provider);
+    if (anonUser && anonUser.isAnonymous) {
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential) {
+        await linkWithCredential(anonUser, credential);
+      }
     }
   }
   await refreshAuthState();

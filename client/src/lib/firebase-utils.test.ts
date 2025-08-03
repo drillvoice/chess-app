@@ -38,7 +38,9 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('firebase/auth', () => ({
   GoogleAuthProvider: class { static credentialFromResult() { return null; } },
   signInWithPopup: vi.fn(),
+  signInWithRedirect: vi.fn(),
   linkWithCredential: vi.fn(),
+  linkWithRedirect: vi.fn(),
   onAuthStateChanged: vi.fn(),
 }));
 
