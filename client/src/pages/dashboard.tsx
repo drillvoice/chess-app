@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Clock, Play, Trophy, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { WeeklyActivityChart, DataManagement } from "@/components/lazy-components";
+import { WeeklyActivityChart } from "@/components/lazy-components";
 import { TrainingSession } from "@shared/schema";
 
 interface Statistics {
@@ -147,9 +147,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <Suspense fallback={<Skeleton className="h-20 w-full" />}>
-        <DataManagement />
-      </Suspense>
     </div>
   );
 }
