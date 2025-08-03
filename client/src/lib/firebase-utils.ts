@@ -19,8 +19,11 @@ let orderBy: typeof import('firebase/firestore').orderBy;
 let onSnapshot: typeof import('firebase/firestore').onSnapshot;
 let Timestamp: typeof import('firebase/firestore').Timestamp;
 
-let signInAnonymously: typeof import('firebase/auth').signInAnonymously;
+let GoogleAuthProvider: typeof import('firebase/auth').GoogleAuthProvider;
+let signInWithPopup: typeof import('firebase/auth').signInWithPopup;
+let linkWithPopup: typeof import('firebase/auth').linkWithPopup;
 let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
+let provider!: import('firebase/auth').GoogleAuthProvider;
 
 async function ensureFirebase() {
   if (!auth) {
@@ -33,9 +36,10 @@ async function ensureFirebase() {
     const firestore = await import('firebase/firestore');
     ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp } = firestore);
   }
-  if (!signInAnonymously) {
+  if (!signInWithPopup) {
     const authModule = await import('firebase/auth');
-    ({ signInAnonymously, onAuthStateChanged } = authModule);
+    ({ GoogleAuthProvider, signInWithPopup, linkWithPopup, onAuthStateChanged } = authModule);
+    provider = new GoogleAuthProvider();
   }
 }
 
@@ -48,12 +52,23 @@ const authReady = (async () => {
   return new Promise<void>((resolve, reject) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        currentUserId = user.uid;
-        unsubscribe();
-        resolve();
+        try {
+          if (user.isAnonymous) {
+            const linked = await linkWithPopup(user, provider);
+            currentUserId = linked.user.uid;
+          } else {
+            currentUserId = user.uid;
+          }
+          unsubscribe();
+          resolve();
+        } catch (error) {
+          console.error('Firebase auth failed:', error);
+          unsubscribe();
+          reject(error);
+        }
       } else {
         try {
-          const userCred = await signInAnonymously(auth);
+          const userCred = await signInWithPopup(auth, provider);
           currentUserId = userCred.user.uid;
           unsubscribe();
           resolve();
