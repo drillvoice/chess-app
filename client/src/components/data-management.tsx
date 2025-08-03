@@ -75,6 +75,25 @@ export default function DataManagement() {
     }
   };
 
+  const handleClearLocalData = async () => {
+    try {
+      const { SessionsCache } = await import("@/lib/cache-utils");
+      const { offlineStorage } = await import("@/lib/offline-storage");
+      SessionsCache.remove();
+      await offlineStorage.clear();
+      toast({
+        title: "Cleared",
+        description: "Local data removed from this device.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to clear local data",
+        variant: "destructive",
+      });
+    }
+  };
+
 
 
   return (
@@ -94,7 +113,7 @@ export default function DataManagement() {
           <div className="space-y-3">
             <FirebaseAuth />
             <p className="text-sm text-gray-600">
-              Your data is automatically synced to Firebase Cloud for this device when you're online.
+              Your data is automatically synced to Firebase Cloud for this device when you're online. Disabling cloud sync keeps existing data on this device unless you clear it below.
             </p>
           </div>
         </div>
@@ -136,9 +155,21 @@ export default function DataManagement() {
           />
         </div>
 
+        <div>
+          <Label className="text-sm font-medium text-gray-700 mb-2 block">
+            Clear Local Data
+          </Label>
+          <p className="text-sm text-gray-600 mb-3">
+            Remove all locally stored training data from this device. Cloud data will remain unaffected.
+          </p>
+          <Button onClick={handleClearLocalData} className="w-full" variant="destructive">
+            Clear Local Data
+          </Button>
+        </div>
+
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Your data is automatically saved to Firebase Cloud and synced across your devices. Export regularly to keep a backup of your training history.
+            <strong>Note:</strong> Disabling cloud sync will stop future syncing but leaves existing data on this device. Use Clear Local Data above to remove it. Export regularly to keep a backup of your training history.
           </p>
         </div>
       </CardContent>

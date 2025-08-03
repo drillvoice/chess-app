@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 describe('FirebaseAuth sign-out', () => {
-  it('clears caches and resets currentUserId', async () => {
+  it('preserves local data and resets currentUserId', async () => {
     const mockAuth: any = { currentUser: { uid: 'user123' } };
     const firebaseClient = await import('@/lib/firebaseClient');
     (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
@@ -85,8 +85,8 @@ describe('FirebaseAuth sign-out', () => {
 
     await waitFor(() => {
       expect(firebaseUtils.getCurrentUserId()).toBeNull();
-      expect(cacheModule.SessionsCache.remove).toHaveBeenCalled();
-      expect(offlineModule.offlineStorage.clear).toHaveBeenCalled();
+      expect(cacheModule.SessionsCache.remove).not.toHaveBeenCalled();
+      expect(offlineModule.offlineStorage.clear).not.toHaveBeenCalled();
     });
   });
 });
