@@ -11,3 +11,4 @@ export const GoalModal = lazy(() => import('@/components/modals/goal-modal'));
 // Lazy load heavy components to reduce initial bundle size
 export const WeeklyActivityChart = lazy(() => import('@/components/weekly-activity-chart'));
 export const DataManagement = lazy(() => import('@/components/data-management'));
+export const AccountPage = lazy(() => import('@/pages/account'));
