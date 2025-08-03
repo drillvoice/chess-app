@@ -86,7 +86,8 @@
   .mobile-modal {
     top: 5% !important;
     transform: translateX(-50%) !important;
-    max-height: 60vh !important;
+    max-height: calc(100dvh - 2rem) !important;
+    overflow-y: auto !important;
     margin: 0 !important;
     width: calc(100vw - 2rem) !important;
     max-width: calc(100vw - 2rem) !important;
