@@ -93,4 +93,34 @@ describe('firebase auth utilities', () => {
 
     logSpy.mockRestore();
   });
+
+  it('startAuthFlow signs in and links anonymous user', async () => {
+    const mockAuth: any = { currentUser: { uid: 'anon', isAnonymous: true } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const authModule = await import('firebase/auth');
+    let authChange: any;
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+      authChange = cb;
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+    (authModule.signInWithPopup as any).mockImplementation(async () => {
+      mockAuth.currentUser = { uid: 'user123', isAnonymous: false };
+      authChange(mockAuth.currentUser);
+      return { user: mockAuth.currentUser };
+    });
+    (authModule.GoogleAuthProvider as any).credentialFromResult = () => ({});
+    (authModule.linkWithCredential as any).mockResolvedValue({ user: mockAuth.currentUser });
+
+    const utils = await import('./firebase-utils');
+    await utils.startAuthFlow();
+
+    expect(authModule.signInWithPopup).toHaveBeenCalled();
+    expect(authModule.linkWithCredential).toHaveBeenCalled();
+    expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123');
+  });
 });

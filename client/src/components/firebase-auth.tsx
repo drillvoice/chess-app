@@ -40,25 +40,10 @@ export default function FirebaseAuth() {
   const handleSignIn = async () => {
     try {
       setLoading(true);
-      const auth = await getFirebaseAuth();
-      const {
-        GoogleAuthProvider,
-        signInWithPopup,
-        linkWithCredential,
-      } = await import("firebase/auth");
-      const provider = new GoogleAuthProvider();
-      const anonUser = auth.currentUser;
-      const result = await signInWithPopup(auth, provider);
-      if (anonUser && anonUser.isAnonymous) {
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        if (credential) {
-          await linkWithCredential(anonUser, credential);
-        }
-      }
-
-      const { refreshAuthState, verifyDataPresence } = await import(
+      const { startAuthFlow, refreshAuthState, verifyDataPresence } = await import(
         "@/lib/firebase-utils"
       );
+      await startAuthFlow();
       await refreshAuthState();
       await verifyDataPresence();
       toast({
@@ -68,7 +53,10 @@ export default function FirebaseAuth() {
     } catch (error) {
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Could not enable cloud sync. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not enable cloud sync. Please try again.",
         variant: "destructive",
       });
     } finally {
