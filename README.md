@@ -19,6 +19,31 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 - **Build**: Vite
 - **Hosting**: Firebase Hosting
 
+## Environment & Secrets
+
+Local development uses a `.env.local` file that is not committed to version control. Follow these steps to set up your environment:
+
+1. **Create `.env.local`**
+   ```bash
+   NEXT_PUBLIC_FIREBASE_CLIENT_ID=your-client-id
+   ```
+
+2. **Store production secrets with Firebase**
+   ```bash
+   firebase functions:secrets:set GOOGLE_API_KEY
+   ```
+
+3. **Access secrets in Firebase Functions**
+   ```ts
+   import { defineSecret } from "firebase-functions/params";
+
+   const apiKey = defineSecret("GOOGLE_API_KEY");
+
+   apiKey.value();
+   ```
+
+   The Firebase CLI prompts for the secret value during the `firebase functions:secrets:set` command.
+
 ## Firebase Hosting Deployment
 
 This app is configured for Firebase Hosting deployment (static hosting), not Firebase App Hosting.
@@ -46,6 +71,8 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
    ```bash
    firebase deploy --only hosting
    ```
+
+   The CLI will prompt for any missing secret values when deploying.
 
    Or use the deployment script:
    ```bash
