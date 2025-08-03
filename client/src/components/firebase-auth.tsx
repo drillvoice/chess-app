@@ -3,7 +3,8 @@ import type { User } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cloud, CloudOff, User as UserIcon, LogOut } from "lucide-react";
+import { Cloud, CloudOff, LogOut } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
 export default function FirebaseAuth() {
@@ -40,8 +41,13 @@ export default function FirebaseAuth() {
     try {
       setLoading(true);
       const auth = await getFirebaseAuth();
-      const { signInAnonymously } = await import("firebase/auth");
-      await signInAnonymously(auth);
+      const { GoogleAuthProvider, signInWithPopup, linkWithPopup } = await import("firebase/auth");
+      const provider = new GoogleAuthProvider();
+      if (auth.currentUser && auth.currentUser.isAnonymous) {
+        await linkWithPopup(auth.currentUser, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
       toast({
         title: "Connected",
         description: "Cloud sync enabled successfully!",
@@ -49,7 +55,7 @@ export default function FirebaseAuth() {
     } catch (error) {
       toast({
         title: "Connection Failed",
-        description: "Could not enable cloud sync. Please try again.",
+        description: error instanceof Error ? error.message : "Could not enable cloud sync. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -70,7 +76,7 @@ export default function FirebaseAuth() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Could not disconnect from cloud sync.",
+        description: error instanceof Error ? error.message : "Could not disconnect from cloud sync.",
         variant: "destructive",
       });
     } finally {
@@ -114,8 +120,11 @@ export default function FirebaseAuth() {
         {user ? (
           <div className="space-y-3">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <UserIcon className="w-4 h-4" />
-              <span>Anonymous User</span>
+              <Avatar className="w-6 h-6">
+                <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ""} />
+                <AvatarFallback>{user.displayName?.[0] ?? user.email?.[0] ?? "U"}</AvatarFallback>
+              </Avatar>
+              <span>{user.displayName || user.email || "User"}</span>
             </div>
             <p className="text-xs text-gray-500">
               Your training data is automatically synced across all your devices.
