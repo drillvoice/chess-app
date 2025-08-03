@@ -41,13 +41,26 @@ export default function FirebaseAuth() {
     try {
       setLoading(true);
       const auth = await getFirebaseAuth();
-      const { GoogleAuthProvider, signInWithPopup, linkWithPopup } = await import("firebase/auth");
+      const {
+        GoogleAuthProvider,
+        signInWithPopup,
+        linkWithCredential,
+      } = await import("firebase/auth");
       const provider = new GoogleAuthProvider();
-      if (auth.currentUser && auth.currentUser.isAnonymous) {
-        await linkWithPopup(auth.currentUser, provider);
-      } else {
-        await signInWithPopup(auth, provider);
+      const anonUser = auth.currentUser;
+      const result = await signInWithPopup(auth, provider);
+      if (anonUser && anonUser.isAnonymous) {
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential) {
+          await linkWithCredential(anonUser, credential);
+        }
       }
+
+      const { refreshAuthState, verifyDataPresence } = await import(
+        "@/lib/firebase-utils"
+      );
+      await refreshAuthState();
+      await verifyDataPresence();
       toast({
         title: "Connected",
         description: "Cloud sync enabled successfully!",

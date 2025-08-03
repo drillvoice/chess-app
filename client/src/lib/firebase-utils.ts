@@ -21,7 +21,7 @@ let Timestamp: typeof import('firebase/firestore').Timestamp;
 
 let GoogleAuthProvider: typeof import('firebase/auth').GoogleAuthProvider;
 let signInWithPopup: typeof import('firebase/auth').signInWithPopup;
-let linkWithPopup: typeof import('firebase/auth').linkWithPopup;
+let linkWithCredential: typeof import('firebase/auth').linkWithCredential;
 let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
 let provider!: import('firebase/auth').GoogleAuthProvider;
 
@@ -38,7 +38,7 @@ async function ensureFirebase() {
   }
   if (!signInWithPopup) {
     const authModule = await import('firebase/auth');
-    ({ GoogleAuthProvider, signInWithPopup, linkWithPopup, onAuthStateChanged } = authModule);
+    ({ GoogleAuthProvider, signInWithPopup, linkWithCredential, onAuthStateChanged } = authModule);
     provider = new GoogleAuthProvider();
   }
 }
@@ -54,11 +54,16 @@ const authReady = (async () => {
       if (user) {
         try {
           if (user.isAnonymous) {
-            const linked = await linkWithPopup(user, provider);
-            currentUserId = linked.user.uid;
+            const result = await signInWithPopup(auth, provider);
+            const credential = GoogleAuthProvider.credentialFromResult(result);
+            if (credential) {
+              const linked = await linkWithCredential(user, credential);
+              currentUserId = linked.user.uid;
+            }
           } else {
             currentUserId = user.uid;
           }
+          await ensureUserDoc();
           unsubscribe();
           resolve();
         } catch (error) {
@@ -70,6 +75,7 @@ const authReady = (async () => {
         try {
           const userCred = await signInWithPopup(auth, provider);
           currentUserId = userCred.user.uid;
+          await ensureUserDoc();
           unsubscribe();
           resolve();
         } catch (error) {
@@ -108,6 +114,29 @@ async function ensureUserDoc(): Promise<void> {
   }
 }
 
+export async function refreshAuthState(): Promise<void> {
+  await ensureFirebase();
+  const user = auth.currentUser;
+  currentUserId = user ? user.uid : null;
+  if (currentUserId) {
+    await ensureUserDoc();
+  }
+}
+
+export async function verifyDataPresence(): Promise<void> {
+  try {
+    const cached = await offlineStorage.getSessions();
+    await fetchSessionsFromFirebase();
+    console.log(
+      'Migration verification: cached',
+      cached?.length || 0,
+      'live read successful'
+    );
+  } catch (error) {
+    console.error('Migration verification failed:', error);
+  }
+}
+
 // Firebase operations with true offline-first approach
 export async function getAllSessions(): Promise<TrainingSession[]> {
   // ALWAYS return cached data immediately if available
@@ -126,7 +155,7 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
   return await fetchSessionsFromFirebase();
 }
 
-async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
+export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
   // Don't wait for auth if we're just reading
   if (!currentUserId) {
     // Try to get cached sessions while auth happens
