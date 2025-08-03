@@ -52,20 +52,20 @@ export default function DataManagement() {
       const text = await file.text();
       const { importData } = await import("@/lib/firebase-utils");
       await importData(text);
-      
+
       // Refresh all queries to show imported data
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
-      
+
       toast({
         title: "Success",
         description: "Training data imported successfully!",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to import data. Please check the file format.",
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import data.",
         variant: "destructive",
       });
     } finally {

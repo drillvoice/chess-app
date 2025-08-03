@@ -333,37 +333,32 @@ export async function createSession(
     throw error;
   }
 
-  // Save to Firebase in the background
-  const saveToFirebase = async () => {
-    try {
-      await waitForAuth();
-      const sessionsRef = await getSessionsCollection();
+  // Save to Firebase and surface any errors
+  try {
+    await waitForAuth();
+    const sessionsRef = await getSessionsCollection();
 
-      const sessionData = {
-        ...insertSession,
-        id: sessionId,
-        date: Timestamp.fromDate(sessionDate),
-        createdAt: Timestamp.fromDate(now)
-      };
+    const sessionData = {
+      ...insertSession,
+      id: sessionId,
+      date: Timestamp.fromDate(sessionDate),
+      createdAt: Timestamp.fromDate(now)
+    };
 
-      const docRef = doc(sessionsRef, sessionId.toString());
+    const docRef = doc(sessionsRef, sessionId.toString());
 
-      // Shorter timeout for better UX
-      const savePromise = setDoc(docRef, sessionData);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Save taking longer than expected')), 10000);
-      });
+    // Shorter timeout for better UX
+    const savePromise = setDoc(docRef, sessionData);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Save taking longer than expected')), 10000);
+    });
 
-      await Promise.race([savePromise, timeoutPromise]);
-    } catch (error) {
-      console.error('Firebase save failed:', error);
-      // Data is already in local cache, so user won't lose their work
-      // It will sync next time they have connection
-    }
-  };
-
-  // Don't wait for Firebase save
-  queueMicrotask(() => saveToFirebase());
+    await Promise.race([savePromise, timeoutPromise]);
+  } catch (error) {
+    console.error('Firebase save failed:', error);
+    // Bubble up the error so callers can detect failures
+    throw error;
+  }
 
   return newSession;
 }
@@ -489,7 +484,10 @@ export async function importData(data: string): Promise<void> {
   }
 
   if (errors.length > 0) {
-    throw new Error(`Failed to import ${errors.length} sessions`);
+    throw new AggregateError(
+      errors.map(e => e.error),
+      `Failed to import ${errors.length} sessions`
+    );
   }
 }
 
