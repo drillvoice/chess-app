@@ -12,7 +12,8 @@
     "deploy": "firebase deploy --only hosting",
     "build-deploy": "npm run build && npm run deploy",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -82,6 +83,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@replit/vite-plugin-cartographer": "^0.2.7",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",
