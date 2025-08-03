@@ -71,8 +71,10 @@ test.skip('Google sign-in and sign-out flow', async ({ page }) => {
   await page.goto('/');
 });
 
-test('navigation to Account page', async ({ page }) => {
+test('data management accessible only from Account page', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: /stats/i }).click();
+  await expect(page.getByText(/data management/i)).toHaveCount(0);
   await page.getByRole('button', { name: /account/i }).click();
   await expect(page.getByText(/data management/i)).toBeVisible();
 });
