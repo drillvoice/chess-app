@@ -22,3 +22,4 @@ public/pawnstar-icon-new - Copy.png
 local.properties
 manifest-checksum.txt
 settings.gradle
+.env.local
