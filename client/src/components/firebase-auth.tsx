@@ -91,7 +91,8 @@ export default function FirebaseAuth() {
         if (
           error &&
           (error.code === "auth/popup-blocked" ||
-            error.code === "auth/cancelled-popup-request")
+            error.code === "auth/cancelled-popup-request" ||
+            error.code === "auth/operation-not-supported-in-this-environment")
         ) {
           sessionStorage.setItem("redirectAuth", "true");
           await startAuthFlow(true);
