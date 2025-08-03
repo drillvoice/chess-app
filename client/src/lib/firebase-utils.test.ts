@@ -123,4 +123,28 @@ describe('firebase auth utilities', () => {
     expect(authModule.linkWithCredential).toHaveBeenCalled();
     expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123');
   });
+
+  it('updates currentUserId on sign-out', async () => {
+    const mockAuth: any = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const authModule = await import('firebase/auth');
+    let authChange: any;
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+      authChange = cb;
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const utils = await import('./firebase-utils');
+    await utils.refreshAuthState();
+    expect(utils.getCurrentUserId()).toBe('user123');
+
+    mockAuth.currentUser = null;
+    authChange(null);
+    expect(utils.getCurrentUserId()).toBeNull();
+  });
 });
