@@ -178,6 +178,21 @@ class OfflineStorage {
     });
   }
 
+  async clearStatistics(): Promise<void> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['statistics', 'cache_meta'], 'readwrite');
+      const statsStore = transaction.objectStore('statistics');
+      const metaStore = transaction.objectStore('cache_meta');
+
+      statsStore.clear();
+      metaStore.delete('statistics_last_updated');
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
   async getCacheAge(key: string): Promise<number> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
