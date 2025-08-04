@@ -731,7 +731,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const sessionsRef = await getSessionsCollection();
     const q = query(
       sessionsRef,
       where('type', '==', 'daily-goal'),
@@ -776,7 +776,7 @@ export async function setDailyGoal(goalData: { goalType: DailyGoal['goalType']; 
     await removeDailyGoal();
     console.log('Existing daily goal removed');
 
-    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const sessionsRef = await getSessionsCollection();
     const goalRef = doc(sessionsRef);
     const newGoal: Omit<DailyGoal, 'id'> = {
       type: 'daily-goal',
@@ -813,7 +813,7 @@ export async function removeDailyGoal(): Promise<void> {
     console.log('removeDailyGoal called with currentUserId:', currentUserId);
     await waitForAuth();
     await ensureUserDoc();
-    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const sessionsRef = await getSessionsCollection();
     const q = query(sessionsRef, where('type', '==', 'daily-goal'));
     const snapshot = await getDocs(q);
 
@@ -890,7 +890,8 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', goal.id!);
+    const sessionsRef = await getSessionsCollection();
+    const goalRef = doc(sessionsRef, goal.id!);
     
     let newStreak = 1;
     
