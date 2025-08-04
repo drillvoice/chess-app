@@ -322,11 +322,14 @@ export async function createSession(
   // Immediately update local cache for instant feedback
   try {
     await offlineStorage.addSession(newSession);
+    await offlineStorage.clearStatistics();
 
     // Clear localStorage caches to trigger UI updates
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
+
+    queueMicrotask(() => updateStatisticsInBackground());
   } catch (error) {
     console.warn('Failed to update offline cache:', error);
     // Bubble up the error so callers can detect failures
@@ -388,6 +391,7 @@ export async function updateSession(id: number, updateData: Partial<InsertTraini
       } else {
         await offlineStorage.removeSession(id);
       }
+      await offlineStorage.clearStatistics();
     } catch (error) {
       console.warn('Failed to update offline cache:', error);
     }
@@ -396,6 +400,8 @@ export async function updateSession(id: number, updateData: Partial<InsertTraini
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
+
+    queueMicrotask(() => updateStatisticsInBackground());
 
     return updatedSession || null;
   } catch (error) {
@@ -412,11 +418,14 @@ export async function deleteSession(id: number): Promise<boolean> {
     const docRef = doc(sessionsRef, id.toString());
     await deleteDoc(docRef);
     await offlineStorage.deleteSession(id);
+    await offlineStorage.clearStatistics();
 
     // Clear cache to force fresh data on next load
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
+
+    queueMicrotask(() => updateStatisticsInBackground());
 
     return true;
   } catch (error) {
@@ -553,17 +562,7 @@ export async function getStatistics() {
   } catch (error) {
     console.warn('Failed to get cached statistics:', error);
   }
-  
-  // Try localStorage as fallback
-  const localCachedStats = StatisticsCache.get();
-  if (localCachedStats) {
-    // Update IndexedDB in background
-    queueMicrotask(() => offlineStorage.setStatistics(localCachedStats));
-    // Schedule update
-    queueMicrotask(() => updateStatisticsInBackground());
-    return localCachedStats;
-  }
-  
+
   // If no cache, calculate from sessions
   return await calculateStatistics();
 }
