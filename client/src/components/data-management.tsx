@@ -12,6 +12,7 @@ import FirebaseAuth from "./firebase-auth";
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -48,10 +49,13 @@ export default function DataManagement() {
     if (!file) return;
 
     setImporting(true);
+    setProgress(null);
     try {
       const text = await file.text();
       const { importData } = await import("@/lib/firebase-utils");
-      const { imported, skipped } = await importData(text);
+      const { imported, skipped } = await importData(text, (processed, total) => {
+        setProgress({ processed, total });
+      });
 
       // Refresh all queries to show imported data
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
@@ -76,6 +80,7 @@ export default function DataManagement() {
       });
     } finally {
       setImporting(false);
+      setProgress(null);
       // Reset the input
       event.target.value = '';
     }
@@ -148,7 +153,11 @@ export default function DataManagement() {
             <Button asChild className="w-full" variant="outline" disabled={importing}>
               <span>
                 <Upload className="w-4 h-4 mr-2" />
-                {importing ? "Importing..." : "Import Data"}
+                {importing
+                  ? progress
+                    ? `Importing ${progress.processed}/${progress.total}`
+                    : "Importing..."
+                  : "Import Data"}
               </span>
             </Button>
           </Label>

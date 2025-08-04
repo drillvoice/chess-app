@@ -469,8 +469,12 @@ export async function exportData(): Promise<string> {
   return JSON.stringify(sessions, null, 2);
 }
 
-export async function importData(data: string): Promise<{ imported: number; skipped: number }> {
+export async function importData(
+  data: string,
+  onProgress?: (processed: number, total: number) => void
+): Promise<{ imported: number; skipped: number }> {
   const sessions: any[] = JSON.parse(data);
+  const total = sessions.length;
   const errors: Array<{ id: number; error: unknown }> = [];
 
   const existingSessions = await offlineStorage.getSessions();
@@ -478,6 +482,7 @@ export async function importData(data: string): Promise<{ imported: number; skip
 
   let imported = 0;
   let skipped = 0;
+  let processed = 0;
 
   // Import each session, preserving IDs when provided
   for (const session of sessions) {
@@ -491,7 +496,12 @@ export async function importData(data: string): Promise<{ imported: number; skip
     let normalizedDate: Date;
     if (typeof date === 'string' || typeof date === 'number') {
       normalizedDate = new Date(date);
-    } else if (date && typeof date === 'object' && 'seconds' in date && 'nanoseconds' in date) {
+    } else if (
+      date &&
+      typeof date === 'object' &&
+      'seconds' in date &&
+      'nanoseconds' in date
+    ) {
       normalizedDate = new Date(date.seconds * 1000 + date.nanoseconds / 1e6);
     } else if (date instanceof Date) {
       normalizedDate = date;
@@ -502,7 +512,9 @@ export async function importData(data: string): Promise<{ imported: number; skip
     try {
       await createSession({ ...rest, date: normalizedDate }, id);
       imported++;
+      processed++;
       existingIds.add(id);
+      onProgress?.(processed, total);
     } catch (error) {
       errors.push({ id, error });
     }
