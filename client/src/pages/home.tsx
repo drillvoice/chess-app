@@ -146,8 +146,8 @@ export default function Home() {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-gray-800">
                     Today's Goal: {
-                      dailyGoal.type === 'tactics-time' ? 'Tactics' :
-                      dailyGoal.type === 'games-count' ? 'Games' : 'Study'
+                      dailyGoal.goalType === 'tactics-time' ? 'Tactics' :
+                      dailyGoal.goalType === 'games-count' ? 'Games' : 'Study'
                     }
                   </h3>
                   {dailyProgress && dailyProgress.streak > 0 && (
@@ -174,7 +174,7 @@ export default function Home() {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">
                         Progress: {dailyProgress.progress} / {dailyGoal.target}
-                        {dailyGoal.type === 'games-count' ? ' games' : ' minutes'}
+                        {dailyGoal.goalType === 'games-count' ? ' games' : ' minutes'}
                       </span>
                       <span className={`font-medium ${dailyProgress.completed ? 'text-green-600' : 'text-gray-600'}`}>
                         {Math.round((dailyProgress.progress / dailyGoal.target) * 100)}%
