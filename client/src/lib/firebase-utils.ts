@@ -70,10 +70,27 @@ async function ensureFirebase() {
 }
 
 // Helper to wait for authentication
-async function waitForAuth(): Promise<void> {
+async function waitForAuth(timeoutMs = 5000): Promise<void> {
   await ensureFirebase();
   if (currentUserId) return;
-  return new Promise(resolve => authResolvers.push(resolve));
+
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const resolver = () => {
+      clearTimeout(timer);
+      const idx = authResolvers.indexOf(resolver);
+      if (idx !== -1) authResolvers.splice(idx, 1);
+      resolve();
+    };
+
+    timer = setTimeout(() => {
+      const idx = authResolvers.indexOf(resolver);
+      if (idx !== -1) authResolvers.splice(idx, 1);
+      reject(new Error('User not authenticated'));
+    }, timeoutMs);
+
+    authResolvers.push(resolver);
+  });
 }
 
 // Helper to get user's sessions collection
@@ -749,7 +766,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
 
 export async function setDailyGoal(goalData: { goalType: DailyGoal['goalType']; target: number }): Promise<void> {
   try {
-    console.log('Starting setDailyGoal', { goalData, currentUserId });
+    console.log('setDailyGoal called with:', goalData, currentUserId);
     await waitForAuth();
     console.log('waitForAuth completed', { currentUserId });
     await ensureUserDoc();
