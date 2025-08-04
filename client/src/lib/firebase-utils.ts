@@ -470,14 +470,26 @@ export async function exportData(): Promise<string> {
 }
 
 export async function importData(data: string): Promise<void> {
-  const sessions: TrainingSession[] = JSON.parse(data);
+  const sessions: any[] = JSON.parse(data);
   const errors: Array<{ id: number; error: unknown }> = [];
 
   // Import each session, preserving IDs when provided
   for (const session of sessions) {
-    const { id, ...insertSession } = session;
+    const { id, date, createdAt: _createdAt, ...rest } = session as any;
+
+    let normalizedDate: Date;
+    if (typeof date === 'string' || typeof date === 'number') {
+      normalizedDate = new Date(date);
+    } else if (date && typeof date === 'object' && 'seconds' in date && 'nanoseconds' in date) {
+      normalizedDate = new Date(date.seconds * 1000 + date.nanoseconds / 1e6);
+    } else if (date instanceof Date) {
+      normalizedDate = date;
+    } else {
+      normalizedDate = new Date();
+    }
+
     try {
-      await createSession(insertSession, id);
+      await createSession({ ...rest, date: normalizedDate }, id);
     } catch (error) {
       errors.push({ id, error });
     }
