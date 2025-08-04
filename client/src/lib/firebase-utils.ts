@@ -147,21 +147,27 @@ export async function verifyDataPresence(): Promise<boolean> {
 }
 
 // Firebase operations with true offline-first approach
+function filterOutDailyGoals(sessions: TrainingSession[]): TrainingSession[] {
+  return sessions.filter(session => session.type !== 'daily-goal');
+}
+
 export async function getAllSessions(): Promise<TrainingSession[]> {
   // ALWAYS return cached data immediately if available
   try {
     const cachedSessions = await offlineStorage.getSessions();
-    if (cachedSessions && cachedSessions.length > 0) {
+    const filteredCached = filterOutDailyGoals(cachedSessions);
+    if (filteredCached && filteredCached.length > 0) {
       // Schedule background update but don't wait for it
       queueMicrotask(() => updateSessionsInBackground());
-      return cachedSessions;
+      return filteredCached;
     }
   } catch (error) {
     console.warn('Failed to read from offline storage:', error);
   }
-  
+
   // Only fetch from Firebase if no cached data
-  return await fetchSessionsFromFirebase();
+  const freshSessions = await fetchSessionsFromFirebase();
+  return filterOutDailyGoals(freshSessions);
 }
 
 export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
@@ -188,19 +194,19 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const q = query(sessionsRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
     
-    const sessions = snapshot.docs
-      .filter(doc => doc.data().type !== 'daily-goal')
-      .map(doc => ({
-        id: parseInt(doc.id),
-        ...doc.data(),
-        date: doc.data().date.toDate(),
-      })) as TrainingSession[];
-    
+    const sessions = snapshot.docs.map(doc => ({
+      id: parseInt(doc.id),
+      ...doc.data(),
+      date: doc.data().date.toDate(),
+    })) as TrainingSession[];
+
+    const filtered = filterOutDailyGoals(sessions);
+
     // Cache in both localStorage and IndexedDB
-    SessionsCache.set(sessions);
-    await offlineStorage.setSessions(sessions);
-    
-    return sessions;
+    SessionsCache.set(filtered);
+    await offlineStorage.setSessions(filtered);
+
+    return filtered;
   } catch (error) {
     console.error('Error getting sessions:', error);
     // Return cached data on error
