@@ -187,11 +187,13 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const q = query(sessionsRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
     
-    const sessions = snapshot.docs.map(doc => ({
-      id: parseInt(doc.id),
-      ...doc.data(),
-      date: doc.data().date.toDate()
-    })) as TrainingSession[];
+    const sessions = snapshot.docs
+      .filter(doc => doc.id !== 'daily-goal')
+      .map(doc => ({
+        id: parseInt(doc.id),
+        ...doc.data(),
+        date: doc.data().date.toDate(),
+      })) as TrainingSession[];
     
     // Cache in both localStorage and IndexedDB
     SessionsCache.set(sessions);
@@ -705,7 +707,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const dailyGoalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const dailyGoalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
     const docSnap = await getDoc(dailyGoalRef);
     
     if (!docSnap.exists()) return null;
@@ -739,7 +741,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     await removeDailyGoal();
     console.log('Existing daily goal removed');
 
-    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
     const newGoal: Omit<DailyGoal, 'id'> = {
       type: goalData.type,
       target: goalData.target,
@@ -750,7 +752,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     };
 
     console.log('Saving new daily goal', {
-      path: `users/${currentUserId}/dailyGoal/current`,
+      path: `users/${currentUserId}/trainingSessions/daily-goal`,
       payload: newGoal,
     });
     await setDoc(goalRef, {
@@ -774,7 +776,7 @@ export async function removeDailyGoal(): Promise<void> {
     console.log('removeDailyGoal called with currentUserId:', currentUserId);
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
     goalPath = goalRef.path;
     console.log('Deleting daily goal at path:', goalPath);
     await deleteDoc(goalRef);
@@ -845,7 +847,7 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
     
     let newStreak = 1;
     
