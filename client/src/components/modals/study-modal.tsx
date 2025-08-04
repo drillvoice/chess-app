@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +29,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<StudySession>({
     resolver: zodResolver(studySessionSchema),
       defaultValues: isEditMode && editingSession ? {
@@ -90,6 +92,14 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
     },
   });
 
+  useEffect(() => {
+    if (isEditMode && editingSession) {
+      setValue("studyType", editingSession.studyType as any, {
+        shouldValidate: true,
+      });
+    }
+  }, [editingSession, isEditMode, setValue]);
+
   const onSubmit = (data: StudySession) => {
     // Add current date to the session data
     const sessionData = {
@@ -113,7 +123,14 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
               <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
                 Study Type
               </Label>
-              <Select onValueChange={(value) => setValue("studyType", value as any)}>
+              <Select
+                value={watch("studyType")}
+                onValueChange={(value) =>
+                  setValue("studyType", value as any, {
+                    shouldValidate: true,
+                  })
+                }
+              >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select study type" />
                 </SelectTrigger>
