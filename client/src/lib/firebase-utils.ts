@@ -469,13 +469,24 @@ export async function exportData(): Promise<string> {
   return JSON.stringify(sessions, null, 2);
 }
 
-export async function importData(data: string): Promise<void> {
+export async function importData(data: string): Promise<{ imported: number; skipped: number }> {
   const sessions: any[] = JSON.parse(data);
   const errors: Array<{ id: number; error: unknown }> = [];
+
+  const existingSessions = await offlineStorage.getSessions();
+  const existingIds = new Set(existingSessions.map(s => s.id));
+
+  let imported = 0;
+  let skipped = 0;
 
   // Import each session, preserving IDs when provided
   for (const session of sessions) {
     const { id, date, createdAt: _createdAt, ...rest } = session as any;
+
+    if (existingIds.has(id)) {
+      skipped++;
+      continue;
+    }
 
     let normalizedDate: Date;
     if (typeof date === 'string' || typeof date === 'number') {
@@ -490,6 +501,8 @@ export async function importData(data: string): Promise<void> {
 
     try {
       await createSession({ ...rest, date: normalizedDate }, id);
+      imported++;
+      existingIds.add(id);
     } catch (error) {
       errors.push({ id, error });
     }
@@ -501,6 +514,8 @@ export async function importData(data: string): Promise<void> {
       `Failed to import ${errors.length} sessions`
     );
   }
+
+  return { imported, skipped };
 }
 
 export async function getStatistics() {
