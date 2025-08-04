@@ -51,16 +51,22 @@ export default function DataManagement() {
     try {
       const text = await file.text();
       const { importData } = await import("@/lib/firebase-utils");
-      await importData(text);
+      const { imported, skipped } = await importData(text);
 
       // Refresh all queries to show imported data
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
 
+      const pluralImported = imported === 1 ? "session" : "sessions";
+      const pluralSkipped = skipped === 1 ? "session" : "sessions";
+      const desc = skipped
+        ? `${imported} ${pluralImported} imported, ${skipped} ${pluralSkipped} skipped`
+        : `${imported} ${pluralImported} imported`;
+
       toast({
         title: "Success",
-        description: "Training data imported successfully!",
+        description: desc,
       });
     } catch (error) {
       toast({
