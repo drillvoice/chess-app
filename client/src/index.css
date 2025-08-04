@@ -80,6 +80,8 @@
   left: 50% !important;
   right: auto !important;
   transform: translateX(-50%) !important;
+  max-height: calc(100vh - 2rem) !important;
+  overflow-y: auto !important;
 }
 
 @media (max-width: 640px) {

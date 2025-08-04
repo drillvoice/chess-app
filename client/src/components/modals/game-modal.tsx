@@ -136,13 +136,14 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md mobile-modal">
-        <DialogHeader>
+        <DialogHeader className="pb-2">
           <DialogTitle className="text-xl font-bold text-gray-800">
             Log Game
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto space-y-4 p-2">
+            <div>
             <Label className="text-sm font-medium text-gray-700 mb-2 block">
               Colour
             </Label>
@@ -284,17 +285,18 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
             )}
           </div>
 
-          <div>
-            <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
-              Comments (optional)
-            </Label>
-            <Textarea
-              id="gameComments"
-              placeholder="Great endgame technique..."
-              className="mt-1"
-              rows={3}
-              {...register("gameComments")}
-            />
+            <div>
+              <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
+                Comments (optional)
+              </Label>
+              <Textarea
+                id="gameComments"
+                placeholder="Great endgame technique..."
+                className="mt-1"
+                rows={3}
+                {...register("gameComments")}
+              />
+            </div>
           </div>
 
           <div className="flex space-x-3 pt-4">
