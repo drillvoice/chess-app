@@ -34,6 +34,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
     reset,
     setValue,
     watch,
+    trigger,
   } = useForm<GameSession>({
     resolver: zodResolver(gameSessionSchema),
       defaultValues: isEditMode && editingSession ? {
@@ -114,23 +115,26 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
 
   const handleResultSelect = (result: "win" | "loss" | "draw") => {
     setSelectedResult(result);
-    setValue("gameResult", result);
+    setValue("gameResult", result, { shouldValidate: true });
+    trigger("gameResult");
   };
 
   const handleColorSelect = (color: "white" | "black") => {
     setSelectedColor(color);
-    setValue("playerColor", color);
+    setValue("playerColor", color, { shouldValidate: true });
+    trigger("playerColor");
   };
 
   const handleTimeControlSelect = (timeControl: string) => {
     if (selectedTimeControl === timeControl) {
       // Deselect if clicking the same time control
       setSelectedTimeControl(null);
-      setValue("timeControl", undefined);
+      setValue("timeControl", undefined, { shouldValidate: true });
     } else {
       setSelectedTimeControl(timeControl);
-      setValue("timeControl", timeControl as any);
+      setValue("timeControl", timeControl as any, { shouldValidate: true });
     }
+    trigger("timeControl");
   };
 
   return (
