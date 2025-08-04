@@ -7,6 +7,7 @@ vi.mock('./firebaseClient', () => ({
 
 const mockSessions: any[] = [];
 const addSession = vi.fn(async (session: any) => {
+  session.date.toISOString();
   mockSessions.push(session);
 });
 const getSessions = vi.fn(async () => mockSessions);
@@ -56,6 +57,7 @@ describe('firebase auth utilities', () => {
     mockSessions.length = 0;
     vi.clearAllMocks();
     addSession.mockImplementation(async (session: any) => {
+      session.date.toISOString();
       mockSessions.push(session);
     });
     getSessions.mockImplementation(async () => mockSessions);
@@ -240,6 +242,73 @@ describe('firebase auth utilities', () => {
     expect(stored[0].date).toBeInstanceOf(Date);
     expect(stored[0].date.getTime()).toBe(expectedDate.getTime());
     expect(stored[0].createdAt).toBeInstanceOf(Date);
+  });
+
+  it('importData handles legacy backups with ISO dates and timestamp createdAt', async () => {
+    const offline = await import('./offline-storage');
+    const utils = await import('./firebase-utils');
+
+    const firebaseClient = await import('./firebaseClient');
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const createdTs = { seconds: 1_700_000_200, nanoseconds: 0 };
+    const iso = new Date().toISOString();
+    const backup = JSON.stringify([
+      { id: 4, type: 'puzzle', duration: 45, date: iso, createdAt: createdTs },
+      { id: 5, type: 'game', duration: 60, date: iso, createdAt: createdTs },
+    ]);
+
+    await utils.importData(backup);
+
+    const stored = await offline.offlineStorage.getSessions();
+    expect(stored).toHaveLength(2);
+    expect(stored.map((s: any) => s.id)).toEqual([4, 5]);
+    expect(stored.every((s: any) => s.date instanceof Date)).toBe(true);
+    expect(stored.every((s: any) => s.createdAt instanceof Date)).toBe(true);
+  });
+
+  it('importData reports errors for sessions with invalid date formats', async () => {
+    const offline = await import('./offline-storage');
+    const utils = await import('./firebase-utils');
+
+    const firebaseClient = await import('./firebaseClient');
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const createdTs = { seconds: 1_700_000_300, nanoseconds: 0 };
+    const iso = new Date().toISOString();
+    const backup = JSON.stringify([
+      { id: 6, type: 'puzzle', duration: 30, date: 'not-a-date', createdAt: createdTs },
+      { id: 7, type: 'game', duration: 60, date: iso, createdAt: createdTs },
+    ]);
+
+    try {
+      await utils.importData(backup);
+      throw new Error('expected importData to throw');
+    } catch (error: any) {
+      expect(error).toBeInstanceOf(AggregateError);
+      expect(error.errors).toHaveLength(1);
+      expect(error.message).toBe('Failed to import 1 sessions');
+    }
+
+    const stored = await offline.offlineStorage.getSessions();
+    expect(stored).toHaveLength(1);
+    expect(stored[0].id).toBe(7);
   });
 
   it('importData surfaces errors from offline storage', async () => {
