@@ -53,7 +53,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
       }
       return await createSession(data);
     },
-    onMutate: async () => {
+    onMutate: async (newSession) => {
       // Close modal immediately for better UX
       onOpenChange(false);
       reset();
@@ -63,6 +63,72 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
         title: isEditMode ? "Updating..." : "Saving...",
         description: `Study session is being ${isEditMode ? "updated" : "saved"}`,
       });
+
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["sessions"] });
+      await queryClient.cancelQueries({ queryKey: ["statistics"] });
+
+      // Snapshot previous values
+      const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
+      const previousStats = queryClient.getQueryData(["statistics"]);
+
+      if (isEditMode && editingSession) {
+        const optimisticSession: TrainingSession = {
+          id: editingSession.id,
+          type: "study",
+          date: editingSession.date,
+          duration: newSession.duration,
+          pointsGained: null,
+          finalScore: null,
+          tacticsNotes: null,
+          gameResult: null,
+          gameType: null,
+          gameComments: null,
+          playerColor: null,
+          platform: null,
+          timeControl: null,
+          studyType: newSession.studyType,
+          studyNotes: newSession.studyNotes || null,
+          goalTitle: null,
+          goalDescription: null,
+          goalWeekStart: null,
+        };
+
+        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) =>
+          old.map((session) => (session.id === editingSession.id ? optimisticSession : session))
+        );
+
+        return { previousSessions, previousStats };
+      } else {
+        const tempId = Date.now();
+        const optimisticSession: TrainingSession = {
+          id: tempId,
+          type: "study",
+          date: new Date(),
+          duration: newSession.duration,
+          pointsGained: null,
+          finalScore: null,
+          tacticsNotes: null,
+          gameResult: null,
+          gameType: null,
+          gameComments: null,
+          playerColor: null,
+          platform: null,
+          timeControl: null,
+          studyType: newSession.studyType,
+          studyNotes: newSession.studyNotes || null,
+          goalTitle: null,
+          goalDescription: null,
+          goalWeekStart: null,
+        };
+
+        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
+          optimisticSession,
+          ...old,
+        ]);
+
+        return { previousSessions, previousStats };
+      }
     },
     onSuccess: () => {
       // Show success notification
@@ -77,7 +143,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
     },
-    onError: (error: any) => {
+    onError: (error: any, _newSession, context) => {
       // Check if it's a timeout error but session might have been saved
       if (error.message?.includes('timeout')) {
         toast({
@@ -86,6 +152,12 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
           variant: "destructive",
         });
       } else {
+        if (context?.previousSessions) {
+          queryClient.setQueryData(["sessions"], context.previousSessions);
+        }
+        if (context?.previousStats) {
+          queryClient.setQueryData(["statistics"], context.previousStats);
+        }
         toast({
           title: "Error",
           description: error.message || "Failed to log study session",
