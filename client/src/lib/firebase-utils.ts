@@ -766,7 +766,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
 
 export async function setDailyGoal(goalData: { goalType: DailyGoal['goalType']; target: number }): Promise<void> {
   try {
-    console.log('Starting setDailyGoal', { goalData, currentUserId });
+    console.log('setDailyGoal called with:', goalData, currentUserId);
     await waitForAuth();
     console.log('waitForAuth completed', { currentUserId });
     await ensureUserDoc();
