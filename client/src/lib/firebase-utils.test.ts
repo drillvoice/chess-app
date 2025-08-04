@@ -194,9 +194,11 @@ describe('firebase auth utilities', () => {
       return () => {};
     });
 
+    const now = new Date();
+    const iso = now.toISOString();
     const backup = JSON.stringify([
-      { id: 1, type: 'puzzle', duration: 30, date: new Date().toISOString() },
-      { id: 2, type: 'game', duration: 60, date: new Date().toISOString() }
+      { id: 1, type: 'puzzle', duration: 30, date: iso, createdAt: iso },
+      { id: 2, type: 'game', duration: 60, date: iso, createdAt: iso }
     ]);
 
     await utils.importData(backup);
@@ -204,6 +206,40 @@ describe('firebase auth utilities', () => {
     const stored = await offline.offlineStorage.getSessions();
     expect(stored).toHaveLength(2);
     expect(stored.map((s: any) => s.id)).toEqual([1, 2]);
+    expect(stored.every((s: any) => s.date instanceof Date)).toBe(true);
+    expect(stored.every((s: any) => s.createdAt instanceof Date)).toBe(true);
+  });
+
+  it('importData normalizes firestore timestamp objects', async () => {
+    const offline = await import('./offline-storage');
+    const utils = await import('./firebase-utils');
+
+    const firebaseClient = await import('./firebaseClient');
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const ts = { seconds: 1_700_000_000, nanoseconds: 500_000_000 };
+    const createdTs = { seconds: 1_700_000_100, nanoseconds: 0 };
+    const backup = JSON.stringify([
+      { id: 3, type: 'puzzle', duration: 30, date: ts, createdAt: createdTs }
+    ]);
+
+    await utils.importData(backup);
+
+    const stored = await offline.offlineStorage.getSessions();
+    const expectedDate = new Date(ts.seconds * 1000 + ts.nanoseconds / 1e6);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].id).toBe(3);
+    expect(stored[0].date).toBeInstanceOf(Date);
+    expect(stored[0].date.getTime()).toBe(expectedDate.getTime());
+    expect(stored[0].createdAt).toBeInstanceOf(Date);
   });
 
   it('importData surfaces errors from offline storage', async () => {
