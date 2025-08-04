@@ -140,6 +140,10 @@ class OfflineStorage {
     });
   }
 
+  async deleteSession(id: number): Promise<void> {
+    return this.removeSession(id);
+  }
+
   async getStatistics(): Promise<any> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
