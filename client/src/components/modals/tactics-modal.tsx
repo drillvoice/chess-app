@@ -167,7 +167,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto space-y-3 p-2">
+          <div className="flex-1 overflow-y-auto space-y-4 p-2">
             {/* Duration buttons */}
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -247,7 +247,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
           </div>
 
           {/* Action buttons - sticky at bottom */}
-          <div className="flex space-x-3 pt-3">
+          <div className="flex space-x-3 pt-4">
             <Button
               type="button"
               variant="outline"
