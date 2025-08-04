@@ -79,7 +79,6 @@
   position: fixed !important;
   left: 50% !important;
   right: auto !important;
-  transform: translateX(-50%) !important;
   max-height: calc(100vh - 2rem) !important;
   overflow-y: auto !important;
 }
@@ -110,6 +109,13 @@
     bottom: 0;
     background: white;
     z-index: 10;
+  }
+}
+
+@media (min-width: 641px) {
+  .mobile-modal {
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
   }
 }
 
