@@ -82,10 +82,12 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
   // Daily goal mutations
   const setDailyGoalMutation = useMutation({
     mutationFn: async (goalData: { type: DailyGoal['type']; target: number }) => {
+      console.log("setDailyGoalMutation mutationFn", goalData);
       const { setDailyGoal } = await import("@/lib/firebase-utils");
       return await setDailyGoal(goalData);
     },
-    onMutate: async () => {
+    onMutate: async (goalData: { type: DailyGoal['type']; target: number }) => {
+      console.log("setDailyGoalMutation onMutate", goalData);
       onOpenChange(false);
       setSelectedGoalType(null);
       setSelectedTarget(null);
@@ -94,7 +96,8 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
         description: "Daily goal is being saved",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: unknown) => {
+      console.log("setDailyGoalMutation onSuccess", data);
       toast({
         title: "Success",
         description: "Daily goal set successfully!",
@@ -102,7 +105,8 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
       queryClient.invalidateQueries({ queryKey: ["daily-goal"] });
       queryClient.invalidateQueries({ queryKey: ["daily-progress"] });
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, goalData: { type: DailyGoal['type']; target: number }) => {
+      console.error("setDailyGoalMutation onError", { error, goalData });
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to set daily goal",
