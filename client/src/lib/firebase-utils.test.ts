@@ -23,6 +23,7 @@ vi.mock('./offline-storage', () => ({
     getStatistics: vi.fn(),
     setStatistics: vi.fn().mockResolvedValue(undefined),
     clearStatistics: vi.fn(),
+    getCacheAge: vi.fn(),
   },
 }));
 
@@ -187,6 +188,48 @@ describe('firebase auth utilities', () => {
     mockAuth.currentUser = null;
     authChange(null);
     expect(utils.getCurrentUserId()).toBeNull();
+  });
+
+  it('getAllSessions filters out daily-goal entries from cache', async () => {
+    const offline = await import('./offline-storage');
+    vi.mocked(offline.offlineStorage.getCacheAge).mockResolvedValue(0);
+    mockSessions.push(
+      { id: 1, type: 'game', date: new Date() } as any,
+      { id: 2, type: 'daily-goal', date: new Date() } as any
+    );
+
+    const utils = await import('./firebase-utils');
+    const sessions = await utils.getAllSessions();
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions.every(s => s.type !== 'daily-goal')).toBe(true);
+  });
+
+  it('fetchSessionsFromFirebase filters out daily-goal before caching', async () => {
+    const offline = await import('./offline-storage');
+    const firebaseClient = await import('./firebaseClient');
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const firestore = await import('firebase/firestore');
+    const doc1 = { id: '1', data: () => ({ type: 'game', date: { toDate: () => new Date() } }) };
+    const doc2 = { id: '2', data: () => ({ type: 'daily-goal', date: { toDate: () => new Date() } }) };
+    (firestore.getDocs as any).mockResolvedValue({ docs: [doc1, doc2] });
+
+    const utils = await import('./firebase-utils');
+    const sessions = await utils.fetchSessionsFromFirebase();
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].type).toBe('game');
+    const cached = vi.mocked(offline.offlineStorage.setSessions).mock.calls[0][0];
+    expect(cached.some((s: any) => s.type === 'daily-goal')).toBe(false);
   });
 
   it('importData stores sessions in offline storage', async () => {
