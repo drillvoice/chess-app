@@ -730,11 +730,16 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
 
 export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: number }): Promise<void> {
   try {
+    console.log('Starting setDailyGoal', { goalData, currentUserId });
     await waitForAuth();
+    console.log('waitForAuth completed', { currentUserId });
     await ensureUserDoc();
+    console.log('ensureUserDoc completed');
     // Remove existing daily goal first
+    console.log('Removing existing daily goal');
     await removeDailyGoal();
-    
+    console.log('Existing daily goal removed');
+
     const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
     const newGoal: Omit<DailyGoal, 'id'> = {
       type: goalData.type,
@@ -744,15 +749,23 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
       currentStreak: 0,
       lastCompletedDate: null,
     };
-    
+
+    console.log('Saving new daily goal', {
+      path: `users/${currentUserId}/dailyGoal/current`,
+      payload: newGoal,
+    });
     await setDoc(goalRef, {
       ...newGoal,
       createdDate: Timestamp.fromDate(newGoal.createdDate),
     });
+    console.log('Daily goal saved successfully');
   } catch (error) {
-    console.error('Error setting daily goal:', error);
+    const context = `type: ${goalData.type}, target: ${goalData.target}`;
+    console.error(`Error setting daily goal (${context}):`, error);
     // Rethrow so calling functions can handle the failure
-    throw error;
+    throw new Error(
+      `Error setting daily goal (${context}): ${error instanceof Error ? error.message : error}`
+    );
   }
 }
 
