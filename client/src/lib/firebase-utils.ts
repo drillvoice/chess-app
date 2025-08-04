@@ -188,7 +188,7 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const snapshot = await getDocs(q);
     
     const sessions = snapshot.docs
-      .filter(doc => doc.id !== 'daily-goal')
+      .filter(doc => doc.data().type !== 'daily-goal')
       .map(doc => ({
         id: parseInt(doc.id),
         ...doc.data(),
@@ -707,16 +707,18 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const dailyGoalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
-    const docSnap = await getDoc(dailyGoalRef);
-    
-    if (!docSnap.exists()) return null;
-    
+    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const q = query(sessionsRef, where('type', '==', 'daily-goal'));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+
+    const docSnap = snapshot.docs[0];
     const data = docSnap.data();
-    
+
     return {
       id: docSnap.id,
       type: data.type,
+      goalType: data.goalType,
       target: data.target,
       active: data.active,
       createdDate: data.createdDate.toDate(),
@@ -729,7 +731,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   }
 }
 
-export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: number }): Promise<void> {
+export async function setDailyGoal(goalData: { goalType: DailyGoal['goalType']; target: number }): Promise<void> {
   try {
     console.log('Starting setDailyGoal', { goalData, currentUserId });
     await waitForAuth();
@@ -741,9 +743,11 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     await removeDailyGoal();
     console.log('Existing daily goal removed');
 
-    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
+    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const goalRef = doc(sessionsRef);
     const newGoal: Omit<DailyGoal, 'id'> = {
-      type: goalData.type,
+      type: 'daily-goal',
+      goalType: goalData.goalType,
       target: goalData.target,
       active: true,
       createdDate: new Date(),
@@ -752,7 +756,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     };
 
     console.log('Saving new daily goal', {
-      path: `users/${currentUserId}/trainingSessions/daily-goal`,
+      path: goalRef.path,
       payload: newGoal,
     });
     await setDoc(goalRef, {
@@ -761,7 +765,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     });
     console.log('Daily goal saved successfully');
   } catch (error) {
-    const context = `type: ${goalData.type}, target: ${goalData.target}`;
+    const context = `type: ${goalData.goalType}, target: ${goalData.target}`;
     console.error(`Error setting daily goal (${context}):`, error);
     // Rethrow so calling functions can handle the failure
     throw new Error(
@@ -771,18 +775,24 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
 }
 
 export async function removeDailyGoal(): Promise<void> {
-  let goalPath: string | undefined;
+  const removedPaths: string[] = [];
   try {
     console.log('removeDailyGoal called with currentUserId:', currentUserId);
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
-    goalPath = goalRef.path;
-    console.log('Deleting daily goal at path:', goalPath);
-    await deleteDoc(goalRef);
-    console.log('Daily goal removed at path:', goalPath);
+    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const q = query(sessionsRef, where('type', '==', 'daily-goal'));
+    const snapshot = await getDocs(q);
+
+    for (const docSnap of snapshot.docs) {
+      removedPaths.push(docSnap.ref.path);
+      console.log('Deleting daily goal at path:', docSnap.ref.path);
+      await deleteDoc(docSnap.ref);
+    }
+
+    console.log('Daily goal removed at paths:', removedPaths);
   } catch (error) {
-    console.error(`Error removing daily goal at ${goalPath ?? 'unknown path'}:`, error);
+    console.error(`Error removing daily goal at ${removedPaths.join(', ') || 'unknown path'}:`, error);
     // Rethrow to allow the caller to display the error message
     throw error;
   }
@@ -804,9 +814,9 @@ export async function getDailyProgress(): Promise<{ progress: number; completed:
     });
     
     let progress = 0;
-    
+
     // Calculate progress based on goal type
-    switch (dailyGoal.type) {
+    switch (dailyGoal.goalType) {
       case 'tactics-time':
         progress = todaySessions
           .filter(session => session.type === 'tactics')
@@ -847,7 +857,7 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', 'daily-goal');
+    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', goal.id!);
     
     let newStreak = 1;
     
