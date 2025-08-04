@@ -18,6 +18,7 @@ let where: typeof import('firebase/firestore').where;
 let orderBy: typeof import('firebase/firestore').orderBy;
 let onSnapshot: typeof import('firebase/firestore').onSnapshot;
 let Timestamp: typeof import('firebase/firestore').Timestamp;
+let limit: typeof import('firebase/firestore').limit;
 
 let GoogleAuthProvider: typeof import('firebase/auth').GoogleAuthProvider;
 let signInWithPopup: typeof import('firebase/auth').signInWithPopup;
@@ -40,7 +41,7 @@ async function ensureFirebase() {
   }
   if (!collection) {
     const firestore = await import('firebase/firestore');
-    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp } = firestore);
+    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp, limit } = firestore);
   }
   if (!signInWithPopup) {
     const authModule = await import('firebase/auth');
@@ -146,21 +147,27 @@ export async function verifyDataPresence(): Promise<boolean> {
 }
 
 // Firebase operations with true offline-first approach
+function filterOutDailyGoals(sessions: TrainingSession[]): TrainingSession[] {
+  return sessions.filter(session => session.type !== 'daily-goal');
+}
+
 export async function getAllSessions(): Promise<TrainingSession[]> {
   // ALWAYS return cached data immediately if available
   try {
     const cachedSessions = await offlineStorage.getSessions();
-    if (cachedSessions && cachedSessions.length > 0) {
+    const filteredCached = filterOutDailyGoals(cachedSessions);
+    if (filteredCached && filteredCached.length > 0) {
       // Schedule background update but don't wait for it
       queueMicrotask(() => updateSessionsInBackground());
-      return cachedSessions;
+      return filteredCached;
     }
   } catch (error) {
     console.warn('Failed to read from offline storage:', error);
   }
-  
+
   // Only fetch from Firebase if no cached data
-  return await fetchSessionsFromFirebase();
+  const freshSessions = await fetchSessionsFromFirebase();
+  return filterOutDailyGoals(freshSessions);
 }
 
 export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
@@ -190,14 +197,16 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const sessions = snapshot.docs.map(doc => ({
       id: parseInt(doc.id),
       ...doc.data(),
-      date: doc.data().date.toDate()
+      date: doc.data().date.toDate(),
     })) as TrainingSession[];
-    
+
+    const filtered = filterOutDailyGoals(sessions);
+
     // Cache in both localStorage and IndexedDB
-    SessionsCache.set(sessions);
-    await offlineStorage.setSessions(sessions);
-    
-    return sessions;
+    SessionsCache.set(filtered);
+    await offlineStorage.setSessions(filtered);
+
+    return filtered;
   } catch (error) {
     console.error('Error getting sessions:', error);
     // Return cached data on error
@@ -705,21 +714,32 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const dailyGoalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
-    const docSnap = await getDoc(dailyGoalRef);
-    
-    if (!docSnap.exists()) return null;
-    
+    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const q = query(
+      sessionsRef,
+      where('type', '==', 'daily-goal'),
+      orderBy('date', 'desc'),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+
+    const docSnap = snapshot.docs[0];
     const data = docSnap.data();
-    
+
     return {
       id: docSnap.id,
       type: data.type,
+      goalType: data.goalType,
       target: data.target,
       active: data.active,
-      createdDate: data.createdDate.toDate(),
+      createdDate: data.createdDate?.toDate ? data.createdDate.toDate() : new Date(data.createdDate),
       currentStreak: data.currentStreak || 0,
-      lastCompletedDate: data.lastCompletedDate || null,
+      lastCompletedDate: data.lastCompletedDate
+        ? data.lastCompletedDate.toDate
+          ? data.lastCompletedDate.toDate()
+          : new Date(data.lastCompletedDate)
+        : null,
     } as DailyGoal;
   } catch (error) {
     console.error('Error getting daily goal:', error);
@@ -727,7 +747,7 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
   }
 }
 
-export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: number }): Promise<void> {
+export async function setDailyGoal(goalData: { goalType: DailyGoal['goalType']; target: number }): Promise<void> {
   try {
     console.log('Starting setDailyGoal', { goalData, currentUserId });
     await waitForAuth();
@@ -739,9 +759,11 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     await removeDailyGoal();
     console.log('Existing daily goal removed');
 
-    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const goalRef = doc(sessionsRef);
     const newGoal: Omit<DailyGoal, 'id'> = {
-      type: goalData.type,
+      type: 'daily-goal',
+      goalType: goalData.goalType,
       target: goalData.target,
       active: true,
       createdDate: new Date(),
@@ -750,7 +772,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     };
 
     console.log('Saving new daily goal', {
-      path: `users/${currentUserId}/dailyGoal/current`,
+      path: goalRef.path,
       payload: newGoal,
     });
     await setDoc(goalRef, {
@@ -759,7 +781,7 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
     });
     console.log('Daily goal saved successfully');
   } catch (error) {
-    const context = `type: ${goalData.type}, target: ${goalData.target}`;
+    const context = `type: ${goalData.goalType}, target: ${goalData.target}`;
     console.error(`Error setting daily goal (${context}):`, error);
     // Rethrow so calling functions can handle the failure
     throw new Error(
@@ -769,18 +791,24 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
 }
 
 export async function removeDailyGoal(): Promise<void> {
-  let goalPath: string | undefined;
+  const removedPaths: string[] = [];
   try {
     console.log('removeDailyGoal called with currentUserId:', currentUserId);
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
-    goalPath = goalRef.path;
-    console.log('Deleting daily goal at path:', goalPath);
-    await deleteDoc(goalRef);
-    console.log('Daily goal removed at path:', goalPath);
+    const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
+    const q = query(sessionsRef, where('type', '==', 'daily-goal'));
+    const snapshot = await getDocs(q);
+
+    for (const docSnap of snapshot.docs) {
+      removedPaths.push(docSnap.ref.path);
+      console.log('Deleting daily goal at path:', docSnap.ref.path);
+      await deleteDoc(docSnap.ref);
+    }
+
+    console.log('Daily goal removed at paths:', removedPaths);
   } catch (error) {
-    console.error(`Error removing daily goal at ${goalPath ?? 'unknown path'}:`, error);
+    console.error(`Error removing daily goal at ${removedPaths.join(', ') || 'unknown path'}:`, error);
     // Rethrow to allow the caller to display the error message
     throw error;
   }
@@ -802,9 +830,9 @@ export async function getDailyProgress(): Promise<{ progress: number; completed:
     });
     
     let progress = 0;
-    
+
     // Calculate progress based on goal type
-    switch (dailyGoal.type) {
+    switch (dailyGoal.goalType) {
       case 'tactics-time':
         progress = todaySessions
           .filter(session => session.type === 'tactics')
@@ -845,7 +873,7 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    const goalRef = doc(db, 'users', currentUserId!, 'trainingSessions', goal.id!);
     
     let newStreak = 1;
     
@@ -854,7 +882,7 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
 
-      if (goal.lastCompletedDate === formatDateString(yesterday)) {
+      if (formatDateString(goal.lastCompletedDate) === formatDateString(yesterday)) {
         newStreak = goal.currentStreak + 1;
       }
     }

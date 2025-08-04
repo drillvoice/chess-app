@@ -23,7 +23,7 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
   const [activeTab, setActiveTab] = useState("weekly");
   
   // Daily goal state
-  const [selectedGoalType, setSelectedGoalType] = useState<DailyGoal['type'] | null>(null);
+  const [selectedGoalType, setSelectedGoalType] = useState<DailyGoal['goalType'] | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
 
   // Get current daily goal
@@ -81,12 +81,12 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
 
   // Daily goal mutations
   const setDailyGoalMutation = useMutation({
-    mutationFn: async (goalData: { type: DailyGoal['type']; target: number }) => {
+    mutationFn: async (goalData: { goalType: DailyGoal['goalType']; target: number }) => {
       console.log("setDailyGoalMutation mutationFn", goalData);
       const { setDailyGoal } = await import("@/lib/firebase-utils");
       return await setDailyGoal(goalData);
     },
-    onMutate: async (goalData: { type: DailyGoal['type']; target: number }) => {
+    onMutate: async (goalData: { goalType: DailyGoal['goalType']; target: number }) => {
       console.log("setDailyGoalMutation onMutate", goalData);
       onOpenChange(false);
       setSelectedGoalType(null);
@@ -105,7 +105,7 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
       queryClient.invalidateQueries({ queryKey: ["daily-goal"] });
       queryClient.invalidateQueries({ queryKey: ["daily-progress"] });
     },
-    onError: (error: unknown, goalData: { type: DailyGoal['type']; target: number }) => {
+    onError: (error: unknown, goalData: { goalType: DailyGoal['goalType']; target: number }) => {
       console.error("setDailyGoalMutation onError", { error, goalData });
       toast({
         title: "Error",
@@ -156,13 +156,13 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
   const handleDailyGoalSubmit = () => {
     if (selectedGoalType && selectedTarget) {
       setDailyGoalMutation.mutate({
-        type: selectedGoalType,
+        goalType: selectedGoalType,
         target: selectedTarget,
       });
     }
   };
 
-  const handleGoalTypeSelect = (type: DailyGoal['type']) => {
+  const handleGoalTypeSelect = (type: DailyGoal['goalType']) => {
     setSelectedGoalType(type);
     setSelectedTarget(null); // Reset target when type changes
   };
@@ -181,7 +181,7 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
     return `${target}m`;
   };
 
-  const getGoalTypeLabel = (type: DailyGoal['type']) => {
+  const getGoalTypeLabel = (type: DailyGoal['goalType']) => {
     switch (type) {
       case 'tactics-time':
         return 'Tactics';
@@ -320,7 +320,7 @@ export default function CombinedGoalModal({ open, onOpenChange }: CombinedGoalMo
                 {currentDailyGoal && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                     <p className="text-sm text-blue-800">
-                      <strong>Current Goal:</strong> {getGoalTypeLabel(currentDailyGoal.type)} - {getTargetLabel(currentDailyGoal.target)}
+                      <strong>Current Goal:</strong> {getGoalTypeLabel(currentDailyGoal.goalType)} - {getTargetLabel(currentDailyGoal.target)}
                     </p>
                   </div>
                 )}

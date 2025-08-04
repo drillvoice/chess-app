@@ -70,7 +70,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
         const optimisticSession: TrainingSession = {
           id: editingSession.id,
           type: "goal",
-          date: newSession.date,
+          date: newSession.date!,
           duration: null,
           pointsGained: null,
           finalScore: null,
@@ -163,11 +163,11 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
 
   const onSubmit = (data: GoalSession) => {
     // Add current date and goal week start to the session data
-    const sessionData = {
-      ...data,
-      date: isEditMode && editingSession ? editingSession.date : new Date(),
-      goalWeekStart: isEditMode && editingSession ? editingSession.goalWeekStart : new Date()
-    };
+      const sessionData = {
+        ...data,
+        date: isEditMode && editingSession ? editingSession.date : new Date(),
+        goalWeekStart: isEditMode && editingSession ? editingSession.goalWeekStart ?? undefined : new Date(),
+      };
     mutation.mutate(sessionData);
   };
 

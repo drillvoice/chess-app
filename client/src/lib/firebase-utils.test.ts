@@ -23,6 +23,7 @@ vi.mock('./offline-storage', () => ({
     getStatistics: vi.fn(),
     setStatistics: vi.fn().mockResolvedValue(undefined),
     clearStatistics: vi.fn(),
+    getCacheAge: vi.fn(),
   },
 }));
 
@@ -45,6 +46,7 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  limit: vi.fn(),
   onSnapshot: vi.fn(),
   Timestamp: { now: vi.fn(() => new Date()), fromDate: vi.fn(() => new Date()) },
 }));
@@ -100,11 +102,12 @@ describe('firebase auth utilities', () => {
 
   it('verifyDataPresence returns true when cache and firebase are accessible', async () => {
     const offline = await import('./offline-storage');
-    offline.offlineStorage.getSessions.mockResolvedValue([{ id: 1 }]);
+    vi.mocked(offline.offlineStorage.getSessions).mockResolvedValue([{ id: 1 } as any]);
 
     const utils = await import('./firebase-utils');
     // Stub fetchSessionsFromFirebase to avoid touching network
-    vi.spyOn(utils, 'fetchSessionsFromFirebase').mockResolvedValue([]);
+    const fetchSpy = vi.spyOn(utils, 'fetchSessionsFromFirebase');
+    fetchSpy.mockResolvedValue([]);
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -119,7 +122,7 @@ describe('firebase auth utilities', () => {
 
   it('verifyDataPresence returns false when verification fails', async () => {
     const offline = await import('./offline-storage');
-    offline.offlineStorage.getSessions.mockRejectedValue(new Error('fail'));
+    vi.mocked(offline.offlineStorage.getSessions).mockRejectedValue(new Error('fail'));
 
     const utils = await import('./firebase-utils');
 
@@ -142,7 +145,7 @@ describe('firebase auth utilities', () => {
 
     const authModule = await import('firebase/auth');
     let authChange: any;
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       authChange = cb;
       cb(mockAuth.currentUser);
       return () => {};
@@ -172,7 +175,7 @@ describe('firebase auth utilities', () => {
 
     const authModule = await import('firebase/auth');
     let authChange: any;
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       authChange = cb;
       cb(mockAuth.currentUser);
       return () => {};
@@ -187,6 +190,48 @@ describe('firebase auth utilities', () => {
     expect(utils.getCurrentUserId()).toBeNull();
   });
 
+  it('getAllSessions filters out daily-goal entries from cache', async () => {
+    const offline = await import('./offline-storage');
+    vi.mocked(offline.offlineStorage.getCacheAge).mockResolvedValue(0);
+    mockSessions.push(
+      { id: 1, type: 'game', date: new Date() } as any,
+      { id: 2, type: 'daily-goal', date: new Date() } as any
+    );
+
+    const utils = await import('./firebase-utils');
+    const sessions = await utils.getAllSessions();
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions.every(s => s.type !== 'daily-goal')).toBe(true);
+  });
+
+  it('fetchSessionsFromFirebase filters out daily-goal before caching', async () => {
+    const offline = await import('./offline-storage');
+    const firebaseClient = await import('./firebaseClient');
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const firestore = await import('firebase/firestore');
+    const doc1 = { id: '1', data: () => ({ type: 'game', date: { toDate: () => new Date() } }) };
+    const doc2 = { id: '2', data: () => ({ type: 'daily-goal', date: { toDate: () => new Date() } }) };
+    (firestore.getDocs as any).mockResolvedValue({ docs: [doc1, doc2] });
+
+    const utils = await import('./firebase-utils');
+    const sessions = await utils.fetchSessionsFromFirebase();
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].type).toBe('game');
+    const cached = vi.mocked(offline.offlineStorage.setSessions).mock.calls[0][0];
+    expect(cached.some((s: any) => s.type === 'daily-goal')).toBe(false);
+  });
+
   it('importData stores sessions in offline storage', async () => {
     const offline = await import('./offline-storage');
     const utils = await import('./firebase-utils');
@@ -197,7 +242,7 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -229,7 +274,7 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -249,7 +294,7 @@ describe('firebase auth utilities', () => {
     expect(stored[0].id).toBe(3);
     expect(stored[0].date).toBeInstanceOf(Date);
     expect(stored[0].date.getTime()).toBe(expectedDate.getTime());
-    expect(stored[0].createdAt).toBeInstanceOf(Date);
+    expect((stored[0] as any).createdAt).toBeInstanceOf(Date);
   });
 
   it('importData handles legacy backups with ISO dates and timestamp createdAt', async () => {
@@ -262,7 +307,7 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -294,7 +339,7 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -326,7 +371,7 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
@@ -362,12 +407,12 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
 
     const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth, cb) => {
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
       cb(mockAuth.currentUser);
       return () => {};
     });
 
-    offline.offlineStorage.addSession.mockImplementationOnce(async () => {
+    vi.mocked(offline.offlineStorage.addSession).mockImplementationOnce(async () => {
       throw new Error('fail');
     });
 

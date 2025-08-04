@@ -123,7 +123,8 @@ export const goalSessionSchema = insertTrainingSessionSchema.extend({
 // Daily Goal Schema
 export const dailyGoalSchema = z.object({
   id: z.string().optional(), // Firebase document ID
-  type: z.enum(['tactics-time', 'games-count', 'study-time']),
+  type: z.literal('daily-goal'),
+  goalType: z.enum(['tactics-time', 'games-count', 'study-time']),
   target: z.number().min(1),
   active: z.boolean().default(true),
   createdDate: z.date(),
