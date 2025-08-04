@@ -17,6 +17,8 @@ vi.mock('./offline-storage', () => ({
     getSessions,
     setSessions: vi.fn(),
     addSession,
+    updateSession: vi.fn(),
+    removeSession: vi.fn(),
   },
 }));
 

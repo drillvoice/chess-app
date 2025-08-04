@@ -100,12 +100,41 @@ class OfflineStorage {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(['sessions'], 'readwrite');
       const store = transaction.objectStore('sessions');
-      
+
       store.put({
         ...session,
         date: session.date.toISOString()
       });
-      
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  async updateSession(session: TrainingSession): Promise<void> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['sessions'], 'readwrite');
+      const store = transaction.objectStore('sessions');
+
+      store.put({
+        ...session,
+        date: session.date.toISOString()
+      });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  async removeSession(id: number): Promise<void> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['sessions'], 'readwrite');
+      const store = transaction.objectStore('sessions');
+
+      store.delete(id);
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });

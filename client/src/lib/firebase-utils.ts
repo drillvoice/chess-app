@@ -365,7 +365,7 @@ export async function createSession(
 
 export async function updateSession(id: number, updateData: Partial<InsertTrainingSession>): Promise<TrainingSession | null> {
   await waitForAuth();
-  
+
   try {
     const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
@@ -377,16 +377,26 @@ export async function updateSession(id: number, updateData: Partial<InsertTraini
     };
     
     await setDoc(docRef, updatePayload, { merge: true });
-    
+
     // Get the current sessions to find the updated one
     const sessions = await getAllSessions();
     const updatedSession = sessions.find(session => session.id === id);
-    
+
+    try {
+      if (updatedSession) {
+        await offlineStorage.updateSession(updatedSession);
+      } else {
+        await offlineStorage.removeSession(id);
+      }
+    } catch (error) {
+      console.warn('Failed to update offline cache:', error);
+    }
+
     // Clear cache to force fresh data on next load
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
-    
+
     return updatedSession || null;
   } catch (error) {
     console.error('Error updating session:', error);
@@ -396,17 +406,23 @@ export async function updateSession(id: number, updateData: Partial<InsertTraini
 
 export async function deleteSession(id: number): Promise<boolean> {
   await waitForAuth();
-  
+
   try {
     const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
     await deleteDoc(docRef);
-    
+
+    try {
+      await offlineStorage.removeSession(id);
+    } catch (error) {
+      console.warn('Failed to update offline cache:', error);
+    }
+
     // Clear cache to force fresh data on next load
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
-    
+
     return true;
   } catch (error) {
     console.error('Error deleting session:', error);
