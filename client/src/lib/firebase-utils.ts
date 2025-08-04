@@ -770,13 +770,18 @@ export async function setDailyGoal(goalData: { type: DailyGoal['type']; target: 
 }
 
 export async function removeDailyGoal(): Promise<void> {
+  let goalPath: string | undefined;
   try {
+    console.log('removeDailyGoal called with currentUserId:', currentUserId);
     await waitForAuth();
     await ensureUserDoc();
     const goalRef = doc(db, 'users', currentUserId!, 'dailyGoal', 'current');
+    goalPath = goalRef.path;
+    console.log('Deleting daily goal at path:', goalPath);
     await deleteDoc(goalRef);
+    console.log('Daily goal removed at path:', goalPath);
   } catch (error) {
-    console.error('Error removing daily goal:', error);
+    console.error(`Error removing daily goal at ${goalPath ?? 'unknown path'}:`, error);
     // Rethrow to allow the caller to display the error message
     throw error;
   }
