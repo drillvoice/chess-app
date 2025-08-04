@@ -32,14 +32,16 @@ export default function History() {
       const { deleteSession } = await import("@/lib/firebase-utils");
       return await deleteSession(sessionId);
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Session deleted successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+    onSuccess: (result) => {
+      if (result) {
+        toast({
+          title: "Success",
+          description: "Session deleted successfully",
+        });
+        queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["statistics"] });
+        queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+      }
     },
     onError: (error: any) => {
       toast({

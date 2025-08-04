@@ -411,12 +411,7 @@ export async function deleteSession(id: number): Promise<boolean> {
     const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
     await deleteDoc(docRef);
-
-    try {
-      await offlineStorage.removeSession(id);
-    } catch (error) {
-      console.warn('Failed to update offline cache:', error);
-    }
+    await offlineStorage.deleteSession(id);
 
     // Clear cache to force fresh data on next load
     SessionsCache.remove();
@@ -426,7 +421,7 @@ export async function deleteSession(id: number): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Error deleting session:', error);
-    return false;
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete session');
   }
 }
 
