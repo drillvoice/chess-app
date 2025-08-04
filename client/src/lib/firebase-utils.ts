@@ -18,6 +18,7 @@ let where: typeof import('firebase/firestore').where;
 let orderBy: typeof import('firebase/firestore').orderBy;
 let onSnapshot: typeof import('firebase/firestore').onSnapshot;
 let Timestamp: typeof import('firebase/firestore').Timestamp;
+let limit: typeof import('firebase/firestore').limit;
 
 let GoogleAuthProvider: typeof import('firebase/auth').GoogleAuthProvider;
 let signInWithPopup: typeof import('firebase/auth').signInWithPopup;
@@ -40,7 +41,7 @@ async function ensureFirebase() {
   }
   if (!collection) {
     const firestore = await import('firebase/firestore');
-    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp } = firestore);
+    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp, limit } = firestore);
   }
   if (!signInWithPopup) {
     const authModule = await import('firebase/auth');
@@ -708,7 +709,12 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
     await waitForAuth();
     await ensureUserDoc();
     const sessionsRef = collection(db, 'users', currentUserId!, 'trainingSessions');
-    const q = query(sessionsRef, where('type', '==', 'daily-goal'));
+    const q = query(
+      sessionsRef,
+      where('type', '==', 'daily-goal'),
+      orderBy('date', 'desc'),
+      limit(1)
+    );
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
 
@@ -721,9 +727,13 @@ export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
       goalType: data.goalType,
       target: data.target,
       active: data.active,
-      createdDate: data.createdDate.toDate(),
+      createdDate: data.createdDate?.toDate ? data.createdDate.toDate() : new Date(data.createdDate),
       currentStreak: data.currentStreak || 0,
-      lastCompletedDate: data.lastCompletedDate || null,
+      lastCompletedDate: data.lastCompletedDate
+        ? data.lastCompletedDate.toDate
+          ? data.lastCompletedDate.toDate()
+          : new Date(data.lastCompletedDate)
+        : null,
     } as DailyGoal;
   } catch (error) {
     console.error('Error getting daily goal:', error);
@@ -866,7 +876,7 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
 
-      if (goal.lastCompletedDate === formatDateString(yesterday)) {
+      if (formatDateString(goal.lastCompletedDate) === formatDateString(yesterday)) {
         newStreak = goal.currentStreak + 1;
       }
     }
