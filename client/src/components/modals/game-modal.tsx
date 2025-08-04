@@ -56,7 +56,10 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
-      const { createSession } = await import("@/lib/firebase-utils");
+      const { createSession, updateSession } = await import("@/lib/firebase-utils");
+      if (isEditMode && editingSession) {
+        return await updateSession(editingSession.id, data);
+      }
       return await createSession(data);
     },
     onMutate: async () => {
@@ -66,20 +69,20 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
       setSelectedResult(null);
       setSelectedColor(null);
       setSelectedTimeControl(null);
-      
+
       // Show immediate feedback
       toast({
-        title: "Saving...",
-        description: "Game session is being saved",
+        title: isEditMode ? "Updating..." : "Saving...",
+        description: `Game session is being ${isEditMode ? "updated" : "saved"}`,
       });
     },
     onSuccess: () => {
       // Show success notification
       toast({
         title: "Success",
-        description: "Game session logged successfully!",
+        description: isEditMode ? "Game session updated successfully!" : "Game session logged successfully!",
       });
-      
+
       // Refresh data in background
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
@@ -108,7 +111,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
     // Add current date to the session data
     const sessionData = {
       ...data,
-      date: new Date()
+      date: isEditMode && editingSession ? editingSession.date : new Date()
     };
     mutation.mutate(sessionData);
   };

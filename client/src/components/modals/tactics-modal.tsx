@@ -49,7 +49,10 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
 
   const mutation = useMutation({
     mutationFn: async (data: TacticsSession) => {
-      const { createSession } = await import("@/lib/firebase-utils");
+      const { createSession, updateSession } = await import("@/lib/firebase-utils");
+      if (isEditMode && editingSession) {
+        return await updateSession(editingSession.id, data);
+      }
       return await createSession(data);
     },
     onMutate: async (newSession) => {
@@ -57,60 +60,62 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
       onOpenChange(false);
       reset();
       setSelectedDuration(null);
-      
+
       // Show immediate feedback
       toast({
-        title: "Saving...",
-        description: "Tactics session is being saved",
+        title: isEditMode ? "Updating..." : "Saving...",
+        description: `Tactics session is being ${isEditMode ? "updated" : "saved"}`,
       });
 
-      // Optimistic update: update caches immediately
-      const tempId = Date.now();
-      const optimisticSession: TrainingSession = {
-        id: tempId,
-        type: 'tactics',
-        date: new Date(),
-        duration: newSession.duration,
-        pointsGained: newSession.pointsGained ?? null,
-        finalScore: newSession.finalScore ?? null,
-        tacticsNotes: newSession.tacticsNotes || null,
-        // Required fields that are null for tactics sessions
-        gameResult: null,
-        gameType: null,
-        gameComments: null,
-        playerColor: null,
-        platform: null,
-        timeControl: null,
-        studyType: null,
-        studyNotes: null,
-        goalTitle: null,
-        goalDescription: null,
-        goalWeekStart: null
-      };
+      if (!isEditMode) {
+        // Optimistic update: update caches immediately
+        const tempId = Date.now();
+        const optimisticSession: TrainingSession = {
+          id: tempId,
+          type: 'tactics',
+          date: new Date(),
+          duration: newSession.duration,
+          pointsGained: newSession.pointsGained ?? null,
+          finalScore: newSession.finalScore ?? null,
+          tacticsNotes: newSession.tacticsNotes || null,
+          // Required fields that are null for tactics sessions
+          gameResult: null,
+          gameType: null,
+          gameComments: null,
+          playerColor: null,
+          platform: null,
+          timeControl: null,
+          studyType: null,
+          studyNotes: null,
+          goalTitle: null,
+          goalDescription: null,
+          goalWeekStart: null
+        };
 
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["sessions"] });
-      await queryClient.cancelQueries({ queryKey: ["statistics"] });
+        // Cancel outgoing refetches
+        await queryClient.cancelQueries({ queryKey: ["sessions"] });
+        await queryClient.cancelQueries({ queryKey: ["statistics"] });
 
-      // Snapshot previous values
-      const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
-      const previousStats = queryClient.getQueryData(["statistics"]);
+        // Snapshot previous values
+        const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
+        const previousStats = queryClient.getQueryData(["statistics"]);
 
-      // Optimistically update sessions
-      queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
-        optimisticSession,
-        ...old
-      ]);
+        // Optimistically update sessions
+        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
+          optimisticSession,
+          ...old
+        ]);
 
-      return { previousSessions, previousStats };
+        return { previousSessions, previousStats };
+      }
     },
     onSuccess: () => {
       // Show success notification
       toast({
         title: "Success",
-        description: "Tactics session logged successfully!",
+        description: isEditMode ? "Tactics session updated successfully!" : "Tactics session logged successfully!",
       });
-      
+
       // Refresh data in background
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
@@ -153,7 +158,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
     // Add current date to the session data
     const sessionData = {
       ...data,
-      date: new Date()
+      date: isEditMode && editingSession ? editingSession.date : new Date()
     };
     mutation.mutate(sessionData);
   };

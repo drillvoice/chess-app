@@ -47,27 +47,30 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
-      const { createSession } = await import("@/lib/firebase-utils");
+      const { createSession, updateSession } = await import("@/lib/firebase-utils");
+      if (isEditMode && editingSession) {
+        return await updateSession(editingSession.id, data);
+      }
       return await createSession(data);
     },
     onMutate: async () => {
       // Close modal immediately for better UX
       onOpenChange(false);
       reset();
-      
+
       // Show immediate feedback
       toast({
-        title: "Saving...",
-        description: "Study session is being saved",
+        title: isEditMode ? "Updating..." : "Saving...",
+        description: `Study session is being ${isEditMode ? "updated" : "saved"}`,
       });
     },
     onSuccess: () => {
       // Show success notification
       toast({
         title: "Success",
-        description: "Study session logged successfully!",
+        description: isEditMode ? "Study session updated successfully!" : "Study session logged successfully!",
       });
-      
+
       // Refresh data in background
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
@@ -104,7 +107,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
     // Add current date to the session data
     const sessionData = {
       ...data,
-      date: new Date()
+      date: isEditMode && editingSession ? editingSession.date : new Date()
     };
     mutation.mutate(sessionData);
   };
