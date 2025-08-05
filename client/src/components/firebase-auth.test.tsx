@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('@/lib/firebaseClient', () => ({
@@ -10,7 +11,7 @@ vi.mock('@/lib/firebaseClient', () => ({
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(() => ({})),
-  getDocs: vi.fn(),
+  getDocs: vi.fn(() => Promise.resolve({ docs: [] })),
   getDoc: vi.fn(),
   deleteDoc: vi.fn(),
   setDoc: vi.fn(),
@@ -34,11 +35,11 @@ vi.mock('firebase/auth', () => ({
 }));
 
 vi.mock('@/lib/cache-utils', () => ({
-  SessionsCache: { remove: vi.fn() },
+  SessionsCache: { remove: vi.fn(), set: vi.fn() },
 }));
 
 vi.mock('@/lib/offline-storage', () => ({
-  offlineStorage: { clear: vi.fn() },
+  offlineStorage: { clear: vi.fn(), getSessions: vi.fn().mockResolvedValue([]), setSessions: vi.fn() },
 }));
 
 const toastMock = vi.fn();
@@ -54,6 +55,11 @@ afterEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
 });
+
+function renderWithClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient();
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 describe('FirebaseAuth sign-out', () => {
   it('preserves local data and resets currentUserId', async () => {
@@ -79,8 +85,9 @@ describe('FirebaseAuth sign-out', () => {
 
     const cacheModule = await import('@/lib/cache-utils');
     const offlineModule = await import('@/lib/offline-storage');
+    vi.spyOn(firebaseUtils, 'stopSessionSync').mockImplementation(() => {});
 
-    render(<FirebaseAuth />);
+    renderWithClient(<FirebaseAuth />);
     const signOutButton = await screen.findByRole('button', { name: /disable cloud sync/i });
     fireEvent.click(signOutButton);
 
@@ -88,6 +95,7 @@ describe('FirebaseAuth sign-out', () => {
       expect(firebaseUtils.getCurrentUserId()).toBeNull();
       expect(cacheModule.SessionsCache.remove).not.toHaveBeenCalled();
       expect(offlineModule.offlineStorage.clear).not.toHaveBeenCalled();
+      expect(firebaseUtils.stopSessionSync).toHaveBeenCalled();
     });
   });
 });
@@ -108,12 +116,14 @@ describe('FirebaseAuth sign-in', () => {
     vi.spyOn(firebaseUtils, 'startAuthFlow').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
+    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
 
-    render(<FirebaseAuth />);
+    renderWithClient(<FirebaseAuth />);
     const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
     fireEvent.click(signInButton);
 
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
+    expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Connected' })
     );
@@ -134,12 +144,14 @@ describe('FirebaseAuth sign-in', () => {
     vi.spyOn(firebaseUtils, 'startAuthFlow').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(false);
+    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
 
-    render(<FirebaseAuth />);
+    renderWithClient(<FirebaseAuth />);
     const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
     fireEvent.click(signInButton);
 
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
+    expect(firebaseUtils.startSessionSync).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Verification Failed' })
     );
@@ -164,14 +176,16 @@ describe('FirebaseAuth sign-in', () => {
       .mockResolvedValueOnce();
     vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
+    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
 
-    render(<FirebaseAuth />);
+    renderWithClient(<FirebaseAuth />);
     const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
     fireEvent.click(signInButton);
 
     await waitFor(() => expect(startAuthFlowSpy).toHaveBeenCalledTimes(2));
     expect(startAuthFlowSpy.mock.calls[1][0]).toBe(true);
     expect(sessionStorage.getItem('redirectAuth')).toBe('true');
+    expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Connected' })
     );
@@ -194,10 +208,12 @@ describe('FirebaseAuth redirect handling', () => {
 
     vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
+    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
 
-    render(<FirebaseAuth />);
+    renderWithClient(<FirebaseAuth />);
 
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
+    expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Connected' })
     );
@@ -219,10 +235,12 @@ describe('FirebaseAuth redirect handling', () => {
 
     vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
     vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(false);
+    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
 
-    render(<FirebaseAuth />);
+    renderWithClient(<FirebaseAuth />);
 
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
+    expect(firebaseUtils.startSessionSync).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Verification Failed' })
     );

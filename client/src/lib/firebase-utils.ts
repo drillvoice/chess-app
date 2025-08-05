@@ -726,6 +726,30 @@ export async function subscribeToSessions(callback: (sessions: TrainingSession[]
   }
 }
 
+let unsubscribeSessionSync: (() => void) | null = null;
+
+export async function startSessionSync(onUpdate?: () => void): Promise<void> {
+  if (unsubscribeSessionSync) return;
+  try {
+    const unsub = await subscribeToSessions(async (sessions) => {
+      const filtered = filterOutDailyGoals(sessions);
+      SessionsCache.set(filtered);
+      await offlineStorage.setSessions(filtered);
+      onUpdate?.();
+    });
+    unsubscribeSessionSync = unsub || null;
+  } catch (error) {
+    console.error('Error starting session sync:', error);
+  }
+}
+
+export function stopSessionSync(): void {
+  if (unsubscribeSessionSync) {
+    unsubscribeSessionSync();
+    unsubscribeSessionSync = null;
+  }
+}
+
 // Daily Goal Functions
 function getDailyGoalRef() {
   if (!currentUserId) throw new Error('User not authenticated');

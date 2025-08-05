@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { User } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebaseClient";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ export default function FirebaseAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -19,13 +21,31 @@ export default function FirebaseAuth() {
         const { onAuthStateChanged, getRedirectResult } = await import(
           "firebase/auth"
         );
-        const { refreshAuthState, verifyDataPresence } = await import(
+        const { refreshAuthState, verifyDataPresence, startSessionSync, stopSessionSync } = await import(
           "@/lib/firebase-utils"
         );
 
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
           setUser(user);
           setLoading(false);
+          if (user) {
+            try {
+              await refreshAuthState();
+              const verified = await verifyDataPresence();
+              if (verified) {
+                await startSessionSync(() => {
+                  queryClient.invalidateQueries({ queryKey: ["sessions"] });
+                  queryClient.invalidateQueries({ queryKey: ["statistics"] });
+                  queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+                  queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+                });
+              }
+            } catch (err) {
+              console.error('Initial sync failed:', err);
+            }
+          } else {
+            stopSessionSync();
+          }
         });
 
         // Handle redirect result or persisted intent
@@ -44,6 +64,12 @@ export default function FirebaseAuth() {
                   variant: "destructive",
                 });
               } else {
+                await startSessionSync(() => {
+                  queryClient.invalidateQueries({ queryKey: ["sessions"] });
+                  queryClient.invalidateQueries({ queryKey: ["statistics"] });
+                  queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+                  queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+                });
                 toast({
                   title: "Connected",
                   description: "Cloud sync enabled successfully!",
@@ -82,7 +108,7 @@ export default function FirebaseAuth() {
   const handleSignIn = async () => {
     try {
       setLoading(true);
-      const { startAuthFlow, refreshAuthState, verifyDataPresence } = await import(
+      const { startAuthFlow, refreshAuthState, verifyDataPresence, startSessionSync } = await import(
         "@/lib/firebase-utils"
       );
       try {
@@ -110,6 +136,12 @@ export default function FirebaseAuth() {
         });
         return;
       }
+      await startSessionSync(() => {
+        queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["statistics"] });
+        queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+        queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+      });
       toast({
         title: "Connected",
         description: "Cloud sync enabled successfully!",
@@ -134,8 +166,13 @@ export default function FirebaseAuth() {
       const auth = await getFirebaseAuth();
       const { signOut } = await import("firebase/auth");
       await signOut(auth);
-      const { refreshAuthState } = await import("@/lib/firebase-utils");
+      const { refreshAuthState, stopSessionSync } = await import("@/lib/firebase-utils");
       await refreshAuthState();
+      stopSessionSync();
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       toast({
         title: "Disconnected",
         description: "Cloud sync has been disabled. Local data remains on this device.",
