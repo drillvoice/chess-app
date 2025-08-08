@@ -2,14 +2,19 @@ name: Deploy Firebase Preview
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
+# Needed to post PR comments
 permissions:
   contents: read
   pull-requests: write
   issues: write
-  
+
+# Kill older runs for the same PR to save time
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   deploy-preview:
     runs-on: ubuntu-latest
@@ -18,42 +23,38 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (with npm cache)
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Build the project
         run: npm run build
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
+      # Use cached local firebase-tools via npx (no global install)
       - name: Deploy to Firebase preview channel
         id: firebase-deploy
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           CHANNEL_ID=pr-${{ github.event.pull_request.number }}
-          OUTPUT=$(firebase hosting:channel:deploy $CHANNEL_ID --json)
-          echo "$OUTPUT"
-          URL=$(echo "$OUTPUT" | jq -r '.result[].url')
-          echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
+          npx firebase-tools hosting:channel:deploy "$CHANNEL_ID" --json > firebase_output.json
+          node -e "const o=require('./firebase_output.json'); const urls=(o.result||[]).map(r=>r.url).filter(Boolean); if(!urls.length){console.error('No preview URL found'); process.exit(1)}; console.log('PREVIEW_URL='+urls[0]);" >> $GITHUB_ENV
 
       - name: Comment on PR with Preview URL
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const previewUrl = process.env.PREVIEW_URL;
-            const prNumber = context.payload.pull_request.number;
-            const body = `🚀 Firebase preview deployed: [View Preview](${previewUrl})`;
+            const body = `🚀 Firebase preview deployed: [View Preview](${process.env.PREVIEW_URL})`;
             await github.rest.issues.createComment({
-              issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
               body
-            })
+            });
