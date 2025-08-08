@@ -1,6 +1,17 @@
 import { useState, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Puzzle, Crown, Book, Clock, Target, Trash2, Edit3 } from "lucide-react";
+import {
+  Puzzle,
+  Crown,
+  Book,
+  Clock,
+  Target,
+  Trash2,
+  Edit3,
+  Play,
+  Trophy,
+  TrendingUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,15 +19,41 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { TrainingSession } from "@shared/schema";
-import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
+import {
+  TacticsModal,
+  GameModal,
+  StudyModal,
+  GoalModal,
+  WeeklyActivityChart,
+} from "@/components/lazy-components";
 
-export default function History() {
+interface Statistics {
+  totalHours: number;
+  totalSessions: number;
+  tacticsRating: number;
+  winRate: number;
+  todayTotalTime: number;
+  todaySessions: number;
+}
+
+export default function Activity() {
   const [filter, setFilter] = useState<string>("all");
   const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: sessions, isLoading } = useQuery<TrainingSession[]>({
+  const { data: stats, isLoading: statsLoading } = useQuery<Statistics>({
+    queryKey: ["statistics"],
+    queryFn: async () => {
+      const { getStatistics } = await import("@/lib/firebase-utils");
+      return await getStatistics();
+    },
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: sessions, isLoading: sessionsLoading } = useQuery<TrainingSession[]>({
     queryKey: ["sessions"],
     queryFn: async () => {
       const { getAllSessions } = await import("@/lib/firebase-utils");
@@ -196,9 +233,20 @@ export default function History() {
     }
   };
 
-  if (isLoading) {
+  if (statsLoading || sessionsLoading) {
     return (
       <div className="space-y-6">
+        <div className="text-center py-4">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Training Statistics</h2>
+          <p className="text-gray-600 text-sm">Your chess improvement overview</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-48 rounded-xl" />
+
         <div className="text-center py-4">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Training History</h2>
           <p className="text-gray-600 text-sm">Your recent training sessions</p>
@@ -214,6 +262,79 @@ export default function History() {
 
   return (
     <div className="space-y-6">
+      <div className="text-center py-4">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Training Statistics</h2>
+        <p className="text-gray-600 text-sm">Your chess improvement overview</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="bg-blue-50 border-blue-100">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-[#1E40AF]">{stats?.totalHours || 0}</div>
+                <div className="text-sm text-gray-600">Total Hours</div>
+              </div>
+              <Clock className="w-5 h-5 text-[#1E40AF]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-50 border-emerald-100">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
+                <div className="text-sm text-gray-600">Sessions</div>
+              </div>
+              <Play className="w-5 h-5 text-[#059669]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-amber-50 border-amber-100">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
+                <div className="text-sm text-gray-600">Tactics Rating</div>
+              </div>
+              <Trophy className="w-5 h-5 text-[#F59E0B]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-green-50 border-green-100">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-green-600">{stats?.winRate || 0}%</div>
+                <div className="text-sm text-gray-600">Win Rate</div>
+              </div>
+              <TrendingUp className="w-5 h-5 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-gray-200">
+        <CardContent className="p-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">This Week's Activity</h3>
+          {sessions && sessions.length > 0 ? (
+            <Suspense fallback={<div className="h-32 animate-pulse bg-gray-100 rounded"></div>}>
+              <WeeklyActivityChart sessions={sessions} />
+            </Suspense>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-gray-500">
+              <div className="text-center">
+                <div className="text-sm">No activity this week</div>
+                <div className="text-xs mt-1">Start logging sessions to see your progress</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="text-center py-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Training History</h2>
         <p className="text-gray-600 text-sm">Your recent training sessions</p>

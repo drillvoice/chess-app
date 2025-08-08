@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, TrendingUp, History, User as UserIcon } from "lucide-react";
+import { Home, TrendingUp, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navigation() {
@@ -7,8 +7,7 @@ export default function Navigation() {
 
   const navItems = [
     { path: "/", label: "Home", icon: Home },
-    { path: "/dashboard", label: "Stats", icon: TrendingUp },
-    { path: "/history", label: "History", icon: History },
+    { path: "/activity", label: "Activity", icon: TrendingUp },
     { path: "/account", label: "Account", icon: UserIcon },
   ];
 

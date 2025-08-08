@@ -9,8 +9,7 @@ import Navigation from "@/components/layout/navigation";
 import { AccountPage } from "@/components/lazy-components";
 
 const Home = lazy(() => import("@/pages/home"));
-const Dashboard = lazy(() => import("@/pages/dashboard"));
-const History = lazy(() => import("@/pages/history"));
+const Activity = lazy(() => import("@/pages/activity"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function Router() {
@@ -18,8 +17,7 @@ function Router() {
     <Suspense fallback={<div>Loading...</div>}>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/history" component={History} />
+        <Route path="/activity" component={Activity} />
         <Route path="/account" component={AccountPage} />
         <Route component={NotFound} />
       </Switch>

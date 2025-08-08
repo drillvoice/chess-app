@@ -148,7 +148,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
       if (error.message?.includes('timeout')) {
         toast({
           title: "Slow Connection",
-          description: "Session may have been saved. Please check your history to confirm.",
+          description: "Session may have been saved. Please check your activity to confirm.",
           variant: "destructive",
         });
       } else {

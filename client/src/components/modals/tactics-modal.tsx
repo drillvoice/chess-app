@@ -127,7 +127,7 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
       if (error.message?.includes('timeout')) {
         toast({
           title: "Slow Connection",
-          description: "Session may have been saved. Please check your history to confirm.",
+          description: "Session may have been saved. Please check your activity to confirm.",
           variant: "destructive",
         });
         // Don't rollback on timeout - session might have been saved
