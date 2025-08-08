@@ -14,10 +14,12 @@ vi.mock("@/lib/firebase-utils", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useMutation: vi.fn(() => ({ mutate: vi.fn() })),
+  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
 }));
 
 import Navigation from "@/components/layout/navigation";
-import Dashboard from "@/pages/dashboard";
+import Activity from "@/pages/activity";
 import Account from "@/pages/account";
 
 describe("data management location", () => {
@@ -29,7 +31,7 @@ describe("data management location", () => {
   });
 
   it("renders data management only on account page", async () => {
-    render(<Dashboard />);
+    render(<Activity />);
     expect(screen.queryByText(/data management/i)).not.toBeInTheDocument();
     cleanup();
     render(<Account />);

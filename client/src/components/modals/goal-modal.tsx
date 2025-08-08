@@ -142,7 +142,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
       if (error.message?.includes('timeout')) {
         toast({
           title: "Slow Connection",
-          description: "Goal may have been saved. Please check your history to confirm.",
+          description: "Goal may have been saved. Please check your activity to confirm.",
           variant: "destructive",
         });
       } else {
