@@ -10,6 +10,7 @@ import { AccountPage } from "@/components/lazy-components";
 
 const Home = lazy(() => import("@/pages/home"));
 const Activity = lazy(() => import("@/pages/activity"));
+const Info = lazy(() => import("@/pages/info"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/activity" component={Activity} />
         <Route path="/account" component={AccountPage} />
+        <Route path="/info" component={Info} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
