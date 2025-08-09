@@ -5,12 +5,14 @@ export default function Info() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>About Pawn Star</CardTitle>
+          <CardTitle>About <em></em>Pawn Star</em></CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">
-            Pawn Star is a progressive web app for logging chess training sessions. Track tactics, games, and study time while
-            keeping your data synced across devices.
+            Pawn Star is an app to help you get the most out of your chess practice. 
+            Playing games and studying tactics is essential to improve at chess. 
+            And you can get even more out of it when you track your progress and review how you are going. 
+            This approach is inspired by <a href="https://nextlevelchess.com/free-ebook/" target="_blank"><em>The Art of Chess Training</em></a> by GM Noël Studer.
           </p>
         </CardContent>
       </Card>
@@ -21,7 +23,9 @@ export default function Info() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">
-            Built by a chess enthusiast and software developer who loves blending technology with the game of kings.
+            I recently got back into chess after a long hiatus. 
+            Not only do I love the game, I love the way it's possible to quantify my progress and break down my learning journey. 
+            This is my first app and I hope it helps chess students everywhere! On Lichess, I am <a href="https://lichess.org/@/softtalk" target="_blank">softtalk</a>. 
           </p>
         </CardContent>
       </Card>
@@ -32,14 +36,16 @@ export default function Info() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">
-            Have suggestions or found a bug?{" "}
+            This app is still in development. 
+            I've been using it for weeks and it works for me, but I'm sure it could work better! 
+            If you have any feedback or comments,
             <a
               className="text-blue-600 hover:underline"
               href="mailto:pawn.star.chess.logger@gmail.com?subject=Pawn%20Star%20Feedback"
             >
-              Send us an email
+              please email me.
             </a>
-            .
+            
           </p>
         </CardContent>
       </Card>
