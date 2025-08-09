@@ -13,6 +13,7 @@ let getDocs: typeof import('firebase/firestore').getDocs;
 let getDoc: typeof import('firebase/firestore').getDoc;
 let deleteDoc: typeof import('firebase/firestore').deleteDoc;
 let setDoc: typeof import('firebase/firestore').setDoc;
+let updateDoc: typeof import('firebase/firestore').updateDoc;
 let query: typeof import('firebase/firestore').query;
 let where: typeof import('firebase/firestore').where;
 let orderBy: typeof import('firebase/firestore').orderBy;
@@ -41,7 +42,7 @@ async function ensureFirebase() {
   }
   if (!collection) {
     const firestore = await import('firebase/firestore');
-    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, query, where, orderBy, onSnapshot, Timestamp, limit } = firestore);
+    ({ collection, doc, getDocs, getDoc, deleteDoc, setDoc, updateDoc, query, where, orderBy, onSnapshot, Timestamp, limit } = firestore);
   }
   if (!signInWithPopup) {
     const authModule = await import('firebase/auth');
@@ -902,14 +903,10 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
     goal.currentStreak = newStreak;
     goal.lastCompletedDate = todayStr;
 
-    await setDoc(
-      goalRef,
-      {
-        currentStreak: newStreak,
-        lastCompletedDate: todayStr,
-      },
-      { merge: true }
-    );
+    await updateDoc(goalRef, {
+      currentStreak: newStreak,
+      lastCompletedDate: todayStr,
+    });
   } catch (error) {
     console.error('Error updating daily goal streak:', error);
   }

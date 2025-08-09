@@ -35,6 +35,7 @@ vi.mock('./cache-utils', () => ({
 
 const docMock = vi.fn(() => ({}));
 const setDocMock = vi.fn();
+const updateDocMock = vi.fn();
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
   deleteDoc: vi.fn(),
   setDoc: setDocMock,
+  updateDoc: updateDocMock,
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
@@ -470,10 +472,9 @@ describe('firebase auth utilities', () => {
 
     expect(progress).toEqual({ progress: 1, completed: true, streak: 2 });
 
-    expect(setDocMock).toHaveBeenCalledWith(
+    expect(updateDocMock).toHaveBeenCalledWith(
       expect.any(Object),
-      { currentStreak: 2, lastCompletedDate: todayStr },
-      { merge: true }
+      { currentStreak: 2, lastCompletedDate: todayStr }
     );
 
     const trainingCalls = docMock.mock.calls.filter(args => args.includes('trainingSessions'));
