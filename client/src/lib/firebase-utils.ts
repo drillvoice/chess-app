@@ -884,11 +884,10 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
   try {
     await waitForAuth();
     await ensureUserDoc();
-    const sessionsRef = await getSessionsCollection();
-    const goalRef = doc(sessionsRef, goal.id!);
-    
+    const goalRef = getDailyGoalRef();
+
     let newStreak = 1;
-    
+
     // Check if yesterday was completed to maintain streak
     if (goal.lastCompletedDate) {
       const yesterday = new Date();
@@ -898,13 +897,19 @@ async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise
         newStreak = goal.currentStreak + 1;
       }
     }
-    
-    await setDoc(goalRef, {
-      ...goal,
-      currentStreak: newStreak,
-      lastCompletedDate: todayStr,
-      createdDate: Timestamp.fromDate(goal.createdDate),
-    });
+
+    // Update local goal object for immediate UI reflection
+    goal.currentStreak = newStreak;
+    goal.lastCompletedDate = todayStr;
+
+    await setDoc(
+      goalRef,
+      {
+        currentStreak: newStreak,
+        lastCompletedDate: todayStr,
+      },
+      { merge: true }
+    );
   } catch (error) {
     console.error('Error updating daily goal streak:', error);
   }
