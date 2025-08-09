@@ -423,4 +423,60 @@ describe('firebase auth utilities', () => {
 
     await expect(utils.importData(backup)).rejects.toThrow('Failed to import 1 sessions');
   });
+
+  it('updates daily goal streak without creating training session docs', async () => {
+    const offline = await import('./offline-storage');
+    vi.mocked(offline.offlineStorage.getCacheAge).mockResolvedValue(0);
+
+    const firebaseClient = await import('./firebaseClient');
+    const firestore = await import('firebase/firestore');
+    const authModule = await import('firebase/auth');
+
+    const mockDb = {};
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    (firestore.getDoc as any).mockResolvedValue({
+      exists: () => true,
+      id: 'current',
+      data: () => ({
+        type: 'daily-goal',
+        goalType: 'games-count',
+        target: 1,
+        active: true,
+        createdDate: { toDate: () => today },
+        currentStreak: 1,
+        lastCompletedDate: yesterdayStr,
+      }),
+    });
+
+    const utils = await import('./firebase-utils');
+
+    mockSessions.push({ id: 1, type: 'game', date: today } as any);
+
+    const progress = await utils.getDailyProgress();
+
+    expect(progress).toEqual({ progress: 1, completed: true, streak: 2 });
+
+    expect(setDocMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      { currentStreak: 2, lastCompletedDate: todayStr },
+      { merge: true }
+    );
+
+    const trainingCalls = docMock.mock.calls.filter(args => args.includes('trainingSessions'));
+    expect(trainingCalls.length).toBe(0);
+  });
 });
