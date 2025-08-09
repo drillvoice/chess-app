@@ -30,6 +30,11 @@ describe("data management location", () => {
     expect(screen.getByRole("button", { name: /account/i })).toBeInTheDocument();
   });
 
+  it("shows info tab in navigation", () => {
+    render(<Navigation />);
+    expect(screen.getByRole("button", { name: /info/i })).toBeInTheDocument();
+  });
+
   it("renders data management only on account page", async () => {
     render(<Activity />);
     expect(screen.queryByText(/data management/i)).not.toBeInTheDocument();
