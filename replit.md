@@ -133,17 +133,6 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 
 ## Recent Changes
 
-- July 29, 2025: Implemented daily goals feature with streak tracking
-  - Added daily goal schema with three goal types: tactics-time, games-count, study-time
-  - Created combined goal modal with tabs for weekly and daily goal setting
-  - Added daily goal Firebase utilities for CRUD operations and progress calculation
-  - Implemented daily progress tracking with automatic streak counting
-  - Added daily goal progress display on homepage with progress bar and streak emoji
-  - Combined "Set Weekly Goal" button to "Set Goal" for both weekly and daily goals
-  - Goal types support time targets (10m/15m/30m/60m) and game counts (1/2/3/5)
-  - Streak system with emoji progression: 🔥 (5+ days), ⚡ (10+ days), 💎 (20+ days), 🏆 (50+ days), 👑 (100+ days)
-  - Daily goals reset at midnight with automatic progress calculation from existing training sessions
-
 - July 24, 2025: Enhanced tactics session UI with duration buttons
   - Replaced duration input field with preset duration buttons (5m, 10m, 15m, 20m, 25m, 30m)
   - Improved user experience with common duration selections similar to game logging interface

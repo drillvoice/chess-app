@@ -1,4 +1,4 @@
-import { TrainingSession, InsertTrainingSession, DailyGoal, DailyProgress } from '@shared/schema';
+import { TrainingSession, InsertTrainingSession } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 import { offlineStorage } from './offline-storage';
 import { getFirebaseAuth, getFirestoreDb } from './firebaseClient';
@@ -164,28 +164,21 @@ export async function verifyDataPresence(): Promise<boolean> {
   }
 }
 
-// Firebase operations with true offline-first approach
-function filterOutDailyGoals(sessions: TrainingSession[]): TrainingSession[] {
-  return sessions.filter(session => session.type !== 'daily-goal');
-}
-
 export async function getAllSessions(): Promise<TrainingSession[]> {
   // ALWAYS return cached data immediately if available
   try {
     const cachedSessions = await offlineStorage.getSessions();
-    const filteredCached = filterOutDailyGoals(cachedSessions);
-    if (filteredCached && filteredCached.length > 0) {
+    if (cachedSessions && cachedSessions.length > 0) {
       // Schedule background update but don't wait for it
       queueMicrotask(() => updateSessionsInBackground());
-      return filteredCached;
+      return cachedSessions;
     }
   } catch (error) {
     console.warn('Failed to read from offline storage:', error);
   }
 
   // Only fetch from Firebase if no cached data
-  const freshSessions = await fetchSessionsFromFirebase();
-  return filterOutDailyGoals(freshSessions);
+  return await fetchSessionsFromFirebase();
 }
 
 export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
@@ -218,13 +211,11 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
       date: doc.data().date.toDate(),
     })) as TrainingSession[];
 
-    const filtered = filterOutDailyGoals(sessions);
-
     // Cache in both localStorage and IndexedDB
-    SessionsCache.set(filtered);
-    await offlineStorage.setSessions(filtered);
+    SessionsCache.set(sessions);
+    await offlineStorage.setSessions(sessions);
 
-    return filtered;
+    return sessions;
   } catch (error) {
     console.error('Error getting sessions:', error);
     // Return cached data on error
@@ -733,9 +724,8 @@ export async function startSessionSync(onUpdate?: () => void): Promise<void> {
   if (unsubscribeSessionSync) return;
   try {
     const unsub = await subscribeToSessions(async (sessions) => {
-      const filtered = filterOutDailyGoals(sessions);
-      SessionsCache.set(filtered);
-      await offlineStorage.setSessions(filtered);
+      SessionsCache.set(sessions);
+      await offlineStorage.setSessions(sessions);
       onUpdate?.();
     });
     unsubscribeSessionSync = unsub || null;
@@ -749,179 +739,4 @@ export function stopSessionSync(): void {
     unsubscribeSessionSync();
     unsubscribeSessionSync = null;
   }
-}
-
-// Daily Goal Functions
-function getDailyGoalRef() {
-  if (!currentUserId) throw new Error('User not authenticated');
-  return doc(db, 'users', currentUserId, 'dailyGoal', 'current');
-}
-
-export async function getCurrentDailyGoal(): Promise<DailyGoal | null> {
-  try {
-    await waitForAuth();
-    await ensureUserDoc();
-    const docSnap = await getDoc(getDailyGoalRef());
-    if (!docSnap.exists()) return null;
-
-    const data = docSnap.data();
-
-    return {
-      id: docSnap.id,
-      type: data.type,
-      goalType: data.goalType,
-      target: data.target,
-      active: data.active,
-      createdDate: data.createdDate?.toDate ? data.createdDate.toDate() : new Date(data.createdDate),
-      currentStreak: data.currentStreak || 0,
-      lastCompletedDate: data.lastCompletedDate
-        ? data.lastCompletedDate.toDate
-          ? data.lastCompletedDate.toDate()
-          : new Date(data.lastCompletedDate)
-        : null,
-    } as DailyGoal;
-  } catch (error) {
-    console.error('Error getting daily goal:', error);
-    return null;
-  }
-}
-
-export async function setDailyGoal(goalData: { goalType: DailyGoal['goalType']; target: number }): Promise<void> {
-  try {
-    await waitForAuth();
-    await ensureUserDoc();
-    const goalRef = getDailyGoalRef();
-    const newGoal: Omit<DailyGoal, 'id'> = {
-      type: 'daily-goal',
-      goalType: goalData.goalType,
-      target: goalData.target,
-      active: true,
-      createdDate: new Date(),
-      currentStreak: 0,
-      lastCompletedDate: null,
-    };
-    await setDoc(goalRef, {
-      ...newGoal,
-      createdDate: Timestamp.fromDate(newGoal.createdDate),
-    });
-  } catch (error) {
-    const context = `type: ${goalData.goalType}, target: ${goalData.target}`;
-    console.error(`Error setting daily goal (${context}):`, error);
-    // Rethrow so calling functions can handle the failure
-    throw new Error(
-      `Error setting daily goal (${context}): ${error instanceof Error ? error.message : error}`
-    );
-  }
-}
-
-export async function removeDailyGoal(): Promise<void> {
-  try {
-    await waitForAuth();
-    await ensureUserDoc();
-    await deleteDoc(getDailyGoalRef());
-  } catch (error) {
-    console.error(`Error removing daily goal:`, error);
-    // Rethrow to allow the caller to display the error message
-    throw error;
-  }
-}
-
-export async function getDailyProgress(): Promise<{ progress: number; completed: boolean; streak: number } | null> {
-  try {
-    const dailyGoal = await getCurrentDailyGoal();
-    if (!dailyGoal) return null;
-    
-    const today = new Date();
-    const todayStr = formatDateString(today);
-    
-    // Get today's sessions
-    const sessions = await getAllSessions();
-    const todaySessions = sessions.filter(session => {
-      const sessionDate = new Date(session.date);
-      return formatDateString(sessionDate) === todayStr;
-    });
-    
-    let progress = 0;
-
-    // Calculate progress based on goal type
-    switch (dailyGoal.goalType) {
-      case 'tactics-time':
-        progress = todaySessions
-          .filter(session => session.type === 'tactics')
-          .reduce((sum, session) => sum + (session.duration || 0), 0);
-        break;
-      case 'games-count':
-        progress = todaySessions.filter(session => session.type === 'game').length;
-        break;
-      case 'study-time':
-        progress = todaySessions
-          .filter(session => session.type === 'study')
-          .reduce((sum, session) => sum + (session.duration || 0), 0);
-        break;
-    }
-    
-    const completed = progress >= dailyGoal.target;
-    
-    // Update streak if goal was completed and it's a new day
-    if (
-      completed &&
-      (!dailyGoal.lastCompletedDate || formatDateString(dailyGoal.lastCompletedDate) !== todayStr)
-    ) {
-      await updateDailyGoalStreak(dailyGoal, todayStr);
-    }
-    
-    return {
-      progress,
-      completed,
-      streak: dailyGoal.currentStreak,
-    };
-  } catch (error) {
-    console.error('Error getting daily progress:', error);
-    return null;
-  }
-}
-
-async function updateDailyGoalStreak(goal: DailyGoal, todayStr: string): Promise<void> {
-  try {
-    await waitForAuth();
-    await ensureUserDoc();
-    const goalRef = getDailyGoalRef();
-
-    let newStreak = 1;
-
-    // Check if yesterday was completed to maintain streak
-    if (goal.lastCompletedDate) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      if (formatDateString(goal.lastCompletedDate) === formatDateString(yesterday)) {
-        newStreak = goal.currentStreak + 1;
-      }
-    }
-
-    // Update local goal object for immediate UI reflection
-    goal.currentStreak = newStreak;
-    goal.lastCompletedDate = todayStr;
-
-    await updateDoc(goalRef, {
-      currentStreak: newStreak,
-      lastCompletedDate: todayStr,
-    });
-  } catch (error) {
-    console.error('Error updating daily goal streak:', error);
-  }
-}
-
-function formatDateString(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
-}
-
-export function getStreakEmoji(streak: number): string {
-  if (streak < 5) return '';
-  if (streak < 10) return '🔥';
-  if (streak < 20) return '⚡';
-  if (streak < 50) return '💎';
-  if (streak < 100) return '🏆';
-  return '👑';
 }
