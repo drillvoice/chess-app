@@ -304,7 +304,7 @@ export default function Home() {
       {/* Version Control Note */}
       <div className="text-center mt-8 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500">
-          Pawn Star Chess Log v1.1.0 - August 4, 2025
+          Pawn Star Chess Log v1.1.1 - August 9, 2025
         </p>
       </div>
     </div>
