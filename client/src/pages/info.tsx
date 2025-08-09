@@ -5,14 +5,19 @@ export default function Info() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>About <em></em>Pawn Star</em></CardTitle>
+          <CardTitle>
+            About <em>Pawn Star</em>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">
-            Pawn Star is an app to help you get the most out of your chess practice. 
-            Playing games and studying tactics is essential to improve at chess. 
-            And you can get even more out of it when you track your progress and review how you are going. 
-            This approach is inspired by <a href="https://nextlevelchess.com/free-ebook/" target="_blank"><em>The Art of Chess Training</em></a> by GM Noël Studer.
+            Pawn Star is an app to help you get the most out of your chess practice. Playing games and studying tactics is
+            essential to improve at chess. And you can get even more out of it when you track your progress and review how you
+            are going. This approach is inspired by
+            <a href="https://nextlevelchess.com/free-ebook/" target="_blank">
+              <em>The Art of Chess Training</em>
+            </a>
+            by GM Noël Studer.
           </p>
         </CardContent>
       </Card>
