@@ -1,13 +1,12 @@
 import { useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Puzzle, Crown, Book, Target } from "lucide-react";
-import { TacticsModal, GameModal, StudyModal } from "@/components/lazy-components";
-import CombinedGoalModal from "@/components/modals/combined-goal-modal";
+import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
 import InstallPrompt from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { TrainingSession, DailyGoal } from "@shared/schema";
+import type { TrainingSession } from "@shared/schema";
 
 interface Statistics {
   totalHours: number;
@@ -44,29 +43,6 @@ export default function Home() {
     staleTime: 300000, // Cache for 5 minutes (goals don't change often)
     refetchInterval: 300000,
     refetchOnWindowFocus: true,
-  });
-
-  const { data: dailyGoal } = useQuery<DailyGoal | null>({
-    queryKey: ["daily-goal"],
-    queryFn: async () => {
-      const { getCurrentDailyGoal } = await import("@/lib/firebase-utils");
-      return await getCurrentDailyGoal();
-    },
-    staleTime: 30000, // Reduced cache time for faster updates
-    refetchInterval: 30000,
-    refetchOnWindowFocus: true,
-  });
-
-  const { data: dailyProgress } = useQuery<{ progress: number; completed: boolean; streak: number } | null>({
-    queryKey: ["daily-progress"],
-    queryFn: async () => {
-      const { getDailyProgress } = await import("@/lib/firebase-utils");
-      return await getDailyProgress();
-    },
-    staleTime: 30000, // Cache for 30 seconds (progress updates frequently)
-    refetchInterval: 30000,
-    refetchOnWindowFocus: true,
-    enabled: !!dailyGoal, // Only run if there's a daily goal
   });
 
   const isGoalOld = weeklyGoal && (weeklyGoal as any).goalWeekStart ? 
@@ -127,79 +103,13 @@ export default function Home() {
                 size="sm"
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
-                Set Goal
+                    Set Weekly Goal
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Daily Goal Progress */}
-      {dailyGoal && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-start space-x-3">
-              <Target className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-800">
-                    Today's Goal: {
-                      dailyGoal.goalType === 'tactics-time' ? 'Tactics' :
-                      dailyGoal.goalType === 'games-count' ? 'Games' : 'Study'
-                    }
-                  </h3>
-                  {dailyProgress && dailyProgress.streak > 0 && (
-                    <div className="flex items-center space-x-1">
-                      <span className="text-lg">
-                        {(() => {
-                          if (dailyProgress.streak < 5) return '';
-                          if (dailyProgress.streak < 10) return '🔥';
-                          if (dailyProgress.streak < 20) return '⚡';
-                          if (dailyProgress.streak < 50) return '💎';
-                          if (dailyProgress.streak < 100) return '🏆';
-                          return '👑';
-                        })()}
-                      </span>
-                      <span className="text-sm font-medium text-blue-700">
-                        {dailyProgress.streak} day{dailyProgress.streak !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                {dailyProgress ? (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Progress: {dailyProgress.progress} / {dailyGoal.target}
-                        {dailyGoal.goalType === 'games-count' ? ' games' : ' minutes'}
-                      </span>
-                      <span className={`font-medium ${dailyProgress.completed ? 'text-green-600' : 'text-gray-600'}`}>
-                        {Math.round((dailyProgress.progress / dailyGoal.target) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-blue-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          dailyProgress.completed ? 'bg-green-500' : 'bg-blue-500'
-                        }`}
-                        style={{ width: `${Math.min((dailyProgress.progress / dailyGoal.target) * 100, 100)}%` }}
-                      />
-                    </div>
-                    {dailyProgress.completed && (
-                      <p className="text-sm text-green-600 font-medium">🎉 Goal completed!</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full bg-blue-200 rounded-full h-2">
-                    <div className="w-0 h-2 bg-blue-500 rounded-full" />
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="space-y-4">
         <Button
@@ -248,8 +158,8 @@ export default function Home() {
           <div className="flex items-center justify-center space-x-3">
             <Target className="w-8 h-8" />
             <div className="text-left">
-              <div className="text-lg">Set Goal</div>
-              <div className="text-sm opacity-90">Daily & Weekly</div>
+              <div className="text-lg">Set Weekly Goal</div>
+              <div className="text-sm opacity-90">Plan your week</div>
             </div>
           </div>
         </Button>
@@ -295,8 +205,8 @@ export default function Home() {
           open={studyModalOpen} 
           onOpenChange={setStudyModalOpen}
         />
-        <CombinedGoalModal 
-          open={goalModalOpen} 
+        <GoalModal
+          open={goalModalOpen}
           onOpenChange={setGoalModalOpen}
         />
       </Suspense>

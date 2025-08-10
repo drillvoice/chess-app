@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { TrainingSession, DailyGoal } from "@shared/schema";
+import type { TrainingSession } from "@shared/schema";
 import {
   TacticsModal,
   GameModal,
@@ -64,16 +64,6 @@ export default function Activity() {
     refetchOnWindowFocus: true,
   });
 
-  const { data: dailyGoal } = useQuery<DailyGoal | null>({
-    queryKey: ["daily-goal"],
-    queryFn: async () => {
-      const { getCurrentDailyGoal } = await import("@/lib/firebase-utils");
-      return await getCurrentDailyGoal();
-    },
-    staleTime: 60000,
-    refetchInterval: 60000,
-    refetchOnWindowFocus: true,
-  });
 
   const deleteSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
@@ -241,19 +231,6 @@ export default function Activity() {
         return "text-purple-600";
       default:
         return "text-gray-800";
-    }
-  };
-
-  const formatDailyGoal = (goal: DailyGoal) => {
-    switch (goal.goalType) {
-      case "tactics-time":
-        return `${goal.target} min tactics`;
-      case "games-count":
-        return `${goal.target} game${goal.target === 1 ? "" : "s"}`;
-      case "study-time":
-        return `${goal.target} min study`;
-      default:
-        return "";
     }
   };
 
@@ -428,31 +405,6 @@ export default function Activity() {
       </div>
 
       <div className="space-y-6">
-        {dailyGoal && (filter === "all" || filter === "goal") && (
-          <Card className="border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100">
-                    <Target className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-800">Daily Goal</div>
-                    <div className="text-sm text-gray-600">{formatDailyGoal(dailyGoal)}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-purple-600">
-                    {dailyGoal.currentStreak} day{dailyGoal.currentStreak === 1 ? "" : "s"} streak
-                  </div>
-                  {dailyGoal.lastCompletedDate && (
-                    <div className="text-xs text-gray-500">{formatDate(dailyGoal.lastCompletedDate)}</div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
         {filteredSessions.length === 0 ? (
           <Card className="border-gray-200">
             <CardContent className="p-8 text-center">

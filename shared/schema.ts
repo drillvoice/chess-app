@@ -120,28 +120,6 @@ export const goalSessionSchema = insertTrainingSessionSchema.extend({
   studyNotes: true,
 });
 
-// Daily Goal Schema
-export const dailyGoalSchema = z.object({
-  id: z.string().optional(), // Firebase document ID
-  type: z.literal('daily-goal'),
-  goalType: z.enum(['tactics-time', 'games-count', 'study-time']),
-  target: z.number().min(1),
-  active: z.boolean().default(true),
-  createdDate: z.date(),
-  currentStreak: z.number().default(0),
-  lastCompletedDate: z.string().nullable().default(null), // YYYY-MM-DD format
-});
-
-export const dailyProgressSchema = z.object({
-  date: z.string(), // YYYY-MM-DD format
-  goalId: z.string(),
-  achieved: z.number(),
-  completed: z.boolean(),
-});
-
-export type DailyGoal = z.infer<typeof dailyGoalSchema>;
-export type DailyProgress = z.infer<typeof dailyProgressSchema>;
-
 export type InsertTrainingSession = z.infer<typeof insertTrainingSessionSchema>;
 export type TacticsSession = z.infer<typeof tacticsSessionSchema>;
 export type GameSession = z.infer<typeof gameSessionSchema>;
