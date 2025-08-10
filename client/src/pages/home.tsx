@@ -2,6 +2,7 @@ import { useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Puzzle, Crown, Book, Target } from "lucide-react";
 import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
+import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -109,6 +110,8 @@ export default function Home() {
           </CardContent>
         </Card>
       )}
+
+      <DailyGoalsMVP />
 
 
       <div className="space-y-4">
