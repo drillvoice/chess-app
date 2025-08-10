@@ -95,6 +95,22 @@ export default function DailyGoalsMVP() {
             </span>
           </div>
 
+          {/* Game */}
+          <div 
+            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/50 cursor-pointer transition-colors"
+            onClick={() => toggleItem('game')}
+          >
+            {checklist.game ? (
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            ) : (
+              <Circle className="w-5 h-5 text-gray-400" />
+            )}
+            <Crown className="w-4 h-4 text-emerald-600" />
+            <span className={`flex-1 ${checklist.game ? 'text-green-700 line-through' : 'text-gray-700'}`}>
+              Play a game
+            </span>
+          </div>
+
           {/* Study */}
           <div 
             className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/50 cursor-pointer transition-colors"
@@ -111,21 +127,8 @@ export default function DailyGoalsMVP() {
             </span>
           </div>
 
-          {/* Game */}
-          <div 
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/50 cursor-pointer transition-colors"
-            onClick={() => toggleItem('game')}
-          >
-            {checklist.game ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            ) : (
-              <Circle className="w-5 h-5 text-gray-400" />
-            )}
-            <Crown className="w-4 h-4 text-emerald-600" />
-            <span className={`flex-1 ${checklist.game ? 'text-green-700 line-through' : 'text-gray-700'}`}>
-              Play a game
-            </span>
-          </div>
+          
+
         </div>
 
         {allComplete && (
