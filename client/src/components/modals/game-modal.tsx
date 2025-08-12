@@ -58,7 +58,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
     mutationFn: async (data: GameSession) => {
       const { createSession, updateSession } = await import("@/lib/firebase-utils");
       if (isEditMode && editingSession) {
-        return await updateSession(editingSession.id, data);
+        return await updateSession(editingSession.id, { ...data, needsReview: false });
       }
       return await createSession(data);
     },
@@ -155,6 +155,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
       queryClient.invalidateQueries({ queryKey: ["statistics"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-review"] });
     },
     onError: (error: any, _newSession, context) => {
       // Check if it's a timeout error but session might have been saved
