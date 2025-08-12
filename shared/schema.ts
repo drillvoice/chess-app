@@ -18,6 +18,7 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   playerColor: text("player_color"), // 'white', 'black'
   platform: text("platform"), // 'lichess', 'chess.com', 'otb'
   timeControl: text("time_control"), // '5+3', '10+5', '10', '15+10'
+  needsReview: boolean("needs_review").notNull().default(false),
   // Study specific fields
   studyType: text("study_type"), // 'video', 'book', 'analysis', 'opening', 'endgame'
   studyNotes: text("study_notes"),

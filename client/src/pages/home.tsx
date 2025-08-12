@@ -1,5 +1,5 @@
-import { useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useState, Suspense } from "react";
 import { Puzzle, Crown, Book, Target } from "lucide-react";
 import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
@@ -23,6 +23,7 @@ export default function Home() {
   const [gameModalOpen, setGameModalOpen] = useState(false);
   const [studyModalOpen, setStudyModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ["statistics"],
@@ -46,6 +47,15 @@ export default function Home() {
     refetchOnWindowFocus: true,
   });
 
+  const { data: pendingSessions } = useQuery<TrainingSession[]>({
+    queryKey: ["pending-review"],
+    queryFn: async () => {
+      const { getSessionsNeedingReview } = await import("@/lib/firebase-utils");
+      return await getSessionsNeedingReview();
+    },
+    refetchOnWindowFocus: true,
+  });
+
   const isGoalOld = weeklyGoal && (weeklyGoal as any).goalWeekStart ? 
     (new Date().getTime() - new Date((weeklyGoal as any).goalWeekStart).getTime()) > (7 * 24 * 60 * 60 * 1000) : false;
 
@@ -57,6 +67,24 @@ export default function Home() {
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Log Your Training</h2>
         <p className="text-gray-600 text-sm">Track your chess improvement journey</p>
       </div>
+
+      {pendingSessions && pendingSessions.length > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4 space-y-2">
+            <h3 className="font-semibold text-gray-800">Games needing review</h3>
+            {pendingSessions.map(session => (
+              <div key={session.id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700">
+                  {session.date instanceof Date ? session.date.toLocaleDateString() : new Date(session.date).toLocaleDateString()}
+                </span>
+                <Button size="sm" onClick={() => { setEditingSession(session); setGameModalOpen(true); }}>
+                  Add Notes
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {weeklyGoal ? (
         <Card className="bg-purple-50 border-purple-200">
@@ -200,9 +228,14 @@ export default function Home() {
           open={tacticsModalOpen} 
           onOpenChange={setTacticsModalOpen}
         />
-        <GameModal 
-          open={gameModalOpen} 
-          onOpenChange={setGameModalOpen}
+        <GameModal
+          open={gameModalOpen}
+          onOpenChange={(open) => {
+            setGameModalOpen(open);
+            if (!open) setEditingSession(undefined);
+          }}
+          editingSession={editingSession}
+          isEditMode={!!editingSession}
         />
         <StudyModal 
           open={studyModalOpen} 
