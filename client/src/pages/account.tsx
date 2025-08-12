@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { DataManagement } from "@/components/lazy-components";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import LichessSettings from "@/components/lichess-settings";
 
 export default function Account() {
   return (
@@ -15,6 +16,7 @@ export default function Account() {
           </p>
         </CardContent>
       </Card>
+      <LichessSettings />
       <Suspense fallback={<div>Loading account data...</div>}>
         <DataManagement />
       </Suspense>

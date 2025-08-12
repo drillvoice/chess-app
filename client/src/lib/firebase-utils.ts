@@ -740,3 +740,47 @@ export function stopSessionSync(): void {
     unsubscribeSessionSync = null;
   }
 }
+
+// ---------------------- User Settings ----------------------
+
+export interface UserSettings {
+  lichessUsername?: string;
+}
+
+// Retrieve user settings, preferring cached offline data when available
+export async function getUserSettings(): Promise<UserSettings> {
+  try {
+    const cached = await offlineStorage.getSettings();
+    if (cached) {
+      return cached as UserSettings;
+    }
+  } catch (error) {
+    console.warn('Failed to read settings from offline storage:', error);
+  }
+
+  await waitForAuth();
+
+  try {
+    const settingsRef = doc(db, 'users', currentUserId!, 'settings');
+    const snapshot = await getDoc(settingsRef);
+    const settings = snapshot.exists() ? (snapshot.data() as UserSettings) : {};
+    await offlineStorage.setSettings(settings);
+    return settings;
+  } catch (error) {
+    console.error('Error getting user settings:', error);
+    return {};
+  }
+}
+
+// Update user settings in Firestore and offline storage
+export async function updateUserSettings(settings: UserSettings): Promise<void> {
+  await waitForAuth();
+  try {
+    const settingsRef = doc(db, 'users', currentUserId!, 'settings');
+    await setDoc(settingsRef, settings, { merge: true });
+    await offlineStorage.setSettings(settings);
+  } catch (error) {
+    console.error('Error updating user settings:', error);
+    throw error;
+  }
+}

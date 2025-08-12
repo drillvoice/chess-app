@@ -7,6 +7,10 @@ vi.mock("@/components/lazy-components", () => ({
   DataManagement: () => <div>Data Management</div>,
 }));
 
+vi.mock("@/components/lichess-settings", () => ({
+  default: () => <div>Lichess Settings</div>,
+}));
+
 vi.mock("@/lib/firebase-utils", () => ({
   getStatistics: async () => ({ totalHours: 0, totalSessions: 0, tacticsRating: 0, winRate: 0 }),
   getAllSessions: async () => [],

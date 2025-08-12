@@ -3,7 +3,8 @@ import { TrainingSession } from '@shared/schema';
 // IndexedDB wrapper for better performance than localStorage
 class OfflineStorage {
   private dbName = 'chess-logger-offline';
-  private version = 1;
+  // Increment version when adding new object stores
+  private version = 2;
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
@@ -18,22 +19,27 @@ class OfflineStorage {
       
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        
+
         // Sessions store
         if (!db.objectStoreNames.contains('sessions')) {
           const sessionsStore = db.createObjectStore('sessions', { keyPath: 'id' });
           sessionsStore.createIndex('date', 'date', { unique: false });
           sessionsStore.createIndex('type', 'type', { unique: false });
         }
-        
+
         // Cache metadata store
         if (!db.objectStoreNames.contains('cache_meta')) {
           db.createObjectStore('cache_meta', { keyPath: 'key' });
         }
-        
+
         // Statistics store
         if (!db.objectStoreNames.contains('statistics')) {
           db.createObjectStore('statistics', { keyPath: 'id' });
+        }
+
+        // Settings store for user preferences
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings', { keyPath: 'id' });
         }
       };
     });
@@ -193,6 +199,33 @@ class OfflineStorage {
     });
   }
 
+  async getSettings(): Promise<any> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['settings'], 'readonly');
+      const store = transaction.objectStore('settings');
+      const request = store.get('current');
+
+      request.onsuccess = () => resolve(request.result?.data || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async setSettings(settings: any): Promise<void> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['settings', 'cache_meta'], 'readwrite');
+      const settingsStore = transaction.objectStore('settings');
+      const metaStore = transaction.objectStore('cache_meta');
+
+      settingsStore.put({ id: 'current', data: settings });
+      metaStore.put({ key: 'settings_last_updated', timestamp: Date.now() });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
   async getCacheAge(key: string): Promise<number> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
@@ -219,12 +252,13 @@ class OfflineStorage {
   async clearAll(): Promise<void> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['sessions', 'statistics', 'cache_meta'], 'readwrite');
-      
+      const transaction = db.transaction(['sessions', 'statistics', 'settings', 'cache_meta'], 'readwrite');
+
       transaction.objectStore('sessions').clear();
       transaction.objectStore('statistics').clear();
+      transaction.objectStore('settings').clear();
       transaction.objectStore('cache_meta').clear();
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
