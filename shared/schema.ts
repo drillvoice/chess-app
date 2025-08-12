@@ -18,6 +18,7 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   playerColor: text("player_color"), // 'white', 'black'
   platform: text("platform"), // 'lichess', 'chess.com', 'otb'
   timeControl: text("time_control"), // '5+3', '10+5', '10', '15+10'
+  needsReview: boolean("needs_review").notNull().default(false),
   // Study specific fields
   studyType: text("study_type"), // 'video', 'book', 'analysis', 'opening', 'endgame'
   studyNotes: text("study_notes"),
@@ -27,9 +28,13 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   goalWeekStart: timestamp("goal_week_start"),
 });
 
-export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTable).omit({
-  id: true,
-});
+export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTable)
+  .omit({
+    id: true,
+  })
+  .extend({
+    needsReview: z.boolean().optional(),
+  });
 
 export const tacticsSessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('tactics'),

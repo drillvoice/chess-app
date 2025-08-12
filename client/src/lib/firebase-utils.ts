@@ -335,6 +335,7 @@ export async function createSession(
     id: sessionId,
     date: sessionDate,
     createdAt: now,
+    needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
 
   // Immediately update local cache for instant feedback
@@ -363,7 +364,8 @@ export async function createSession(
       ...insertSession,
       id: sessionId,
       date: Timestamp.fromDate(sessionDate),
-      createdAt: Timestamp.fromDate(now)
+      createdAt: Timestamp.fromDate(now),
+      needsReview: insertSession.needsReview ?? false,
     };
 
     const docRef = doc(sessionsRef, sessionId.toString());

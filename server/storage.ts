@@ -66,7 +66,11 @@ export class MemStorage implements IStorage {
       studyNotes: insertSession.studyNotes ?? null,
       goalTitle: insertSession.goalTitle ?? null,
       goalDescription: insertSession.goalDescription ?? null,
-      goalWeekStart: insertSession.type === 'goal' && !insertSession.goalWeekStart ? new Date() : (insertSession.goalWeekStart ?? null),
+      goalWeekStart:
+        insertSession.type === 'goal' && !insertSession.goalWeekStart
+          ? new Date()
+          : insertSession.goalWeekStart ?? null,
+      needsReview: insertSession.needsReview ?? false,
     };
     this.sessions.set(id, session);
     return session;

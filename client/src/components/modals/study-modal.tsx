@@ -92,6 +92,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
+          needsReview: false,
         };
 
         queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) =>
@@ -120,6 +121,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
+          needsReview: false,
         };
 
         queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
