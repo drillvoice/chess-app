@@ -795,7 +795,7 @@ export async function getUserSettings(): Promise<UserSettings> {
   await waitForAuth();
 
   try {
-    const settingsRef = doc(db, 'users', currentUserId!, 'settings');
+    const settingsRef = doc(db, 'users', currentUserId!, 'settings', 'settings');
     const snapshot = await getDoc(settingsRef);
     const settings = snapshot.exists() ? (snapshot.data() as UserSettings) : {};
     await offlineStorage.setSettings(settings);
@@ -810,7 +810,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function updateUserSettings(settings: UserSettings): Promise<void> {
   await waitForAuth();
   try {
-    const settingsRef = doc(db, 'users', currentUserId!, 'settings');
+    const settingsRef = doc(db, 'users', currentUserId!, 'settings', 'settings');
     await setDoc(settingsRef, settings, { merge: true });
     await offlineStorage.setSettings(settings);
   } catch (error) {

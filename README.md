@@ -11,6 +11,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 - **Statistics Dashboard**: Track your progress over time
 - **Data Export**: Backup your training data
 - **Clear Local Data Option**: Disabling cloud sync retains existing data locally; clear it manually when needed
+- **Automatic Lichess Game Import**: Link a Lichess account to automatically add new games to your log
 
 ## Tech Stack
 
@@ -130,6 +131,12 @@ The app uses a hybrid storage approach:
 - **IndexedDB**: Primary offline storage
 - **Firebase Firestore**: Cloud sync for cross-device access
 - **File System API**: Optional local backup
+
+## Automatic Lichess game import
+
+1. Open **Account → Lichess** and enter your Lichess username.
+2. Newly finished games on Lichess are fetched and saved as `game` training sessions.
+3. Each imported game stores its duration in minutes, so your statistics dashboard adds this time to `totalHours` automatically.
 
 ## PWA Features
 

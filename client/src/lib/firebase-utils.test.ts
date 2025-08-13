@@ -24,6 +24,8 @@ vi.mock('./offline-storage', () => ({
     setStatistics: vi.fn().mockResolvedValue(undefined),
     clearStatistics: vi.fn(),
     getCacheAge: vi.fn(),
+    getSettings: vi.fn(),
+    setSettings: vi.fn(),
   },
 }));
 
@@ -166,6 +168,25 @@ describe('firebase auth utilities', () => {
     expect(authModule.signInWithPopup).toHaveBeenCalled();
     expect(authModule.linkWithCredential).toHaveBeenCalled();
     expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123');
+  });
+
+  it('updateUserSettings writes settings to Firestore and cache', async () => {
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const utils = await import('./firebase-utils');
+    await utils.refreshAuthState();
+
+    const offline = await import('./offline-storage');
+
+    await utils.updateUserSettings({ lichessUsername: 'abc' });
+
+    expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123', 'settings', 'settings');
+    expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'abc' }, { merge: true });
+    expect(offline.offlineStorage.setSettings).toHaveBeenCalledWith({ lichessUsername: 'abc' });
   });
 
   it('updates currentUserId on sign-out', async () => {
