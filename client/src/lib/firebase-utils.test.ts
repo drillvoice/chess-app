@@ -406,4 +406,85 @@ describe('firebase auth utilities', () => {
     await expect(utils.importData(backup)).rejects.toThrow('Failed to import 1 sessions');
   });
 
+  // Add these tests before the closing bracket of the main describe block
+
+  it('updateUserSettings handles offline cache failure gracefully', async () => {
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const offline = await import('./offline-storage');
+    // Make offline storage fail
+    vi.mocked(offline.offlineStorage.setSettings).mockRejectedValue(new Error('Offline storage failed'));
+
+    const utils = await import('./firebase-utils');
+    await utils.refreshAuthState();
+
+    // Should not throw even though offline cache fails
+    await expect(utils.updateUserSettings({ lichessUsername: 'testuser' })).resolves.not.toThrow();
+
+    // Firestore should still be called
+    expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123', 'settings', 'settings');
+    expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'testuser' }, { merge: true });
+  });
+
+  it('updateUserSettings throws SettingsError when Firestore fails', async () => {
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    // Make Firestore fail
+    setDocMock.mockRejectedValue(new Error('Firestore failed'));
+
+    const utils = await import('./firebase-utils');
+    await utils.refreshAuthState();
+
+    await expect(utils.updateUserSettings({ lichessUsername: 'testuser' })).rejects.toThrow('Failed to save to cloud storage');
+  });
+
+  it('getUserSettings throws SettingsError when Firestore fails and no cache', async () => {
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const offline = await import('./offline-storage');
+    // No cached data
+    vi.mocked(offline.offlineStorage.getSettings).mockResolvedValue(null);
+    
+    const firestoreModule = await import('firebase/firestore');
+    // Make Firestore fail
+    (firestoreModule.getDoc as any).mockRejectedValue(new Error('Firestore failed'));
+
+    const utils = await import('./firebase-utils');
+
+    await expect(utils.getUserSettings()).rejects.toThrow('Failed to load settings');
+  });
+
+  it('validates that settings merge properly', async () => {
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('./firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const utils = await import('./firebase-utils');
+    await utils.refreshAuthState();
+
+    await utils.updateUserSettings({ lichessUsername: 'newuser' });
+
+    // Verify merge: true is used to preserve other settings
+    expect(setDocMock).toHaveBeenCalledWith(
+      {},
+      { lichessUsername: 'newuser' },
+      { merge: true }
+    );
+  });
+
+
 });

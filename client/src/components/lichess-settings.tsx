@@ -4,66 +4,168 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { getUserSettings, updateUserSettings } from "@/lib/firebase-utils";
+import { getUserSettings, updateUserSettings, SettingsError } from "@/lib/firebase-utils";
 
 export default function LichessSettings() {
   const [username, setUsername] = useState("");
+  const [originalUsername, setOriginalUsername] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Validation function
+  const validateUsername = (username: string): string | null => {
+    const trimmed = username.trim();
+    if (!trimmed) return null; // Allow empty username
+    if (trimmed.length < 3) return "Username must be at least 3 characters";
+    if (trimmed.length > 20) return "Username must be 20 characters or less";
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      return "Username can only contain letters, numbers, underscores, and hyphens";
+    }
+    return null;
+  };
+
+  // Load settings on component mount
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    
+    const loadSettings = async () => {
       try {
+        setLoadError(null);
         const settings = await getUserSettings();
         if (mounted && settings?.lichessUsername) {
           setUsername(settings.lichessUsername);
+          setOriginalUsername(settings.lichessUsername);
         }
-      } catch (err) {
-        console.warn("Failed to load settings", err);
+      } catch (error) {
+        console.warn("Failed to load settings", error);
+        if (mounted) {
+          const errorMessage = error instanceof SettingsError 
+            ? "Could not load your Lichess username from cloud storage"
+            : "Failed to load settings";
+          setLoadError(errorMessage);
+        }
       }
-    })();
+    };
+
+    loadSettings();
+    
     return () => {
       mounted = false;
     };
   }, []);
 
+  // Validate username as user types
+  useEffect(() => {
+    const error = validateUsername(username);
+    setValidationError(error);
+  }, [username]);
+
   const handleSave = async () => {
-    try {
-      await updateUserSettings({ lichessUsername: username });
+    // Don't save if there's a validation error
+    if (validationError) {
       toast({
-        title: "Saved",
-        description: "Lichess username updated",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save username",
+        title: "Invalid Username",
+        description: validationError,
         variant: "destructive",
       });
+      return;
+    }
+
+    // Don't save if nothing changed
+    if (username.trim() === originalUsername) {
+      toast({
+        title: "No Changes",
+        description: "Username is already saved",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      await updateUserSettings({ lichessUsername: username.trim() });
+      setOriginalUsername(username.trim());
+      toast({
+        title: "Saved",
+        description: "Lichess username updated successfully",
+      });
+    } catch (error) {
+      console.error("Save error:", error);
+      
+      let errorTitle = "Error";
+      let errorMessage = "Failed to save username";
+      
+      if (error instanceof SettingsError) {
+        errorTitle = "Save Failed";
+        errorMessage = error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: errorTitle,
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    }
+  };
+
+  const hasUnsavedChanges = username.trim() !== originalUsername;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Lichess</CardTitle>
+        <CardTitle>Lichess Integration</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1">
-            <Label htmlFor="lichess-username" className="sr-only">
-              Lichess Username
-            </Label>
-            <Input
-              id="lichess-username"
-              placeholder="Lichess username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
+        <div className="space-y-4">
+          {loadError && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              {loadError}
+            </div>
+          )}
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              <Label htmlFor="lichess-username" className="sr-only">
+                Lichess Username
+              </Label>
+              <Input
+                id="lichess-username"
+                placeholder="Enter your Lichess username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={isLoading}
+                className={validationError ? "border-red-500" : ""}
+              />
+              {validationError && (
+                <p className="text-sm text-red-600 mt-1">{validationError}</p>
+              )}
+            </div>
+            
+            <Button 
+              onClick={handleSave} 
+              disabled={isLoading || !!validationError || !hasUnsavedChanges}
+              className="shrink-0"
+            >
+              {isLoading ? "Saving..." : "Save"}
+            </Button>
           </div>
-          <Button onClick={handleSave} className="shrink-0">
-            Save
-          </Button>
+          
+          <p className="text-xs text-gray-600">
+            Link your Lichess account to automatically import completed games into your training log.
+          </p>
         </div>
       </CardContent>
     </Card>

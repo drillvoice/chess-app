@@ -3,6 +3,13 @@ import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 import { offlineStorage } from './offline-storage';
 import { getFirebaseAuth, getFirestoreDb } from './firebaseClient';
 
+export class SettingsError extends Error {
+  constructor(message: string, public cause?: Error) {
+    super(message);
+    this.name = 'SettingsError';
+  }
+}
+
 // Dynamic Firebase imports with caching
 let auth: Awaited<ReturnType<typeof getFirebaseAuth>>;
 let db: Awaited<ReturnType<typeof getFirestoreDb>>;
@@ -783,6 +790,7 @@ export interface UserSettings {
 
 // Retrieve user settings, preferring cached offline data when available
 export async function getUserSettings(): Promise<UserSettings> {
+  // Try cached data first for instant loading
   try {
     const cached = await offlineStorage.getSettings();
     if (cached) {
@@ -792,29 +800,51 @@ export async function getUserSettings(): Promise<UserSettings> {
     console.warn('Failed to read settings from offline storage:', error);
   }
 
-  await waitForAuth();
-
+  // No cached data, fetch from Firestore
   try {
+    await waitForAuth();
     const settingsRef = doc(db, 'users', currentUserId!, 'settings', 'settings');
     const snapshot = await getDoc(settingsRef);
     const settings = snapshot.exists() ? (snapshot.data() as UserSettings) : {};
-    await offlineStorage.setSettings(settings);
+    
+    // Cache the result
+    try {
+      await offlineStorage.setSettings(settings);
+    } catch (cacheError) {
+      console.warn('Failed to cache settings offline:', cacheError);
+    }
+    
     return settings;
   } catch (error) {
-    console.error('Error getting user settings:', error);
-    return {};
+    console.error('Error getting user settings from Firestore:', error);
+    if (error instanceof Error) {
+      throw new SettingsError('Failed to load settings from cloud storage', error);
+    }
+    throw new SettingsError('Failed to load settings');
   }
 }
 
 // Update user settings in Firestore and offline storage
 export async function updateUserSettings(settings: UserSettings): Promise<void> {
   await waitForAuth();
+  
+  // Save to Firestore first - this is the critical operation
   try {
     const settingsRef = doc(db, 'users', currentUserId!, 'settings', 'settings');
     await setDoc(settingsRef, settings, { merge: true });
+  } catch (error) {
+    console.error('Error updating user settings in Firestore:', error);
+    if (error instanceof Error) {
+      throw new SettingsError('Failed to save to cloud storage', error);
+    }
+    throw new SettingsError('Failed to save to cloud storage');
+  }
+  
+  // Cache offline separately - don't fail the operation if this fails
+  try {
     await offlineStorage.setSettings(settings);
   } catch (error) {
-    console.error('Error updating user settings:', error);
-    throw error;
+    console.warn('Failed to cache settings offline, but cloud save succeeded:', error);
+    // Don't throw - the main save succeeded
   }
 }

@@ -132,11 +132,28 @@ The app uses a hybrid storage approach:
 - **Firebase Firestore**: Cloud sync for cross-device access
 - **File System API**: Optional local backup
 
-## Automatic Lichess game import
+## Lichess Integration
 
-1. Open **Account → Lichess** and enter your Lichess username.
-2. Newly finished games on Lichess are fetched and saved as `game` training sessions.
-3. Each imported game stores its duration in minutes, so your statistics dashboard adds this time to `totalHours` automatically.
+### Setup
+1. Navigate to **Account → Lichess** in the app
+2. Enter your Lichess username (3-20 characters, letters, numbers, underscores, hyphens only)
+3. Click "Save" to store your username
+
+### Features
+- Automatic import of newly finished games from Lichess
+- Games are saved as `game` training sessions with duration tracking
+- Imported time contributes to your total training hours in statistics
+- Works offline - settings are cached locally and synced when online
+
+### Troubleshooting
+- **"Failed to save username"**: Check your internet connection and try again
+- **"Could not load username"**: Your username is still saved locally, it will sync when connection is restored
+- **Validation errors**: Username must be 3-20 characters and contain only letters, numbers, underscores, and hyphens
+- **No games importing**: Verify your username is correct and you have recent games on Lichess
+
+### Privacy
+- Only your username is stored, no passwords or personal data
+- Username is used solely to fetch your public game history from Lichess API
 
 ## PWA Features
 
