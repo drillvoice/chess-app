@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -183,6 +183,19 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
     },
   });
 
+  useEffect(() => {
+    if (isEditMode && editingSession) {
+      setSelectedResult(
+        (editingSession.gameResult as "win" | "loss" | "draw" | null) ?? null
+      );
+      setSelectedColor(
+        (editingSession.playerColor as "white" | "black" | null) ?? null
+      );
+      setSelectedTimeControl(editingSession.timeControl ?? null);
+      setValue("platform", editingSession.platform as any);
+    }
+  }, [editingSession, isEditMode, setValue]);
+
   const onSubmit = (data: GameSession) => {
     // Add current date to the session data
     const sessionData = {
@@ -216,8 +229,25 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
     trigger("timeControl");
   };
 
+  const handleModalChange = (open: boolean) => {
+    if (!open) {
+      reset({
+        type: "game",
+        gameResult: undefined,
+        gameComments: "",
+        playerColor: undefined,
+        platform: undefined,
+        timeControl: undefined,
+      });
+      setSelectedResult(null);
+      setSelectedColor(null);
+      setSelectedTimeControl(null);
+    }
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleModalChange}>
       <DialogContent className="sm:max-w-md mobile-modal">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-xl font-bold text-gray-800">
@@ -324,7 +354,10 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
             <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
               Platform (optional)
             </Label>
-            <Select onValueChange={(value) => setValue("platform", value as any)}>
+            <Select
+              value={watch("platform")}
+              onValueChange={(value) => setValue("platform", value as any)}
+            >
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select platform" />
               </SelectTrigger>
@@ -387,7 +420,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
               type="button"
               variant="outline"
               className="flex-1 modal-button"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleModalChange(false)}
             >
               Cancel
             </Button>
