@@ -126,7 +126,9 @@ describe('firebase auth utilities', () => {
 
   it('verifyDataPresence returns false when verification fails', async () => {
     const offline = await import('./offline-storage');
-    vi.mocked(offline.offlineStorage.getSessions).mockRejectedValue(new Error('fail'));
+    vi.mocked(offline.offlineStorage.getSessions).mockImplementation(() =>
+      Promise.reject(new Error('fail'))
+    );
 
     const utils = await import('./firebase-utils');
 
@@ -417,7 +419,9 @@ describe('firebase auth utilities', () => {
 
     const offline = await import('./offline-storage');
     // Make offline storage fail
-    vi.mocked(offline.offlineStorage.setSettings).mockRejectedValue(new Error('Offline storage failed'));
+    vi.mocked(offline.offlineStorage.setSettings).mockImplementation(() =>
+      Promise.reject(new Error('Offline storage failed'))
+    );
 
     const utils = await import('./firebase-utils');
     await utils.refreshAuthState();
@@ -437,11 +441,11 @@ describe('firebase auth utilities', () => {
     (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
     (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
 
-    // Make Firestore fail
-    setDocMock.mockRejectedValue(new Error('Firestore failed'));
-
     const utils = await import('./firebase-utils');
     await utils.refreshAuthState();
+
+    // Make Firestore fail on the next call
+    setDocMock.mockRejectedValueOnce(new Error('Firestore failed'));
 
     await expect(utils.updateUserSettings({ lichessUsername: 'testuser' })).rejects.toThrow('Failed to save to cloud storage');
   });
@@ -459,7 +463,9 @@ describe('firebase auth utilities', () => {
     
     const firestoreModule = await import('firebase/firestore');
     // Make Firestore fail
-    (firestoreModule.getDoc as any).mockRejectedValue(new Error('Firestore failed'));
+    (firestoreModule.getDoc as any).mockImplementation(() =>
+      Promise.reject(new Error('Firestore failed'))
+    );
 
     const utils = await import('./firebase-utils');
 
