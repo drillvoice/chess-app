@@ -70,6 +70,14 @@ export default function Activity() {
       const { deleteSession } = await import("@/lib/firebase-utils");
       return await deleteSession(sessionId);
     },
+    onMutate: async (sessionId: number) => {
+      await queryClient.cancelQueries({ queryKey: ["sessions"] });
+      const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
+      queryClient.setQueryData<TrainingSession[]>(["sessions"], (old) =>
+        old?.filter((session) => session.id !== sessionId) ?? []
+      );
+      return { previousSessions };
+    },
     onSuccess: (result) => {
       if (result) {
         toast({
@@ -81,7 +89,10 @@ export default function Activity() {
         queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, _sessionId, context) => {
+      if (context?.previousSessions) {
+        queryClient.setQueryData(["sessions"], context.previousSessions);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to delete session",
