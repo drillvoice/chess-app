@@ -142,10 +142,10 @@ export default function Home() {
       <DailyGoalsMVP />
 
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
         <Button
           onClick={() => setTacticsModalOpen(true)}
-          className="w-full bg-[#1E40AF] hover:bg-blue-800 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="w-full bg-[#1E40AF] hover:bg-blue-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
             <Puzzle className="w-8 h-8" />
@@ -158,7 +158,7 @@ export default function Home() {
 
         <Button
           onClick={() => setGameModalOpen(true)}
-          className="w-full bg-[#059669] hover:bg-emerald-700 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="w-full bg-[#059669] hover:bg-emerald-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
             <Crown className="w-8 h-8" />
@@ -171,7 +171,7 @@ export default function Home() {
 
         <Button
           onClick={() => setStudyModalOpen(true)}
-          className="w-full bg-[#F59E0B] hover:bg-amber-600 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="w-full bg-[#F59E0B] hover:bg-amber-600 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
             <Book className="w-8 h-8" />
@@ -184,7 +184,7 @@ export default function Home() {
 
         <Button
           onClick={() => setGoalModalOpen(true)}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-6 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
         >
           <div className="flex items-center justify-center space-x-3">
             <Target className="w-8 h-8" />
