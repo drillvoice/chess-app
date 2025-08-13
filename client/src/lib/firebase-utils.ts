@@ -78,26 +78,35 @@ async function ensureFirebase() {
 }
 
 // Helper to wait for authentication
-async function waitForAuth(timeoutMs = 5000): Promise<void> {
+async function waitForAuth(timeoutMs = 15000): Promise<void> {
   await ensureFirebase();
   if (currentUserId) return;
 
+  // Check if user is already signed in but auth state hasn't propagated
+  if (auth.currentUser) {
+    currentUserId = auth.currentUser.uid;
+    await ensureUserDoc();
+    return;
+  }
+
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
-    const resolver = () => {
-      clearTimeout(timer);
-      const idx = authResolvers.indexOf(resolver);
-      if (idx !== -1) authResolvers.splice(idx, 1);
-      resolve();
-    };
+    
+    // Set up auth state listener
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUserId = user.uid;
+        await ensureUserDoc();
+        clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      }
+    });
 
     timer = setTimeout(() => {
-      const idx = authResolvers.indexOf(resolver);
-      if (idx !== -1) authResolvers.splice(idx, 1);
-      reject(new Error('User not authenticated'));
+      unsubscribe();
+      reject(new Error(`Authentication timeout after ${timeoutMs}ms`));
     }, timeoutMs);
-
-    authResolvers.push(resolver);
   });
 }
 
@@ -172,39 +181,27 @@ export async function verifyDataPresence(): Promise<boolean> {
 }
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
-  // ALWAYS return cached data immediately if available
+  // Try to get fresh data from Firebase first
   try {
-    const cachedSessions = await offlineStorage.getSessions();
-    if (cachedSessions && cachedSessions.length > 0) {
-      // Schedule background update but don't wait for it
-      queueMicrotask(() => updateSessionsInBackground());
-      return cachedSessions;
-    }
+    const firebaseSessions = await fetchSessionsFromFirebase();
+    console.log('Successfully synced sessions from Firebase');
+    return firebaseSessions;
   } catch (error) {
-    console.warn('Failed to read from offline storage:', error);
+    console.warn('Firebase sync failed, falling back to cached data:', error);
+    
+    // Fall back to cached data only if Firebase fails
+    try {
+      const cachedSessions = await offlineStorage.getSessions();
+      console.log(`Using ${cachedSessions.length} cached sessions`);
+      return cachedSessions || [];
+    } catch (cacheError) {
+      console.error('Both Firebase and cache failed:', cacheError);
+      return [];
+    }
   }
-
-  // Only fetch from Firebase if no cached data
-  return await fetchSessionsFromFirebase();
 }
 
 export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
-  // Don't wait for auth if we're just reading
-  if (!currentUserId) {
-    // Try to get cached sessions while auth happens
-    try {
-      const cached = await offlineStorage.getSessions();
-      if (cached && cached.length > 0) {
-        // Start auth in background
-        queueMicrotask(() => waitForAuth());
-        return cached;
-      }
-    } catch (error) {
-      console.warn('Offline storage failed:', error);
-    }
-  }
-  
-  // If we must fetch from Firebase, wait for auth
   await waitForAuth();
   
   try {
@@ -222,19 +219,16 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     SessionsCache.set(sessions);
     await offlineStorage.setSessions(sessions);
 
+    console.log(`Fetched ${sessions.length} sessions from Firebase`);
     return sessions;
   } catch (error) {
-    console.error('Error getting sessions:', error);
-    // Return cached data on error
-    try {
-      const cached = await offlineStorage.getSessions();
-      return cached || [];
-    } catch {
-      return [];
-    }
+    console.error('Error fetching sessions from Firebase:', error);
+    
+    // Only return cached data if explicitly requested, not as fallback
+    // This ensures we know when Firebase sync fails
+    throw error;
   }
 }
-
 // Background update function - non-blocking
 async function updateSessionsInBackground(): Promise<void> {
   try {
@@ -366,7 +360,6 @@ export async function createSession(
   insertSession: InsertTrainingSession,
   id?: number
 ): Promise<TrainingSession> {
-  // Use provided id or generate a new one for optimistic updates
   const sessionId = id ?? Date.now();
   const sessionDate = insertSession.date || new Date();
   const now = new Date();
@@ -379,24 +372,8 @@ export async function createSession(
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
 
-  // Immediately update local cache for instant feedback
-  try {
-    await offlineStorage.addSession(newSession);
-    await offlineStorage.clearStatistics();
-
-    // Clear localStorage caches to trigger UI updates
-    SessionsCache.remove();
-    StatisticsCache.remove();
-    WeeklyGoalCache.remove();
-
-    queueMicrotask(() => updateStatisticsInBackground());
-  } catch (error) {
-    console.warn('Failed to update offline cache:', error);
-    // Bubble up the error so callers can detect failures
-    throw error;
-  }
-
-  // Save to Firebase and surface any errors
+  // Save to Firebase FIRST to ensure it reaches the cloud
+  let firebaseSuccess = false;
   try {
     await waitForAuth();
     const sessionsRef = await getSessionsCollection();
@@ -410,18 +387,36 @@ export async function createSession(
     };
 
     const docRef = doc(sessionsRef, sessionId.toString());
-
-    // Shorter timeout for better UX
-    const savePromise = setDoc(docRef, sessionData);
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Save taking longer than expected')), 10000);
-    });
-
-    await Promise.race([savePromise, timeoutPromise]);
+    await setDoc(docRef, sessionData);
+    
+    console.log(`Session ${sessionId} saved to Firebase successfully`);
+    firebaseSuccess = true;
   } catch (error) {
-    console.error('Firebase save failed:', error);
-    // Bubble up the error so callers can detect failures
-    throw error;
+    console.error('Firebase save failed for session:', sessionId, error);
+    // Don't throw yet - still try to save locally
+  }
+
+  // Update local cache
+  try {
+    await offlineStorage.addSession(newSession);
+    await offlineStorage.clearStatistics();
+
+    SessionsCache.remove();
+    StatisticsCache.remove();
+    WeeklyGoalCache.remove();
+
+    queueMicrotask(() => updateStatisticsInBackground());
+  } catch (error) {
+    console.error('Failed to update local cache:', error);
+    // If Firebase succeeded but local cache failed, still return success
+    if (!firebaseSuccess) {
+      throw error;
+    }
+  }
+
+  // Only throw if both Firebase and local storage failed
+  if (!firebaseSuccess) {
+    throw new Error('Failed to save session to cloud storage');
   }
 
   return newSession;
