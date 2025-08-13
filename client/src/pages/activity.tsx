@@ -247,7 +247,7 @@ export default function Activity() {
 
   if (statsLoading || sessionsLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <div className="text-center py-4">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Training Statistics</h2>
           <p className="text-gray-600 text-sm">Your chess improvement overview</p>
@@ -263,7 +263,7 @@ export default function Activity() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Training History</h2>
           <p className="text-gray-600 text-sm">Your recent training sessions</p>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
@@ -273,7 +273,7 @@ export default function Activity() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="text-center py-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Training Statistics</h2>
         <p className="text-gray-600 text-sm">Your chess improvement overview</p>
@@ -415,7 +415,7 @@ export default function Activity() {
         </Button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {filteredSessions.length === 0 ? (
           <Card className="border-gray-200">
             <CardContent className="p-8 text-center">
@@ -429,7 +429,7 @@ export default function Activity() {
           <>
             {/* Today Section */}
             {todaySessions.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Today</h3>
                 {todaySessions.map((session) => (
                   <Card key={session.id} className="border-gray-200 shadow-sm">
@@ -511,7 +511,7 @@ export default function Activity() {
 
             {/* Yesterday Section */}
             {yesterdaySessions.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Yesterday</h3>
                 {yesterdaySessions.map((session) => (
                   <Card key={session.id} className="border-gray-200 shadow-sm">
@@ -593,7 +593,7 @@ export default function Activity() {
 
             {/* Earlier Section */}
             {earlierSessions.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Earlier</h3>
                 {earlierSessions.map((session) => (
                   <Card key={session.id} className="border-gray-200 shadow-sm">
