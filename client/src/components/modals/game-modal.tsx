@@ -105,6 +105,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
+          needsReview: false,
         };
 
         queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) =>
@@ -133,6 +134,7 @@ export default function GameModal({ open, onOpenChange, editingSession, isEditMo
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
+          needsReview: false,
         };
 
         queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [

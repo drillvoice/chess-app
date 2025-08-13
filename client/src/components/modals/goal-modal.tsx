@@ -86,6 +86,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
           goalTitle: newSession.goalTitle,
           goalDescription: newSession.goalDescription || null,
           goalWeekStart: newSession.goalWeekStart ?? editingSession.goalWeekStart,
+          needsReview: false,
         };
 
         queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) =>
@@ -114,6 +115,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
           goalTitle: newSession.goalTitle,
           goalDescription: newSession.goalDescription || null,
           goalWeekStart: newSession.goalWeekStart ?? new Date(),
+          needsReview: false,
         };
 
         queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [

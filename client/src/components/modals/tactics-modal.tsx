@@ -89,7 +89,8 @@ export default function TacticsModal({ open, onOpenChange, editingSession, isEdi
           studyNotes: null,
           goalTitle: null,
           goalDescription: null,
-          goalWeekStart: null
+          goalWeekStart: null,
+          needsReview: false,
         };
 
         // Cancel outgoing refetches

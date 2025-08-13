@@ -28,9 +28,13 @@ export const trainingSessionsTable = pgTable("training_sessions", {
   goalWeekStart: timestamp("goal_week_start"),
 });
 
-export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTable).omit({
-  id: true,
-});
+export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTable)
+  .omit({
+    id: true,
+  })
+  .extend({
+    needsReview: z.boolean().optional(),
+  });
 
 export const tacticsSessionSchema = insertTrainingSessionSchema.extend({
   type: z.literal('tactics'),
