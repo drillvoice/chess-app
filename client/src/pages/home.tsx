@@ -60,7 +60,7 @@ export default function Home() {
     (new Date().getTime() - new Date((weeklyGoal as any).goalWeekStart).getTime()) > (7 * 24 * 60 * 60 * 1000) : false;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <InstallPrompt />
       
       <div className="text-center py-4">

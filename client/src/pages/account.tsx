@@ -5,7 +5,7 @@ import LichessSettings from "@/components/lichess-settings";
 
 export default function Account() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Account</CardTitle>
