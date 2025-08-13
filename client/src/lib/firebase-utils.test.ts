@@ -469,7 +469,7 @@ describe('firebase auth utilities', () => {
 
     const utils = await import('./firebase-utils');
 
-    await expect(utils.getUserSettings()).rejects.toThrow('Failed to load settings');
+    await expect(utils.getUserSettings()).rejects.toThrow('Failed to load settings from cloud storage');
   });
 
   it('validates that settings merge properly', async () => {
