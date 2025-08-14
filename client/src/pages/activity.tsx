@@ -15,6 +15,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -63,7 +69,6 @@ export default function Activity() {
     refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
-
 
   const deleteSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
@@ -244,6 +249,83 @@ export default function Activity() {
         return "text-gray-800";
     }
   };
+
+  // Session card component to avoid duplication
+  const SessionCard = ({ session }: { session: TrainingSession }) => (
+    <Card key={session.id} className="border-gray-200 shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center",
+              getSessionBgColor(session.type)
+            )}>
+              {getSessionIcon(session.type)}
+            </div>
+            <div>
+              <div className="font-semibold text-gray-800">
+                {getSessionTitle(session)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {getSessionSubtitle(session)}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="text-right">
+              <div className={cn(
+                "text-sm font-medium",
+                getSessionValueColor(session)
+              )}>
+                {getSessionValue(session)}
+              </div>
+              <div className="text-xs text-gray-500">
+                {formatDate(session.date)}
+              </div>
+            </div>
+            <div className="flex space-x-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
+                onClick={() => setEditingSession(session)}
+              >
+                <Edit3 className="h-4 w-4" />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this {session.type} session? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteSessionMutation.mutate(session.id)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   if (statsLoading || sessionsLoading) {
     return (
@@ -426,253 +508,55 @@ export default function Activity() {
             </CardContent>
           </Card>
         ) : (
-          <>
+          <Accordion type="multiple" defaultValue={["today"]} className="space-y-4">
             {/* Today Section */}
             {todaySessions.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Today</h3>
-                {todaySessions.map((session) => (
-                  <Card key={session.id} className="border-gray-200 shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center",
-                            getSessionBgColor(session.type)
-                          )}>
-                            {getSessionIcon(session.type)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800">
-                              {getSessionTitle(session)}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {getSessionSubtitle(session)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <div className={cn(
-                              "text-sm font-medium",
-                              getSessionValueColor(session)
-                            )}>
-                              {getSessionValue(session)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatDate(session.date)}
-                            </div>
-                          </div>
-                          <div className="flex space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
-                              onClick={() => setEditingSession(session)}
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this {session.type} session? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteSessionMutation.mutate(session.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <AccordionItem value="today" className="border-none">
+                <AccordionTrigger className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 hover:no-underline">
+                  Today ({todaySessions.length})
+                </AccordionTrigger>
+                <AccordionContent className="pt-4">
+                  <div className="space-y-2">
+                    {todaySessions.map((session) => (
+                      <SessionCard key={session.id} session={session} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             )}
 
             {/* Yesterday Section */}
             {yesterdaySessions.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Yesterday</h3>
-                {yesterdaySessions.map((session) => (
-                  <Card key={session.id} className="border-gray-200 shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center",
-                            getSessionBgColor(session.type)
-                          )}>
-                            {getSessionIcon(session.type)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800">
-                              {getSessionTitle(session)}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {getSessionSubtitle(session)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <div className={cn(
-                              "text-sm font-medium",
-                              getSessionValueColor(session)
-                            )}>
-                              {getSessionValue(session)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatDate(session.date)}
-                            </div>
-                          </div>
-                          <div className="flex space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
-                              onClick={() => setEditingSession(session)}
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this {session.type} session? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteSessionMutation.mutate(session.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <AccordionItem value="yesterday" className="border-none">
+                <AccordionTrigger className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 hover:no-underline">
+                  Yesterday ({yesterdaySessions.length})
+                </AccordionTrigger>
+                <AccordionContent className="pt-4">
+                  <div className="space-y-2">
+                    {yesterdaySessions.map((session) => (
+                      <SessionCard key={session.id} session={session} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             )}
 
             {/* Earlier Section */}
             {earlierSessions.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Earlier</h3>
-                {earlierSessions.map((session) => (
-                  <Card key={session.id} className="border-gray-200 shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center",
-                            getSessionBgColor(session.type)
-                          )}>
-                            {getSessionIcon(session.type)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800">
-                              {getSessionTitle(session)}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {getSessionSubtitle(session)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <div className={cn(
-                              "text-sm font-medium",
-                              getSessionValueColor(session)
-                            )}>
-                              {getSessionValue(session)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatDate(session.date)}
-                            </div>
-                          </div>
-                          <div className="flex space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
-                              onClick={() => setEditingSession(session)}
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this {session.type} session? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteSessionMutation.mutate(session.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <AccordionItem value="earlier" className="border-none">
+                <AccordionTrigger className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 hover:no-underline">
+                  Earlier ({earlierSessions.length})
+                </AccordionTrigger>
+                <AccordionContent className="pt-4">
+                  <div className="space-y-2">
+                    {earlierSessions.map((session) => (
+                      <SessionCard key={session.id} session={session} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             )}
-          </>
+          </Accordion>
         )}
       </div>
       
