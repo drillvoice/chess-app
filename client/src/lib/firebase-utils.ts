@@ -2,6 +2,7 @@ import { TrainingSession, InsertTrainingSession } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from './cache-utils';
 import { offlineStorage } from './offline-storage';
 import { getFirebaseAuth, getFirestoreDb } from './firebaseClient';
+import { queryClient } from './queryClient';
 
 export class SettingsError extends Error {
   constructor(message: string, public cause?: Error) {
@@ -428,13 +429,14 @@ export async function updateSession(id: number, updateData: Partial<InsertTraini
   try {
     const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
-    
+
     // Update the document with new data
     const updatePayload = {
       ...updateData,
+      ...(updateData.needsReview === undefined ? { needsReview: false } : {}),
       updatedAt: Timestamp.fromDate(new Date())
     };
-    
+
     await setDoc(docRef, updatePayload, { merge: true });
 
     // Get the current sessions to find the updated one
@@ -458,6 +460,9 @@ export async function updateSession(id: number, updateData: Partial<InsertTraini
     WeeklyGoalCache.remove();
 
     queueMicrotask(() => updateStatisticsInBackground());
+
+    // Refresh pending review queries so UI reflects latest data
+    queryClient.invalidateQueries({ queryKey: ["pending-review"] });
 
     return updatedSession || null;
   } catch (error) {
