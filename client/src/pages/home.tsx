@@ -99,7 +99,7 @@ export default function Home() {
                     setGameModalOpen(true);
                   }}
                 >
-                  Add Notes
+                  Review
                 </Button>
               </div>
             ))}
