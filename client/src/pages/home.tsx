@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, Suspense } from "react";
-import { Puzzle, Crown, Book, Target } from "lucide-react";
+import { Puzzle, Crown, Book, Target, Archive } from "lucide-react";
 import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from "@/components/install-prompt";
@@ -68,6 +68,17 @@ export default function Home() {
     refetchOnWindowFocus: true,
   });
 
+  const queryClient = useQueryClient();
+  const archiveMutation = useMutation({
+    mutationFn: async (sessionId: number) => {
+      const { updateSession } = await import("@/lib/firebase-utils");
+      return await updateSession(sessionId, { needsReview: false });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending-review"] });
+    },
+  });
+
   const isGoalOld = weeklyGoal && (weeklyGoal as any).goalWeekStart ? 
     (new Date().getTime() - new Date((weeklyGoal as any).goalWeekStart).getTime()) > (7 * 24 * 60 * 60 * 1000) : false;
 
@@ -92,15 +103,26 @@ export default function Home() {
                 <span className="text-gray-700">
                   {formatSessionDate(session.date)}
                 </span>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditingSession(session);
-                    setGameModalOpen(true);
-                  }}
-                >
-                  Review
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingSession(session);
+                      setGameModalOpen(true);
+                    }}
+                  >
+                    Review
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => archiveMutation.mutate(session.id)}
+                    aria-label="Archive game"
+                  >
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </CardContent>
