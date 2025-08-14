@@ -18,6 +18,18 @@ interface Statistics {
   todaySessions: number;
 }
 
+function formatSessionDate(date: Date | string) {
+  const d = date instanceof Date ? date : new Date(date);
+  return d
+    .toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      hour: "numeric",
+      hour12: true,
+    })
+    .replace(",", "");
+}
+
 export default function Home() {
   const [tacticsModalOpen, setTacticsModalOpen] = useState(false);
   const [gameModalOpen, setGameModalOpen] = useState(false);
@@ -72,12 +84,21 @@ export default function Home() {
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-4 space-y-2">
             <h3 className="font-semibold text-gray-800">Games needing review</h3>
-            {pendingSessions.map(session => (
-              <div key={session.id} className="flex items-center justify-between text-sm">
+            {pendingSessions.map((session) => (
+              <div
+                key={session.id}
+                className="flex items-center justify-between text-sm"
+              >
                 <span className="text-gray-700">
-                  {session.date instanceof Date ? session.date.toLocaleDateString() : new Date(session.date).toLocaleDateString()}
+                  {formatSessionDate(session.date)}
                 </span>
-                <Button size="sm" onClick={() => { setEditingSession(session); setGameModalOpen(true); }}>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingSession(session);
+                    setGameModalOpen(true);
+                  }}
+                >
                   Add Notes
                 </Button>
               </div>
