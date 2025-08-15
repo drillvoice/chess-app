@@ -223,6 +223,10 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const q = query(sessionsRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
 
+    if (!snapshot || !snapshot.docs) {
+      throw new Error('No snapshot returned from getDocs');
+    }
+
     const sessions = snapshot.docs.map((doc) => ({
       id: parseInt(doc.id),
       ...doc.data(),
