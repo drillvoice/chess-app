@@ -11,7 +11,7 @@ vi.mock('@/components/lichess-settings', () => ({
   default: () => <div>Lichess Settings</div>,
 }));
 
-vi.mock('@/lib/firebase-utils', () => ({
+vi.mock('@/lib/firebase', () => ({
   getStatistics: async () => ({ totalHours: 0, totalSessions: 0, tacticsRating: 0, winRate: 0 }),
   getAllSessions: async () => [],
 }));

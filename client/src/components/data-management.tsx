@@ -8,7 +8,7 @@ import { Download, Upload, Database } from 'lucide-react';
 
 import { useQueryClient } from '@tanstack/react-query';
 import FirebaseAuth from './firebase-auth';
-// Dynamic import for firebase-utils to maintain code splitting
+// Dynamic import for firebase to maintain code splitting
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
@@ -18,7 +18,7 @@ export default function DataManagement() {
 
   const handleExport = async () => {
     try {
-      const { exportData } = await import('@/lib/firebase-utils');
+      const { exportData } = await import('@/lib/firebase');
       const data = await exportData();
 
       const blob = new Blob([data], { type: 'application/json' });
@@ -52,7 +52,7 @@ export default function DataManagement() {
     setProgress(null);
     try {
       const text = await file.text();
-      const { importData } = await import('@/lib/firebase-utils');
+      const { importData } = await import('@/lib/firebase');
       const { imported, skipped } = await importData(text, (processed, total) => {
         setProgress({ processed, total });
       });
