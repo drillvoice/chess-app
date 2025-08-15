@@ -35,6 +35,12 @@ vi.mock('../cache-utils', () => ({
   WeeklyGoalCache: { set: vi.fn(), get: vi.fn(), remove: vi.fn() },
 }));
 
+// Mock the firestore helpers so dynamic imports in tests use the stubbed implementation
+vi.mock('./firestore', async () => ({
+  ...(await vi.importActual<typeof import('./firestore')>('./firestore')),
+  fetchSessionsFromFirebase: vi.fn(),
+}));
+
 const docMock = vi.fn(() => ({}));
 const setDocMock = vi.fn();
 const updateDocMock = vi.fn();
@@ -111,12 +117,10 @@ describe('firebase auth utilities', () => {
   it('verifyDataPresence returns true when cache and firebase are accessible', async () => {
     const offline = await import('../offline-storage');
     vi.mocked(offline.offlineStorage.getSessions).mockResolvedValue([{ id: 1 } as any]);
+    const firestore = await import('./firestore');
+    vi.mocked(firestore.fetchSessionsFromFirebase).mockResolvedValue([]);
 
     const utils = await import('./index');
-    // Stub fetchSessionsFromFirebase to avoid touching network
-    const fetchSpy = vi.spyOn(utils, 'fetchSessionsFromFirebase');
-    fetchSpy.mockResolvedValue([]);
-
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const result = await utils.verifyDataPresence();
