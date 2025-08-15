@@ -40,7 +40,7 @@ export default function Home() {
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
     queryFn: async () => {
-      const { getStatistics } = await import('@/lib/firebase-utils');
+      const { getStatistics } = await import('@/lib/firebase');
       return await getStatistics();
     },
     staleTime: 60000, // Cache for 1 minute
@@ -51,7 +51,7 @@ export default function Home() {
   const { data: weeklyGoal } = useQuery<TrainingSession | undefined>({
     queryKey: ['weekly-goal'],
     queryFn: async () => {
-      const { getCurrentWeeklyGoal } = await import('@/lib/firebase-utils');
+      const { getCurrentWeeklyGoal } = await import('@/lib/firebase');
       return await getCurrentWeeklyGoal();
     },
     staleTime: 300000, // Cache for 5 minutes (goals don't change often)
@@ -62,7 +62,7 @@ export default function Home() {
   const { data: pendingSessions } = useQuery<TrainingSession[]>({
     queryKey: ['pending-review'],
     queryFn: async () => {
-      const { getSessionsNeedingReview } = await import('@/lib/firebase-utils');
+      const { getSessionsNeedingReview } = await import('@/lib/firebase');
       return await getSessionsNeedingReview();
     },
     refetchOnWindowFocus: true,
@@ -71,7 +71,7 @@ export default function Home() {
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      const { updateSession } = await import('@/lib/firebase-utils');
+      const { updateSession } = await import('@/lib/firebase');
       return await updateSession(sessionId, { needsReview: false });
     },
     onSuccess: () => {

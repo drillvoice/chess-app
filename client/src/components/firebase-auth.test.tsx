@@ -57,7 +57,7 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 import FirebaseAuth from './firebase-auth';
-import * as firebaseUtils from '@/lib/firebase-utils';
+import * as firebaseUtils from '@/lib/firebase';
 
 afterEach(() => {
   cleanup();

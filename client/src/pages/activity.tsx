@@ -61,7 +61,7 @@ export default function Activity() {
   const { data: stats, isLoading: statsLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
     queryFn: async () => {
-      const { getStatistics } = await import('@/lib/firebase-utils');
+      const { getStatistics } = await import('@/lib/firebase');
       return await getStatistics();
     },
     staleTime: 60000, // Cache for 1 minute
@@ -72,7 +72,7 @@ export default function Activity() {
   const { data: sessions, isLoading: sessionsLoading } = useQuery<TrainingSession[]>({
     queryKey: ['sessions'],
     queryFn: async () => {
-      const { getAllSessions } = await import('@/lib/firebase-utils');
+      const { getAllSessions } = await import('@/lib/firebase');
       return await getAllSessions();
     },
     staleTime: 60000, // Cache for 1 minute
@@ -82,7 +82,7 @@ export default function Activity() {
 
   const deleteSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      const { deleteSession } = await import('@/lib/firebase-utils');
+      const { deleteSession } = await import('@/lib/firebase');
       return await deleteSession(sessionId);
     },
     onMutate: async (sessionId: number) => {

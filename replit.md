@@ -207,9 +207,9 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
   - Added touch-friendly button sizes and prevented iOS zoom on form inputs
   - Fixed dynamic/static import conflicts that were causing build warnings
   - Made Firebase modules consistently static imports to avoid conflicts
-  - Made firebase-utils.ts consistently dynamic imports for better code splitting
+  - Made firebase module consistently dynamic imports for better code splitting
   - Improved build efficiency by eliminating mixed import patterns
-  - Created separate firebase-utils chunk for better code organization
+  - Created separate firebase module chunk for better code organization
   - Build now completes without warnings about module import conflicts
 
 - July 17, 2025: Enhanced UI improvements and visual chart implementation
@@ -229,7 +229,7 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
   - App now loads styles correctly without render blocking issues
 
 - July 16, 2025: Bug fix for application startup issues
-  - Fixed syntax error in firebase-utils.ts that was causing app startup failures
+  - Fixed syntax error in firebase module that was causing app startup failures
   - Resolved missing try-catch block structure in subscribeToSessions function
   - App now starts successfully without compilation errors
   - Updated to version 1.1.2 ready for Git push
