@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-// Dynamic import for firebase-utils to maintain code splitting
+// Dynamic import for firebase to maintain code splitting
 import { tacticsSessionSchema, type TacticsSession, type TrainingSession } from '@shared/schema';
 
 interface TacticsModalProps {
@@ -57,7 +57,7 @@ export default function TacticsModal({
 
   const mutation = useMutation({
     mutationFn: async (data: TacticsSession) => {
-      const { createSession, updateSession } = await import('@/lib/firebase-utils');
+      const { createSession, updateSession } = await import('@/lib/firebase');
       if (isEditMode && editingSession) {
         return await updateSession(editingSession.id, data);
       }

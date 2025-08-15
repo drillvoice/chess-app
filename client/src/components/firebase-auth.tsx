@@ -20,7 +20,7 @@ export default function FirebaseAuth() {
         const auth = await getFirebaseAuth();
         const { onAuthStateChanged, getRedirectResult } = await import('firebase/auth');
         const { refreshAuthState, verifyDataPresence, startSessionSync, stopSessionSync } =
-          await import('@/lib/firebase-utils');
+          await import('@/lib/firebase');
 
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           setUser(user);
@@ -106,7 +106,7 @@ export default function FirebaseAuth() {
     try {
       setLoading(true);
       const { startAuthFlow, refreshAuthState, verifyDataPresence, startSessionSync } =
-        await import('@/lib/firebase-utils');
+        await import('@/lib/firebase');
       try {
         await startAuthFlow();
       } catch (error: any) {
@@ -160,7 +160,7 @@ export default function FirebaseAuth() {
       const auth = await getFirebaseAuth();
       const { signOut } = await import('firebase/auth');
       await signOut(auth);
-      const { refreshAuthState, stopSessionSync } = await import('@/lib/firebase-utils');
+      const { refreshAuthState, stopSessionSync } = await import('@/lib/firebase');
       await refreshAuthState();
       stopSessionSync();
       queryClient.invalidateQueries({ queryKey: ['sessions'] });

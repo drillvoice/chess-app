@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-// Dynamic import for firebase-utils to maintain code splitting
+// Dynamic import for firebase to maintain code splitting
 import { gameSessionSchema, type GameSession, type TrainingSession } from '@shared/schema';
 import { Trophy, X, Clock, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -70,7 +70,7 @@ export default function GameModal({
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
-      const { createSession, updateSession } = await import('@/lib/firebase-utils');
+      const { createSession, updateSession } = await import('@/lib/firebase');
       if (isEditMode && editingSession) {
         return await updateSession(editingSession.id, { ...data, needsReview: false });
       }

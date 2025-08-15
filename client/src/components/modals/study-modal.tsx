@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-// Dynamic import for firebase-utils to maintain code splitting
+// Dynamic import for firebase to maintain code splitting
 import { studySessionSchema, type StudySession, type TrainingSession } from '@shared/schema';
 
 interface StudyModalProps {
@@ -68,7 +68,7 @@ export default function StudyModal({
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
-      const { createSession, updateSession } = await import('@/lib/firebase-utils');
+      const { createSession, updateSession } = await import('@/lib/firebase');
       if (isEditMode && editingSession) {
         return await updateSession(editingSession.id, data);
       }

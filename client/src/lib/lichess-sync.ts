@@ -1,5 +1,5 @@
 import type { InsertTrainingSession } from '@shared/schema';
-import { createSession } from './firebase-utils';
+import { createSession } from './firebase';
 
 const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
