@@ -4,7 +4,14 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  test: { environment: 'jsdom', exclude: [...configDefaults.exclude, 'tests/**'] },
+  test: {
+    environment: 'jsdom',
+    exclude: [...configDefaults.exclude, 'tests/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'client', 'src'),

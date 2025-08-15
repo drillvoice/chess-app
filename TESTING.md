@@ -3,6 +3,7 @@
 ## Automated Tests
 
 - `npm test` – runs unit tests with Vitest.
+- `npm run test:coverage` – runs unit tests with coverage reporting.
 - `npm run test:e2e` – runs Playwright end-to-end tests for Google sign-in/out and Account navigation.
 
 ## Manual Cross-Device Verification
