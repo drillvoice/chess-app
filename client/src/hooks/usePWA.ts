@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -56,9 +56,9 @@ export function usePWA() {
       console.log('Showing install prompt');
       await deferredPrompt.prompt();
       const choiceResult = await deferredPrompt.userChoice;
-      
+
       console.log('User choice:', choiceResult.outcome);
-      
+
       if (choiceResult.outcome === 'accepted') {
         console.log('User accepted the install prompt');
       } else {
@@ -67,13 +67,13 @@ export function usePWA() {
     } catch (error) {
       console.error('Installation failed:', error);
     }
-    
+
     setDeferredPrompt(null);
     setCanInstall(false);
   };
 
   return {
     canInstall,
-    installApp
+    installApp,
   };
 }

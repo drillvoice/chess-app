@@ -54,22 +54,22 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply bg-background font-sans text-foreground antialiased;
     font-family: 'Inter', sans-serif;
   }
 }
 
 @layer utilities {
   .chess-primary {
-    background-color: #1E40AF;
+    background-color: #1e40af;
   }
-  
+
   .chess-secondary {
     background-color: #059669;
   }
-  
+
   .chess-accent {
-    background-color: #F59E0B;
+    background-color: #f59e0b;
   }
 }
 
@@ -93,14 +93,14 @@
     width: calc(100vw - 2rem) !important;
     max-width: calc(100vw - 2rem) !important;
   }
-  
+
   /* Make buttons sticky at bottom for visibility above keyboard */
   .mobile-modal form {
     display: flex;
     flex-direction: column;
     height: 100%;
   }
-  
+
   .mobile-modal form > div:last-child {
     margin-top: auto;
     padding-top: 1rem;
@@ -150,9 +150,9 @@
     min-height: 44px;
     min-width: 44px;
   }
-  
-  input[type="number"], 
-  input[type="text"], 
+
+  input[type='number'],
+  input[type='text'],
   textarea {
     font-size: 16px; /* Prevents zoom on iOS */
   }

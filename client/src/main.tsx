@@ -1,11 +1,12 @@
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./index.css";
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
 
 // Register service worker for offline functionality
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
       .then((registration) => {
         console.log('SW registered: ', registration);
       })
@@ -15,4 +16,4 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById('root')!).render(<App />);

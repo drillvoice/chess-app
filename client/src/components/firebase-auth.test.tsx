@@ -25,7 +25,11 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('firebase/auth', () => ({
-  GoogleAuthProvider: class { static credentialFromResult() { return null; } },
+  GoogleAuthProvider: class {
+    static credentialFromResult() {
+      return null;
+    }
+  },
   signInWithPopup: vi.fn(),
   signInWithRedirect: vi.fn(),
   linkWithCredential: vi.fn(),
@@ -40,7 +44,11 @@ vi.mock('@/lib/cache-utils', () => ({
 }));
 
 vi.mock('@/lib/offline-storage', () => ({
-  offlineStorage: { clear: vi.fn(), getSessions: vi.fn().mockResolvedValue([]), setSessions: vi.fn() },
+  offlineStorage: {
+    clear: vi.fn(),
+    getSessions: vi.fn().mockResolvedValue([]),
+    setSessions: vi.fn(),
+  },
 }));
 
 const toastMock = vi.fn();
@@ -125,9 +133,7 @@ describe('FirebaseAuth sign-in', () => {
 
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
     expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Connected' })
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
   });
 
   it('shows descriptive toast when verification fails', async () => {
@@ -154,7 +160,7 @@ describe('FirebaseAuth sign-in', () => {
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
     expect(firebaseUtils.startSessionSync).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Verification Failed' })
+      expect.objectContaining({ title: 'Verification Failed' }),
     );
   });
 
@@ -187,9 +193,7 @@ describe('FirebaseAuth sign-in', () => {
     expect(startAuthFlowSpy.mock.calls[1][0]).toBe(true);
     expect(sessionStorage.getItem('redirectAuth')).toBe('true');
     expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Connected' })
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
   });
 });
 
@@ -215,9 +219,7 @@ describe('FirebaseAuth redirect handling', () => {
 
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
     expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Connected' })
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
   });
 
   it('shows failure toast when verification fails after redirect', async () => {
@@ -243,7 +245,7 @@ describe('FirebaseAuth redirect handling', () => {
     await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
     expect(firebaseUtils.startSessionSync).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Verification Failed' })
+      expect.objectContaining({ title: 'Verification Failed' }),
     );
   });
 });

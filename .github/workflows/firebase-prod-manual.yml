@@ -23,7 +23,7 @@ jobs:
   deploy:
     if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
     runs-on: ubuntu-latest
-    environment: production   # (optional) use env protections/approvals in Settings → Environments
+    environment: production # (optional) use env protections/approvals in Settings → Environments
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

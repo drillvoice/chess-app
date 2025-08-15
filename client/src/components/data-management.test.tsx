@@ -30,7 +30,7 @@ describe('DataManagement clear local data', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <DataManagement />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
     const clearButton = await screen.findByRole('button', { name: /clear local data/i });
     fireEvent.click(clearButton);

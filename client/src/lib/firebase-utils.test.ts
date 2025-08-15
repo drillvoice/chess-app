@@ -56,7 +56,11 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('firebase/auth', () => ({
-  GoogleAuthProvider: class { static credentialFromResult() { return null; } },
+  GoogleAuthProvider: class {
+    static credentialFromResult() {
+      return null;
+    }
+  },
   signInWithPopup: vi.fn(),
   signInWithRedirect: vi.fn(),
   linkWithCredential: vi.fn(),
@@ -119,7 +123,11 @@ describe('firebase auth utilities', () => {
 
     expect(result).toBe(true);
     expect(offline.offlineStorage.getSessions).toHaveBeenCalled();
-    expect(logSpy).toHaveBeenCalledWith('Migration verification: cached', 1, 'live read successful');
+    expect(logSpy).toHaveBeenCalledWith(
+      'Migration verification: cached',
+      1,
+      'live read successful',
+    );
 
     logSpy.mockRestore();
   });
@@ -127,7 +135,7 @@ describe('firebase auth utilities', () => {
   it('verifyDataPresence returns false when verification fails', async () => {
     const offline = await import('./offline-storage');
     vi.mocked(offline.offlineStorage.getSessions).mockImplementation(() =>
-      Promise.reject(new Error('fail'))
+      Promise.reject(new Error('fail')),
     );
 
     const utils = await import('./firebase-utils');
@@ -215,7 +223,6 @@ describe('firebase auth utilities', () => {
     expect(utils.getCurrentUserId()).toBeNull();
   });
 
-
   it('importData stores sessions in offline storage', async () => {
     const offline = await import('./offline-storage');
     const utils = await import('./firebase-utils');
@@ -235,7 +242,7 @@ describe('firebase auth utilities', () => {
     const iso = now.toISOString();
     const backup = JSON.stringify([
       { id: 1, type: 'puzzle', duration: 30, date: iso, createdAt: iso },
-      { id: 2, type: 'game', duration: 60, date: iso, createdAt: iso }
+      { id: 2, type: 'game', duration: 60, date: iso, createdAt: iso },
     ]);
 
     const result = await utils.importData(backup);
@@ -266,7 +273,7 @@ describe('firebase auth utilities', () => {
     const ts = { seconds: 1_700_000_000, nanoseconds: 500_000_000 };
     const createdTs = { seconds: 1_700_000_100, nanoseconds: 0 };
     const backup = JSON.stringify([
-      { id: 3, type: 'puzzle', duration: 30, date: ts, createdAt: createdTs }
+      { id: 3, type: 'puzzle', duration: 30, date: ts, createdAt: createdTs },
     ]);
 
     const result = await utils.importData(backup);
@@ -329,7 +336,13 @@ describe('firebase auth utilities', () => {
     });
 
     // existing session id 1 already in storage
-    mockSessions.push({ id: 1, type: 'puzzle', duration: 10, date: new Date(), createdAt: new Date() });
+    mockSessions.push({
+      id: 1,
+      type: 'puzzle',
+      duration: 10,
+      date: new Date(),
+      createdAt: new Date(),
+    });
 
     const iso = new Date().toISOString();
     const backup = JSON.stringify([
@@ -402,7 +415,7 @@ describe('firebase auth utilities', () => {
 
     const backup = JSON.stringify([
       { id: 1, type: 'puzzle', duration: 30, date: new Date().toISOString() },
-      { id: 2, type: 'game', duration: 60, date: new Date().toISOString() }
+      { id: 2, type: 'game', duration: 60, date: new Date().toISOString() },
     ]);
 
     await expect(utils.importData(backup)).rejects.toThrow('Failed to import 1 sessions');
@@ -420,7 +433,7 @@ describe('firebase auth utilities', () => {
     const offline = await import('./offline-storage');
     // Make offline storage fail
     vi.mocked(offline.offlineStorage.setSettings).mockImplementation(() =>
-      Promise.reject(new Error('Offline storage failed'))
+      Promise.reject(new Error('Offline storage failed')),
     );
 
     const utils = await import('./firebase-utils');
@@ -447,7 +460,9 @@ describe('firebase auth utilities', () => {
     // Make Firestore fail on the next call
     setDocMock.mockRejectedValueOnce(new Error('Firestore failed'));
 
-    await expect(utils.updateUserSettings({ lichessUsername: 'testuser' })).rejects.toThrow('Failed to save to cloud storage');
+    await expect(utils.updateUserSettings({ lichessUsername: 'testuser' })).rejects.toThrow(
+      'Failed to save to cloud storage',
+    );
   });
 
   it('getUserSettings throws SettingsError when Firestore fails and no cache', async () => {
@@ -460,16 +475,18 @@ describe('firebase auth utilities', () => {
     const offline = await import('./offline-storage');
     // No cached data
     vi.mocked(offline.offlineStorage.getSettings).mockResolvedValue(null);
-    
+
     const firestoreModule = await import('firebase/firestore');
     // Make Firestore fail
     (firestoreModule.getDoc as any).mockImplementation(() =>
-      Promise.reject(new Error('Firestore failed'))
+      Promise.reject(new Error('Firestore failed')),
     );
 
     const utils = await import('./firebase-utils');
 
-    await expect(utils.getUserSettings()).rejects.toThrow('Failed to load settings from cloud storage');
+    await expect(utils.getUserSettings()).rejects.toThrow(
+      'Failed to load settings from cloud storage',
+    );
   });
 
   it('validates that settings merge properly', async () => {
@@ -485,12 +502,6 @@ describe('firebase auth utilities', () => {
     await utils.updateUserSettings({ lichessUsername: 'newuser' });
 
     // Verify merge: true is used to preserve other settings
-    expect(setDocMock).toHaveBeenCalledWith(
-      {},
-      { lichessUsername: 'newuser' },
-      { merge: true }
-    );
+    expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'newuser' }, { merge: true });
   });
-
-
 });

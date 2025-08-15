@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest';
 
 function add(a: number, b: number) {
-  return a + b
+  return a + b;
 }
 
 describe('add', () => {
   it('adds two numbers', () => {
-    expect(add(1, 1)).toBe(2)
-  })
-})
+    expect(add(1, 1)).toBe(2);
+  });
+});

@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { getUserSettings, updateUserSettings, SettingsError } from "@/lib/firebase-utils";
+import { useEffect, useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { getUserSettings, updateUserSettings, SettingsError } from '@/lib/firebase-utils';
 
 export default function LichessSettings() {
-  const [username, setUsername] = useState("");
-  const [originalUsername, setOriginalUsername] = useState("");
+  const [username, setUsername] = useState('');
+  const [originalUsername, setOriginalUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -18,10 +18,10 @@ export default function LichessSettings() {
   const validateUsername = (username: string): string | null => {
     const trimmed = username.trim();
     if (!trimmed) return null; // Allow empty username
-    if (trimmed.length < 3) return "Username must be at least 3 characters";
-    if (trimmed.length > 20) return "Username must be 20 characters or less";
+    if (trimmed.length < 3) return 'Username must be at least 3 characters';
+    if (trimmed.length > 20) return 'Username must be 20 characters or less';
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-      return "Username can only contain letters, numbers, underscores, and hyphens";
+      return 'Username can only contain letters, numbers, underscores, and hyphens';
     }
     return null;
   };
@@ -29,7 +29,7 @@ export default function LichessSettings() {
   // Load settings on component mount
   useEffect(() => {
     let mounted = true;
-    
+
     const loadSettings = async () => {
       try {
         setLoadError(null);
@@ -39,18 +39,19 @@ export default function LichessSettings() {
           setOriginalUsername(settings.lichessUsername);
         }
       } catch (error) {
-        console.warn("Failed to load settings", error);
+        console.warn('Failed to load settings', error);
         if (mounted) {
-          const errorMessage = error instanceof SettingsError 
-            ? "Could not load your Lichess username from cloud storage"
-            : "Failed to load settings";
+          const errorMessage =
+            error instanceof SettingsError
+              ? 'Could not load your Lichess username from cloud storage'
+              : 'Failed to load settings';
           setLoadError(errorMessage);
         }
       }
     };
 
     loadSettings();
-    
+
     return () => {
       mounted = false;
     };
@@ -66,9 +67,9 @@ export default function LichessSettings() {
     // Don't save if there's a validation error
     if (validationError) {
       toast({
-        title: "Invalid Username",
+        title: 'Invalid Username',
         description: validationError,
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
@@ -76,38 +77,38 @@ export default function LichessSettings() {
     // Don't save if nothing changed
     if (username.trim() === originalUsername) {
       toast({
-        title: "No Changes",
-        description: "Username is already saved",
+        title: 'No Changes',
+        description: 'Username is already saved',
       });
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
       await updateUserSettings({ lichessUsername: username.trim() });
       setOriginalUsername(username.trim());
       toast({
-        title: "Saved",
-        description: "Lichess username updated successfully",
+        title: 'Saved',
+        description: 'Lichess username updated successfully',
       });
     } catch (error) {
-      console.error("Save error:", error);
-      
-      let errorTitle = "Error";
-      let errorMessage = "Failed to save username";
-      
+      console.error('Save error:', error);
+
+      let errorTitle = 'Error';
+      let errorMessage = 'Failed to save username';
+
       if (error instanceof SettingsError) {
-        errorTitle = "Save Failed";
+        errorTitle = 'Save Failed';
         errorMessage = error.message;
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: errorTitle,
         description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -130,12 +131,10 @@ export default function LichessSettings() {
       <CardContent>
         <div className="space-y-4">
           {loadError && (
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-              {loadError}
-            </div>
+            <div className="rounded bg-red-50 p-2 text-sm text-red-600">{loadError}</div>
           )}
-          
-          <div className="flex flex-col sm:flex-row gap-2">
+
+          <div className="flex flex-col gap-2 sm:flex-row">
             <div className="flex-1">
               <Label htmlFor="lichess-username" className="sr-only">
                 Lichess Username
@@ -147,24 +146,23 @@ export default function LichessSettings() {
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading}
-                className={validationError ? "border-red-500" : ""}
+                className={validationError ? 'border-red-500' : ''}
               />
-              {validationError && (
-                <p className="text-sm text-red-600 mt-1">{validationError}</p>
-              )}
+              {validationError && <p className="mt-1 text-sm text-red-600">{validationError}</p>}
             </div>
-            
-            <Button 
-              onClick={handleSave} 
+
+            <Button
+              onClick={handleSave}
               disabled={isLoading || !!validationError || !hasUnsavedChanges}
               className="shrink-0"
             >
-              {isLoading ? "Saving..." : "Save"}
+              {isLoading ? 'Saving...' : 'Save'}
             </Button>
           </div>
-          
+
           <p className="text-xs text-gray-600">
-            Link your Lichess account to automatically import completed games into your training log.
+            Link your Lichess account to automatically import completed games into your training
+            log.
           </p>
         </div>
       </CardContent>

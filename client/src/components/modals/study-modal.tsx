@@ -1,16 +1,22 @@
-import { useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 // Dynamic import for firebase-utils to maintain code splitting
-import { studySessionSchema, type StudySession, type TrainingSession } from "@shared/schema";
+import { studySessionSchema, type StudySession, type TrainingSession } from '@shared/schema';
 
 interface StudyModalProps {
   open: boolean;
@@ -19,7 +25,12 @@ interface StudyModalProps {
   isEditMode?: boolean;
 }
 
-export default function StudyModal({ open, onOpenChange, editingSession, isEditMode = false }: StudyModalProps) {
+export default function StudyModal({
+  open,
+  onOpenChange,
+  editingSession,
+  isEditMode = false,
+}: StudyModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -32,22 +43,32 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
     watch,
   } = useForm<StudySession>({
     resolver: zodResolver(studySessionSchema),
-      defaultValues: isEditMode && editingSession ? {
-        type: "study",
-        duration: editingSession.duration || 0,
-        studyType: editingSession.studyType as "video" | "book" | "analysis" | "chessable" | "coaching" | "online-course" | undefined,
-        studyNotes: editingSession.studyNotes || "",
-      } : {
-      type: "study",
-      duration: 0,
-      studyType: undefined,
-      studyNotes: "",
-    },
+    defaultValues:
+      isEditMode && editingSession
+        ? {
+            type: 'study',
+            duration: editingSession.duration || 0,
+            studyType: editingSession.studyType as
+              | 'video'
+              | 'book'
+              | 'analysis'
+              | 'chessable'
+              | 'coaching'
+              | 'online-course'
+              | undefined,
+            studyNotes: editingSession.studyNotes || '',
+          }
+        : {
+            type: 'study',
+            duration: 0,
+            studyType: undefined,
+            studyNotes: '',
+          },
   });
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
-      const { createSession, updateSession } = await import("@/lib/firebase-utils");
+      const { createSession, updateSession } = await import('@/lib/firebase-utils');
       if (isEditMode && editingSession) {
         return await updateSession(editingSession.id, data);
       }
@@ -60,22 +81,22 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
 
       // Show immediate feedback
       toast({
-        title: isEditMode ? "Updating..." : "Saving...",
-        description: `Study session is being ${isEditMode ? "updated" : "saved"}`,
+        title: isEditMode ? 'Updating...' : 'Saving...',
+        description: `Study session is being ${isEditMode ? 'updated' : 'saved'}`,
       });
 
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["sessions"] });
-      await queryClient.cancelQueries({ queryKey: ["statistics"] });
+      await queryClient.cancelQueries({ queryKey: ['sessions'] });
+      await queryClient.cancelQueries({ queryKey: ['statistics'] });
 
       // Snapshot previous values
-      const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
-      const previousStats = queryClient.getQueryData(["statistics"]);
+      const previousSessions = queryClient.getQueryData<TrainingSession[]>(['sessions']);
+      const previousStats = queryClient.getQueryData(['statistics']);
 
       if (isEditMode && editingSession) {
         const optimisticSession: TrainingSession = {
           id: editingSession.id,
-          type: "study",
+          type: 'study',
           date: editingSession.date,
           duration: newSession.duration,
           pointsGained: null,
@@ -95,8 +116,8 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
           needsReview: false,
         };
 
-        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) =>
-          old.map((session) => (session.id === editingSession.id ? optimisticSession : session))
+        queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) =>
+          old.map((session) => (session.id === editingSession.id ? optimisticSession : session)),
         );
 
         return { previousSessions, previousStats };
@@ -104,7 +125,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
         const tempId = Date.now();
         const optimisticSession: TrainingSession = {
           id: tempId,
-          type: "study",
+          type: 'study',
           date: new Date(),
           duration: newSession.duration,
           pointsGained: null,
@@ -124,7 +145,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
           needsReview: false,
         };
 
-        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
+        queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) => [
           optimisticSession,
           ...old,
         ]);
@@ -135,35 +156,37 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
     onSuccess: () => {
       // Show success notification
       toast({
-        title: "Success",
-        description: isEditMode ? "Study session updated successfully!" : "Study session logged successfully!",
+        title: 'Success',
+        description: isEditMode
+          ? 'Study session updated successfully!'
+          : 'Study session logged successfully!',
       });
 
       // Refresh data in background
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
     },
     onError: (error: any, _newSession, context) => {
       // Check if it's a timeout error but session might have been saved
       if (error.message?.includes('timeout')) {
         toast({
-          title: "Slow Connection",
-          description: "Session may have been saved. Please check your activity to confirm.",
-          variant: "destructive",
+          title: 'Slow Connection',
+          description: 'Session may have been saved. Please check your activity to confirm.',
+          variant: 'destructive',
         });
       } else {
         if (context?.previousSessions) {
-          queryClient.setQueryData(["sessions"], context.previousSessions);
+          queryClient.setQueryData(['sessions'], context.previousSessions);
         }
         if (context?.previousStats) {
-          queryClient.setQueryData(["statistics"], context.previousStats);
+          queryClient.setQueryData(['statistics'], context.previousStats);
         }
         toast({
-          title: "Error",
-          description: error.message || "Failed to log study session",
-          variant: "destructive",
+          title: 'Error',
+          description: error.message || 'Failed to log study session',
+          variant: 'destructive',
         });
       }
     },
@@ -171,7 +194,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
 
   useEffect(() => {
     if (isEditMode && editingSession) {
-      setValue("studyType", editingSession.studyType as any, {
+      setValue('studyType', editingSession.studyType as any, {
         shouldValidate: true,
       });
     }
@@ -181,29 +204,27 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
     // Add current date to the session data
     const sessionData = {
       ...data,
-      date: isEditMode && editingSession ? editingSession.date : new Date()
+      date: isEditMode && editingSession ? editingSession.date : new Date(),
     };
     mutation.mutate(sessionData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md mobile-modal">
+      <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-bold text-gray-800">
-            Log Study Session
-          </DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-800">Log Study Session</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto space-y-3 p-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
+          <div className="flex-1 space-y-3 overflow-y-auto p-2">
             <div>
               <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
                 Study Type
               </Label>
               <Select
-                value={watch("studyType")}
+                value={watch('studyType')}
                 onValueChange={(value) =>
-                  setValue("studyType", value as any, {
+                  setValue('studyType', value as any, {
                     shouldValidate: true,
                   })
                 }
@@ -221,7 +242,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
                 </SelectContent>
               </Select>
               {errors.studyType && (
-                <p className="text-sm text-red-600 mt-1">{errors.studyType.message}</p>
+                <p className="mt-1 text-sm text-red-600">{errors.studyType.message}</p>
               )}
             </div>
 
@@ -233,11 +254,11 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
                 id="duration"
                 type="number"
                 className="mt-1"
-                {...register("duration", { valueAsNumber: true })}
+                {...register('duration', { valueAsNumber: true })}
                 onFocus={(e) => e.target.select()}
               />
               {errors.duration && (
-                <p className="text-sm text-red-600 mt-1">{errors.duration.message}</p>
+                <p className="mt-1 text-sm text-red-600">{errors.duration.message}</p>
               )}
             </div>
 
@@ -249,7 +270,7 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
                 id="studyNotes"
                 className="mt-1"
                 rows={2}
-                {...register("studyNotes")}
+                {...register('studyNotes')}
                 onFocus={(e) => e.target.select()}
               />
             </div>
@@ -259,17 +280,17 @@ export default function StudyModal({ open, onOpenChange, editingSession, isEditM
             <Button
               type="button"
               variant="outline"
-              className="flex-1 modal-button"
+              className="modal-button flex-1"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-[#F59E0B] hover:bg-amber-600 modal-button"
+              className="modal-button flex-1 bg-[#F59E0B] hover:bg-amber-600"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? "Saving..." : "Save"}
+              {mutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </form>

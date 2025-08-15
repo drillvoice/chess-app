@@ -5,7 +5,7 @@ const CACHE_KEYS = {
   SESSIONS: 'chess-logger-sessions',
   STATISTICS: 'chess-logger-statistics',
   WEEKLY_GOAL: 'chess-logger-weekly-goal',
-  LAST_UPDATED: 'chess-logger-last-updated'
+  LAST_UPDATED: 'chess-logger-last-updated',
 };
 
 // Cache duration in milliseconds (5 minutes)
@@ -25,14 +25,14 @@ export class DataCache {
     try {
       const cached = localStorage.getItem(key);
       if (!cached) return null;
-      
+
       const parsedCache: CachedData<T> = JSON.parse(cached);
-      
+
       if (this.isExpired(parsedCache)) {
         this.remove(key);
         return null;
       }
-      
+
       return parsedCache.data;
     } catch (error) {
       console.error('Cache get error:', error);
@@ -44,7 +44,7 @@ export class DataCache {
     try {
       const cachedData: CachedData<T> = {
         data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
       localStorage.setItem(key, JSON.stringify(cachedData));
     } catch (error) {
@@ -62,7 +62,7 @@ export class DataCache {
 
   static clear(): void {
     try {
-      Object.values(CACHE_KEYS).forEach(key => {
+      Object.values(CACHE_KEYS).forEach((key) => {
         localStorage.removeItem(key);
       });
     } catch (error) {
@@ -75,17 +75,17 @@ export class DataCache {
 export const SessionsCache = {
   get: () => DataCache.get<TrainingSession[]>(CACHE_KEYS.SESSIONS),
   set: (sessions: TrainingSession[]) => DataCache.set(CACHE_KEYS.SESSIONS, sessions),
-  remove: () => DataCache.remove(CACHE_KEYS.SESSIONS)
+  remove: () => DataCache.remove(CACHE_KEYS.SESSIONS),
 };
 
 export const StatisticsCache = {
   get: () => DataCache.get<any>(CACHE_KEYS.STATISTICS),
   set: (stats: any) => DataCache.set(CACHE_KEYS.STATISTICS, stats),
-  remove: () => DataCache.remove(CACHE_KEYS.STATISTICS)
+  remove: () => DataCache.remove(CACHE_KEYS.STATISTICS),
 };
 
 export const WeeklyGoalCache = {
   get: () => DataCache.get<TrainingSession | null>(CACHE_KEYS.WEEKLY_GOAL),
   set: (goal: TrainingSession | null) => DataCache.set(CACHE_KEYS.WEEKLY_GOAL, goal),
-  remove: () => DataCache.remove(CACHE_KEYS.WEEKLY_GOAL)
+  remove: () => DataCache.remove(CACHE_KEYS.WEEKLY_GOAL),
 };

@@ -1,4 +1,4 @@
-import { type TrainingSession, type InsertTrainingSession } from "@shared/schema";
+import { type TrainingSession, type InsertTrainingSession } from '@shared/schema';
 
 export interface IStorage {
   getTrainingSession(id: number): Promise<TrainingSession | undefined>;
@@ -46,13 +46,13 @@ export class MemStorage implements IStorage {
 
   async getTrainingSessionsByType(type: string): Promise<TrainingSession[]> {
     return this.sessionsArray()
-      .filter(session => session.type === type)
+      .filter((session) => session.type === type)
       .sort(MemStorage.sortByDateDesc);
   }
 
   async getTrainingSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]> {
     return this.sessionsArray()
-      .filter(session => {
+      .filter((session) => {
         const sessionDate = new Date(session.date);
         return sessionDate >= startDate && sessionDate <= endDate;
       })
@@ -82,7 +82,7 @@ export class MemStorage implements IStorage {
       goalWeekStart:
         insertSession.type === 'goal' && !insertSession.goalWeekStart
           ? new Date()
-          : insertSession.goalWeekStart ?? null,
+          : (insertSession.goalWeekStart ?? null),
       needsReview: insertSession.needsReview ?? false,
     };
     this.sessions.set(id, session);
@@ -92,12 +92,12 @@ export class MemStorage implements IStorage {
   async getCurrentWeeklyGoal(): Promise<TrainingSession | undefined> {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
+
     const goals = Array.from(this.sessions.values())
-      .filter(session => session.type === 'goal')
-      .filter(session => session.goalWeekStart && new Date(session.goalWeekStart) >= oneWeekAgo)
+      .filter((session) => session.type === 'goal')
+      .filter((session) => session.goalWeekStart && new Date(session.goalWeekStart) >= oneWeekAgo)
       .sort((a, b) => new Date(b.goalWeekStart!).getTime() - new Date(a.goalWeekStart!).getTime());
-    
+
     return goals[0];
   }
 
@@ -115,14 +115,14 @@ export class MemStorage implements IStorage {
       const sessions: TrainingSession[] = JSON.parse(data);
       this.sessions.clear();
       let maxId = 0;
-      
+
       for (const session of sessions) {
         this.sessions.set(session.id, session);
         if (session.id > maxId) {
           maxId = session.id;
         }
       }
-      
+
       this.currentId = maxId + 1;
     } catch (error) {
       throw new Error('Invalid data format');

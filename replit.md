@@ -7,6 +7,7 @@ This is a full-stack web application for tracking chess training sessions. Built
 ## System Architecture
 
 ### Frontend Architecture
+
 - **Framework**: React 18 with TypeScript
 - **Styling**: Tailwind CSS with shadcn/ui component library
 - **State Management**: TanStack React Query for server state management
@@ -15,6 +16,7 @@ This is a full-stack web application for tracking chess training sessions. Built
 - **Build Tool**: Vite
 
 ### Backend Architecture
+
 - **Database**: Firebase Firestore (cloud NoSQL database)
 - **Authentication**: Firebase Anonymous Authentication
 - **Data Layer**: Direct Firebase utilities for CRUD operations
@@ -22,6 +24,7 @@ This is a full-stack web application for tracking chess training sessions. Built
 - **Storage**: Firestore-only approach with export/import functionality for data portability
 
 ### Mobile-First Design
+
 - Responsive design optimized for mobile devices
 - Maximum width container with shadow effects
 - Touch-friendly interface elements
@@ -30,12 +33,14 @@ This is a full-stack web application for tracking chess training sessions. Built
 ## Key Components
 
 ### Data Models
+
 - **Training Sessions**: Core entity with type discrimination (tactics, game, study)
 - **Tactics Sessions**: Points gained, final score, duration tracking
 - **Game Sessions**: Result tracking (win/loss), game type classification, comments
 - **Study Sessions**: Study type categorization, notes, duration tracking
 
 ### Frontend Components
+
 - **Modal System**: Separate modals for each training type with type-specific forms
 - **Navigation**: Bottom navigation with active state management
 - **Statistics Dashboard**: Real-time stats display with visual indicators
@@ -43,6 +48,7 @@ This is a full-stack web application for tracking chess training sessions. Built
 - **UI Components**: Comprehensive shadcn/ui component library integration
 
 ### Backend Services
+
 - **Storage Interface**: Abstracted storage layer with memory implementation
 - **Route Handlers**: RESTful API endpoints for CRUD operations
 - **Validation**: Shared Zod schemas ensure type safety across the stack
@@ -51,6 +57,7 @@ This is a full-stack web application for tracking chess training sessions. Built
 ## Data Flow
 
 ### Session Creation Flow
+
 1. User selects training type from home page
 2. Type-specific modal opens with validated form
 3. Form data validated using Zod schemas
@@ -60,12 +67,14 @@ This is a full-stack web application for tracking chess training sessions. Built
 7. Success toast notification displayed
 
 ### Statistics Flow
+
 1. Dashboard and home page query statistics endpoint
 2. Server aggregates data from all sessions
 3. Real-time calculations for metrics like total hours, win rates
 4. Auto-refresh every 30 seconds for live updates
 
 ### History Management
+
 1. History page fetches all sessions
 2. Client-side filtering by session type
 3. Chronological sorting with relative date display
@@ -74,16 +83,19 @@ This is a full-stack web application for tracking chess training sessions. Built
 ## External Dependencies
 
 ### Database
+
 - **Neon Database**: Serverless PostgreSQL provider
 - **Drizzle ORM**: Type-safe database operations
 - **Migration System**: Schema versioning through Drizzle Kit
 
 ### UI Framework
+
 - **shadcn/ui**: Complete component library built on Radix UI
 - **Tailwind CSS**: Utility-first styling with design system
 - **Lucide React**: Icon library for consistent iconography
 
 ### Development Tools
+
 - **Vite**: Fast build tool with HMR support
 - **TypeScript**: Full type safety across the stack
 - **ESBuild**: Production bundling for server code
@@ -91,12 +103,14 @@ This is a full-stack web application for tracking chess training sessions. Built
 ## Deployment Strategy
 
 ### Firebase Hosting Production
+
 1. **Frontend**: Vite builds React app to `dist/public`
 2. **Database**: Firebase Firestore (cloud) + IndexedDB (offline)
 3. **Authentication**: Firebase Anonymous Auth
 4. **Hosting**: Firebase Hosting with CDN, SSL, and custom domain support
 
 ### Build Process
+
 ```bash
 # Option 1: Use build script (recommended)
 ./build-with-pwa.sh       # Build with PWA files + deploy
@@ -109,17 +123,20 @@ firebase deploy           # Deploy to Firebase Hosting
 ```
 
 ### Data Layer Architecture
+
 - **Firebase Utils**: Direct Firestore operations without abstraction layers
 - **Authentication**: Streamlined anonymous auth initialization
 - **Query Pattern**: React Query with Firebase functions, no fake API layer
 - **Performance**: Eliminated complexity from hybrid storage and fake REST endpoints
 
 ### Environment Configuration
+
 - **Development**: TSX for hot reloading, hybrid storage
 - **Production**: Firebase Hosting, Firestore cloud sync
 - **URLs**: https://chess-logger.web.app (primary), https://chess-logger.firebaseapp.com (alternate)
 
 ### Deployment Files
+
 - `firebase.json`: Firebase hosting configuration
 - `.firebaserc`: Firebase project configuration
 - `deploy.sh`: Automated deployment script
@@ -307,4 +324,5 @@ Version numbering: Update to v1.1.2 for next release (incremental fixes/improvem
 ## Changelog
 
 Changelog:
+
 - July 08, 2025. Initial setup

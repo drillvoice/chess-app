@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  const handleAuth = route => {
+  const handleAuth = (route) => {
     return route.fulfill({
       status: 200,
       contentType: 'application/javascript',
@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/*firebase_auth*', handleAuth);
   await page.route('**/*firebase-auth*', handleAuth);
 
-  await page.route('**/*firebaseClient*', route => {
+  await page.route('**/*firebaseClient*', (route) => {
     return route.fulfill({
       status: 200,
       contentType: 'application/javascript',
@@ -43,7 +43,7 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  const handleFirestore = route => {
+  const handleFirestore = (route) => {
     return route.fulfill({
       status: 200,
       contentType: 'application/javascript',

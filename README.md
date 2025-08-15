@@ -26,20 +26,23 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 Local development uses a `.env.local` file that is not committed to version control. Follow these steps to set up your environment:
 
 1. **Create `.env.local`**
+
    ```bash
    NEXT_PUBLIC_FIREBASE_CLIENT_ID=your-client-id
    ```
 
 2. **Store production secrets with Firebase**
+
    ```bash
    firebase functions:secrets:set GOOGLE_API_KEY
    ```
 
 3. **Access secrets in Firebase Functions**
-   ```ts
-   import { defineSecret } from "firebase-functions/params";
 
-   const apiKey = defineSecret("GOOGLE_API_KEY");
+   ```ts
+   import { defineSecret } from 'firebase-functions/params';
+
+   const apiKey = defineSecret('GOOGLE_API_KEY');
 
    apiKey.value();
    ```
@@ -53,6 +56,7 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
 ### Prerequisites
 
 1. Install Firebase CLI:
+
    ```bash
    npm install -g firebase-tools
    ```
@@ -65,11 +69,13 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
 ### Deploy to Firebase Hosting
 
 1. **Build the app:**
+
    ```bash
    npm run build
    ```
 
 2. **Deploy to Firebase Hosting:**
+
    ```bash
    firebase deploy --only hosting
    ```
@@ -77,6 +83,7 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
    The CLI will prompt for any missing secret values when deploying.
 
    Or use the deployment script:
+
    ```bash
    ./deploy.sh
    ```
@@ -95,11 +102,13 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
 ## Development
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Start development server:**
+
    ```bash
    npm run dev
    ```
@@ -119,6 +128,17 @@ npm run test:e2e # End-to-end tests with Playwright
 ```
 
 See [TESTING.md](TESTING.md) for additional details.
+
+## Linting and Formatting
+
+Ensure code quality and consistent style:
+
+```bash
+npm run lint        # ESLint
+npm run lint:fix    # ESLint with auto-fix
+npm run format      # Prettier write
+npm run format:check # Prettier check
+```
 
 ## Project Structure
 
@@ -146,23 +166,27 @@ The app uses a hybrid storage approach:
 ## Lichess Integration
 
 ### Setup
+
 1. Navigate to **Account → Lichess** in the app
 2. Enter your Lichess username (3-20 characters, letters, numbers, underscores, hyphens only)
 3. Click "Save" to store your username
 
 ### Features
+
 - Automatic import of newly finished games from Lichess
 - Games are saved as `game` training sessions with duration tracking
 - Imported time contributes to your total training hours in statistics
 - Works offline - settings are cached locally and synced when online
 
 ### Troubleshooting
+
 - **"Failed to save username"**: Check your internet connection and try again
 - **"Could not load username"**: Your username is still saved locally, it will sync when connection is restored
 - **Validation errors**: Username must be 3-20 characters and contain only letters, numbers, underscores, and hyphens
 - **No games importing**: Verify your username is correct and you have recent games on Lichess
 
 ### Privacy
+
 - Only your username is stored, no passwords or personal data
 - Username is used solely to fetch your public game history from Lichess API
 

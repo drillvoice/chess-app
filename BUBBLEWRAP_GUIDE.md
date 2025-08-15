@@ -5,13 +5,16 @@ This guide will help you create a Trusted Web Activity (TWA) Android app from yo
 ## Prerequisites
 
 1. **Deploy to Firebase first**:
+
    ```bash
    npm run build
    firebase deploy
    ```
+
    Your app will be available at: https://chess-logger.web.app
 
 2. **Install Bubblewrap**:
+
    ```bash
    npm install -g @bubblewrap/cli
    ```
@@ -49,6 +52,7 @@ bubblewrap build
 ```
 
 This will create:
+
 - `app-release-signed.apk` - Ready for distribution
 - `app-release-unsigned.apk` - Unsigned version
 
@@ -67,22 +71,26 @@ Or transfer the APK to your phone and install manually.
 1. **Digital Asset Links**: Create `.well-known/assetlinks.json` in your public folder:
 
 ```json
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "app.web.chesstraining",
-    "sha256_cert_fingerprints": ["YOUR_SHA256_FINGERPRINT"]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.web.chesstraining",
+      "sha256_cert_fingerprints": ["YOUR_SHA256_FINGERPRINT"]
+    }
   }
-}]
+]
 ```
 
 2. **Get your SHA256 fingerprint**:
+
 ```bash
 keytool -list -v -keystore android.keystore -alias android
 ```
 
 3. **Deploy the assetlinks.json**:
+
 ```bash
 firebase deploy
 ```
@@ -94,6 +102,7 @@ firebase deploy
 The Firebase configuration is already set up to serve manifest.json with the correct `Content-Type: application/json` header. If you still encounter issues:
 
 1. Check the response headers:
+
 ```bash
 curl -I https://chess-logger.web.app/manifest.json
 ```
@@ -103,6 +112,7 @@ curl -I https://chess-logger.web.app/manifest.json
 ### Icon Issues
 
 All icons are properly configured in multiple sizes. Bubblewrap will automatically use:
+
 - `/icon-512.png` for the main app icon
 - `/icon-192.png` for smaller displays
 - Both are marked as "maskable" for adaptive icons
