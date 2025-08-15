@@ -168,6 +168,10 @@ export async function startAuthFlow(useRedirect = false): Promise<void> {
 export async function verifyDataPresence(): Promise<boolean> {
   try {
     const cached = await offlineStorage.getSessions();
+    // Fetch fresh data via dynamic import so tests can mock the function.
+    // Using a runtime import ensures the spy applied in tests intercepts the
+    // call, avoiding unintended network/mock behavior.
+    const { fetchSessionsFromFirebase } = await import('./firebase-utils');
     await fetchSessionsFromFirebase();
     console.log(
       'Migration verification: cached',
@@ -409,10 +413,11 @@ export async function createSession(
     queueMicrotask(() => updateStatisticsInBackground());
   } catch (error) {
     console.error('Failed to update local cache:', error);
-    // If Firebase succeeded but local cache failed, still return success
-    if (!firebaseSuccess) {
-      throw error;
-    }
+    // Surface the error so callers (like importData) can handle failures
+    // appropriately. Even if the cloud save succeeded, an offline failure
+    // means the session wasn't fully stored and should be treated as an
+    // import error.
+    throw error;
   }
 
   // Only throw if both Firebase and local storage failed
@@ -588,6 +593,12 @@ export async function importData(
       normalizedDate = date;
     } else {
       normalizedDate = new Date();
+    }
+
+    // Skip sessions with invalid dates and record the error for reporting
+    if (isNaN(normalizedDate.getTime())) {
+      errors.push({ id, error: new Error('Invalid date') });
+      continue;
     }
 
     try {
