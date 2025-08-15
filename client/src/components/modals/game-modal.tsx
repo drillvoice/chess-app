@@ -39,34 +39,29 @@ export default function GameModal({
   const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
 
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-    watch,
-    trigger,
-  } = useForm<GameSession>({
-    resolver: zodResolver(gameSessionSchema),
-    defaultValues:
-      isEditMode && editingSession
-        ? {
-            type: 'game',
-            gameResult: editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined,
-            gameComments: editingSession.gameComments || '',
-            playerColor: editingSession.playerColor as 'white' | 'black' | undefined,
-            platform: editingSession.platform as 'lichess' | 'chess.com' | 'otb' | undefined,
-            timeControl: editingSession.timeControl as '5+3' | '10+5' | '10' | '15+10' | undefined,
-          }
-        : {
-            type: 'game',
-            gameResult: undefined,
-            gameComments: '',
-            playerColor: undefined,
-            platform: undefined,
-            timeControl: undefined,
-          },
-  });
+  register,
+  handleSubmit,
+  formState: { errors },
+  reset,
+  setValue,
+  watch,
+  trigger,
+} = useForm<GameSession>({
+  resolver: zodResolver(gameSessionSchema),
+  defaultValues: {
+    type: 'game',
+    gameResult: isEditMode && editingSession ? 
+      (editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined) : undefined,
+    gameComments: isEditMode && editingSession ? 
+      (editingSession.gameComments || '') : '',
+    playerColor: isEditMode && editingSession ? 
+      (editingSession.playerColor as 'white' | 'black' | undefined) : undefined,
+    platform: isEditMode && editingSession ? 
+      (editingSession.platform as 'lichess' | 'chess.com' | 'otb' | undefined) : undefined,
+    timeControl: isEditMode && editingSession ? 
+      (editingSession.timeControl as '5+3' | '10+5' | '10' | '15+10' | undefined) : undefined,
+  },
+});
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
@@ -200,13 +195,35 @@ export default function GameModal({
   });
 
   useEffect(() => {
-    if (isEditMode && editingSession) {
-      setSelectedResult((editingSession.gameResult as 'win' | 'loss' | 'draw' | null) ?? null);
-      setSelectedColor((editingSession.playerColor as 'white' | 'black' | null) ?? null);
-      setSelectedTimeControl(editingSession.timeControl ?? null);
-      setValue('platform', editingSession.platform as any);
+  if (isEditMode && editingSession) {
+    const gameResult = editingSession.gameResult as 'win' | 'loss' | 'draw' | null;
+    const playerColor = editingSession.playerColor as 'white' | 'black' | null;
+    const timeControl = editingSession.timeControl;
+    const platform = editingSession.platform;
+    
+    // Set visual state
+    setSelectedResult(gameResult);
+    setSelectedColor(playerColor);
+    setSelectedTimeControl(timeControl);
+    
+    // Set form values properly with validation
+    if (gameResult) {
+      setValue('gameResult', gameResult, { shouldValidate: true });
     }
-  }, [editingSession, isEditMode, setValue]);
+    if (playerColor) {
+      setValue('playerColor', playerColor, { shouldValidate: true });
+    }
+    if (timeControl) {
+      setValue('timeControl', timeControl as any, { shouldValidate: true });
+    }
+    if (platform) {
+      setValue('platform', platform as any, { shouldValidate: true });
+    }
+    if (editingSession.gameComments) {
+      setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
+    }
+  }
+}, [editingSession, isEditMode, setValue]);
 
   const onSubmit = (data: GameSession) => {
     // Add current date to the session data
@@ -242,7 +259,9 @@ export default function GameModal({
   };
 
   const handleModalChange = (open: boolean) => {
-    if (!open) {
+  if (!open) {
+    // Only reset if not in edit mode or if we're closing after editing
+    if (!isEditMode) {
       reset({
         type: 'game',
         gameResult: undefined,
@@ -255,8 +274,9 @@ export default function GameModal({
       setSelectedColor(null);
       setSelectedTimeControl(null);
     }
-    onOpenChange(open);
-  };
+  }
+  onOpenChange(open);
+};
 
   return (
     <Dialog open={open} onOpenChange={handleModalChange}>

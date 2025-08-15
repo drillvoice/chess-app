@@ -70,13 +70,34 @@ export default function Home() {
 
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
-    mutationFn: async (sessionId: number) => {
-      const { updateSession } = await import('@/lib/firebase');
-      return await updateSession(sessionId, { needsReview: false });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-review'] });
-    },
+  mutationFn: async (sessionId: number) => {
+    const { updateSession } = await import('@/lib/firebase');
+    return await updateSession(sessionId, { needsReview: false });
+  },
+  onMutate: async (sessionId) => {
+    // Cancel any outgoing refetches
+    await queryClient.cancelQueries({ queryKey: ['pending-review'] });
+    
+    // Snapshot the previous value
+    const previousPendingSessions = queryClient.getQueryData<TrainingSession[]>(['pending-review']);
+    
+    // Optimistically update to new value
+    queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) =>
+      old.filter(session => session.id !== sessionId)
+    );
+    
+    // Return a context object with the snapshotted value
+    return { previousPendingSessions };
+  },
+  onError: (err, sessionId, context) => {
+    // If the mutation fails, use the context returned from onMutate to roll back
+    if (context?.previousPendingSessions) {
+      queryClient.setQueryData(['pending-review'], context.previousPendingSessions);
+    }
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+  },
   });
 
   const isGoalOld =
