@@ -280,7 +280,7 @@ export default function Home() {
 
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">
-        <p className="text-xs text-gray-500">Pawn Star Chess Log v1.2.2 - August 14, 2025</p>
+        <p className="text-xs text-gray-500">Pawn Star Chess Log v1.2.3 - August 15, 2025</p>
       </div>
     </div>
   );
