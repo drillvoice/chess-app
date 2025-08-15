@@ -18,22 +18,20 @@ if (!fs.existsSync(wellKnownDir)) {
 }
 
 // Copy PWA files
-const filesToCopy = [
-  'manifest.json',
-  'sw.js',
-  '.well-known/assetlinks.json'
-];
+const filesToCopy = ['manifest.json', 'sw.js', '.well-known/assetlinks.json'];
 
 // Copy all icon files
-const iconFiles = fs.readdirSync(sourceDir).filter(file => file.startsWith('icon-') && file.endsWith('.png'));
+const iconFiles = fs
+  .readdirSync(sourceDir)
+  .filter((file) => file.startsWith('icon-') && file.endsWith('.png'));
 filesToCopy.push(...iconFiles);
 
 console.log('Copying PWA files to client/public...');
 
-filesToCopy.forEach(file => {
+filesToCopy.forEach((file) => {
   const sourcePath = path.join(sourceDir, file);
   const targetPath = path.join(targetDir, file);
-  
+
   if (fs.existsSync(sourcePath)) {
     fs.copyFileSync(sourcePath, targetPath);
     console.log(`✓ Copied ${file}`);

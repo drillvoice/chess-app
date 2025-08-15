@@ -43,26 +43,22 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
 function DefaultErrorFallback({ error, retry }: { error: Error; retry: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="max-w-md w-full">
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md">
         <CardContent className="p-6 text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            Something went wrong
-          </h2>
-          <p className="text-gray-600 mb-4">
+          <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+          <h2 className="mb-2 text-lg font-semibold text-gray-900">Something went wrong</h2>
+          <p className="mb-4 text-gray-600">
             The app encountered an unexpected error. This might be a temporary issue.
           </p>
-          <details className="text-left mb-4">
-            <summary className="text-sm text-gray-500 cursor-pointer">
-              Error details
-            </summary>
-            <code className="text-xs text-red-600 mt-2 block bg-red-50 p-2 rounded">
+          <details className="mb-4 text-left">
+            <summary className="cursor-pointer text-sm text-gray-500">Error details</summary>
+            <code className="mt-2 block rounded bg-red-50 p-2 text-xs text-red-600">
               {error.message}
             </code>
           </details>
           <Button onClick={retry} className="flex items-center gap-2">
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="h-4 w-4" />
             Try Again
           </Button>
         </CardContent>

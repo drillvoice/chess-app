@@ -10,17 +10,19 @@ test('auto-imported Lichess sessions increase totalHours', async ({ request }) =
   let stats = await res.json();
   expect(stats.totalHours).toBe(0);
 
-  const imported = [{
-    id: 1,
-    type: 'game',
-    date: new Date().toISOString(),
-    duration: 30,
-    gameResult: 'win',
-    playerColor: 'white',
-    platform: 'lichess',
-    timeControl: '5+3',
-    needsReview: false
-  }];
+  const imported = [
+    {
+      id: 1,
+      type: 'game',
+      date: new Date().toISOString(),
+      duration: 30,
+      gameResult: 'win',
+      playerColor: 'white',
+      platform: 'lichess',
+      timeControl: '5+3',
+      needsReview: false,
+    },
+  ];
 
   await request.post('/api/import', { data: { data: JSON.stringify(imported) } });
 

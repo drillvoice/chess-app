@@ -1,13 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, Suspense } from "react";
-import { Puzzle, Crown, Book, Target, Archive } from "lucide-react";
-import { TacticsModal, GameModal, StudyModal, GoalModal } from "@/components/lazy-components";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, Suspense } from 'react';
+import { Puzzle, Crown, Book, Target, Archive } from 'lucide-react';
+import { TacticsModal, GameModal, StudyModal, GoalModal } from '@/components/lazy-components';
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
-import InstallPrompt from "@/components/install-prompt";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { TrainingSession } from "@shared/schema";
+import InstallPrompt from '@/components/install-prompt';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { TrainingSession } from '@shared/schema';
 
 interface Statistics {
   totalHours: number;
@@ -21,13 +21,13 @@ interface Statistics {
 function formatSessionDate(date: Date | string) {
   const d = date instanceof Date ? date : new Date(date);
   return d
-    .toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      hour: "numeric",
+    .toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      hour: 'numeric',
       hour12: true,
     })
-    .replace(",", "");
+    .replace(',', '');
 }
 
 export default function Home() {
@@ -38,9 +38,9 @@ export default function Home() {
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
-    queryKey: ["statistics"],
+    queryKey: ['statistics'],
     queryFn: async () => {
-      const { getStatistics } = await import("@/lib/firebase-utils");
+      const { getStatistics } = await import('@/lib/firebase-utils');
       return await getStatistics();
     },
     staleTime: 60000, // Cache for 1 minute
@@ -49,9 +49,9 @@ export default function Home() {
   });
 
   const { data: weeklyGoal } = useQuery<TrainingSession | undefined>({
-    queryKey: ["weekly-goal"],
+    queryKey: ['weekly-goal'],
     queryFn: async () => {
-      const { getCurrentWeeklyGoal } = await import("@/lib/firebase-utils");
+      const { getCurrentWeeklyGoal } = await import('@/lib/firebase-utils');
       return await getCurrentWeeklyGoal();
     },
     staleTime: 300000, // Cache for 5 minutes (goals don't change often)
@@ -60,9 +60,9 @@ export default function Home() {
   });
 
   const { data: pendingSessions } = useQuery<TrainingSession[]>({
-    queryKey: ["pending-review"],
+    queryKey: ['pending-review'],
     queryFn: async () => {
-      const { getSessionsNeedingReview } = await import("@/lib/firebase-utils");
+      const { getSessionsNeedingReview } = await import('@/lib/firebase-utils');
       return await getSessionsNeedingReview();
     },
     refetchOnWindowFocus: true,
@@ -71,38 +71,36 @@ export default function Home() {
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      const { updateSession } = await import("@/lib/firebase-utils");
+      const { updateSession } = await import('@/lib/firebase-utils');
       return await updateSession(sessionId, { needsReview: false });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pending-review"] });
+      queryClient.invalidateQueries({ queryKey: ['pending-review'] });
     },
   });
 
-  const isGoalOld = weeklyGoal && (weeklyGoal as any).goalWeekStart ? 
-    (new Date().getTime() - new Date((weeklyGoal as any).goalWeekStart).getTime()) > (7 * 24 * 60 * 60 * 1000) : false;
+  const isGoalOld =
+    weeklyGoal && (weeklyGoal as any).goalWeekStart
+      ? new Date().getTime() - new Date((weeklyGoal as any).goalWeekStart).getTime() >
+        7 * 24 * 60 * 60 * 1000
+      : false;
 
   return (
     <div className="space-y-4 md:space-y-6">
       <InstallPrompt />
-      
-      <div className="text-center py-4">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Log Your Training</h2>
-        <p className="text-gray-600 text-sm">Track your chess improvement journey</p>
+
+      <div className="py-4 text-center">
+        <h2 className="mb-2 text-2xl font-bold text-gray-800">Log Your Training</h2>
+        <p className="text-sm text-gray-600">Track your chess improvement journey</p>
       </div>
 
       {pendingSessions && pendingSessions.length > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4 space-y-2">
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="space-y-2 p-4">
             <h3 className="font-semibold text-gray-800">Games needing review</h3>
             {pendingSessions.map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center justify-between text-sm"
-              >
-                <span className="text-gray-700">
-                  {formatSessionDate(session.date)}
-                </span>
+              <div key={session.id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700">{formatSessionDate(session.date)}</span>
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
@@ -130,24 +128,26 @@ export default function Home() {
       )}
 
       {weeklyGoal ? (
-        <Card className="bg-purple-50 border-purple-200">
+        <Card className="border-purple-200 bg-purple-50">
           <CardContent className="p-4">
             <div className="flex items-start space-x-3">
-              <Target className="w-5 h-5 text-purple-600 mt-0.5" />
+              <Target className="mt-0.5 h-5 w-5 text-purple-600" />
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-800 mb-1">
-                  {isGoalOld ? "Last week's goal" : "Your goal for this week is:"}
+                <h3 className="mb-1 font-semibold text-gray-800">
+                  {isGoalOld ? "Last week's goal" : 'Your goal for this week is:'}
                 </h3>
-                <p className="text-gray-700 font-medium">{(weeklyGoal as any).goalTitle}</p>
+                <p className="font-medium text-gray-700">{(weeklyGoal as any).goalTitle}</p>
                 {(weeklyGoal as any).goalDescription && (
-                  <p className="text-gray-600 text-sm mt-1">{(weeklyGoal as any).goalDescription}</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {(weeklyGoal as any).goalDescription}
+                  </p>
                 )}
                 {isGoalOld && (
                   <div className="mt-2">
                     <Button
                       onClick={() => setGoalModalOpen(true)}
                       size="sm"
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      className="bg-purple-600 text-white hover:bg-purple-700"
                     >
                       Set New Goal
                     </Button>
@@ -158,24 +158,24 @@ export default function Home() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="bg-purple-50 border-purple-200 border-dashed">
+        <Card className="border-dashed border-purple-200 bg-purple-50">
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
-              <Target className="w-5 h-5 text-purple-600" />
+              <Target className="h-5 w-5 text-purple-600" />
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-800 mb-1">
+                <h3 className="mb-1 font-semibold text-gray-800">
                   Set a weekly goal to focus your training
                 </h3>
-                <p className="text-gray-600 text-sm">
+                <p className="text-sm text-gray-600">
                   Having a specific goal helps you stay motivated and track progress
                 </p>
               </div>
               <Button
                 onClick={() => setGoalModalOpen(true)}
                 size="sm"
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="bg-purple-600 text-white hover:bg-purple-700"
               >
-                    Set Weekly Goal
+                Set Weekly Goal
               </Button>
             </div>
           </CardContent>
@@ -184,14 +184,13 @@ export default function Home() {
 
       <DailyGoalsMVP />
 
-
       <div className="grid grid-cols-2 gap-4">
         <Button
           onClick={() => setTacticsModalOpen(true)}
-          className="w-full bg-[#1E40AF] hover:bg-blue-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="h-auto w-full transform rounded-xl bg-[#1E40AF] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-800 active:scale-95"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Puzzle className="w-8 h-8" />
+            <Puzzle className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Log Tactics</div>
               <div className="text-sm opacity-90">Practice & Score</div>
@@ -201,10 +200,10 @@ export default function Home() {
 
         <Button
           onClick={() => setGameModalOpen(true)}
-          className="w-full bg-[#059669] hover:bg-emerald-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="h-auto w-full transform rounded-xl bg-[#059669] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-emerald-700 active:scale-95"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Crown className="w-8 h-8" />
+            <Crown className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Log Game</div>
               <div className="text-sm opacity-90">Win/Loss & Notes</div>
@@ -214,10 +213,10 @@ export default function Home() {
 
         <Button
           onClick={() => setStudyModalOpen(true)}
-          className="w-full bg-[#F59E0B] hover:bg-amber-600 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="h-auto w-full transform rounded-xl bg-[#F59E0B] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-amber-600 active:scale-95"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Book className="w-8 h-8" />
+            <Book className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Log Study</div>
               <div className="text-sm opacity-90">Videos & Analysis</div>
@@ -227,10 +226,10 @@ export default function Home() {
 
         <Button
           onClick={() => setGoalModalOpen(true)}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 h-auto"
+          className="h-auto w-full transform rounded-xl bg-purple-600 px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-700 active:scale-95"
         >
           <div className="flex items-center justify-center space-x-3">
-            <Target className="w-8 h-8" />
+            <Target className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Set Weekly Goal</div>
               <div className="text-sm opacity-90">Plan your week</div>
@@ -239,9 +238,9 @@ export default function Home() {
         </Button>
       </div>
 
-      <Card className="bg-gray-100 rounded-xl mt-6">
+      <Card className="mt-6 rounded-xl bg-gray-100">
         <CardContent className="p-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Today's Progress</h3>
+          <h3 className="mb-3 text-lg font-semibold text-gray-800">Today's Progress</h3>
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4">
               <Skeleton className="h-16 w-full" />
@@ -256,9 +255,7 @@ export default function Home() {
                 <div className="text-sm text-gray-600">Total Time</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-[#059669]">
-                  {stats?.todaySessions || 0}
-                </div>
+                <div className="text-2xl font-bold text-[#059669]">{stats?.todaySessions || 0}</div>
                 <div className="text-sm text-gray-600">Sessions</div>
               </div>
             </div>
@@ -267,10 +264,7 @@ export default function Home() {
       </Card>
 
       <Suspense fallback={<div />}>
-        <TacticsModal 
-          open={tacticsModalOpen} 
-          onOpenChange={setTacticsModalOpen}
-        />
+        <TacticsModal open={tacticsModalOpen} onOpenChange={setTacticsModalOpen} />
         <GameModal
           open={gameModalOpen}
           onOpenChange={(open) => {
@@ -280,21 +274,13 @@ export default function Home() {
           editingSession={editingSession}
           isEditMode={!!editingSession}
         />
-        <StudyModal 
-          open={studyModalOpen} 
-          onOpenChange={setStudyModalOpen}
-        />
-        <GoalModal
-          open={goalModalOpen}
-          onOpenChange={setGoalModalOpen}
-        />
+        <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
+        <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
       </Suspense>
-      
+
       {/* Version Control Note */}
-      <div className="text-center mt-8 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500">
-          Pawn Star Chess Log v1.2.2 - August 14, 2025
-        </p>
+      <div className="mt-8 border-t border-gray-200 pt-4 text-center">
+        <p className="text-xs text-gray-500">Pawn Star Chess Log v1.2.2 - August 14, 2025</p>
       </div>
     </div>
   );

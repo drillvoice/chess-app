@@ -14,7 +14,7 @@ export default function DailyGoalsMVP() {
     tactics: false,
     study: false,
     game: false,
-    date: new Date().toDateString()
+    date: new Date().toDateString(),
   });
 
   // Load from localStorage on mount
@@ -24,14 +24,14 @@ export default function DailyGoalsMVP() {
       if (saved) {
         const parsed = JSON.parse(saved);
         const today = new Date().toDateString();
-        
+
         // If it's a new day, reset the checklist
         if (parsed.date !== today) {
           const fresh = {
             tactics: false,
             study: false,
             game: false,
-            date: today
+            date: today,
           };
           setChecklist(fresh);
           localStorage.setItem('dailyChecklist', JSON.stringify(fresh));
@@ -54,86 +54,91 @@ export default function DailyGoalsMVP() {
   }, [checklist]);
 
   const toggleItem = (item: keyof Omit<DailyChecklist, 'date'>) => {
-    setChecklist(prev => ({
+    setChecklist((prev) => ({
       ...prev,
-      [item]: !prev[item]
+      [item]: !prev[item],
     }));
   };
 
-  const completedCount = [checklist.tactics, checklist.study, checklist.game].filter(Boolean).length;
+  const completedCount = [checklist.tactics, checklist.study, checklist.game].filter(
+    Boolean,
+  ).length;
   const allComplete = completedCount === 3;
 
   return (
-    <Card className={`${allComplete ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'} transition-colors duration-300`}>
+    <Card
+      className={`${allComplete ? 'border-green-300 bg-green-50' : 'border-blue-300 bg-blue-50'} transition-colors duration-300`}
+    >
       <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Target className={`w-5 h-5 ${allComplete ? 'text-green-600' : 'text-blue-600'}`} />
+            <Target className={`h-5 w-5 ${allComplete ? 'text-green-600' : 'text-blue-600'}`} />
             <h3 className="font-semibold text-gray-800">
-              {allComplete ? "🎉 Daily goals complete!" : "Today's Training Goals"}
+              {allComplete ? '🎉 Daily goals complete!' : "Today's Training Goals"}
             </h3>
           </div>
-          <div className="text-sm text-gray-600">
-            {completedCount}/3
-          </div>
+          <div className="text-sm text-gray-600">{completedCount}/3</div>
         </div>
 
         <div className="space-y-2">
           {/* Tactics */}
-          <div 
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/50 cursor-pointer transition-colors"
+          <div
+            className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
             onClick={() => toggleItem('tactics')}
           >
             {checklist.tactics ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
-              <Circle className="w-5 h-5 text-gray-400" />
+              <Circle className="h-5 w-5 text-gray-400" />
             )}
-            <Puzzle className="w-4 h-4 text-blue-600" />
-            <span className={`flex-1 ${checklist.tactics ? 'text-green-700 line-through' : 'text-gray-700'}`}>
+            <Puzzle className="h-4 w-4 text-blue-600" />
+            <span
+              className={`flex-1 ${checklist.tactics ? 'text-green-700 line-through' : 'text-gray-700'}`}
+            >
               Practice tactics
             </span>
           </div>
 
           {/* Game */}
-          <div 
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/50 cursor-pointer transition-colors"
+          <div
+            className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
             onClick={() => toggleItem('game')}
           >
             {checklist.game ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
-              <Circle className="w-5 h-5 text-gray-400" />
+              <Circle className="h-5 w-5 text-gray-400" />
             )}
-            <Crown className="w-4 h-4 text-emerald-600" />
-            <span className={`flex-1 ${checklist.game ? 'text-green-700 line-through' : 'text-gray-700'}`}>
+            <Crown className="h-4 w-4 text-emerald-600" />
+            <span
+              className={`flex-1 ${checklist.game ? 'text-green-700 line-through' : 'text-gray-700'}`}
+            >
               Play a game
             </span>
           </div>
 
           {/* Study */}
-          <div 
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/50 cursor-pointer transition-colors"
+          <div
+            className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
             onClick={() => toggleItem('study')}
           >
             {checklist.study ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
-              <Circle className="w-5 h-5 text-gray-400" />
+              <Circle className="h-5 w-5 text-gray-400" />
             )}
-            <Book className="w-4 h-4 text-amber-600" />
-            <span className={`flex-1 ${checklist.study ? 'text-green-700 line-through' : 'text-gray-700'}`}>
+            <Book className="h-4 w-4 text-amber-600" />
+            <span
+              className={`flex-1 ${checklist.study ? 'text-green-700 line-through' : 'text-gray-700'}`}
+            >
               Study chess
             </span>
           </div>
-
-          
-
         </div>
 
         {allComplete && (
-          <div className="mt-3 pt-2 border-t border-green-200">
-            <p className="text-sm text-green-700 font-medium text-center">
+          <div className="mt-3 border-t border-green-200 pt-2">
+            <p className="text-center text-sm font-medium text-green-700">
               Great job! You've hit all your training goals today! 🏆
             </p>
           </div>

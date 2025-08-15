@@ -1,14 +1,14 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 // Dynamic import for firebase-utils to maintain code splitting
-import { goalSessionSchema, type GoalSession, type TrainingSession } from "@shared/schema";
+import { goalSessionSchema, type GoalSession, type TrainingSession } from '@shared/schema';
 
 interface GoalModalProps {
   open: boolean;
@@ -17,7 +17,12 @@ interface GoalModalProps {
   isEditMode?: boolean;
 }
 
-export default function GoalModal({ open, onOpenChange, editingSession, isEditMode = false }: GoalModalProps) {
+export default function GoalModal({
+  open,
+  onOpenChange,
+  editingSession,
+  isEditMode = false,
+}: GoalModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -28,20 +33,23 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
     reset,
   } = useForm<GoalSession>({
     resolver: zodResolver(goalSessionSchema),
-    defaultValues: isEditMode && editingSession ? {
-      type: "goal",
-      goalTitle: editingSession.goalTitle || "",
-      goalDescription: editingSession.goalDescription || "",
-    } : {
-      type: "goal",
-      goalTitle: "",
-      goalDescription: "",
-    },
+    defaultValues:
+      isEditMode && editingSession
+        ? {
+            type: 'goal',
+            goalTitle: editingSession.goalTitle || '',
+            goalDescription: editingSession.goalDescription || '',
+          }
+        : {
+            type: 'goal',
+            goalTitle: '',
+            goalDescription: '',
+          },
   });
 
   const mutation = useMutation({
     mutationFn: async (data: GoalSession) => {
-      const { createSession, updateSession } = await import("@/lib/firebase-utils");
+      const { createSession, updateSession } = await import('@/lib/firebase-utils');
       if (isEditMode && editingSession) {
         return await updateSession(editingSession.id, data);
       }
@@ -54,22 +62,22 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
 
       // Show immediate feedback
       toast({
-        title: isEditMode ? "Updating..." : "Saving...",
-        description: `Weekly goal is being ${isEditMode ? "updated" : "saved"}`,
+        title: isEditMode ? 'Updating...' : 'Saving...',
+        description: `Weekly goal is being ${isEditMode ? 'updated' : 'saved'}`,
       });
 
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["sessions"] });
-      await queryClient.cancelQueries({ queryKey: ["statistics"] });
+      await queryClient.cancelQueries({ queryKey: ['sessions'] });
+      await queryClient.cancelQueries({ queryKey: ['statistics'] });
 
       // Snapshot previous values
-      const previousSessions = queryClient.getQueryData<TrainingSession[]>(["sessions"]);
-      const previousStats = queryClient.getQueryData(["statistics"]);
+      const previousSessions = queryClient.getQueryData<TrainingSession[]>(['sessions']);
+      const previousStats = queryClient.getQueryData(['statistics']);
 
       if (isEditMode && editingSession) {
         const optimisticSession: TrainingSession = {
           id: editingSession.id,
-          type: "goal",
+          type: 'goal',
           date: newSession.date!,
           duration: null,
           pointsGained: null,
@@ -89,8 +97,8 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
           needsReview: false,
         };
 
-        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) =>
-          old.map((session) => (session.id === editingSession.id ? optimisticSession : session))
+        queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) =>
+          old.map((session) => (session.id === editingSession.id ? optimisticSession : session)),
         );
 
         return { previousSessions, previousStats };
@@ -98,7 +106,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
         const tempId = Date.now();
         const optimisticSession: TrainingSession = {
           id: tempId,
-          type: "goal",
+          type: 'goal',
           date: new Date(),
           duration: null,
           pointsGained: null,
@@ -118,7 +126,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
           needsReview: false,
         };
 
-        queryClient.setQueryData<TrainingSession[]>(["sessions"], (old = []) => [
+        queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) => [
           optimisticSession,
           ...old,
         ]);
@@ -129,35 +137,37 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
     onSuccess: () => {
       // Show success notification
       toast({
-        title: "Success",
-        description: isEditMode ? "Weekly goal updated successfully!" : "Weekly goal set successfully!",
+        title: 'Success',
+        description: isEditMode
+          ? 'Weekly goal updated successfully!'
+          : 'Weekly goal set successfully!',
       });
 
       // Refresh data in background
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
     },
     onError: (error: any, _newSession, context) => {
       // Check if it's a timeout error but session might have been saved
       if (error.message?.includes('timeout')) {
         toast({
-          title: "Slow Connection",
-          description: "Goal may have been saved. Please check your activity to confirm.",
-          variant: "destructive",
+          title: 'Slow Connection',
+          description: 'Goal may have been saved. Please check your activity to confirm.',
+          variant: 'destructive',
         });
       } else {
         if (context?.previousSessions) {
-          queryClient.setQueryData(["sessions"], context.previousSessions);
+          queryClient.setQueryData(['sessions'], context.previousSessions);
         }
         if (context?.previousStats) {
-          queryClient.setQueryData(["statistics"], context.previousStats);
+          queryClient.setQueryData(['statistics'], context.previousStats);
         }
         toast({
-          title: "Error",
-          description: error.message || "Failed to set weekly goal",
-          variant: "destructive",
+          title: 'Error',
+          description: error.message || 'Failed to set weekly goal',
+          variant: 'destructive',
         });
       }
     },
@@ -165,24 +175,23 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
 
   const onSubmit = (data: GoalSession) => {
     // Add current date and goal week start to the session data
-      const sessionData = {
-        ...data,
-        date: isEditMode && editingSession ? editingSession.date : new Date(),
-        goalWeekStart: isEditMode && editingSession ? editingSession.goalWeekStart ?? undefined : new Date(),
-      };
+    const sessionData = {
+      ...data,
+      date: isEditMode && editingSession ? editingSession.date : new Date(),
+      goalWeekStart:
+        isEditMode && editingSession ? (editingSession.goalWeekStart ?? undefined) : new Date(),
+    };
     mutation.mutate(sessionData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md mobile-modal">
+      <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-bold text-gray-800">
-            Set Weekly Goal
-          </DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-800">Set Weekly Goal</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto space-y-3 p-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
+          <div className="flex-1 space-y-3 overflow-y-auto p-2">
             <div>
               <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
                 Goal Title
@@ -191,11 +200,11 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
                 id="goalTitle"
                 placeholder="Improve endgame technique"
                 className="mt-1"
-                {...register("goalTitle")}
+                {...register('goalTitle')}
                 onFocus={(e) => e.target.select()}
               />
               {errors.goalTitle && (
-                <p className="text-sm text-red-600 mt-1">{errors.goalTitle.message}</p>
+                <p className="mt-1 text-sm text-red-600">{errors.goalTitle.message}</p>
               )}
             </div>
 
@@ -208,7 +217,7 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
                 placeholder="Focus on king and pawn endgames, practice basic techniques..."
                 className="mt-1"
                 rows={2}
-                {...register("goalDescription")}
+                {...register('goalDescription')}
                 onFocus={(e) => e.target.select()}
               />
             </div>
@@ -218,17 +227,17 @@ export default function GoalModal({ open, onOpenChange, editingSession, isEditMo
             <Button
               type="button"
               variant="outline"
-              className="flex-1 modal-button"
+              className="modal-button flex-1"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-purple-600 hover:bg-purple-700 modal-button"
+              className="modal-button flex-1 bg-purple-600 hover:bg-purple-700"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? "Saving..." : "Set Goal"}
+              {mutation.isPending ? 'Saving...' : 'Set Goal'}
             </Button>
           </div>
         </form>

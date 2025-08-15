@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import type { User } from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebaseClient";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cloud, CloudOff, LogOut } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { User } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebaseClient';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Cloud, CloudOff, LogOut } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FirebaseAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,12 +18,9 @@ export default function FirebaseAuth() {
     const initAuth = async () => {
       try {
         const auth = await getFirebaseAuth();
-        const { onAuthStateChanged, getRedirectResult } = await import(
-          "firebase/auth"
-        );
-        const { refreshAuthState, verifyDataPresence, startSessionSync, stopSessionSync } = await import(
-          "@/lib/firebase-utils"
-        );
+        const { onAuthStateChanged, getRedirectResult } = await import('firebase/auth');
+        const { refreshAuthState, verifyDataPresence, startSessionSync, stopSessionSync } =
+          await import('@/lib/firebase-utils');
 
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           setUser(user);
@@ -34,10 +31,10 @@ export default function FirebaseAuth() {
               const verified = await verifyDataPresence();
               if (verified) {
                 await startSessionSync(() => {
-                  queryClient.invalidateQueries({ queryKey: ["sessions"] });
-                  queryClient.invalidateQueries({ queryKey: ["statistics"] });
-                  queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
-                  queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+                  queryClient.invalidateQueries({ queryKey: ['sessions'] });
+                  queryClient.invalidateQueries({ queryKey: ['statistics'] });
+                  queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+                  queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
                 });
               }
             } catch (err) {
@@ -51,43 +48,43 @@ export default function FirebaseAuth() {
         // Handle redirect result or persisted intent
         try {
           const redirectResult = await getRedirectResult(auth).catch(() => null);
-          const redirectIntent = sessionStorage.getItem("redirectAuth");
+          const redirectIntent = sessionStorage.getItem('redirectAuth');
           if (redirectResult || redirectIntent) {
-            sessionStorage.removeItem("redirectAuth");
+            sessionStorage.removeItem('redirectAuth');
             try {
               await refreshAuthState();
               const verified = await verifyDataPresence();
               if (!verified) {
                 toast({
-                  title: "Verification Failed",
-                  description: "Could not verify cloud data. Please try again.",
-                  variant: "destructive",
+                  title: 'Verification Failed',
+                  description: 'Could not verify cloud data. Please try again.',
+                  variant: 'destructive',
                 });
               } else {
                 await startSessionSync(() => {
-                  queryClient.invalidateQueries({ queryKey: ["sessions"] });
-                  queryClient.invalidateQueries({ queryKey: ["statistics"] });
-                  queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
-                  queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+                  queryClient.invalidateQueries({ queryKey: ['sessions'] });
+                  queryClient.invalidateQueries({ queryKey: ['statistics'] });
+                  queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+                  queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
                 });
                 toast({
-                  title: "Connected",
-                  description: "Cloud sync enabled successfully!",
+                  title: 'Connected',
+                  description: 'Cloud sync enabled successfully!',
                 });
               }
             } catch (error) {
               toast({
-                title: "Connection Failed",
+                title: 'Connection Failed',
                 description:
                   error instanceof Error
                     ? error.message
-                    : "Could not enable cloud sync. Please try again.",
-                variant: "destructive",
+                    : 'Could not enable cloud sync. Please try again.',
+                variant: 'destructive',
               });
             }
           }
         } catch (error) {
-          console.error("Redirect result handling failed:", error);
+          console.error('Redirect result handling failed:', error);
         }
 
         return unsubscribe;
@@ -108,19 +105,18 @@ export default function FirebaseAuth() {
   const handleSignIn = async () => {
     try {
       setLoading(true);
-      const { startAuthFlow, refreshAuthState, verifyDataPresence, startSessionSync } = await import(
-        "@/lib/firebase-utils"
-      );
+      const { startAuthFlow, refreshAuthState, verifyDataPresence, startSessionSync } =
+        await import('@/lib/firebase-utils');
       try {
         await startAuthFlow();
       } catch (error: any) {
         if (
           error &&
-          (error.code === "auth/popup-blocked" ||
-            error.code === "auth/cancelled-popup-request" ||
-            error.code === "auth/operation-not-supported-in-this-environment")
+          (error.code === 'auth/popup-blocked' ||
+            error.code === 'auth/cancelled-popup-request' ||
+            error.code === 'auth/operation-not-supported-in-this-environment')
         ) {
-          sessionStorage.setItem("redirectAuth", "true");
+          sessionStorage.setItem('redirectAuth', 'true');
           await startAuthFlow(true);
         } else {
           throw error;
@@ -130,30 +126,28 @@ export default function FirebaseAuth() {
       const verified = await verifyDataPresence();
       if (!verified) {
         toast({
-          title: "Verification Failed",
-          description: "Could not verify cloud data. Please try again.",
-          variant: "destructive",
+          title: 'Verification Failed',
+          description: 'Could not verify cloud data. Please try again.',
+          variant: 'destructive',
         });
         return;
       }
       await startSessionSync(() => {
-        queryClient.invalidateQueries({ queryKey: ["sessions"] });
-        queryClient.invalidateQueries({ queryKey: ["statistics"] });
-        queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
-        queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+        queryClient.invalidateQueries({ queryKey: ['sessions'] });
+        queryClient.invalidateQueries({ queryKey: ['statistics'] });
+        queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+        queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
       });
       toast({
-        title: "Connected",
-        description: "Cloud sync enabled successfully!",
+        title: 'Connected',
+        description: 'Cloud sync enabled successfully!',
       });
     } catch (error) {
       toast({
-        title: "Connection Failed",
+        title: 'Connection Failed',
         description:
-          error instanceof Error
-            ? error.message
-            : "Could not enable cloud sync. Please try again.",
-        variant: "destructive",
+          error instanceof Error ? error.message : 'Could not enable cloud sync. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -164,24 +158,25 @@ export default function FirebaseAuth() {
     try {
       setLoading(true);
       const auth = await getFirebaseAuth();
-      const { signOut } = await import("firebase/auth");
+      const { signOut } = await import('firebase/auth');
       await signOut(auth);
-      const { refreshAuthState, stopSessionSync } = await import("@/lib/firebase-utils");
+      const { refreshAuthState, stopSessionSync } = await import('@/lib/firebase-utils');
       await refreshAuthState();
       stopSessionSync();
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["statistics"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-activity"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
       toast({
-        title: "Disconnected",
-        description: "Cloud sync has been disabled. Local data remains on this device.",
+        title: 'Disconnected',
+        description: 'Cloud sync has been disabled. Local data remains on this device.',
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Could not disconnect from cloud sync.",
-        variant: "destructive",
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Could not disconnect from cloud sync.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -190,10 +185,10 @@ export default function FirebaseAuth() {
 
   if (loading) {
     return (
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="border-blue-200 bg-blue-50">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            <Cloud className="w-5 h-5 text-blue-600 animate-pulse" />
+            <Cloud className="h-5 w-5 animate-pulse text-blue-600" />
             <div>
               <p className="text-sm text-gray-600">Initializing cloud sync...</p>
             </div>
@@ -204,17 +199,17 @@ export default function FirebaseAuth() {
   }
 
   return (
-    <Card className={user ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}>
+    <Card className={user ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center space-x-2 text-sm">
           {user ? (
             <>
-              <Cloud className="w-4 h-4 text-green-600" />
+              <Cloud className="h-4 w-4 text-green-600" />
               <span>Cloud Sync Active</span>
             </>
           ) : (
             <>
-              <CloudOff className="w-4 h-4 text-gray-600" />
+              <CloudOff className="h-4 w-4 text-gray-600" />
               <span>Cloud Sync Disabled</span>
             </>
           )}
@@ -224,11 +219,11 @@ export default function FirebaseAuth() {
         {user ? (
           <div className="space-y-3">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Avatar className="w-6 h-6">
-                <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ""} />
-                <AvatarFallback>{user.displayName?.[0] ?? user.email?.[0] ?? "U"}</AvatarFallback>
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} />
+                <AvatarFallback>{user.displayName?.[0] ?? user.email?.[0] ?? 'U'}</AvatarFallback>
               </Avatar>
-              <span>{user.displayName || user.email || "User"}</span>
+              <span>{user.displayName || user.email || 'User'}</span>
             </div>
             <p className="text-xs text-gray-500">
               Your training data is automatically synced across all your devices.
@@ -240,7 +235,7 @@ export default function FirebaseAuth() {
               disabled={loading}
               className="w-full"
             >
-              <LogOut className="w-4 h-4 mr-2" />
+              <LogOut className="mr-2 h-4 w-4" />
               Disable Cloud Sync
             </Button>
           </div>
@@ -254,7 +249,7 @@ export default function FirebaseAuth() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
-              <Cloud className="w-4 h-4 mr-2" />
+              <Cloud className="mr-2 h-4 w-4" />
               Enable Cloud Sync
             </Button>
           </div>

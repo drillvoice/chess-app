@@ -10,13 +10,13 @@ class OfflineStorage {
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
-      
+
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
         resolve();
       };
-      
+
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
@@ -58,11 +58,11 @@ class OfflineStorage {
       const transaction = db.transaction(['sessions'], 'readonly');
       const store = transaction.objectStore('sessions');
       const request = store.getAll();
-      
+
       request.onsuccess = () => {
-        const sessions = request.result.map(session => ({
+        const sessions = request.result.map((session) => ({
           ...session,
-          date: new Date(session.date)
+          date: new Date(session.date),
         }));
         // Sort by date descending
         sessions.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -78,24 +78,24 @@ class OfflineStorage {
       const transaction = db.transaction(['sessions', 'cache_meta'], 'readwrite');
       const sessionsStore = transaction.objectStore('sessions');
       const metaStore = transaction.objectStore('cache_meta');
-      
+
       // Clear existing sessions
       sessionsStore.clear();
-      
+
       // Add new sessions
-      sessions.forEach(session => {
+      sessions.forEach((session) => {
         sessionsStore.add({
           ...session,
-          date: session.date.toISOString()
+          date: session.date.toISOString(),
         });
       });
-      
+
       // Update cache metadata
       metaStore.put({
         key: 'sessions_last_updated',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -109,7 +109,7 @@ class OfflineStorage {
 
       store.put({
         ...session,
-        date: session.date.toISOString()
+        date: session.date.toISOString(),
       });
 
       transaction.oncomplete = () => resolve();
@@ -125,7 +125,7 @@ class OfflineStorage {
 
       store.put({
         ...session,
-        date: session.date.toISOString()
+        date: session.date.toISOString(),
       });
 
       transaction.oncomplete = () => resolve();
@@ -156,7 +156,7 @@ class OfflineStorage {
       const transaction = db.transaction(['statistics'], 'readonly');
       const store = transaction.objectStore('statistics');
       const request = store.get('current');
-      
+
       request.onsuccess = () => resolve(request.result?.data || null);
       request.onerror = () => reject(request.error);
     });
@@ -168,17 +168,17 @@ class OfflineStorage {
       const transaction = db.transaction(['statistics', 'cache_meta'], 'readwrite');
       const statsStore = transaction.objectStore('statistics');
       const metaStore = transaction.objectStore('cache_meta');
-      
+
       statsStore.put({
         id: 'current',
-        data: stats
+        data: stats,
       });
-      
+
       metaStore.put({
         key: 'statistics_last_updated',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      
+
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -232,7 +232,7 @@ class OfflineStorage {
       const transaction = db.transaction(['cache_meta'], 'readonly');
       const store = transaction.objectStore('cache_meta');
       const request = store.get(key + '_last_updated');
-      
+
       request.onsuccess = () => {
         const meta = request.result;
         if (meta && meta.timestamp) {
@@ -252,7 +252,10 @@ class OfflineStorage {
   async clearAll(): Promise<void> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['sessions', 'statistics', 'settings', 'cache_meta'], 'readwrite');
+      const transaction = db.transaction(
+        ['sessions', 'statistics', 'settings', 'cache_meta'],
+        'readwrite',
+      );
 
       transaction.objectStore('sessions').clear();
       transaction.objectStore('statistics').clear();
@@ -269,6 +272,6 @@ class OfflineStorage {
 export const offlineStorage = new OfflineStorage();
 
 // Initialize immediately
-offlineStorage.init().catch(error => {
+offlineStorage.init().catch((error) => {
   console.warn('Failed to initialize offline storage:', error);
 });

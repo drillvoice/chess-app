@@ -1,5 +1,5 @@
-import { offlineStorage } from "./offline-storage";
-import type { TrainingSession } from "@shared/schema";
+import { offlineStorage } from './offline-storage';
+import type { TrainingSession } from '@shared/schema';
 
 // Offline API that mimics the server API but uses IndexedDB via offlineStorage
 export const offlineApi = {
@@ -34,12 +34,11 @@ export const offlineApi = {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     return sessions
-      .filter((s) => s.type === "goal")
+      .filter((s) => s.type === 'goal')
       .filter((s) => s.goalWeekStart && new Date(s.goalWeekStart) >= oneWeekAgo)
       .sort(
         (a, b) =>
-          new Date(b.goalWeekStart as Date).getTime() -
-          new Date(a.goalWeekStart as Date).getTime()
+          new Date(b.goalWeekStart as Date).getTime() - new Date(a.goalWeekStart as Date).getTime(),
       )[0];
   },
 
@@ -53,7 +52,7 @@ export const offlineApi = {
     const parsed = JSON.parse(data);
     if (parsed.sessions) {
       await offlineStorage.setSessions(
-        parsed.sessions.map((s: any) => ({ ...s, date: new Date(s.date) }))
+        parsed.sessions.map((s: any) => ({ ...s, date: new Date(s.date) })),
       );
     }
     if (parsed.statistics) {
@@ -68,38 +67,37 @@ export const isOnline = () => navigator.onLine;
 export const apiCall = async (endpoint: string, options?: RequestInit) => {
   if (!isOnline()) {
     // Route to offline API based on endpoint
-    if (endpoint === "/api/statistics") {
+    if (endpoint === '/api/statistics') {
       return { ok: true, json: () => Promise.resolve(offlineApi.getStatistics()) };
     }
-    if (endpoint === "/api/training-sessions") {
+    if (endpoint === '/api/training-sessions') {
       return {
         ok: true,
         json: () => Promise.resolve(offlineApi.getAllTrainingSessions()),
       };
     }
-    if (endpoint === "/api/weekly-goal") {
+    if (endpoint === '/api/weekly-goal') {
       return {
         ok: true,
         json: () => Promise.resolve(offlineApi.getCurrentWeeklyGoal()),
       };
     }
-    if (endpoint.startsWith("/api/training-sessions/") && options?.method === "POST") {
+    if (endpoint.startsWith('/api/training-sessions/') && options?.method === 'POST') {
       const body = options.body ? JSON.parse(options.body as string) : {};
       return {
         ok: true,
         json: () => Promise.resolve(offlineApi.createTrainingSession(body)),
       };
     }
-    if (endpoint === "/api/export") {
+    if (endpoint === '/api/export') {
       return { ok: true, text: () => Promise.resolve(offlineApi.exportData()) };
     }
-    if (endpoint === "/api/import" && options?.method === "POST") {
+    if (endpoint === '/api/import' && options?.method === 'POST') {
       const body = options.body ? JSON.parse(options.body as string) : {};
       await offlineApi.importData(body.data);
       return {
         ok: true,
-        json: () =>
-          Promise.resolve({ message: "Data imported successfully" }),
+        json: () => Promise.resolve({ message: 'Data imported successfully' }),
       };
     }
   }
@@ -107,4 +105,3 @@ export const apiCall = async (endpoint: string, options?: RequestInit) => {
   // Online: use regular fetch
   return fetch(endpoint, options);
 };
-

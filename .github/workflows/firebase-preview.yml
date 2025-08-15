@@ -2,7 +2,7 @@ name: Deploy Firebase Preview
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -81,4 +81,3 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body
             });
-
