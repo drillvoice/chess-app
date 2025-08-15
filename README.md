@@ -109,6 +109,17 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
    npm run build
    ```
 
+## Testing
+
+Run the test suites to verify functionality:
+
+```bash
+npm test         # Unit tests with Vitest
+npm run test:e2e # End-to-end tests with Playwright
+```
+
+See [TESTING.md](TESTING.md) for additional details.
+
 ## Project Structure
 
 ```

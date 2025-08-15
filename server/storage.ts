@@ -1,4 +1,4 @@
-import { trainingSessionsTable, type TrainingSession, type InsertTrainingSession } from "@shared/schema";
+import { type TrainingSession, type InsertTrainingSession } from "@shared/schema";
 
 export interface IStorage {
   getTrainingSession(id: number): Promise<TrainingSession | undefined>;
@@ -21,29 +21,42 @@ export class MemStorage implements IStorage {
     this.currentId = 1;
   }
 
+  /**
+   * Returns all sessions as an array for further processing.
+   * Using a helper avoids repeating Array.from calls throughout the class.
+   */
+  private sessionsArray(): TrainingSession[] {
+    return Array.from(this.sessions.values());
+  }
+
+  /**
+   * Sort comparator for sessions by date in descending order.
+   */
+  private static sortByDateDesc(a: TrainingSession, b: TrainingSession): number {
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  }
+
   async getTrainingSession(id: number): Promise<TrainingSession | undefined> {
     return this.sessions.get(id);
   }
 
   async getAllTrainingSessions(): Promise<TrainingSession[]> {
-    return Array.from(this.sessions.values()).sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    return this.sessionsArray().sort(MemStorage.sortByDateDesc);
   }
 
   async getTrainingSessionsByType(type: string): Promise<TrainingSession[]> {
-    return Array.from(this.sessions.values())
+    return this.sessionsArray()
       .filter(session => session.type === type)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort(MemStorage.sortByDateDesc);
   }
 
   async getTrainingSessionsByDateRange(startDate: Date, endDate: Date): Promise<TrainingSession[]> {
-    return Array.from(this.sessions.values())
+    return this.sessionsArray()
       .filter(session => {
         const sessionDate = new Date(session.date);
         return sessionDate >= startDate && sessionDate <= endDate;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort(MemStorage.sortByDateDesc);
   }
 
   async createTrainingSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
