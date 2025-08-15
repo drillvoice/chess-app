@@ -1,55 +1,47 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  tacticsSessionSchema, 
-  gameSessionSchema, 
+import {
+  tacticsSessionSchema,
+  gameSessionSchema,
   studySessionSchema,
-  goalSessionSchema 
+  goalSessionSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import path from "path";
 
+/**
+ * Helper to register a static file route with predefined headers.
+ */
+function serveStaticFile(
+  app: Express,
+  urlPath: string,
+  filename: string,
+  contentType: string,
+  extraHeaders: Record<string, string> = {}
+): void {
+  app.get(urlPath, (_req, res) => {
+    res.setHeader("Content-Type", contentType);
+    for (const [key, value] of Object.entries(extraHeaders)) {
+      res.setHeader(key, value);
+    }
+    res.sendFile(path.join(process.cwd(), "public", filename));
+  });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // PWA routes with proper headers
-  app.get('/manifest.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/manifest+json');
-    res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'));
-  });
-  
-  app.get('/sw.js', (req, res) => {
-    res.setHeader('Content-Type', 'application/javascript');
-    res.setHeader('Service-Worker-Allowed', '/');
-    res.sendFile(path.join(process.cwd(), 'public', 'sw.js'));
+  serveStaticFile(app, "/manifest.json", "manifest.json", "application/manifest+json");
+  serveStaticFile(app, "/sw.js", "sw.js", "application/javascript", {
+    "Service-Worker-Allowed": "/",
   });
 
-  // SVG icon routes with proper Content-Type
-  app.get('/icon-192.svg', (req, res) => {
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.sendFile(path.join(process.cwd(), 'public', 'icon-192.svg'));
+  ["192", "512"].forEach(size => {
+    serveStaticFile(app, `/icon-${size}.svg`, `icon-${size}.svg`, "image/svg+xml");
+    serveStaticFile(app, `/icon-${size}.png`, `icon-${size}.png`, "image/png");
   });
 
-  app.get('/icon-512.svg', (req, res) => {
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.sendFile(path.join(process.cwd(), 'public', 'icon-512.svg'));
-  });
-
-  // PNG icon routes with proper Content-Type
-  app.get('/icon-192.png', (req, res) => {
-    res.setHeader('Content-Type', 'image/png');
-    res.sendFile(path.join(process.cwd(), 'public', 'icon-192.png'));
-  });
-
-  app.get('/icon-512.png', (req, res) => {
-    res.setHeader('Content-Type', 'image/png');
-    res.sendFile(path.join(process.cwd(), 'public', 'icon-512.png'));
-  });
-
-  // Screenshot route
-  app.get('/screenshot-mobile.png', (req, res) => {
-    res.setHeader('Content-Type', 'image/png');
-    res.sendFile(path.join(process.cwd(), 'public', 'screenshot-mobile.png'));
-  });
+  serveStaticFile(app, "/screenshot-mobile.png", "screenshot-mobile.png", "image/png");
 
   // Get all training sessions
   app.get("/api/training-sessions", async (req, res) => {
