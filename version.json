@@ -1,0 +1,24 @@
+{
+  "version": "1.2.4",
+  "lastUpdated": "2025-08-16",
+  "changelog": [
+    {
+      "version": "1.2.4",
+      "date": "2025-08-16",
+      "changes": [
+        "Fixed archive button not removing games from review list",
+        "Fixed review modal validation issues with pre-filled values",
+        "Added optimistic updates for better user experience"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2025-08-15",
+      "changes": [
+        "Initial release with game logging",
+        "Added tactics and study tracking",
+        "Implemented weekly goals feature"
+      ]
+    }
+  ]
+}

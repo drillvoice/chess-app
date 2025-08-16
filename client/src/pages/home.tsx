@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TrainingSession } from '@shared/schema';
+import versionData from '../version.json';
 
 interface Statistics {
   totalHours: number;
@@ -301,7 +302,7 @@ export default function Home() {
 
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">
-        <p className="text-xs text-gray-500">Pawn Star Chess Log v1.2.3 - August 15, 2025</p>
+        <p className="text-xs text-gray-500">  Pawn Star Chess Log v{versionData.version} - {versionData.lastUpdated}</p>
       </div>
     </div>
   );
