@@ -101,6 +101,53 @@ class OfflineStorage {
     });
   }
 
+  async mergeSessions(sessions: TrainingSession[]): Promise<void> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['sessions', 'cache_meta'], 'readwrite');
+      const sessionsStore = transaction.objectStore('sessions');
+      const metaStore = transaction.objectStore('cache_meta');
+
+      sessions.forEach((session) => {
+        sessionsStore.put({
+          ...session,
+          date: session.date.toISOString(),
+        });
+      });
+
+      metaStore.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  async getLastSyncedTimestamp(): Promise<number> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['cache_meta'], 'readonly');
+      const store = transaction.objectStore('cache_meta');
+      const request = store.get('sessions_last_synced');
+
+      request.onsuccess = () => {
+        const result = request.result;
+        resolve(result?.timestamp || 0);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async setLastSyncedTimestamp(timestamp: number): Promise<void> {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['cache_meta'], 'readwrite');
+      const store = transaction.objectStore('cache_meta');
+      store.put({ key: 'sessions_last_synced', timestamp });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
   async addSession(session: TrainingSession): Promise<void> {
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {

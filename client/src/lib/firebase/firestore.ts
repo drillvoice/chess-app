@@ -58,7 +58,16 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
 
   try {
     const sessionsRef = await getSessionsCollection();
-    const q = query(sessionsRef, orderBy('date', 'desc'));
+    const lastSynced = await offlineStorage.getLastSyncedTimestamp();
+
+    const q = lastSynced
+      ? query(
+          sessionsRef,
+          where('date', '>', Timestamp.fromMillis(lastSynced)),
+          orderBy('date', 'desc'),
+        )
+      : query(sessionsRef, orderBy('date', 'desc'));
+
     const snapshot = await getDocs(q);
 
     if (!snapshot || !snapshot.docs) {
@@ -71,12 +80,21 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
       date: doc.data().date.toDate(),
     })) as TrainingSession[];
 
-    // Cache in both localStorage and IndexedDB
-    SessionsCache.set(sessions);
-    await offlineStorage.setSessions(sessions);
+    await offlineStorage.mergeSessions(sessions);
+
+    if (sessions.length > 0) {
+      const latest = sessions.reduce(
+        (max, s) => Math.max(max, s.date.getTime()),
+        lastSynced,
+      );
+      await offlineStorage.setLastSyncedTimestamp(latest);
+    }
+
+    const allSessions = await offlineStorage.getSessions();
+    SessionsCache.set(allSessions);
 
     console.log(`Fetched ${sessions.length} sessions from Firebase`);
-    return sessions;
+    return allSessions;
   } catch (error) {
     console.error('Error fetching sessions from Firebase:', error);
 
