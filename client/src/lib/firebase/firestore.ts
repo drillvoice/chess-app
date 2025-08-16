@@ -22,23 +22,34 @@ import {
 } from './core';
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
-  // Try to get fresh data from Firebase first
+  try {
+    // Prefer cached sessions for instant load
+    const cachedSessions = await offlineStorage.getSessions();
+    if (cachedSessions && cachedSessions.length > 0) {
+      try {
+        const cacheAge = await offlineStorage.getCacheAge('sessions');
+        if (cacheAge > 30000) {
+          // Fetch fresh data in background when cache is stale
+          queueMicrotask(() => updateSessionsInBackground());
+        }
+      } catch (ageError) {
+        console.warn('Failed to check cache age:', ageError);
+        // Still attempt background update
+        queueMicrotask(() => updateSessionsInBackground());
+      }
+      return cachedSessions;
+    }
+  } catch (error) {
+    console.warn('Failed to read sessions from offline storage:', error);
+  }
+
+  // No cached data, fall back to Firebase
   try {
     const firebaseSessions = await fetchSessionsFromFirebase();
-    console.log('Successfully synced sessions from Firebase');
     return firebaseSessions;
   } catch (error) {
-    console.warn('Firebase sync failed, falling back to cached data:', error);
-
-    // Fall back to cached data only if Firebase fails
-    try {
-      const cachedSessions = await offlineStorage.getSessions();
-      console.log(`Using ${cachedSessions.length} cached sessions`);
-      return cachedSessions || [];
-    } catch (cacheError) {
-      console.error('Both Firebase and cache failed:', cacheError);
-      return [];
-    }
+    console.error('Failed to fetch sessions from Firebase:', error);
+    return [];
   }
 }
 
@@ -283,16 +294,11 @@ export async function updateSession(
 
     await setDoc(docRef, updatePayload, { merge: true });
 
-    // Get the current sessions to find the updated one
-    const sessions = await getAllSessions();
+    // Get fresh sessions to find the updated one
+    const sessions = await fetchSessionsFromFirebase();
     const updatedSession = sessions.find((session) => session.id === id);
 
     try {
-      if (updatedSession) {
-        await offlineStorage.updateSession(updatedSession);
-      } else {
-        await offlineStorage.removeSession(id);
-      }
       await offlineStorage.clearStatistics();
     } catch (error) {
       console.warn('Failed to update offline cache:', error);
