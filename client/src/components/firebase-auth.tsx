@@ -100,7 +100,7 @@ export default function FirebaseAuth() {
     });
 
     return () => unsubscribe?.();
-  }, [toast]);
+  }, [toast, queryClient]);
 
   const handleSignIn = async () => {
     try {

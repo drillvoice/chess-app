@@ -9,13 +9,11 @@ import {
   getDocs,
   deleteDoc,
   setDoc,
-  updateDoc,
   query,
   where,
   orderBy,
   onSnapshot,
   Timestamp,
-  limit,
   collection,
   auth,
   onAuthStateChanged,
@@ -113,7 +111,7 @@ async function updateSessionsInBackground(): Promise<void> {
       return; // Skip update
     }
 
-    const freshSessions = await fetchSessionsFromFirebase();
+    await fetchSessionsFromFirebase();
     // Cache will be updated in fetchSessionsFromFirebase
   } catch (error) {
     // Silently fail - user already has cached data
@@ -472,7 +470,7 @@ export async function getWeeklyActivity() {
 
 async function updateStatisticsInBackground(): Promise<void> {
   try {
-    const freshStats = await calculateStatistics();
+    await calculateStatistics();
     // Cache will be updated in calculateStatistics
   } catch (error) {
     console.error('Statistics background update failed:', error);

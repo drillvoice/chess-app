@@ -7,9 +7,9 @@ import {
   doc,
   getDoc,
   setDoc,
+  getCurrentUserId,
 } from './core';
 import { getAllSessions } from './firestore';
-import { getCurrentUserId } from './core';
 
 export class SettingsError extends Error {
   constructor(message: string, public cause?: Error) {
@@ -58,7 +58,7 @@ async function calculateWeeklyGoal(): Promise<TrainingSession | undefined> {
 
 async function updateWeeklyGoalInBackground(): Promise<void> {
   try {
-    const freshGoal = await calculateWeeklyGoal();
+    await calculateWeeklyGoal();
     // Cache will be updated in calculateWeeklyGoal
   } catch (error) {
     console.error('Weekly goal background update failed:', error);

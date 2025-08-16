@@ -1,4 +1,4 @@
-import express, { type Express } from 'express';
+import { type Express, static as expressStatic } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { createServer as createViteServer, createLogger } from 'vite';
@@ -68,7 +68,7 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(expressStatic(distPath));
 
   // fall through to index.html if the file doesn't exist
   app.use('*', (_req, res) => {
