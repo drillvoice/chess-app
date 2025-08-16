@@ -1,5 +1,5 @@
 // @vitest-environment node
-import express from 'express';
+import express, { json } from 'express';
 import request from 'supertest';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { registerRoutes } from './routes';
@@ -10,7 +10,7 @@ describe('API routes', () => {
 
   beforeEach(async () => {
     app = express();
-    app.use(express.json());
+    app.use(json());
     await registerRoutes(app);
     await storage.importData('[]');
   });
