@@ -48,6 +48,9 @@ vi.mock('@/lib/offline-storage', () => ({
     clear: vi.fn(),
     getSessions: vi.fn().mockResolvedValue([]),
     setSessions: vi.fn(),
+    mergeSessions: vi.fn(),
+    getLastSyncedTimestamp: vi.fn(),
+    setLastSyncedTimestamp: vi.fn(),
   },
 }));
 

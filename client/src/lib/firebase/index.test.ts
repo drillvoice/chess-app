@@ -26,6 +26,9 @@ vi.mock('../offline-storage', () => ({
     getCacheAge: vi.fn(),
     getSettings: vi.fn(),
     setSettings: vi.fn(),
+    mergeSessions: vi.fn(),
+    getLastSyncedTimestamp: vi.fn(),
+    setLastSyncedTimestamp: vi.fn(),
   },
 }));
 
