@@ -9,7 +9,7 @@
         "Fixed archive button not removing games from review list",
         "Fixed review modal validation issues with pre-filled values",
         "Added optimistic updates for better user experience",
-        "Improved caching".
+        "Improved caching"
       ]
     },
     {
