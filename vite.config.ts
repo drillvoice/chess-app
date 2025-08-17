@@ -37,5 +37,8 @@ export default defineConfig({
       strict: true,
       deny: ['**/.*'],
     },
+    headers: {
+      'Cache-Control': 'public, max-age=31536000', // 1 year for versioned assets
+    }
   },
 });

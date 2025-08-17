@@ -1,3 +1,4 @@
+// Enhanced main.tsx with SW message handling
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
@@ -10,7 +11,6 @@ async function initializePersistentStorage(): Promise<boolean> {
   }
 
   try {
-    // Check if storage is already persistent
     const isPersistent = await navigator.storage.persisted();
     
     if (isPersistent) {
@@ -18,7 +18,6 @@ async function initializePersistentStorage(): Promise<boolean> {
       return true;
     }
 
-    // Request persistent storage
     const granted = await navigator.storage.persist();
     
     if (granted) {
@@ -34,7 +33,94 @@ async function initializePersistentStorage(): Promise<boolean> {
   }
 }
 
-// Enhanced service worker registration with storage quota info
+// Service worker message handler
+function setupServiceWorkerMessaging() {
+  if (!('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    console.log('SW Message received:', event.data);
+    
+    switch (event.data.type) {
+      case 'BACKGROUND_SYNC_SUCCESS':
+        // Dispatch custom event that your React components can listen to
+        window.dispatchEvent(new CustomEvent('offline-sessions-synced', {
+          detail: { 
+            count: event.data.count || 1,
+            message: 'Offline sessions synchronized!'
+          }
+        }));
+        break;
+        
+      case 'BACKGROUND_SYNC_FAILED':
+        window.dispatchEvent(new CustomEvent('sync-failed', {
+          detail: { 
+            error: event.data.error,
+            message: 'Failed to sync some offline sessions'
+          }
+        }));
+        break;
+        
+      case 'CACHE_UPDATED':
+        // Notify app of fresh data
+        window.dispatchEvent(new CustomEvent('fresh-data-available', {
+          detail: { 
+            endpoint: event.data.endpoint,
+            message: 'New data available'
+          }
+        }));
+        break;
+        
+      case 'OFFLINE_SESSION_STORED':
+        // Immediate feedback when session is stored for later sync
+        window.dispatchEvent(new CustomEvent('session-stored-offline', {
+          detail: { 
+            sessionId: event.data.sessionId,
+            message: 'Session saved offline - will sync when connection returns'
+          }
+        }));
+        break;
+    }
+  });
+
+  // Listen for SW updates
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // Service worker updated, might want to refresh
+    window.dispatchEvent(new CustomEvent('app-updated', {
+      detail: { message: 'App updated! Refresh to get the latest version.' }
+    }));
+  });
+}
+
+// Cache warming function
+async function warmCache() {
+  if (!navigator.onLine) {
+    console.log('Offline - skipping cache warming');
+    return;
+  }
+
+  try {
+    console.log('Warming cache with essential data...');
+    
+    // Warm cache with critical endpoints
+    const warmingRequests = [
+      fetch('/api/statistics'),
+      fetch('/api/training-sessions/today'), 
+      fetch('/api/weekly-goal'),
+      // Add other critical endpoints your app needs immediately
+    ];
+
+    // Don't await these - let them happen in background
+    Promise.allSettled(warmingRequests).then((results) => {
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      console.log(`Cache warming completed: ${successful}/${results.length} requests successful`);
+    });
+    
+  } catch (error) {
+    console.warn('Cache warming failed:', error);
+  }
+}
+
+// Enhanced service worker registration
 async function initializeServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) {
     console.warn('Service Workers not supported in this browser');
@@ -45,9 +131,32 @@ async function initializeServiceWorker(): Promise<void> {
     const registration = await navigator.serviceWorker.register('/sw.js', { 
       scope: '/' 
     });
+    
     console.log('SW registered: ', registration);
 
-    // Optional: Log storage quota information for debugging
+    // Set up messaging before the SW is active
+    setupServiceWorkerMessaging();
+
+    // Wait for SW to be ready, then warm cache
+    await navigator.serviceWorker.ready;
+    
+    // Warm cache after SW is ready
+    setTimeout(warmCache, 1000); // Small delay to let app initialize
+    
+    // Handle SW updates
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New SW is available
+            window.dispatchEvent(new CustomEvent('sw-update-available'));
+          }
+        });
+      }
+    });
+
+    // Optional: Log storage quota information
     if ('storage' in navigator && navigator.storage.estimate) {
       const estimate = await navigator.storage.estimate();
       console.log('Storage quota:', {
@@ -68,13 +177,11 @@ window.addEventListener('load', async () => {
   // Initialize persistent storage first
   const isPersistent = await initializePersistentStorage();
   
-  // Initialize service worker
+  // Initialize service worker with messaging and cache warming
   await initializeServiceWorker();
   
-  // You could optionally store the persistence status for use in your app
-  // For example, show a subtle notification if persistence was denied
+  // Dispatch persistence status
   if (!isPersistent && 'storage' in navigator) {
-    // Could dispatch a custom event or set a flag that your React app can read
     window.dispatchEvent(new CustomEvent('storage-persistence-status', { 
       detail: { persistent: false } 
     }));
