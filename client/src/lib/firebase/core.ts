@@ -23,11 +23,13 @@ export let signInWithRedirect: typeof import('firebase/auth').signInWithRedirect
 export let linkWithCredential: typeof import('firebase/auth').linkWithCredential;
 export let linkWithRedirect: typeof import('firebase/auth').linkWithRedirect;
 export let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
+export let signInAnonymously: typeof import('firebase/auth').signInAnonymously;
 export let provider: import('firebase/auth').GoogleAuthProvider;
 
 let currentUserId: string | null = null;
 let authListenerInitialized = false;
 let authResolvers: Array<() => void> = [];
+let anonymousSignInPromise: Promise<void> | null = null;
 
 export async function ensureFirebase() {
   if (!auth) {
@@ -63,6 +65,7 @@ export async function ensureFirebase() {
       linkWithCredential,
       linkWithRedirect,
       onAuthStateChanged,
+      signInAnonymously,
     } = authModule);
     provider = new GoogleAuthProvider();
   }
@@ -80,6 +83,31 @@ export async function ensureFirebase() {
   }
 }
 
+// Automatically sign in anonymously if no user is authenticated
+async function ensureAnonymousAuth(): Promise<void> {
+  if (anonymousSignInPromise) {
+    return anonymousSignInPromise;
+  }
+
+  if (auth.currentUser) {
+    return; // Already authenticated
+  }
+
+  anonymousSignInPromise = (async () => {
+    try {
+      console.log('No authenticated user found, signing in anonymously for device-specific storage...');
+      await signInAnonymously(auth);
+      console.log('Anonymous authentication successful');
+    } catch (error) {
+      console.error('Anonymous sign-in failed:', error);
+      anonymousSignInPromise = null;
+      throw error;
+    }
+  })();
+
+  return anonymousSignInPromise;
+}
+
 export async function waitForAuth(timeoutMs = 15000): Promise<void> {
   await ensureFirebase();
   if (currentUserId) return;
@@ -88,6 +116,22 @@ export async function waitForAuth(timeoutMs = 15000): Promise<void> {
     await ensureUserDoc();
     return;
   }
+
+  // Try anonymous sign-in first as fallback
+  try {
+    await ensureAnonymousAuth();
+    // Wait a moment for the auth state change to propagate
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (auth.currentUser) {
+      currentUserId = auth.currentUser.uid;
+      await ensureUserDoc();
+      return;
+    }
+  } catch (error) {
+    console.warn('Anonymous auth fallback failed:', error);
+  }
+
+  // If anonymous auth didn't work, wait for any auth state change
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -133,8 +177,22 @@ export function getCurrentUserId(): string | null {
   return currentUserId;
 }
 
+// Public function to ensure anonymous authentication for apps that need Firebase access
+export async function ensureAuthentication(): Promise<void> {
+  await ensureFirebase();
+  if (!auth.currentUser) {
+    await ensureAnonymousAuth();
+  }
+}
+
 export async function startAuthFlow(useRedirect = false): Promise<void> {
   await ensureFirebase();
+  
+  // Ensure we have an anonymous user to link with, if none exists
+  if (!auth.currentUser) {
+    await ensureAnonymousAuth();
+  }
+  
   const anonUser = auth.currentUser;
   if (useRedirect) {
     if (anonUser && anonUser.isAnonymous) {
@@ -143,12 +201,16 @@ export async function startAuthFlow(useRedirect = false): Promise<void> {
       await signInWithRedirect(auth, provider);
     }
   } else {
-    const result = await signInWithPopup(auth, provider);
     if (anonUser && anonUser.isAnonymous) {
+      // Link the anonymous user with Google credentials
+      const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential) {
         await linkWithCredential(anonUser, credential);
       }
+    } else {
+      // Direct sign-in if no anonymous user exists
+      await signInWithPopup(auth, provider);
     }
   }
   await refreshAuthState();
