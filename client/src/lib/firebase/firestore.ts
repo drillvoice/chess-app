@@ -240,53 +240,27 @@ export async function createSession(
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
 
-  // Save to Firebase FIRST to ensure it reaches the cloud
-  let firebaseSuccess = false;
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
-
-    const sessionData = {
-      ...insertSession,
-      id: sessionId,
-      date: Timestamp.fromDate(sessionDate),
-      createdAt: Timestamp.fromDate(now),
-      needsReview: insertSession.needsReview ?? false,
-    };
-
-    const docRef = doc(sessionsRef, sessionId.toString());
-    await setDoc(docRef, sessionData);
-
-    console.log(`Session ${sessionId} saved to Firebase successfully`);
-    firebaseSuccess = true;
-  } catch (error) {
-    console.error('Firebase save failed for session:', sessionId, error);
-    // Don't throw yet - still try to save locally
-  }
-
-  // Update local cache
+  // 1. Save locally FIRST for instant user feedback
   try {
     await offlineStorage.addSession(newSession);
     await offlineStorage.clearStatistics();
 
+    // Mark as unsynced for background sync (we'll add this method later)
+    await offlineStorage.markAsUnsynced(sessionId, 'create');
+
+    // Update caches immediately
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
 
     queueMicrotask(() => updateStatisticsInBackground());
   } catch (error) {
-    console.error('Failed to update local cache:', error);
-    // Surface the error so callers (like importData) can handle failures
-    // appropriately. Even if the cloud save succeeded, an offline failure
-    // means the session wasn't fully stored and should be treated as an
-    // import error.
-    throw error;
+    console.error('Failed to save session locally:', error);
+    throw new Error('Failed to save session offline');
   }
 
-  // Only throw if both Firebase and local storage failed
-  if (!firebaseSuccess) {
-    throw new Error('Failed to save session to cloud storage');
-  }
+  // 2. Queue for Firebase sync (non-blocking)
+  queueMicrotask(() => syncSessionToFirebase(sessionId, newSession));
 
   return newSession;
 }
@@ -295,69 +269,59 @@ export async function updateSession(
   id: number,
   updateData: Partial<InsertTrainingSession>,
 ): Promise<TrainingSession | null> {
-  await waitForAuth();
-
   try {
-    const sessionsRef = await getSessionsCollection();
-    const docRef = doc(sessionsRef, id.toString());
-
-    // Update the document with new data
-    const updatePayload = {
-      ...updateData,
-      ...(updateData.needsReview === undefined ? { needsReview: false } : {}),
-      updatedAt: Timestamp.fromDate(new Date()),
-    };
-
-    await setDoc(docRef, updatePayload, { merge: true });
-
-    // Get fresh sessions to find the updated one
-    const sessions = await fetchSessionsFromFirebase();
-    const updatedSession = sessions.find((session) => session.id === id);
-
-    try {
-      await offlineStorage.clearStatistics();
-    } catch (error) {
-      console.warn('Failed to update offline cache:', error);
+    // Update locally first (we'll add this method later)
+    const updatedSession = await offlineStorage.updateSession(id, updateData);
+    if (!updatedSession) {
+      throw new Error('Session not found locally');
     }
 
-    // Clear cache to force fresh data on next load
+    // Mark as unsynced for background sync (we'll add this method later)
+    await offlineStorage.markAsUnsynced(id, 'update', updateData);
+
+    // Clear caches
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
 
     queueMicrotask(() => updateStatisticsInBackground());
+
+    // Queue for Firebase sync (non-blocking)
+    queueMicrotask(() => syncUpdateToFirebase(id, updateData));
 
     // Refresh pending review queries so UI reflects latest data
     queryClient.invalidateQueries({ queryKey: ['pending-review'] });
 
-    return updatedSession || null;
+    return updatedSession;
   } catch (error) {
-    console.error('Error updating session:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to update session');
+    console.error('Error updating session locally:', error);
+    throw new Error('Failed to update session');
   }
 }
 
 export async function deleteSession(id: number): Promise<boolean> {
-  await waitForAuth();
-
   try {
-    const sessionsRef = await getSessionsCollection();
-    const docRef = doc(sessionsRef, id.toString());
-    await deleteDoc(docRef);
+    // Delete locally first
     await offlineStorage.deleteSession(id);
     await offlineStorage.clearStatistics();
 
-    // Clear cache to force fresh data on next load
+    // Mark as unsynced for background sync (we'll add this method later)
+    await offlineStorage.markAsUnsynced(id, 'delete');
+
+    // Clear caches
     SessionsCache.remove();
     StatisticsCache.remove();
     WeeklyGoalCache.remove();
 
     queueMicrotask(() => updateStatisticsInBackground());
 
+    // Queue for Firebase sync (non-blocking)
+    queueMicrotask(() => syncDeleteToFirebase(id));
+
     return true;
   } catch (error) {
-    console.error('Error deleting session:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to delete session');
+    console.error('Error deleting session locally:', error);
+    throw new Error('Failed to delete session');
   }
 }
 
@@ -474,6 +438,69 @@ async function updateStatisticsInBackground(): Promise<void> {
     // Cache will be updated in calculateStatistics
   } catch (error) {
     console.error('Statistics background update failed:', error);
+  }
+}
+
+// Background sync functions
+async function syncSessionToFirebase(sessionId: number, session: TrainingSession): Promise<void> {
+  try {
+    await waitForAuth();
+    const sessionsRef = await getSessionsCollection();
+
+    const sessionData = {
+      ...session,
+      date: Timestamp.fromDate(session.date),
+      createdAt: Timestamp.fromDate(session.createdAt),
+    };
+
+    const docRef = doc(sessionsRef, sessionId.toString());
+    await setDoc(docRef, sessionData);
+
+    // Mark as synced on success (we'll add this method later)
+    await offlineStorage.markAsSynced(sessionId);
+    
+    console.log(`Session ${sessionId} synced to Firebase successfully`);
+  } catch (error) {
+    console.error('Failed to sync session to Firebase:', sessionId, error);
+    // Keep marked as unsynced for retry (we'll add this method later)
+    await offlineStorage.incrementSyncRetries(sessionId);
+  }
+}
+
+async function syncUpdateToFirebase(id: number, updateData: Partial<InsertTrainingSession>): Promise<void> {
+  try {
+    await waitForAuth();
+    const sessionsRef = await getSessionsCollection();
+    const docRef = doc(sessionsRef, id.toString());
+
+    const updatePayload = {
+      ...updateData,
+      ...(updateData.needsReview === undefined ? { needsReview: false } : {}),
+      updatedAt: Timestamp.fromDate(new Date()),
+    };
+
+    await setDoc(docRef, updatePayload, { merge: true });
+    await offlineStorage.markAsSynced(id);
+    
+    console.log(`Session ${id} update synced to Firebase`);
+  } catch (error) {
+    console.error('Failed to sync update to Firebase:', id, error);
+    await offlineStorage.incrementSyncRetries(id);
+  }
+}
+
+async function syncDeleteToFirebase(id: number): Promise<void> {
+  try {
+    await waitForAuth();
+    const sessionsRef = await getSessionsCollection();
+    const docRef = doc(sessionsRef, id.toString());
+    await deleteDoc(docRef);
+    await offlineStorage.markAsSynced(id);
+    
+    console.log(`Session ${id} deletion synced to Firebase`);
+  } catch (error) {
+    console.error('Failed to sync deletion to Firebase:', id, error);
+    await offlineStorage.incrementSyncRetries(id);
   }
 }
 
