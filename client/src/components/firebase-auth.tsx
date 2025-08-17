@@ -26,19 +26,26 @@ export default function FirebaseAuth() {
           setUser(user);
           setLoading(false);
           if (user) {
-            try {
-              await refreshAuthState();
-              const verified = await verifyDataPresence();
-              if (verified) {
-                await startSessionSync(() => {
-                  queryClient.invalidateQueries({ queryKey: ['sessions'] });
-                  queryClient.invalidateQueries({ queryKey: ['statistics'] });
-                  queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
-                  queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
-                });
+            // Only show sync UI and start syncing for non-anonymous users
+            if (!user.isAnonymous) {
+              try {
+                await refreshAuthState();
+                const verified = await verifyDataPresence();
+                if (verified) {
+                  await startSessionSync(() => {
+                    queryClient.invalidateQueries({ queryKey: ['sessions'] });
+                    queryClient.invalidateQueries({ queryKey: ['statistics'] });
+                    queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+                    queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
+                  });
+                }
+              } catch (err) {
+                console.error('Initial sync failed:', err);
               }
-            } catch (err) {
-              console.error('Initial sync failed:', err);
+            } else {
+              // Anonymous user - don't display as "signed in" but ensure they can use Firebase
+              setUser(null); // Don't show as authenticated to user
+              console.log('Anonymous user authenticated for device-specific storage');
             }
           } else {
             stopSessionSync();

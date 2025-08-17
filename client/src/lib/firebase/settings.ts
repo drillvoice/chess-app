@@ -107,14 +107,30 @@ export async function getUserSettings(): Promise<UserSettings> {
 
 // Update user settings in Firestore and offline storage
 export async function updateUserSettings(settings: UserSettings): Promise<void> {
-  await waitForAuth();
+  console.log('🔧 updateUserSettings called with:', settings);
+  
+  try {
+    await waitForAuth();
+    console.log('✅ Authentication completed, current user ID:', getCurrentUserId());
+  } catch (error) {
+    console.error('❌ waitForAuth failed:', error);
+    throw error;
+  }
 
   // Save to Firestore first - this is the critical operation
   try {
-    const settingsRef = doc(db, 'users', getCurrentUserId()!, 'settings', 'settings');
+    const userId = getCurrentUserId();
+    if (!userId) {
+      throw new Error('No authenticated user found after waitForAuth');
+    }
+    
+    const settingsRef = doc(db, 'users', userId, 'settings', 'settings');
+    console.log('💾 Attempting to save to Firestore path:', `users/${userId}/settings/settings`);
+    
     await setDoc(settingsRef, settings, { merge: true });
+    console.log('✅ Successfully saved to Firestore');
   } catch (error) {
-    console.error('Error updating user settings in Firestore:', error);
+    console.error('❌ Error updating user settings in Firestore:', error);
     if (error instanceof Error) {
       throw new SettingsError('Failed to save to cloud storage', error);
     }

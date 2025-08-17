@@ -37,14 +37,18 @@ function App() {
         const { getFirebaseAuth } = await import('@/lib/firebaseClient');
         const auth = await getFirebaseAuth();
         const { onAuthStateChanged } = await import('firebase/auth');
-        const { getUserSettings } = await import('@/lib/firebase');
+        const { getUserSettings, ensureAuthentication } = await import('@/lib/firebase');
         const { startLichessSync } = await import('@/lib/lichess-sync');
+
+        // Initialize Firebase and ensure authentication (anonymous if no Google auth)
+        await ensureAuthentication();
 
         unsub = onAuthStateChanged(auth, async (user) => {
           if (stopSync) {
             stopSync();
             stopSync = undefined;
           }
+          // Start Lichess sync for any authenticated user (including anonymous)
           if (user) {
             try {
               const settings = await getUserSettings();
