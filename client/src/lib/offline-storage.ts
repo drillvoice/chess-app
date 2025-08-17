@@ -1,10 +1,18 @@
 import { TrainingSession } from '@shared/schema';
 
+interface UnsyncedSession {
+  sessionId: number;
+  operation: 'create' | 'update' | 'delete';
+  timestamp: number;
+  retries: number;
+  updateData?: any;
+}
+
 // IndexedDB wrapper for better performance than localStorage
 class OfflineStorage {
   private dbName = 'chess-logger-offline';
   // Increment version when adding new object stores
-  private version = 2;
+  private version = 3;
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
@@ -41,6 +49,14 @@ class OfflineStorage {
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'id' });
         }
+        // Sync queue store for tracking unsynced changes
+        if (!db.objectStoreNames.contains('sync_queue')) {
+          const syncStore = db.createObjectStore('sync_queue', { keyPath: 'sessionId' });
+          syncStore.createIndex('operation', 'operation', { unique: false });
+          syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+
+        
       };
     });
   }
@@ -164,21 +180,68 @@ class OfflineStorage {
     });
   }
 
-  async updateSession(session: TrainingSession): Promise<void> {
-    const db = await this.ensureDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['sessions'], 'readwrite');
-      const store = transaction.objectStore('sessions');
+  async updateSession(id: number, updateData: Partial<TrainingSession>): Promise<TrainingSession | null> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sessions'], 'readwrite');
+    const store = transaction.objectStore('sessions');
+    
+    // First get the existing session
+    const getRequest = store.get(id);
+    
+    getRequest.onsuccess = () => {
+      const existingSession = getRequest.result;
+      if (!existingSession) {
+        resolve(null);
+        return;
+      }
+      
+      // Merge the update data
+      const updatedSession = {
+        ...existingSession,
+        ...updateData,
+        date: updateData.date ? updateData.date.toISOString() : existingSession.date,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      const putRequest = store.put(updatedSession);
+      
+      putRequest.onsuccess = () => {
+        resolve({
+          ...updatedSession,
+          date: new Date(updatedSession.date),
+          updatedAt: new Date(updatedSession.updatedAt),
+        });
+      };
+      
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+    
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
 
-      store.put({
-        ...session,
-        date: session.date.toISOString(),
-      });
+  async getSession(sessionId: number): Promise<TrainingSession | null> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sessions'], 'readonly');
+    const store = transaction.objectStore('sessions');
+    const request = store.get(sessionId);
 
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-  }
+    request.onsuccess = () => {
+      const result = request.result;
+      if (result) {
+        resolve({
+          ...result,
+          date: new Date(result.date),
+        });
+      } else {
+        resolve(null);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
 
   async removeSession(id: number): Promise<void> {
     const db = await this.ensureDB();
@@ -297,23 +360,129 @@ class OfflineStorage {
   }
 
   async clearAll(): Promise<void> {
-    const db = await this.ensureDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        ['sessions', 'statistics', 'settings', 'cache_meta'],
-        'readwrite',
-      );
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      ['sessions', 'statistics', 'settings', 'cache_meta', 'sync_queue'],
+      'readwrite',
+    );
 
-      transaction.objectStore('sessions').clear();
-      transaction.objectStore('statistics').clear();
-      transaction.objectStore('settings').clear();
-      transaction.objectStore('cache_meta').clear();
+    transaction.objectStore('sessions').clear();
+    transaction.objectStore('statistics').clear();
+    transaction.objectStore('settings').clear();
+    transaction.objectStore('cache_meta').clear();
+    transaction.objectStore('sync_queue').clear();
 
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-  }
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
 }
+
+  // Sync queue management methods
+async markAsUnsynced(sessionId: number, operation: 'create' | 'update' | 'delete', updateData?: any): Promise<void> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readwrite');
+    const store = transaction.objectStore('sync_queue');
+
+    const syncItem: UnsyncedSession = {
+      sessionId,
+      operation,
+      timestamp: Date.now(),
+      retries: 0,
+      updateData,
+    };
+
+    store.put(syncItem);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async markAsSynced(sessionId: number): Promise<void> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readwrite');
+    const store = transaction.objectStore('sync_queue');
+
+    store.delete(sessionId);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async incrementSyncRetries(sessionId: number): Promise<void> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readwrite');
+    const store = transaction.objectStore('sync_queue');
+    
+    const getRequest = store.get(sessionId);
+    
+    getRequest.onsuccess = () => {
+      const syncItem = getRequest.result;
+      if (syncItem) {
+        syncItem.retries += 1;
+        store.put(syncItem);
+      }
+    };
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async getUnsyncedSessions(): Promise<UnsyncedSession[]> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readonly');
+    const store = transaction.objectStore('sync_queue');
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result || []);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async getLastSyncAttempt(): Promise<Date | null> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['cache_meta'], 'readonly');
+    const store = transaction.objectStore('cache_meta');
+    const request = store.get('last_sync_attempt');
+
+    request.onsuccess = () => {
+      const result = request.result;
+      if (result && result.timestamp) {
+        resolve(new Date(result.timestamp));
+      } else {
+        resolve(null);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async setLastSyncAttempt(): Promise<void> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['cache_meta'], 'readwrite');
+    const store = transaction.objectStore('cache_meta');
+    
+    store.put({
+      key: 'last_sync_attempt',
+      timestamp: Date.now(),
+    });
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+} // <-- This closing brace ends the OfflineStorage class
 
 // Export singleton instance
 export const offlineStorage = new OfflineStorage();
