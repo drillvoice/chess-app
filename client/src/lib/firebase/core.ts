@@ -157,9 +157,11 @@ export async function getSessionsCollection() {
 
 async function ensureUserDoc(): Promise<void> {
   try {
+    console.log('🔧 ensureUserDoc called for user:', currentUserId);
     await setDoc(doc(db, 'users', currentUserId!), { createdAt: Timestamp.now() }, { merge: true });
+    console.log('✅ User document created/updated successfully');
   } catch (error) {
-    console.error('Error ensuring user document:', error);
+    console.error('❌ Error ensuring user document:', error);
     throw error;
   }
 }
