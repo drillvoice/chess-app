@@ -37,8 +37,11 @@ function App() {
         const { getFirebaseAuth } = await import('@/lib/firebaseClient');
         const auth = await getFirebaseAuth();
         const { onAuthStateChanged } = await import('firebase/auth');
-        const { getUserSettings } = await import('@/lib/firebase');
+        const { getUserSettings, ensureFirebase } = await import('@/lib/firebase');
         const { startLichessSync } = await import('@/lib/lichess-sync');
+
+        // Initialize Firebase and ensure authentication early
+        await ensureFirebase();
 
         unsub = onAuthStateChanged(auth, async (user) => {
           if (stopSync) {

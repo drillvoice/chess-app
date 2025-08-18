@@ -88,6 +88,11 @@ export default function LichessSettings() {
     try {
       await updateUserSettings({ lichessUsername: username.trim() });
       setOriginalUsername(username.trim());
+      
+      // Restart Lichess sync with new username
+      const { restartLichessSync } = await import('@/lib/lichess-sync');
+      restartLichessSync(username.trim() || undefined);
+      
       toast({
         title: 'Saved',
         description: 'Lichess username updated successfully',

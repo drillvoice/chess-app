@@ -23,11 +23,13 @@ export let signInWithRedirect: typeof import('firebase/auth').signInWithRedirect
 export let linkWithCredential: typeof import('firebase/auth').linkWithCredential;
 export let linkWithRedirect: typeof import('firebase/auth').linkWithRedirect;
 export let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
+export let signInAnonymously: typeof import('firebase/auth').signInAnonymously;
 export let provider: import('firebase/auth').GoogleAuthProvider;
 
 let currentUserId: string | null = null;
 let authListenerInitialized = false;
 let authResolvers: Array<() => void> = [];
+let anonymousSignInPromise: Promise<void> | null = null;
 
 export async function ensureFirebase() {
   if (!auth) {
@@ -61,9 +63,10 @@ export async function ensureFirebase() {
       signInWithPopup,
       signInWithRedirect,
       linkWithCredential,
-      linkWithRedirect,
-      onAuthStateChanged,
-    } = authModule);
+              linkWithRedirect,
+        onAuthStateChanged,
+        signInAnonymously,
+      } = authModule);
     provider = new GoogleAuthProvider();
   }
 
@@ -80,6 +83,31 @@ export async function ensureFirebase() {
   }
 }
 
+// Automatically sign in anonymously if no user is authenticated
+async function ensureAnonymousAuth(): Promise<void> {
+  if (anonymousSignInPromise) {
+    return anonymousSignInPromise;
+  }
+
+  if (auth.currentUser) {
+    return; // Already authenticated
+  }
+
+  anonymousSignInPromise = (async () => {
+    try {
+      console.log('No authenticated user found, signing in anonymously for device-specific storage...');
+      await signInAnonymously(auth);
+      console.log('Anonymous authentication successful');
+    } catch (error) {
+      console.error('Anonymous sign-in failed:', error);
+      anonymousSignInPromise = null;
+      throw error;
+    }
+  })();
+
+  return anonymousSignInPromise;
+}
+
 export async function waitForAuth(timeoutMs = 15000): Promise<void> {
   await ensureFirebase();
   if (currentUserId) return;
@@ -88,9 +116,26 @@ export async function waitForAuth(timeoutMs = 15000): Promise<void> {
     await ensureUserDoc();
     return;
   }
+
+  // Try anonymous sign-in first as fallback
+  try {
+    await ensureAnonymousAuth();
+    // Wait a moment for the auth state change to propagate
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const user = auth.currentUser;
+    if (user) {
+      currentUserId = (user as any).uid;
+      await ensureUserDoc();
+      return;
+    }
+  } catch (error) {
+    console.warn('Anonymous auth fallback failed:', error);
+  }
+
+  // If anonymous auth didn't work, wait for any auth state change
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
         currentUserId = user.uid;
         await ensureUserDoc();

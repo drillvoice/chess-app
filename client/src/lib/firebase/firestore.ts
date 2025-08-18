@@ -17,6 +17,8 @@ import {
   collection,
   auth,
   onAuthStateChanged,
+  getCurrentUserId,
+  db,
 } from './core';
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
@@ -450,7 +452,6 @@ async function syncSessionToFirebase(sessionId: number, session: TrainingSession
     const sessionData = {
       ...session,
       date: Timestamp.fromDate(session.date),
-      createdAt: Timestamp.fromDate(session.createdAt),
     };
 
     const docRef = doc(sessionsRef, sessionId.toString());
@@ -507,11 +508,11 @@ async function syncDeleteToFirebase(id: number): Promise<void> {
 // Real-time listener for sessions
 export async function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
   try {
+    const currentUserId = getCurrentUserId();
     if (!currentUserId) {
       // Wait for auth and then subscribe
       const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
         if (user) {
-          currentUserId = user.uid;
           unsubscribeAuth();
           subscribeToSessions(callback);
         }

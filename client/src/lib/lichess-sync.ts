@@ -3,7 +3,20 @@ import { createSession } from './firebase';
 
 const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+// Global sync management
+let currentSyncFunction: (() => void) | null = null;
+let currentUsername: string | null = null;
+
 export function startLichessSync(username: string) {
+  // Stop any existing sync first
+  if (currentSyncFunction) {
+    console.log('Stopping existing Lichess sync for:', currentUsername);
+    currentSyncFunction();
+  }
+
+  console.log('Starting Lichess sync for:', username);
+  currentUsername = username;
+  
   const key = `lichess-last-game-${username.toLowerCase()}`;
   let lastTimestamp = parseInt(localStorage.getItem(key) || '0', 10);
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -66,5 +79,29 @@ export function startLichessSync(username: string) {
   poll();
   timer = setInterval(poll, POLL_INTERVAL);
 
-  return () => timer && clearInterval(timer);
+  const stopFunction = () => {
+    if (timer) {
+      clearInterval(timer);
+      timer = undefined;
+    }
+    if (currentSyncFunction === stopFunction) {
+      currentSyncFunction = null;
+      currentUsername = null;
+    }
+    console.log('Lichess sync stopped for:', username);
+  };
+  
+  currentSyncFunction = stopFunction;
+  return stopFunction;
+}
+
+// Helper function to restart sync with new username (called when settings change)
+export function restartLichessSync(newUsername: string | undefined) {
+  if (currentSyncFunction) {
+    currentSyncFunction();
+  }
+  
+  if (newUsername) {
+    startLichessSync(newUsername);
+  }
 }
