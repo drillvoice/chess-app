@@ -1,7 +1,7 @@
 import type { InsertTrainingSession } from '@shared/schema';
 import { createSession } from './firebase';
 
-const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const POLL_INTERVAL = 30 * 1000; // 30 seconds
 
 // Global sync management
 let currentSyncFunction: (() => void) | null = null;
