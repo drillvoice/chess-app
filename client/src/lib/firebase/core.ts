@@ -122,8 +122,9 @@ export async function waitForAuth(timeoutMs = 15000): Promise<void> {
     await ensureAnonymousAuth();
     // Wait a moment for the auth state change to propagate
     await new Promise(resolve => setTimeout(resolve, 100));
-    if (auth.currentUser) {
-      currentUserId = auth.currentUser.uid;
+    const user = auth.currentUser;
+    if (user) {
+      currentUserId = (user as any).uid;
       await ensureUserDoc();
       return;
     }
