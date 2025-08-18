@@ -17,7 +17,7 @@ export const trainingSessionsTable = pgTable('training_sessions', {
   gameComments: text('game_comments'),
   playerColor: text('player_color'), // 'white', 'black'
   platform: text('platform'), // 'lichess', 'chess.com', 'otb'
-  timeControl: text('time_control'), // 'bullet', 'blitz', '10', '10+5', '15+10', 'classical'
+  timeControl: text('time_control'), // 'bullet', 'blitz', 'rapid', 'classical'
   needsReview: boolean('needs_review').notNull().default(false),
   // Study specific fields
   studyType: text('study_type'), // 'video', 'book', 'analysis', 'opening', 'endgame'
@@ -74,7 +74,7 @@ export const gameSessionSchema = insertTrainingSessionSchema
       required_error: 'Player colour is required',
     }),
     platform: z.enum(['lichess', 'chess.com', 'otb']).optional(),
-    timeControl: z.enum(['bullet', 'blitz', '10', '10+5', '15+10', 'classical']).optional(),
+    timeControl: z.enum(['bullet', 'blitz', 'rapid', 'classical']).optional(),
   })
   .omit({
     duration: true,

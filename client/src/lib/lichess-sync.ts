@@ -12,22 +12,14 @@ export function mapLichessTimeControl(initialMinutes: number, incrementSeconds: 
     return 'bullet';
   }
   
-  // Blitz: 3+2, 5, and 5+3
+  // Blitz: 3+0, 3+2, 5, and 5+3
   if (totalInitialMinutes <= 5) {
     return 'blitz';
   }
   
-  // Specific time controls
-  if (totalInitialMinutes === 10 && incrementSeconds === 0) {
-    return '10';
-  }
-  
-  if (totalInitialMinutes === 10 && incrementSeconds === 5) {
-    return '10+5';
-  }
-  
-  if (totalInitialMinutes === 15 && incrementSeconds === 10) {
-    return '15+10';
+  // Rapid: 10, 10+5, 15+10
+  if (totalInitialMinutes <= 15) {
+    return 'rapid';
   }
   
   // Classical: anything longer than 15+10

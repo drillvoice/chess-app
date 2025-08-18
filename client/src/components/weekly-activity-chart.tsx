@@ -26,12 +26,8 @@ const getGameDuration = (timeControl?: string): number => {
       return 3;
     case 'blitz':
       return 7;
-    case '10':
-      return 12;
-    case '10+5':
+    case 'rapid':
       return 18;
-    case '15+10':
-      return 25;
     case 'classical':
       return 45;
     default:
