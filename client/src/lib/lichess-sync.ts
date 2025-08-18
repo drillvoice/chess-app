@@ -3,6 +3,37 @@ import { createSession } from './firebase';
 
 const POLL_INTERVAL = 30 * 1000; // 30 seconds
 
+// Helper function to map Lichess time controls to our categories
+export function mapLichessTimeControl(initialMinutes: number, incrementSeconds: number): string {
+  const totalInitialMinutes = initialMinutes;
+  
+  // Bullet: 1 minute and 2+1
+  if (totalInitialMinutes <= 2) {
+    return 'bullet';
+  }
+  
+  // Blitz: 3+2, 5, and 5+3
+  if (totalInitialMinutes <= 5) {
+    return 'blitz';
+  }
+  
+  // Specific time controls
+  if (totalInitialMinutes === 10 && incrementSeconds === 0) {
+    return '10';
+  }
+  
+  if (totalInitialMinutes === 10 && incrementSeconds === 5) {
+    return '10+5';
+  }
+  
+  if (totalInitialMinutes === 15 && incrementSeconds === 10) {
+    return '15+10';
+  }
+  
+  // Classical: anything longer than 15+10
+  return 'classical';
+}
+
 // Global sync management
 let currentSyncFunction: (() => void) | null = null;
 let currentUsername: string | null = null;
@@ -56,7 +87,7 @@ export function startLichessSync(username: string) {
       if (game.clock) {
         const initial = Math.round((game.clock.initial || 0) / 60);
         const increment = game.clock.increment || 0;
-        timeControl = increment ? `${initial}+${increment}` : `${initial}`;
+        timeControl = mapLichessTimeControl(initial, increment);
       }
 
       const session: InsertTrainingSession = {

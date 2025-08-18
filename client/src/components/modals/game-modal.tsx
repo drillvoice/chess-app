@@ -59,7 +59,7 @@ export default function GameModal({
     platform: isEditMode && editingSession ? 
       (editingSession.platform as 'lichess' | 'chess.com' | 'otb' | undefined) : undefined,
     timeControl: isEditMode && editingSession ? 
-      (editingSession.timeControl as '5+3' | '10+5' | '10' | '15+10' | undefined) : undefined,
+      (editingSession.timeControl as 'bullet' | 'blitz' | '10' | '10+5' | '15+10' | 'classical' | undefined) : undefined,
   },
 });
 
@@ -400,22 +400,30 @@ export default function GameModal({
               <Label className="mb-2 block text-sm font-medium text-gray-700">
                 Time Control (optional)
               </Label>
-              <div className="grid grid-cols-2 gap-2">
-                {['5+3', '10+5', '10', '15+10'].map((tc) => (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'bullet', label: 'Bullet', description: '1m, 2+1' },
+                  { value: 'blitz', label: 'Blitz', description: '3+2, 5, 5+3' },
+                  { value: '10', label: '10', description: '10 min' },
+                  { value: '10+5', label: '10+5', description: '10+5 min' },
+                  { value: '15+10', label: '15+10', description: '15+10 min' },
+                  { value: 'classical', label: 'Classical', description: '30+0, 30+20' }
+                ].map((tc) => (
                   <Button
-                    key={tc}
+                    key={tc.value}
                     type="button"
                     variant="outline"
                     className={cn(
-                      'flex h-auto items-center justify-center space-x-1 p-2',
-                      selectedTimeControl === tc
+                      'flex h-auto flex-col items-center justify-center space-y-1 p-2',
+                      selectedTimeControl === tc.value
                         ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                     )}
-                    onClick={() => handleTimeControlSelect(tc)}
+                    onClick={() => handleTimeControlSelect(tc.value)}
                   >
                     <Clock className="h-3 w-3" />
-                    <span className="text-sm">{tc}</span>
+                    <span className="text-xs font-medium">{tc.label}</span>
+                    <span className="text-xs text-gray-500">{tc.description}</span>
                   </Button>
                 ))}
               </div>
