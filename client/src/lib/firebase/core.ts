@@ -30,6 +30,7 @@ let currentUserId: string | null = null;
 let authListenerInitialized = false;
 let authResolvers: Array<() => void> = [];
 let anonymousSignInPromise: Promise<void> | null = null;
+let previousAnonymousUserId: string | null = null; // Track previous anonymous user for migration
 
 export async function ensureFirebase() {
   if (!auth) {
@@ -72,9 +73,28 @@ export async function ensureFirebase() {
 
   if (!authListenerInitialized) {
     onAuthStateChanged(auth, async (user) => {
+      const previousUserId = currentUserId;
       currentUserId = user ? user.uid : null;
+      
       if (currentUserId) {
         await ensureUserDoc();
+        
+        // Handle migration when linking anonymous to Google
+        if (previousUserId && previousUserId !== currentUserId && previousAnonymousUserId) {
+          console.log('🔄 Auth state change detected - potential migration needed');
+          localStorage.setItem('previousAnonymousUserId', previousAnonymousUserId);
+          
+          // If this is now a Google user (not anonymous), trigger migration
+          if (user && !user.isAnonymous) {
+            try {
+              await migrateAnonymousData(previousAnonymousUserId, currentUserId);
+              previousAnonymousUserId = null; // Clear after successful migration
+            } catch (error) {
+              console.error('❌ Migration during auth state change failed:', error);
+            }
+          }
+        }
+        
         authResolvers.forEach((res) => res());
         authResolvers = [];
       }
@@ -173,6 +193,11 @@ export async function refreshAuthState(): Promise<void> {
   currentUserId = user ? user.uid : null;
   if (currentUserId) {
     await ensureUserDoc();
+    
+    // Check for data migration if this is a Google user (not anonymous)
+    if (user && !user.isAnonymous) {
+      await checkAndMigrateData();
+    }
   }
 }
 
@@ -190,6 +215,12 @@ export async function ensureAuthentication(): Promise<void> {
 
 export async function startAuthFlow(useRedirect = false): Promise<void> {
   await ensureFirebase();
+  
+  // Store the current anonymous user ID before linking (if any)
+  if (auth.currentUser && auth.currentUser.isAnonymous) {
+    previousAnonymousUserId = auth.currentUser.uid;
+    console.log('🔗 Storing anonymous user ID for potential migration:', previousAnonymousUserId);
+  }
   
   // Ensure we have an anonymous user to link with, if none exists
   if (!auth.currentUser) {
@@ -217,5 +248,105 @@ export async function startAuthFlow(useRedirect = false): Promise<void> {
     }
   }
   await refreshAuthState();
+}
+
+// New function to migrate data from anonymous user to Google user
+async function migrateAnonymousData(anonymousUserId: string, googleUserId: string): Promise<void> {
+  try {
+    console.log('🔄 Starting data migration from anonymous user to Google user...');
+    
+    // Migrate sessions
+    const anonymousSessionsRef = collection(db, 'users', anonymousUserId, 'trainingSessions');
+    const googleSessionsRef = collection(db, 'users', googleUserId, 'trainingSessions');
+    
+    const sessionsSnapshot = await getDocs(anonymousSessionsRef);
+    let migratedSessions = 0;
+    
+    for (const sessionDoc of sessionsSnapshot.docs) {
+      const sessionData = sessionDoc.data();
+      await setDoc(doc(googleSessionsRef, sessionDoc.id), sessionData);
+      migratedSessions++;
+    }
+    
+    // Migrate settings
+    const anonymousSettingsRef = doc(db, 'users', anonymousUserId, 'settings', 'settings');
+    const googleSettingsRef = doc(db, 'users', googleUserId, 'settings', 'settings');
+    
+    try {
+      const settingsDoc = await getDoc(anonymousSettingsRef);
+      if (settingsDoc.exists()) {
+        await setDoc(googleSettingsRef, settingsDoc.data(), { merge: true });
+        console.log('✅ Settings migrated');
+      }
+    } catch (error) {
+      console.warn('No settings to migrate or error:', error);
+    }
+    
+    // Migrate statistics
+    const anonymousStatsRef = collection(db, 'users', anonymousUserId, 'statistics');
+    const googleStatsRef = collection(db, 'users', googleUserId, 'statistics');
+    
+    try {
+      const statsSnapshot = await getDocs(anonymousStatsRef);
+      for (const statsDoc of statsSnapshot.docs) {
+        const statsData = statsDoc.data();
+        await setDoc(doc(googleStatsRef, statsDoc.id), statsData);
+      }
+      console.log('✅ Statistics migrated');
+    } catch (error) {
+      console.warn('No statistics to migrate or error:', error);
+    }
+    
+    console.log(`✅ Data migration completed: ${migratedSessions} sessions migrated`);
+    
+    // Store migration record to prevent re-migration
+    await setDoc(doc(db, 'users', googleUserId, 'migrations', 'anonymous'), {
+      migratedFrom: anonymousUserId,
+      migratedAt: Timestamp.now(),
+      sessionsCount: migratedSessions
+    });
+    
+  } catch (error) {
+    console.error('❌ Data migration failed:', error);
+    throw error;
+  }
+}
+
+// Check if data migration is needed for the current user
+async function checkAndMigrateData(): Promise<void> {
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    
+    // Check if this user has already been migrated
+    const migrationRef = doc(db, 'users', userId, 'migrations', 'anonymous');
+    const migrationDoc = await getDoc(migrationRef);
+    
+    if (migrationDoc.exists()) {
+      console.log('✅ User already migrated, skipping migration check');
+      return;
+    }
+    
+    // Check if there's a previous anonymous user ID stored locally
+    const storedAnonymousId = localStorage.getItem('previousAnonymousUserId');
+    if (storedAnonymousId && storedAnonymousId !== userId) {
+      console.log('🔄 Found stored anonymous user ID, attempting migration...');
+      await migrateAnonymousData(storedAnonymousId, userId);
+      localStorage.removeItem('previousAnonymousUserId'); // Clean up
+      return;
+    }
+    
+    // Check if this user has any data (if not, might be a new device)
+    const sessionsRef = collection(db, 'users', userId, 'trainingSessions');
+    const sessionsSnapshot = await getDocs(sessionsRef);
+    
+    if (sessionsSnapshot.empty) {
+      console.log('📱 New device detected - no existing data found');
+      // For new devices, we'll rely on the real-time sync to populate data
+    }
+    
+  } catch (error) {
+    console.error('❌ Migration check failed:', error);
+  }
 }
 

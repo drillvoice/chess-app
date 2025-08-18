@@ -60,7 +60,9 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const sessionsRef = await getSessionsCollection();
     const lastSynced = await offlineStorage.getLastSyncedTimestamp();
 
-    const q = lastSynced
+    // For new devices or when lastSynced is 0, fetch all sessions
+    // This ensures new devices get all existing data
+    const q = lastSynced && lastSynced > 0
       ? query(
           sessionsRef,
           where('date', '>', Timestamp.fromMillis(lastSynced)),
@@ -85,7 +87,7 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     if (sessions.length > 0) {
       const latest = sessions.reduce(
         (max, s) => Math.max(max, s.date.getTime()),
-        lastSynced,
+        lastSynced || 0,
       );
       await offlineStorage.setLastSyncedTimestamp(latest);
     }
@@ -93,7 +95,7 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     const allSessions = await offlineStorage.getSessions();
     SessionsCache.set(allSessions);
 
-    console.log(`Fetched ${sessions.length} sessions from Firebase`);
+    console.log(`Fetched ${sessions.length} sessions from Firebase (lastSynced: ${lastSynced || 'none'})`);
     return allSessions;
   } catch (error) {
     console.error('Error fetching sessions from Firebase:', error);
