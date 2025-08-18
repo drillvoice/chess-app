@@ -1,7 +1,16 @@
 {
-  "version": "1.2.5",
-  "lastUpdated": "17 August 2025",
+  "version": "1.2.6",
+  "lastUpdated": "18 August 2025",
   "changelog": [
+     {
+      "version": "1.2.6",
+      "date": "18 August 2025",
+      "changes": [
+        "Improve google cloud syncing when migrating from anonymous authentication",
+        "Increase lichess polling frequency to reduce delay",
+        "Add more time control options to match lichess"
+      ]
+    },
     {
       "version": "1.2.5",
       "date": "17 August 2025",
