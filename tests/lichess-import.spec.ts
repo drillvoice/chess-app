@@ -19,7 +19,7 @@ test('auto-imported Lichess sessions increase totalHours', async ({ request }) =
       gameResult: 'win',
       playerColor: 'white',
       platform: 'lichess',
-      timeControl: '5+3',
+      timeControl: 'blitz',
       needsReview: false,
     },
   ];

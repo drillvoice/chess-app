@@ -22,7 +22,9 @@ const getGameDuration = (timeControl?: string): number => {
   if (!timeControl) return 12; // Default to 10 minute estimate
 
   switch (timeControl) {
-    case '5+3':
+    case 'bullet':
+      return 3;
+    case 'blitz':
       return 7;
     case '10':
       return 12;
@@ -30,6 +32,8 @@ const getGameDuration = (timeControl?: string): number => {
       return 18;
     case '15+10':
       return 25;
+    case 'classical':
+      return 45;
     default:
       return 12;
   }
