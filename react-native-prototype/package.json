@@ -1,0 +1,45 @@
+{
+  "name": "chess-log-rn",
+  "version": "1.0.0",
+  "description": "React Native prototype for Pawn Star Chess Log",
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-native": "0.81.0",
+    "react-native-sqlite-storage": "^6.0.1",
+    "react-native-background-job": "^0.3.0",
+    "react-native-async-storage": "^1.24.0",
+    "react-native-vector-icons": "^10.2.0",
+    "react-native-paper": "^5.12.5",
+    "react-hook-form": "^7.55.0",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/stack": "^6.4.1",
+    "react-native-screens": "^3.34.0",
+    "react-native-safe-area-context": "^4.12.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.4",
+    "@babel/runtime": "^7.25.4",
+    "@react-native/eslint-config": "^0.81.0",
+    "@react-native/metro-config": "^0.81.0",
+    "@types/react": "^18.3.5",
+    "@types/react-native": "^0.81.0",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.19.0",
+    "jest": "^29.7.0",
+    "metro-react-native-babel-preset": "0.81.0",
+    "prettier": "^2.8.8",
+    "typescript": "5.6.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

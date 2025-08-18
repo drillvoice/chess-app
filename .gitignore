@@ -23,3 +23,5 @@ local.properties
 manifest-checksum.txt
 settings.gradle
 .env.local
+/android
+/android
