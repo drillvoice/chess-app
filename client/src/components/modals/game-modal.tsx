@@ -6,17 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 // Dynamic import for firebase to maintain code splitting
 import { gameSessionSchema, type GameSession, type TrainingSession } from '@shared/schema';
-import { Trophy, X, Clock, Square, Zap, Hourglass, Clock3 } from 'lucide-react';
+import { Trophy, X, Clock, Square, Zap, Hourglass, Clock3, Monitor, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GameModalProps {
@@ -37,6 +30,7 @@ export default function GameModal({
   const [selectedResult, setSelectedResult] = useState<'win' | 'loss' | 'draw' | null>(null);
   const [selectedColor, setSelectedColor] = useState<'white' | 'black' | null>(null);
   const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
 
   const {
   register,
@@ -78,6 +72,7 @@ export default function GameModal({
       setSelectedResult(null);
       setSelectedColor(null);
       setSelectedTimeControl(null);
+      setSelectedPlatform(null);
 
       // Show immediate feedback
       toast({
@@ -205,6 +200,7 @@ export default function GameModal({
     setSelectedResult(gameResult);
     setSelectedColor(playerColor);
     setSelectedTimeControl(timeControl);
+    setSelectedPlatform(platform);
     
     // Set form values properly with validation
     if (gameResult) {
@@ -246,6 +242,18 @@ export default function GameModal({
     trigger('playerColor');
   };
 
+  const handlePlatformSelect = (platform: string) => {
+    if (selectedPlatform === platform) {
+      // Deselect if clicking the same platform
+      setSelectedPlatform(null);
+      setValue('platform', undefined, { shouldValidate: true });
+    } else {
+      setSelectedPlatform(platform);
+      setValue('platform', platform as any, { shouldValidate: true });
+    }
+    trigger('platform');
+  };
+
   const handleTimeControlSelect = (timeControl: string) => {
     if (selectedTimeControl === timeControl) {
       // Deselect if clicking the same time control
@@ -273,6 +281,7 @@ export default function GameModal({
       setSelectedResult(null);
       setSelectedColor(null);
       setSelectedTimeControl(null);
+      setSelectedPlatform(null);
     }
   }
   onOpenChange(open);
@@ -286,122 +295,155 @@ export default function GameModal({
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto p-2">
-            <div>
-              <Label className="mb-2 block text-sm font-medium text-gray-700">Colour</Label>
-              <div className="grid grid-cols-2 gap-3">
+            {/* Colour Section */}
+            <div className="flex items-center space-x-3">
+              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">Colour</Label>
+              <div className="flex gap-2 flex-1">
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-8 items-center justify-center space-x-2 px-3',
                     selectedColor === 'white'
                       ? 'border-gray-800 bg-gray-100 text-gray-800 ring-2 ring-gray-800'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handleColorSelect('white')}
                 >
-                  <Square className="h-4 w-4 fill-white stroke-gray-800" />
-                  <span>White</span>
+                  <Square className="h-3 w-3 fill-white stroke-gray-800" />
+                  <span className="text-sm">White</span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-8 items-center justify-center space-x-2 px-3',
                     selectedColor === 'black'
                       ? 'border-gray-800 bg-gray-800 text-white ring-2 ring-gray-800'
                       : 'border-gray-300 bg-gray-800 text-white hover:bg-gray-700',
                   )}
                   onClick={() => handleColorSelect('black')}
                 >
-                  <Square className="h-4 w-4 fill-gray-800" />
-                  <span>Black</span>
+                  <Square className="h-3 w-3 fill-gray-800" />
+                  <span className="text-sm">Black</span>
                 </Button>
               </div>
-              {errors.playerColor && (
-                <p className="mt-1 text-sm text-red-600">{errors.playerColor.message}</p>
-              )}
             </div>
+            {errors.playerColor && (
+              <p className="text-sm text-red-600">{errors.playerColor.message}</p>
+            )}
 
-            <div>
-              <Label className="mb-2 block text-sm font-medium text-gray-700">Result</Label>
-              <div className="grid grid-cols-3 gap-3">
+            {/* Result Section */}
+            <div className="flex items-center space-x-3">
+              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">Result</Label>
+              <div className="flex gap-2 flex-1">
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-8 items-center justify-center space-x-2 px-3',
                     selectedResult === 'win'
                       ? 'border-green-500 bg-green-50 text-green-800 ring-2 ring-green-500'
                       : 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100',
                   )}
                   onClick={() => handleResultSelect('win')}
                 >
-                  <Trophy className="h-4 w-4" />
-                  <span>Win</span>
+                  <Trophy className="h-3 w-3" />
+                  <span className="text-sm">Win</span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-8 items-center justify-center space-x-2 px-3',
                     selectedResult === 'draw'
                       ? 'border-gray-500 bg-gray-50 text-gray-800 ring-2 ring-gray-500'
                       : 'border-gray-300 bg-gray-50 text-gray-800 hover:bg-gray-100',
                   )}
                   onClick={() => handleResultSelect('draw')}
                 >
-                  <Square className="h-4 w-4" />
-                  <span>Draw</span>
+                  <Square className="h-3 w-3" />
+                  <span className="text-sm">Draw</span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-8 items-center justify-center space-x-2 px-3',
                     selectedResult === 'loss'
                       ? 'border-red-500 bg-red-50 text-red-800 ring-2 ring-red-500'
                       : 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100',
                   )}
                   onClick={() => handleResultSelect('loss')}
                 >
-                  <X className="h-4 w-4" />
-                  <span>Loss</span>
+                  <X className="h-3 w-3" />
+                  <span className="text-sm">Loss</span>
                 </Button>
               </div>
-              {errors.gameResult && (
-                <p className="mt-1 text-sm text-red-600">{errors.gameResult.message}</p>
-              )}
             </div>
+            {errors.gameResult && (
+              <p className="text-sm text-red-600">{errors.gameResult.message}</p>
+            )}
 
-            <div>
-              <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
-                Platform (optional)
-              </Label>
-              <Select
-                value={watch('platform')}
-                onValueChange={(value) => setValue('platform', value as any)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lichess">Lichess</SelectItem>
-                  <SelectItem value="chess.com">Chess.com</SelectItem>
-                  <SelectItem value="otb">Over the Board</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.platform && (
-                <p className="mt-1 text-sm text-red-600">{errors.platform.message}</p>
-              )}
+            {/* Platform Section */}
+            <div className="flex items-center space-x-3">
+              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">Platform</Label>
+              <div className="flex gap-2 flex-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'flex h-8 items-center justify-center space-x-2 px-3',
+                    selectedPlatform === 'lichess'
+                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                  onClick={() => handlePlatformSelect('lichess')}
+                >
+                  <Globe className="h-3 w-3" />
+                  <span className="text-sm">Lichess</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'flex h-8 items-center justify-center space-x-2 px-3',
+                    selectedPlatform === 'chess.com'
+                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                  onClick={() => handlePlatformSelect('chess.com')}
+                >
+                  <Monitor className="h-3 w-3" />
+                  <span className="text-sm">Chess.com</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'flex h-8 items-center justify-center space-x-2 px-3',
+                    selectedPlatform === 'otb'
+                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                  onClick={() => handlePlatformSelect('otb')}
+                >
+                  <Square className="h-3 w-3" />
+                  <span className="text-sm">OTB</span>
+                </Button>
+              </div>
             </div>
+            {errors.platform && (
+              <p className="text-sm text-red-600">{errors.platform.message}</p>
+            )}
 
+            {/* Time Control Section */}
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">
                 <Clock className="inline h-4 w-4 mr-1" />
                 Time Control (optional)
               </Label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: 'bullet', label: 'Bullet', icon: '•' },
                   { value: 'blitz', label: 'Blitz', icon: Zap },
@@ -413,7 +455,7 @@ export default function GameModal({
                     type="button"
                     variant="outline"
                     className={cn(
-                      'flex h-auto items-center justify-center space-x-1 px-3 py-2',
+                      'flex h-8 items-center justify-center space-x-2 px-3',
                       selectedTimeControl === tc.value
                         ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -435,6 +477,7 @@ export default function GameModal({
               )}
             </div>
 
+            {/* Comments Section */}
             <div>
               <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
                 Comments (optional)
