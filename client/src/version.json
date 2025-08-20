@@ -1,7 +1,17 @@
 {
-  "version": "1.2.6",
-  "lastUpdated": "18 August 2025",
+  "version": "0.2.7",
+  "lastUpdated": "20 August 2025",
   "changelog": [
+     {
+      "version": "0.2.7",
+      "date": "20 August 2025",
+      "changes": [
+        "Fix cloud syncing bug",
+        "Bugfix: archive button not working",
+        "Bugfix: bad zoom function on iphone",
+        "Feature: record username from lichess sync and show in history"
+      ]
+    },
      {
       "version": "1.2.6",
       "date": "18 August 2025",
