@@ -75,6 +75,7 @@ export class MemStorage implements IStorage {
       playerColor: insertSession.playerColor ?? null,
       platform: insertSession.platform ?? null,
       timeControl: insertSession.timeControl ?? null,
+      opponentUsername: insertSession.opponentUsername ?? null,
       studyType: insertSession.studyType ?? null,
       studyNotes: insertSession.studyNotes ?? null,
       goalTitle: insertSession.goalTitle ?? null,

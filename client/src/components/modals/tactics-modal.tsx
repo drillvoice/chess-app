@@ -93,6 +93,7 @@ export default function TacticsModal({
           playerColor: null,
           platform: null,
           timeControl: null,
+          opponentUsername: null,
           studyType: null,
           studyNotes: null,
           goalTitle: null,

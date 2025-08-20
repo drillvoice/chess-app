@@ -206,7 +206,7 @@ export default function Activity() {
       case 'tactics':
         return 'Tactics Practice';
       case 'game':
-        return 'Chess Game';
+        return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
       case 'study':
         return `${session.studyType?.charAt(0).toUpperCase()}${session.studyType?.slice(1)} Study`;
       case 'goal':

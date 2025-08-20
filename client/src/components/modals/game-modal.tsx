@@ -109,6 +109,7 @@ export default function GameModal({
           playerColor: newSession.playerColor,
           platform: newSession.platform ?? null,
           timeControl: newSession.timeControl ?? null,
+          opponentUsername: null,
           studyType: null,
           studyNotes: null,
           goalTitle: null,
@@ -138,6 +139,7 @@ export default function GameModal({
           playerColor: newSession.playerColor,
           platform: newSession.platform ?? null,
           timeControl: newSession.timeControl ?? null,
+          opponentUsername: null,
           studyType: null,
           studyNotes: null,
           goalTitle: null,
@@ -395,6 +397,8 @@ export default function GameModal({
                 <p className="mt-1 text-sm text-red-600">{errors.platform.message}</p>
               )}
             </div>
+
+
 
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">

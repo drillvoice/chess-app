@@ -15,6 +15,7 @@ interface TrainingSession {
   playerColor?: string;
   platform?: string;
   timeControl?: string;
+  opponentUsername?: string;
   needsReview: boolean;
   studyType?: string;
   studyNotes?: string;
@@ -60,6 +61,7 @@ class SQLiteStorage {
         player_color TEXT,
         platform TEXT,
         time_control TEXT,
+        opponent_username TEXT,
         needs_review BOOLEAN DEFAULT FALSE,
         study_type TEXT,
         study_notes TEXT,
@@ -117,6 +119,7 @@ class SQLiteStorage {
           playerColor: row.player_color,
           platform: row.platform,
           timeControl: row.time_control,
+          opponentUsername: row.opponent_username,
           needsReview: row.needs_review === 1,
           studyType: row.study_type,
           studyNotes: row.study_notes,
