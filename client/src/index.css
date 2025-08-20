@@ -157,3 +157,37 @@
     font-size: 16px; /* Prevents zoom on iOS */
   }
 }
+
+/* iPhone Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Ensure proper viewport handling on iOS */
+  body {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Fix for iOS Safari viewport issues */
+  .app-container {
+    width: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Ensure modals work properly on iOS */
+  .mobile-modal {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Additional mobile viewport improvements */
+@media screen and (max-width: 480px) {
+  .app-container {
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+  
+  main {
+    padding: 0.5rem;
+  }
+}

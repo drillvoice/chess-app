@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"
     />
     <meta name="theme-color" content="#1a2b3d" />
     <meta
@@ -92,9 +92,19 @@
           0 10px 25px -5px rgba(0, 0, 0, 0.1),
           0 10px 10px -5px rgba(0, 0, 0, 0.04);
         min-height: 100vh;
+        min-height: -webkit-fill-available;
         flex: 1;
         display: flex;
         flex-direction: column;
+      }
+      
+      /* Mobile responsive adjustments */
+      @media screen and (max-width: 480px) {
+        .app-container {
+          max-width: 100%;
+          margin: 0;
+          box-shadow: none;
+        }
       }
 
       /* Critical navigation styles */
