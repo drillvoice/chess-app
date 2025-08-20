@@ -72,32 +72,42 @@ export default function Home() {
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
   mutationFn: async (sessionId: number) => {
+    console.log('Archive mutation called for session:', sessionId);
     const { updateSession } = await import('@/lib/firebase');
-    return await updateSession(sessionId, { needsReview: false });
+    const result = await updateSession(sessionId, { needsReview: false });
+    console.log('Archive mutation result:', result);
+    return result;
   },
   onMutate: async (sessionId) => {
+    console.log('Archive mutation onMutate for session:', sessionId);
     // Cancel any outgoing refetches
     await queryClient.cancelQueries({ queryKey: ['pending-review'] });
     
     // Snapshot the previous value
     const previousPendingSessions = queryClient.getQueryData<TrainingSession[]>(['pending-review']);
+    console.log('Previous pending sessions:', previousPendingSessions);
     
     // Optimistically update to new value
-    queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) =>
-      old.filter(session => session.id !== sessionId)
-    );
+    queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) => {
+      const filtered = old.filter(session => session.id !== sessionId);
+      console.log('Optimistically filtered sessions:', filtered);
+      return filtered;
+    });
     
     // Return a context object with the snapshotted value
     return { previousPendingSessions };
   },
   onError: (err, sessionId, context) => {
+    console.error('Archive mutation error:', err);
     // If the mutation fails, use the context returned from onMutate to roll back
     if (context?.previousPendingSessions) {
       queryClient.setQueryData(['pending-review'], context.previousPendingSessions);
     }
   },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+  onSuccess: (data, sessionId) => {
+    console.log('Archive mutation success for session:', sessionId, 'data:', data);
+    // Don't invalidate queries here as it might refetch old data before background sync completes
+    // The optimistic update should be sufficient for immediate UI feedback
   },
   });
 

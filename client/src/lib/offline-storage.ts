@@ -79,6 +79,8 @@ class OfflineStorage {
         const sessions = request.result.map((session) => ({
           ...session,
           date: new Date(session.date),
+          // Ensure needsReview is properly converted to boolean
+          needsReview: Boolean(session.needsReview),
         }));
         // Sort by date descending
         sessions.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -181,6 +183,7 @@ class OfflineStorage {
   }
 
   async updateSession(id: number, updateData: Partial<TrainingSession>): Promise<TrainingSession | null> {
+  console.log('offlineStorage.updateSession called with id:', id, 'updateData:', updateData);
   const db = await this.ensureDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['sessions'], 'readwrite');
@@ -191,6 +194,7 @@ class OfflineStorage {
     
     getRequest.onsuccess = () => {
       const existingSession = getRequest.result;
+      console.log('offlineStorage.updateSession - existing session:', existingSession);
       if (!existingSession) {
         resolve(null);
         return;
@@ -204,14 +208,20 @@ class OfflineStorage {
         updatedAt: new Date().toISOString(),
       };
       
+      console.log('offlineStorage.updateSession - updated session:', updatedSession);
+      
       const putRequest = store.put(updatedSession);
       
       putRequest.onsuccess = () => {
-        resolve({
+        const result = {
           ...updatedSession,
           date: new Date(updatedSession.date),
           updatedAt: new Date(updatedSession.updatedAt),
-        });
+          // Ensure needsReview is properly converted to boolean
+          needsReview: Boolean(updatedSession.needsReview),
+        };
+        console.log('offlineStorage.updateSession - resolved result:', result);
+        resolve(result);
       };
       
       putRequest.onerror = () => reject(putRequest.error);
@@ -234,6 +244,8 @@ class OfflineStorage {
         resolve({
           ...result,
           date: new Date(result.date),
+          // Ensure needsReview is properly converted to boolean
+          needsReview: Boolean(result.needsReview),
         });
       } else {
         resolve(null);

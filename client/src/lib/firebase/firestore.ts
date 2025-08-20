@@ -158,8 +158,14 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
 export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
   try {
     const cachedSessions = await offlineStorage.getSessions();
+    console.log('getSessionsNeedingReview - cached sessions:', cachedSessions);
     if (cachedSessions && cachedSessions.length > 0) {
-      return cachedSessions.filter((session) => (session as any).needsReview);
+      const filteredSessions = cachedSessions.filter((session) => {
+        console.log('Filtering session:', session.id, 'needsReview:', session.needsReview, 'type:', typeof session.needsReview);
+        return session.needsReview === true;
+      });
+      console.log('getSessionsNeedingReview - filtered sessions:', filteredSessions);
+      return filteredSessions;
     }
   } catch (error) {
     console.warn('Failed to read from offline storage:', error);
@@ -178,6 +184,7 @@ export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
       date: doc.data().date.toDate(),
     })) as TrainingSession[];
 
+    console.log('getSessionsNeedingReview - Firebase sessions:', sessions);
     return sessions;
   } catch (error) {
     console.error('Error getting sessions needing review:', error);
@@ -273,9 +280,11 @@ export async function updateSession(
   id: number,
   updateData: Partial<InsertTrainingSession>,
 ): Promise<TrainingSession | null> {
+  console.log('updateSession called with id:', id, 'updateData:', updateData);
   try {
     // Update locally first (we'll add this method later)
     const updatedSession = await offlineStorage.updateSession(id, updateData);
+    console.log('updateSession - updated session from offline storage:', updatedSession);
     if (!updatedSession) {
       throw new Error('Session not found locally');
     }
