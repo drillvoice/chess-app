@@ -297,7 +297,7 @@ export default function GameModal({
           <div className="flex-1 space-y-4 overflow-y-auto p-2">
             {/* Colour Section */}
             <div className="flex items-center space-x-3">
-              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">Colour</Label>
+              <Label className="text-sm font-medium text-gray-700 w-16">Colour</Label>
               <div className="flex gap-2 flex-1">
                 <Button
                   type="button"
@@ -335,7 +335,7 @@ export default function GameModal({
 
             {/* Result Section */}
             <div className="flex items-center space-x-3">
-              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">Result</Label>
+              <Label className="text-sm font-medium text-gray-700 w-16">Result</Label>
               <div className="flex gap-2 flex-1">
                 <Button
                   type="button"
@@ -387,48 +387,45 @@ export default function GameModal({
 
             {/* Platform Section */}
             <div className="flex items-center space-x-3">
-              <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">Platform</Label>
+              <Label className="text-sm font-medium text-gray-700 w-16">Platform</Label>
               <div className="flex gap-2 flex-1">
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-8 items-center justify-center space-x-2 px-3',
+                    'flex h-8 items-center justify-center px-3',
                     selectedPlatform === 'lichess'
                       ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handlePlatformSelect('lichess')}
                 >
-                  <Globe className="h-3 w-3" />
                   <span className="text-sm">Lichess</span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-8 items-center justify-center space-x-2 px-3',
+                    'flex h-8 items-center justify-center px-3',
                     selectedPlatform === 'chess.com'
                       ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handlePlatformSelect('chess.com')}
                 >
-                  <Monitor className="h-3 w-3" />
                   <span className="text-sm">Chess.com</span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-8 items-center justify-center space-x-2 px-3',
+                    'flex h-8 items-center justify-center px-3',
                     selectedPlatform === 'otb'
                       ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handlePlatformSelect('otb')}
                 >
-                  <Square className="h-3 w-3" />
                   <span className="text-sm">OTB</span>
                 </Button>
               </div>
@@ -443,7 +440,7 @@ export default function GameModal({
                 <Clock className="inline h-4 w-4 mr-1" />
                 Time Control (optional)
               </Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex gap-2">
                 {[
                   { value: 'bullet', label: 'Bullet', icon: '•' },
                   { value: 'blitz', label: 'Blitz', icon: Zap },
@@ -471,7 +468,6 @@ export default function GameModal({
                   </Button>
                 ))}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Click to select, click again to deselect</p>
               {errors.timeControl && (
                 <p className="mt-1 text-sm text-red-600">{errors.timeControl.message}</p>
               )}
