@@ -125,6 +125,10 @@ export default function FirebaseAuth() {
         ) {
           sessionStorage.setItem('redirectAuth', 'true');
           await startAuthFlow(true);
+        } else if (error && error.code === 'auth/credential-already-in-use') {
+          // Handle case where user is already signed in with this Google account
+          console.log('✅ User already signed in with this Google account');
+          // Continue with the flow since the user is already authenticated
         } else {
           throw error;
         }

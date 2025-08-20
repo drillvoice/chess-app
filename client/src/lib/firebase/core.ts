@@ -216,6 +216,13 @@ export async function ensureAuthentication(): Promise<void> {
 export async function startAuthFlow(useRedirect = false): Promise<void> {
   await ensureFirebase();
   
+  // Check if user is already signed in with Google
+  if (auth.currentUser && !auth.currentUser.isAnonymous) {
+    console.log('✅ User already signed in with Google, no action needed');
+    await refreshAuthState();
+    return;
+  }
+  
   // Store the current anonymous user ID before linking (if any)
   if (auth.currentUser && auth.currentUser.isAnonymous) {
     previousAnonymousUserId = auth.currentUser.uid;
@@ -343,6 +350,8 @@ async function checkAndMigrateData(): Promise<void> {
     if (sessionsSnapshot.empty) {
       console.log('📱 New device detected - no existing data found');
       // For new devices, we'll rely on the real-time sync to populate data
+    } else {
+      console.log('✅ User has existing data, no migration needed');
     }
     
   } catch (error) {
