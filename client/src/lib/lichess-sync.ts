@@ -4,7 +4,7 @@ import { createSession } from './firebase';
 const POLL_INTERVAL = 30 * 1000; // 30 seconds
 
 // Helper function to map Lichess time controls to our categories
-export function mapLichessTimeControl(initialMinutes: number, incrementSeconds: number): string {
+export function mapLichessTimeControl(initialMinutes: number, _incrementSeconds: number): string {
   const totalInitialMinutes = initialMinutes;
   
   // Bullet: 1 minute and 2+1

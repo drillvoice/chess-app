@@ -30,7 +30,7 @@ export function useServiceWorkerNotifications() {
     };
 
     // Handler for sync failures
-    const handleSyncFailed = (event: CustomEvent) => {
+    const handleSyncFailed = (_event: CustomEvent) => {
       setNotification({
         message: 'Some offline sessions failed to sync. Will retry automatically.',
         type: 'warning',
@@ -52,7 +52,7 @@ export function useServiceWorkerNotifications() {
     };
 
     // Handler for offline session stored
-    const handleOfflineStore = (event: CustomEvent) => {
+    const handleOfflineStore = (_event: CustomEvent) => {
       setNotification({
         message: 'Session saved offline - will sync when online',
         type: 'info',
