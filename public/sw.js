@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chess-training-v4';
+const CACHE_NAME = 'chess-training-v5';
 const RUNTIME_CACHE = 'chess-training-runtime';
 const API_CACHE = 'chess-training-api';
 const STATIC_CACHE = 'chess-training-static';
@@ -221,9 +221,13 @@ async function handleStaticAsset(request) {
   const cache = await caches.open(STATIC_CACHE);
   const cachedResponse = await cache.match(request);
   
-  if (cachedResponse) {
+  // Special handling for dynamic imports (chunked JS files)
+  const isDynamicImport = request.url.includes('.chunk.') || 
+                         request.url.includes('assets/') && request.url.includes('.js');
+  
+  if (cachedResponse && !isDynamicImport) {
     // Optionally update cache in background for non-versioned assets
-    if (!request.url.includes('?v=') && !request.url.includes('.chunk.')) {
+    if (!request.url.includes('?v=')) {
       fetch(request).then(response => {
         if (response.ok) {
           cache.put(request, response.clone());
@@ -240,10 +244,28 @@ async function handleStaticAsset(request) {
     }
     return networkResponse;
   } catch (error) {
+    // For dynamic imports, try to return cached version even if stale
+    if (isDynamicImport && cachedResponse) {
+      console.log('SW: Dynamic import failed, using cached version:', request.url);
+      return cachedResponse;
+    }
+    
     // Return offline fallback for images
     if (request.destination === 'image') {
       return new Response('', { status: 204 });
     }
+    
+    // For JS files, return a more helpful error
+    if (request.destination === 'script') {
+      return new Response(
+        'console.error("Failed to load module:", "' + request.url + '");',
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'application/javascript' }
+        }
+      );
+    }
+    
     throw error;
   }
 }

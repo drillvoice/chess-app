@@ -3,6 +3,13 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+// Debug monitoring in development
+if (process.env.NODE_ENV === 'development') {
+  import('./lib/debug-utils').then(({ monitorDynamicImports }) => {
+    monitorDynamicImports();
+  });
+}
+
 // Enhanced persistent storage management
 async function initializePersistentStorage(): Promise<boolean> {
   if (!('storage' in navigator) || !navigator.storage.persist) {

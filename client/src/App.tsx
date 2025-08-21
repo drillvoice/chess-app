@@ -7,11 +7,19 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import Navigation from '@/components/layout/navigation';
 import { AccountPage } from '@/components/lazy-components';
+import { NetworkWarning } from '@/components/ui/network-status';
 
-const Home = lazy(() => import('@/pages/home'));
-const Activity = lazy(() => import('@/pages/activity'));
-const Info = lazy(() => import('@/pages/info'));
-const NotFound = lazy(() => import('@/pages/not-found'));
+import { dynamicImportWithRetry } from '@/lib/utils';
+
+// Helper function to create lazy components with retry logic
+function createLazyComponent<T>(importFn: () => Promise<T>) {
+  return lazy(() => dynamicImportWithRetry(importFn));
+}
+
+const Home = createLazyComponent(() => import('@/pages/home'));
+const Activity = createLazyComponent(() => import('@/pages/activity'));
+const Info = createLazyComponent(() => import('@/pages/info'));
+const NotFound = createLazyComponent(() => import('@/pages/not-found'));
 
 function Router() {
   return (
@@ -34,11 +42,11 @@ function App() {
 
     const init = async () => {
       try {
-        const { getFirebaseAuth } = await import('@/lib/firebaseClient');
+        const { getFirebaseAuth } = await dynamicImportWithRetry(() => import('@/lib/firebaseClient'));
         const auth = await getFirebaseAuth();
-        const { onAuthStateChanged } = await import('firebase/auth');
-        const { getUserSettings, ensureAuthentication } = await import('@/lib/firebase');
-        const { startLichessSync } = await import('@/lib/lichess-sync');
+        const { onAuthStateChanged } = await dynamicImportWithRetry(() => import('firebase/auth'));
+        const { getUserSettings, ensureAuthentication } = await dynamicImportWithRetry(() => import('@/lib/firebase'));
+        const { startLichessSync } = await dynamicImportWithRetry(() => import('@/lib/lichess-sync'));
 
         // Initialize Firebase and ensure authentication (anonymous if no Google auth)
         await ensureAuthentication();
@@ -83,6 +91,7 @@ function App() {
               <Router />
             </main>
           </div>
+          <NetworkWarning />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
