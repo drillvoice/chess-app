@@ -167,17 +167,25 @@ class OfflineStorage {
   }
 
   async addSession(session: TrainingSession): Promise<void> {
+    console.log('offlineStorage.addSession called with:', session);
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(['sessions'], 'readwrite');
       const store = transaction.objectStore('sessions');
 
-      store.put({
+      const sessionToStore = {
         ...session,
         date: session.date.toISOString(),
-      });
+      };
+      
+      console.log('offlineStorage.addSession - storing session:', sessionToStore);
 
-      transaction.oncomplete = () => resolve();
+      store.put(sessionToStore);
+
+      transaction.oncomplete = () => {
+        console.log('offlineStorage.addSession - session stored successfully');
+        resolve();
+      };
       transaction.onerror = () => reject(transaction.error);
     });
   }

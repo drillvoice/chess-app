@@ -156,6 +156,7 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
 }
 
 export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
+  console.log('getSessionsNeedingReview called');
   try {
     const cachedSessions = await offlineStorage.getSessions();
     console.log('getSessionsNeedingReview - cached sessions:', cachedSessions);
@@ -239,6 +240,7 @@ export async function createSession(
   insertSession: InsertTrainingSession,
   id?: number,
 ): Promise<TrainingSession> {
+  console.log('createSession called with:', insertSession);
   const sessionId = id ?? Date.now();
   const sessionDate = insertSession.date || new Date();
   const now = new Date();
@@ -250,6 +252,8 @@ export async function createSession(
     createdAt: now,
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
+  
+  console.log('createSession - new session created:', newSession);
 
   // 1. Save locally FIRST for instant user feedback
   try {
@@ -272,6 +276,9 @@ export async function createSession(
 
   // 2. Queue for Firebase sync (non-blocking)
   queueMicrotask(() => syncSessionToFirebase(sessionId, newSession));
+
+  // Refresh pending review queries so UI reflects latest data
+  queryClient.invalidateQueries({ queryKey: ['pending-review'] });
 
   return newSession;
 }
