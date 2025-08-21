@@ -1,8 +1,17 @@
 {
-  "version": "0.2.7",
-  "lastUpdated": "20 August 2025",
+  "version": "0.2.8",
+  "lastUpdated": "21 August 2025",
   "changelog": [
-     {
+    {
+      "version": "0.2.8",
+      "date": "21 August 2025",
+      "changes": [
+        "UI: tweak log game modal",
+        "Bugfix: better handling of lazy loading and dynamic import",
+        "Bugfix: improve caching behaviour to avoid empty history"
+      ]
+    }, 
+    {
       "version": "0.2.7",
       "date": "20 August 2025",
       "changes": [
