@@ -6,17 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 // Dynamic import for firebase to maintain code splitting
 import { gameSessionSchema, type GameSession, type TrainingSession } from '@shared/schema';
-import { Trophy, X, Clock, Square, Zap, Hourglass, Clock3 } from 'lucide-react';
+import { Trophy, X, Square, Zap, Hourglass, Clock3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GameModalProps {
@@ -37,6 +30,7 @@ export default function GameModal({
   const [selectedResult, setSelectedResult] = useState<'win' | 'loss' | 'draw' | null>(null);
   const [selectedColor, setSelectedColor] = useState<'white' | 'black' | null>(null);
   const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(null);
 
   const {
   register,
@@ -44,7 +38,6 @@ export default function GameModal({
   formState: { errors },
   reset,
   setValue,
-  watch,
   trigger,
 } = useForm<GameSession>({
   resolver: zodResolver(gameSessionSchema),
@@ -78,6 +71,7 @@ export default function GameModal({
       setSelectedResult(null);
       setSelectedColor(null);
       setSelectedTimeControl(null);
+      setSelectedPlatform(null);
 
       // Show immediate feedback
       toast({
@@ -207,6 +201,7 @@ export default function GameModal({
     setSelectedResult(gameResult);
     setSelectedColor(playerColor);
     setSelectedTimeControl(timeControl);
+    setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
     
     // Set form values properly with validation
     if (gameResult) {
@@ -260,6 +255,18 @@ export default function GameModal({
     trigger('timeControl');
   };
 
+  const handlePlatformSelect = (platform: 'lichess' | 'chess.com' | 'otb') => {
+    if (selectedPlatform === platform) {
+      // Deselect if clicking the same platform
+      setSelectedPlatform(null);
+      setValue('platform', undefined, { shouldValidate: true });
+    } else {
+      setSelectedPlatform(platform);
+      setValue('platform', platform, { shouldValidate: true });
+    }
+    trigger('platform');
+  };
+
   const handleModalChange = (open: boolean) => {
   if (!open) {
     // Only reset if not in edit mode or if we're closing after editing
@@ -275,6 +282,7 @@ export default function GameModal({
       setSelectedResult(null);
       setSelectedColor(null);
       setSelectedTimeControl(null);
+      setSelectedPlatform(null);
     }
   }
   onOpenChange(open);
@@ -377,32 +385,55 @@ export default function GameModal({
             </div>
 
             <div>
-              <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
-                Platform (optional)
-              </Label>
-              <Select
-                value={watch('platform')}
-                onValueChange={(value) => setValue('platform', value as any)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lichess">Lichess</SelectItem>
-                  <SelectItem value="chess.com">Chess.com</SelectItem>
-                  <SelectItem value="otb">Over the Board</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="mb-2 block text-sm font-medium text-gray-700">Platform (optional)</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    selectedPlatform === 'lichess'
+                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                  onClick={() => handlePlatformSelect('lichess')}
+                >
+                  <span>Lichess</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    selectedPlatform === 'chess.com'
+                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                  onClick={() => handlePlatformSelect('chess.com')}
+                >
+                  <span>Chess.com</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    selectedPlatform === 'otb'
+                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                  onClick={() => handlePlatformSelect('otb')}
+                >
+                  <span>Over the Board</span>
+                </Button>
+              </div>
               {errors.platform && (
                 <p className="mt-1 text-sm text-red-600">{errors.platform.message}</p>
               )}
             </div>
 
-
-
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">
-                <Clock className="inline h-4 w-4 mr-1" />
                 Time Control (optional)
               </Label>
               <div className="flex gap-2">
@@ -433,7 +464,6 @@ export default function GameModal({
                   </Button>
                 ))}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Click to select, click again to deselect</p>
               {errors.timeControl && (
                 <p className="mt-1 text-sm text-red-600">{errors.timeControl.message}</p>
               )}
