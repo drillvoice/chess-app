@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import Navigation from '@/components/layout/navigation';
 import { AccountPage } from '@/components/lazy-components';
 import { NetworkWarning } from '@/components/ui/network-status';
+import { initializeCacheWarming, setupOnlineCacheWarming } from '@/lib/cache-warming';
 
 import { dynamicImportWithRetry } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ function App() {
   useEffect(() => {
     let stopSync: (() => void) | undefined;
     let unsub: (() => void) | undefined;
+    let cleanupOnlineWarming: (() => void) | undefined;
 
     const init = async () => {
       try {
@@ -68,16 +70,21 @@ function App() {
             }
           }
         });
-      } catch (err) {
-        console.error('Lichess sync init failed:', err);
-      }
-    };
+              } catch (err) {
+          console.error('Lichess sync init failed:', err);
+        }
+      };
 
-    init();
+      // Initialize cache warming
+      initializeCacheWarming();
+      cleanupOnlineWarming = setupOnlineCacheWarming();
+
+      init();
 
     return () => {
       if (unsub) unsub();
       if (stopSync) stopSync();
+      if (cleanupOnlineWarming) cleanupOnlineWarming();
     };
   }, []);
 

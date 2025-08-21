@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chess-training-v5';
+const CACHE_NAME = 'chess-training-v6';
 const RUNTIME_CACHE = 'chess-training-runtime';
 const API_CACHE = 'chess-training-api';
 const STATIC_CACHE = 'chess-training-static';
@@ -15,16 +15,16 @@ const urlsToCache = [
 
 // Cache configuration
 const CACHE_CONFIG = {
-  // API cache duration (24 hours for statistics, 1 hour for sessions)
+  // API cache duration - more aggressive caching for better UX
   API_MAX_AGE: {
     statistics: 24 * 60 * 60 * 1000, // 24 hours
-    sessions: 60 * 60 * 1000,        // 1 hour  
+    sessions: 7 * 24 * 60 * 60 * 1000, // 7 days - much longer for sessions
     weeklyGoal: 60 * 60 * 1000       // 1 hour
   },
   // Maximum cache sizes
   MAX_CACHE_SIZE: {
     [RUNTIME_CACHE]: 50,
-    [API_CACHE]: 100,
+    [API_CACHE]: 200, // Increased for more session data
     [STATIC_CACHE]: 30
   }
 };
@@ -173,7 +173,28 @@ async function handleApiRequest(request, url) {
         maxAge = CACHE_CONFIG.API_MAX_AGE.weeklyGoal;
       }
       
-      // Return cached if fresh, otherwise fetch in background
+      // For training sessions, always return cached data first for instant load
+      if (url.pathname.includes('training-sessions') && cachedResponse) {
+        // Always fetch fresh data in background for sessions
+        fetch(request).then(response => {
+          if (response.ok) {
+            cache.put(request, response.clone());
+            // Notify app that fresh data is available
+            self.clients.matchAll().then(clients => {
+              clients.forEach(client => {
+                client.postMessage({
+                  type: 'FRESH_SESSIONS_AVAILABLE',
+                  timestamp: Date.now()
+                });
+              });
+            });
+          }
+        }).catch(() => {}); // Silent fail for background updates
+        
+        return cachedResponse;
+      }
+      
+      // For other endpoints, use stale-while-revalidate
       if (cachedResponse && !isCacheStale(cachedResponse, maxAge)) {
         // Optionally fetch fresh data in background
         fetch(request).then(response => {

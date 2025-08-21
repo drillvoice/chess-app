@@ -58,6 +58,26 @@ export default function Activity() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Listen for fresh data notifications from service worker
+  useEffect(() => {
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'FRESH_SESSIONS_AVAILABLE') {
+        // Refetch sessions when service worker has fresh data
+        queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
+    };
+  }, [queryClient]);
+
   const { data: stats, isLoading: statsLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
     queryFn: async () => {
@@ -75,9 +95,10 @@ export default function Activity() {
       const { getAllSessions } = await import('@/lib/firebase');
       return await getAllSessions();
     },
-    staleTime: 60000, // Cache for 1 minute
-    refetchInterval: 60000,
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on focus to avoid conflicts
+    refetchOnMount: false, // Don't refetch on mount if we have cached data
   });
 
   const deleteSessionMutation = useMutation({
