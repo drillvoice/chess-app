@@ -291,7 +291,7 @@ export default function GameModal({
   return (
     <Dialog open={open} onOpenChange={handleModalChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
-        <DialogHeader className="pb-1">
+        <DialogHeader className="pb-2">
           <DialogTitle className="text-xl font-bold text-gray-800">Log game</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
@@ -434,7 +434,7 @@ export default function GameModal({
 
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">
-                Time Control
+                Time control
               </Label>
               <div className="flex gap-2">
                 {[
@@ -473,13 +473,13 @@ export default function GameModal({
               <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
                 Comments
               </Label>
-              <Textarea
-                id="gameComments"
-                placeholder="Great endgame technique..."
-                className="mt-1"
-                rows={3}
-                {...register('gameComments')}
-              />
+                             <Textarea
+                 id="gameComments"
+                 placeholder="Great endgame technique..."
+                 className="mt-1"
+                 rows={2}
+                 {...register('gameComments')}
+               />
             </div>
           </div>
 
