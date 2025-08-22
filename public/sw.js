@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chess-training-v6';
+const CACHE_NAME = 'chess-training-v7';
 const RUNTIME_CACHE = 'chess-training-runtime';
 const API_CACHE = 'chess-training-api';
 const STATIC_CACHE = 'chess-training-static';

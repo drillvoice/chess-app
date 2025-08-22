@@ -10,17 +10,10 @@ import { AccountPage } from '@/components/lazy-components';
 import { NetworkWarning } from '@/components/ui/network-status';
 import { initializeCacheWarming, setupOnlineCacheWarming } from '@/lib/cache-warming';
 
-import { dynamicImportWithRetry } from '@/lib/utils';
-
-// Helper function to create lazy components with retry logic
-function createLazyComponent<T extends { default: React.ComponentType<any> }>(importFn: () => Promise<T>) {
-  return lazy(() => dynamicImportWithRetry(importFn));
-}
-
-const Home = createLazyComponent(() => import('@/pages/home'));
-const Activity = createLazyComponent(() => import('@/pages/activity'));
-const Info = createLazyComponent(() => import('@/pages/info'));
-const NotFound = createLazyComponent(() => import('@/pages/not-found'));
+const Home = lazy(() => import('@/pages/home'));
+const Activity = lazy(() => import('@/pages/activity'));
+const Info = lazy(() => import('@/pages/info'));
+const NotFound = lazy(() => import('@/pages/not-found'));
 
 function Router() {
   return (
@@ -44,11 +37,11 @@ function App() {
 
     const init = async () => {
       try {
-        const { getFirebaseAuth } = await dynamicImportWithRetry(() => import('@/lib/firebaseClient'));
+        const { getFirebaseAuth } = await import('@/lib/firebaseClient');
         const auth = await getFirebaseAuth();
-        const { onAuthStateChanged } = await dynamicImportWithRetry(() => import('firebase/auth'));
-        const { getUserSettings, ensureAuthentication } = await dynamicImportWithRetry(() => import('@/lib/firebase'));
-        const { startLichessSync } = await dynamicImportWithRetry(() => import('@/lib/lichess-sync'));
+        const { onAuthStateChanged } = await import('firebase/auth');
+        const { getUserSettings, ensureAuthentication } = await import('@/lib/firebase');
+        const { startLichessSync } = await import('@/lib/lichess-sync');
 
         // Initialize Firebase and ensure authentication (anonymous if no Google auth)
         await ensureAuthentication();
