@@ -291,11 +291,11 @@ export default function GameModal({
   return (
     <Dialog open={open} onOpenChange={handleModalChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-xl font-bold text-gray-800">Log Game</DialogTitle>
+        <DialogHeader className="pb-1">
+          <DialogTitle className="text-xl font-bold text-gray-800">Log game</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto p-2">
+          <div className="flex-1 space-y-3 overflow-y-auto p-2">
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Colour</Label>
               <div className="grid grid-cols-2 gap-3">
@@ -303,7 +303,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedColor === 'white'
                       ? 'border-gray-800 bg-gray-100 text-gray-800 ring-2 ring-gray-800'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -317,7 +317,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedColor === 'black'
                       ? 'border-gray-800 bg-gray-800 text-white ring-2 ring-gray-800'
                       : 'border-gray-300 bg-gray-800 text-white hover:bg-gray-700',
@@ -340,7 +340,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedResult === 'win'
                       ? 'border-green-500 bg-green-50 text-green-800 ring-2 ring-green-500'
                       : 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100',
@@ -354,7 +354,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedResult === 'draw'
                       ? 'border-gray-500 bg-gray-50 text-gray-800 ring-2 ring-gray-500'
                       : 'border-gray-300 bg-gray-50 text-gray-800 hover:bg-gray-100',
@@ -368,7 +368,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedResult === 'loss'
                       ? 'border-red-500 bg-red-50 text-red-800 ring-2 ring-red-500'
                       : 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100',
@@ -385,13 +385,13 @@ export default function GameModal({
             </div>
 
             <div>
-              <Label className="mb-2 block text-sm font-medium text-gray-700">Platform (optional)</Label>
+              <Label className="mb-2 block text-sm font-medium text-gray-700">Platform</Label>
               <div className="grid grid-cols-3 gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedPlatform === 'lichess'
                       ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -404,7 +404,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedPlatform === 'chess.com'
                       ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -417,7 +417,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 p-3',
+                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedPlatform === 'otb'
                       ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -434,7 +434,7 @@ export default function GameModal({
 
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">
-                Time Control (optional)
+                Time Control
               </Label>
               <div className="flex gap-2">
                 {[
@@ -471,7 +471,7 @@ export default function GameModal({
 
             <div>
               <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
-                Comments (optional)
+                Comments
               </Label>
               <Textarea
                 id="gameComments"
@@ -483,7 +483,7 @@ export default function GameModal({
             </div>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-3 pt-2">
             <Button
               type="button"
               variant="outline"
