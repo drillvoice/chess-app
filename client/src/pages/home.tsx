@@ -67,6 +67,8 @@ export default function Home() {
       return await getSessionsNeedingReview();
     },
     refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000, // Refetch every minute as backup
+    staleTime: 30 * 1000, // Consider data stale after 30 seconds
   });
 
   const queryClient = useQueryClient();
@@ -132,7 +134,19 @@ export default function Home() {
             <h3 className="font-semibold text-gray-800">Games needing review</h3>
             {pendingSessions.map((session) => (
               <div key={session.id} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">{formatSessionDate(session.date)}</span>
+                <div className="flex flex-col">
+                  <span className="text-gray-700">{formatSessionDate(session.date)}</span>
+                  {session.gameComments && session.gameComments.startsWith('Score: ') && (
+                    <span className="text-xs text-gray-500 font-mono">
+                      {session.gameComments.replace('Score: ', '')}
+                    </span>
+                  )}
+                  {session.opponentUsername && (
+                    <span className="text-xs text-gray-500">
+                      vs {session.opponentUsername}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"

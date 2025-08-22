@@ -1,5 +1,6 @@
 import type { InsertTrainingSession } from '@shared/schema';
 import { createSession } from './firebase';
+import { queryClient } from './queryClient';
 
 const POLL_INTERVAL = 30 * 1000; // 30 seconds
 
@@ -78,6 +79,16 @@ export function startLichessSync(username: string) {
       if (game.status === 'draw') result = 'draw';
       else result = game.winner === color ? 'win' : 'loss';
 
+      // Generate game score for display
+      let gameScore: string;
+      if (game.status === 'draw') {
+        gameScore = '1/2-1/2';
+      } else if (game.winner === 'white') {
+        gameScore = '1-0';
+      } else {
+        gameScore = '0-1';
+      }
+
       const duration = Math.round((game.lastMoveAt - game.createdAt) / 60000);
 
       let timeControl = '';
@@ -96,9 +107,15 @@ export function startLichessSync(username: string) {
         timeControl,
         opponentUsername,
         needsReview: true,
+        gameComments: `Score: ${gameScore}`, // Add score to comments for display
       };
 
       await createSession(session);
+      
+      // Invalidate relevant queries to update UI immediately
+      queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
     } catch (err) {
       console.error('Lichess sync error:', err);
     }
