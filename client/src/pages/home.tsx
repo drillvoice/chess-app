@@ -299,7 +299,7 @@ export default function Home() {
         <TacticsModal open={tacticsModalOpen} onOpenChange={setTacticsModalOpen} />
         <GameModal
           open={gameModalOpen}
-          onOpenChange={(open) => {
+          onOpenChange={(open: boolean) => {
             setGameModalOpen(open);
             if (!open) setEditingSession(undefined);
           }}

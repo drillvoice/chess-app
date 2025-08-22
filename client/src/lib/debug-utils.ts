@@ -68,7 +68,7 @@ export function monitorDynamicImports() {
   const originalFetch = window.fetch;
   
   window.fetch = async function(...args) {
-    const url = typeof args[0] === 'string' ? args[0] : args[0].url;
+    const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
     
     // Monitor JS file requests
     if (url.includes('.js') && (url.includes('assets/') || url.includes('.chunk.'))) {

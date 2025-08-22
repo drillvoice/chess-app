@@ -13,7 +13,7 @@ import { initializeCacheWarming, setupOnlineCacheWarming } from '@/lib/cache-war
 import { dynamicImportWithRetry } from '@/lib/utils';
 
 // Helper function to create lazy components with retry logic
-function createLazyComponent<T>(importFn: () => Promise<T>) {
+function createLazyComponent<T extends { default: React.ComponentType<any> }>(importFn: () => Promise<T>) {
   return lazy(() => dynamicImportWithRetry(importFn));
 }
 

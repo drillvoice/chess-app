@@ -1,4 +1,4 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Puzzle,
@@ -600,7 +600,7 @@ export default function Activity() {
           {editingSession.type === 'tactics' && (
             <TacticsModal
               open={true}
-              onOpenChange={(open) => !open && setEditingSession(null)}
+              onOpenChange={(open: boolean) => !open && setEditingSession(null)}
               editingSession={editingSession}
               isEditMode={true}
             />
@@ -608,7 +608,7 @@ export default function Activity() {
           {editingSession.type === 'game' && (
             <GameModal
               open={true}
-              onOpenChange={(open) => !open && setEditingSession(null)}
+              onOpenChange={(open: boolean) => !open && setEditingSession(null)}
               editingSession={editingSession}
               isEditMode={true}
             />
@@ -616,7 +616,7 @@ export default function Activity() {
           {editingSession.type === 'study' && (
             <StudyModal
               open={true}
-              onOpenChange={(open) => !open && setEditingSession(null)}
+              onOpenChange={(open: boolean) => !open && setEditingSession(null)}
               editingSession={editingSession}
               isEditMode={true}
             />
@@ -624,7 +624,7 @@ export default function Activity() {
           {editingSession.type === 'goal' && (
             <GoalModal
               open={true}
-              onOpenChange={(open) => !open && setEditingSession(null)}
+              onOpenChange={(open: boolean) => !open && setEditingSession(null)}
               editingSession={editingSession}
               isEditMode={true}
             />

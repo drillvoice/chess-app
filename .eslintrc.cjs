@@ -39,6 +39,17 @@ module.exports = {
     'jsx-a11y/anchor-has-content': 'off',
     'react/no-unknown-property': 'off',
     'react/prop-types': 'off',
+    // Enhanced import rules to catch missing imports
+    'import/no-unresolved': 'error',
+    'import/named': 'error',
+    'import/default': 'error',
+    'import/namespace': 'error',
+    // React hooks rules to catch missing imports
+    'react-hooks/rules-of-hooks': 'error',
+    'react-hooks/exhaustive-deps': 'warn',
+    // Additional rules to catch common React import issues
+    'react/jsx-no-undef': 'error',
+    'react/jsx-uses-vars': 'error',
   },
   overrides: [
     {

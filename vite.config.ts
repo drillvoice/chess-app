@@ -36,9 +36,10 @@ export default defineConfig({
         },
         // Ensure consistent asset naming
         assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.');
+          const name = assetInfo.name || 'asset';
+          const info = name.split('.');
           const ext = info[info.length - 1];
-          if (/\.(css)$/.test(assetInfo.name)) {
+          if (/\.(css)$/.test(name)) {
             return `assets/[name]-[hash].${ext}`;
           }
           return `assets/[name]-[hash].${ext}`;
