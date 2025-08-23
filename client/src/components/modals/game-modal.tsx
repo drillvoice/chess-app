@@ -305,7 +305,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedColor === 'white'
-                      ? 'border-gray-800 bg-gray-100 text-gray-800 ring-2 ring-gray-800'
+                      ? 'border-gray-600 bg-gray-100 text-gray-800 ring-2 ring-gray-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handleColorSelect('white')}
@@ -319,7 +319,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedColor === 'black'
-                      ? 'border-gray-800 bg-gray-800 text-white ring-2 ring-gray-800'
+                      ? 'border-gray-600 bg-gray-200 text-gray-800 ring-2 ring-gray-600'
                       : 'border-gray-300 bg-gray-800 text-white hover:bg-gray-700',
                   )}
                   onClick={() => handleColorSelect('black')}
@@ -342,7 +342,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedResult === 'win'
-                      ? 'border-green-500 bg-green-50 text-green-800 ring-2 ring-green-500'
+                      ? 'border-green-600 bg-green-100 text-green-800 ring-2 ring-green-600'
                       : 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100',
                   )}
                   onClick={() => handleResultSelect('win')}
@@ -356,7 +356,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedResult === 'draw'
-                      ? 'border-gray-500 bg-gray-50 text-gray-800 ring-2 ring-gray-500'
+                      ? 'border-gray-600 bg-gray-100 text-gray-800 ring-2 ring-gray-600'
                       : 'border-gray-300 bg-gray-50 text-gray-800 hover:bg-gray-100',
                   )}
                   onClick={() => handleResultSelect('draw')}
@@ -370,7 +370,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedResult === 'loss'
-                      ? 'border-red-500 bg-red-50 text-red-800 ring-2 ring-red-500'
+                      ? 'border-red-600 bg-red-100 text-red-800 ring-2 ring-red-600'
                       : 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100',
                   )}
                   onClick={() => handleResultSelect('loss')}
@@ -393,7 +393,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedPlatform === 'lichess'
-                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handlePlatformSelect('lichess')}
@@ -406,7 +406,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedPlatform === 'chess.com'
-                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handlePlatformSelect('chess.com')}
@@ -419,7 +419,7 @@ export default function GameModal({
                   className={cn(
                     'flex h-auto items-center justify-center space-x-2 px-3 py-2',
                     selectedPlatform === 'otb'
-                      ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                      ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                   )}
                   onClick={() => handlePlatformSelect('otb')}
@@ -450,7 +450,7 @@ export default function GameModal({
                     className={cn(
                       'flex h-auto items-center justify-center space-x-1 px-3 py-2',
                       selectedTimeControl === tc.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500'
+                        ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
                     )}
                     onClick={() => handleTimeControlSelect(tc.value)}
