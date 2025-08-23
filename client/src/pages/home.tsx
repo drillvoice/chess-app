@@ -124,7 +124,7 @@ export default function Home() {
       <InstallPrompt />
 
       <div className="py-4 text-center">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Log Your Training</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-800">Log your training</h2>
         <p className="text-sm text-gray-600">Track your chess improvement journey</p>
       </div>
 
@@ -238,7 +238,7 @@ export default function Home() {
           <div className="flex items-center justify-center space-x-3">
             <Puzzle className="h-8 w-8" />
             <div className="text-left">
-              <div className="text-lg">Log Tactics</div>
+              <div className="text-lg">Log tactics</div>
               <div className="text-sm opacity-90">Practice & Score</div>
             </div>
           </div>
@@ -251,7 +251,7 @@ export default function Home() {
           <div className="flex items-center justify-center space-x-3">
             <Crown className="h-8 w-8" />
             <div className="text-left">
-              <div className="text-lg">Log Game</div>
+              <div className="text-lg">Log game</div>
               <div className="text-sm opacity-90">Win/Loss & Notes</div>
             </div>
           </div>
@@ -264,7 +264,7 @@ export default function Home() {
           <div className="flex items-center justify-center space-x-3">
             <Book className="h-8 w-8" />
             <div className="text-left">
-              <div className="text-lg">Log Study</div>
+              <div className="text-lg">Log study</div>
               <div className="text-sm opacity-90">Videos & Analysis</div>
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function Home() {
           <div className="flex items-center justify-center space-x-3">
             <Target className="h-8 w-8" />
             <div className="text-left">
-              <div className="text-lg">Set Weekly Goal</div>
+              <div className="text-lg">Set weekly goal</div>
               <div className="text-sm opacity-90">Plan your week</div>
             </div>
           </div>
@@ -286,7 +286,7 @@ export default function Home() {
 
       <Card className="mt-6 rounded-xl bg-gray-100">
         <CardContent className="p-4">
-          <h3 className="mb-3 text-lg font-semibold text-gray-800">Today's Progress</h3>
+          <h3 className="mb-3 text-lg font-semibold text-gray-800">Today's progress</h3>
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4">
               <Skeleton className="h-16 w-full" />
@@ -298,7 +298,7 @@ export default function Home() {
                 <div className="text-2xl font-bold text-[#1E40AF]">
                   {`${stats?.todayTotalTime || 0}m`}
                 </div>
-                <div className="text-sm text-gray-600">Total Time</div>
+                <div className="text-sm text-gray-600">Total time</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#059669]">{stats?.todaySessions || 0}</div>

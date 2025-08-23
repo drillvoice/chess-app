@@ -30,7 +30,7 @@ export default function Info() {
 
       <Card>
         <CardHeader>
-          <CardTitle>About the Developer</CardTitle>
+          <CardTitle>About the developer</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">
@@ -53,7 +53,7 @@ export default function Info() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Send Feedback</CardTitle>
+          <CardTitle>Send feedback</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">

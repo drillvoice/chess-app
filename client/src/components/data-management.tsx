@@ -110,13 +110,13 @@ export default function DataManagement() {
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Database className="h-5 w-5" />
-          <span>Data Management</span>
+          <span>Data management</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Firebase Cloud Sync */}
         <div>
-          <Label className="mb-3 block text-sm font-medium text-gray-700">Cloud Sync</Label>
+          <Label className="mb-3 block text-sm font-medium text-gray-700">Cloud sync</Label>
           <div className="space-y-3">
             <FirebaseAuth />
             <p className="text-sm text-gray-600">
@@ -128,18 +128,18 @@ export default function DataManagement() {
         </div>
 
         <div>
-          <Label className="mb-2 block text-sm font-medium text-gray-700">Export Data</Label>
+          <Label className="mb-2 block text-sm font-medium text-gray-700">Export data</Label>
           <p className="mb-3 text-sm text-gray-600">
             Download all your training sessions and goals as a JSON file
           </p>
           <Button onClick={handleExport} className="w-full" variant="outline">
             <Download className="mr-2 h-4 w-4" />
-            Export Data
+            Export data
           </Button>
         </div>
 
         <div>
-          <Label className="mb-2 block text-sm font-medium text-gray-700">Import Data</Label>
+          <Label className="mb-2 block text-sm font-medium text-gray-700">Import data</Label>
           <p className="mb-3 text-sm text-gray-600">
             Import a previously exported JSON file to restore your training data
           </p>
@@ -151,7 +151,7 @@ export default function DataManagement() {
                   ? progress
                     ? `Importing ${progress.processed}/${progress.total}`
                     : 'Importing...'
-                  : 'Import Data'}
+                  : 'Import data'}
               </span>
             </Button>
           </Label>
@@ -165,13 +165,13 @@ export default function DataManagement() {
         </div>
 
         <div>
-          <Label className="mb-2 block text-sm font-medium text-gray-700">Clear Local Data</Label>
+          <Label className="mb-2 block text-sm font-medium text-gray-700">Clear local data</Label>
           <p className="mb-3 text-sm text-gray-600">
             Remove all locally stored training data from this device. Cloud data will remain
             unaffected.
           </p>
           <Button onClick={handleClearLocalData} className="w-full" variant="destructive">
-            Clear Local Data
+            Clear local data
           </Button>
         </div>
 

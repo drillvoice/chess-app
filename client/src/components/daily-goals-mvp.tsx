@@ -74,7 +74,7 @@ export default function DailyGoalsMVP() {
           <div className="flex items-center space-x-2">
             <Target className={`h-5 w-5 ${allComplete ? 'text-green-600' : 'text-blue-600'}`} />
             <h3 className="font-semibold text-gray-800">
-              {allComplete ? '🎉 Daily goals complete!' : "Today's Training Goals"}
+              {allComplete ? '🎉 Daily goals complete!' : "Today's training goals"}
             </h3>
           </div>
           <div className="text-sm text-gray-600">{completedCount}/3</div>

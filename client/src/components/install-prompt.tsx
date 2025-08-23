@@ -38,7 +38,7 @@ export default function InstallPrompt() {
           <div className="flex items-center space-x-3">
             <Download className="h-5 w-5 text-blue-600" />
             <div>
-              <h3 className="font-semibold text-gray-800">Install App</h3>
+              <h3 className="font-semibold text-gray-800">Install app</h3>
               <p className="text-sm text-gray-600">Get the full mobile experience</p>
             </div>
           </div>

@@ -365,7 +365,7 @@ export default function Activity() {
     return (
       <div className="space-y-4 md:space-y-6">
         <div className="py-4 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-gray-800">Training Statistics</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-800">Training statistics</h2>
           <p className="text-sm text-gray-600">Your chess improvement overview</p>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -376,7 +376,7 @@ export default function Activity() {
         <Skeleton className="h-48 rounded-xl" />
 
         <div className="py-4 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-gray-800">Training History</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-800">Training history</h2>
           <p className="text-sm text-gray-600">Your recent training sessions</p>
         </div>
         <div className="space-y-2">
@@ -391,7 +391,7 @@ export default function Activity() {
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="py-4 text-center">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Training Statistics</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-800">Training statistics</h2>
         <p className="text-sm text-gray-600">Your chess improvement overview</p>
       </div>
 
@@ -401,7 +401,7 @@ export default function Activity() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-bold text-[#1E40AF]">{stats?.totalHours || 0}</div>
-                <div className="text-sm text-gray-600">Total Hours</div>
+                <div className="text-sm text-gray-600">Total hours</div>
               </div>
               <Clock className="h-5 w-5 text-[#1E40AF]" />
             </div>
@@ -425,7 +425,7 @@ export default function Activity() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
-                <div className="text-sm text-gray-600">Tactics Rating</div>
+                <div className="text-sm text-gray-600">Tactics rating</div>
               </div>
               <Trophy className="h-5 w-5 text-[#F59E0B]" />
             </div>
@@ -437,7 +437,7 @@ export default function Activity() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-bold text-green-600">{stats?.winRate || 0}%</div>
-                <div className="text-sm text-gray-600">Win Rate</div>
+                <div className="text-sm text-gray-600">Win rate</div>
               </div>
               <TrendingUp className="h-5 w-5 text-green-600" />
             </div>
@@ -447,7 +447,7 @@ export default function Activity() {
 
       <Card className="border-gray-200">
         <CardContent className="p-4">
-          <h3 className="mb-4 text-lg font-semibold text-gray-800">This Week's Activity</h3>
+          <h3 className="mb-4 text-lg font-semibold text-gray-800">This week's activity</h3>
           {sessions && sessions.length > 0 ? (
             <Suspense fallback={<div className="h-32 animate-pulse rounded bg-gray-100"></div>}>
               <WeeklyActivityChart sessions={sessions} />
@@ -464,7 +464,7 @@ export default function Activity() {
       </Card>
 
       <div className="py-4 text-center">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Training History</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-800">Training history</h2>
         <p className="text-sm text-gray-600">Your recent training sessions</p>
       </div>
 

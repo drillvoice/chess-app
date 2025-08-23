@@ -179,7 +179,7 @@ export default function TacticsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-bold text-gray-800">Log Tactics Session</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-800">Log tactics session</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto p-2">
@@ -214,7 +214,7 @@ export default function TacticsModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="pointsGained" className="text-sm font-medium text-gray-700">
-                  Points Gained
+                  Points gained
                 </Label>
                 <Input
                   id="pointsGained"
@@ -229,7 +229,7 @@ export default function TacticsModal({
               </div>
               <div>
                 <Label htmlFor="finalScore" className="text-sm font-medium text-gray-700">
-                  Final Score
+                  Final score
                 </Label>
                 <Input
                   id="finalScore"

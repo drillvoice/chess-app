@@ -190,13 +190,13 @@ export default function GoalModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-bold text-gray-800">Set Weekly Goal</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-800">Set weekly goal</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-2">
             <div>
               <Label htmlFor="goalTitle" className="text-sm font-medium text-gray-700">
-                Goal Title
+                Goal title
               </Label>
               <Input
                 id="goalTitle"
@@ -239,7 +239,7 @@ export default function GoalModal({
               className="modal-button flex-1 bg-purple-600 hover:bg-purple-700"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? 'Saving...' : 'Set Goal'}
+              {mutation.isPending ? 'Saving...' : 'Set goal'}
             </Button>
           </div>
         </form>

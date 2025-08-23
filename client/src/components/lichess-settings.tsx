@@ -131,7 +131,7 @@ export default function LichessSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Lichess Integration</CardTitle>
+        <CardTitle>Lichess integration</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
