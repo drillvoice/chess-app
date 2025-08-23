@@ -134,9 +134,19 @@ export const goalSessionSchema = insertTrainingSessionSchema
     studyNotes: true,
   });
 
+// Daily Goals Schema
+export const dailyGoalSettingsSchema = z.object({
+  tacticsMinutes: z.number().min(0).max(99).optional(),
+  gamesCount: z.number().min(0).max(99).optional(),
+  studyMinutes: z.number().min(0).max(99).optional(),
+  isCustomized: z.boolean().default(false),
+  lastModified: z.date().optional(),
+});
+
 export type InsertTrainingSession = z.infer<typeof insertTrainingSessionSchema>;
 export type TacticsSession = z.infer<typeof tacticsSessionSchema>;
 export type GameSession = z.infer<typeof gameSessionSchema>;
 export type StudySession = z.infer<typeof studySessionSchema>;
 export type GoalSession = z.infer<typeof goalSessionSchema>;
 export type TrainingSession = typeof trainingSessionsTable.$inferSelect;
+export type DailyGoalSettings = z.infer<typeof dailyGoalSettingsSchema>;

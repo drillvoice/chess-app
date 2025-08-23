@@ -1,4 +1,4 @@
-import { TrainingSession } from '@shared/schema';
+import { TrainingSession, DailyGoalSettings } from '@shared/schema';
 
 interface UnsyncedSession {
   sessionId: number;
@@ -48,6 +48,11 @@ class OfflineStorage {
         // Settings store for user preferences
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'id' });
+        }
+
+        // Daily goals store
+        if (!db.objectStoreNames.contains('daily_goals')) {
+          db.createObjectStore('daily_goals', { keyPath: 'id' });
         }
         // Sync queue store for tracking unsynced changes
         if (!db.objectStoreNames.contains('sync_queue')) {
@@ -497,6 +502,64 @@ async setLastSyncAttempt(): Promise<void> {
       key: 'last_sync_attempt',
       timestamp: Date.now(),
     });
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+// Daily Goals Storage Methods
+async getDailyGoalSettings(): Promise<DailyGoalSettings | null> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['daily_goals'], 'readonly');
+    const store = transaction.objectStore('daily_goals');
+    const request = store.get('current');
+
+    request.onsuccess = () => {
+      const result = request.result;
+      if (result) {
+        // Convert date strings back to Date objects
+        const settings = {
+          ...result,
+          lastModified: result.lastModified ? new Date(result.lastModified) : undefined,
+        };
+        resolve(settings);
+      } else {
+        resolve(null);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async setDailyGoalSettings(settings: DailyGoalSettings): Promise<void> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['daily_goals'], 'readwrite');
+    const store = transaction.objectStore('daily_goals');
+    
+    // Add id and lastModified timestamp
+    const settingsWithMeta = {
+      id: 'current',
+      ...settings,
+      lastModified: new Date(),
+    };
+    
+    store.put(settingsWithMeta);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async clearDailyGoalSettings(): Promise<void> {
+  const db = await this.ensureDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['daily_goals'], 'readwrite');
+    const store = transaction.objectStore('daily_goals');
+    
+    store.delete('current');
 
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
