@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DailyGoalSettings } from '@shared/schema';
 import { 
@@ -86,14 +86,14 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
   }, [settings]);
 
   // Validation state
-  const validation: DailyGoalsValidation = {
+  const validation: DailyGoalsValidation = useMemo(() => ({
     tacticsMinutes: validateTacticsMinutes(formData.tacticsMinutes),
     gamesCount: validateGamesCount(formData.gamesCount),
     studyMinutes: validateStudyMinutes(formData.studyMinutes),
     get isValid() {
       return this.tacticsMinutes.isValid && this.gamesCount.isValid && this.studyMinutes.isValid;
     },
-  };
+  }), [formData.tacticsMinutes, formData.gamesCount, formData.studyMinutes]);
 
   // Computed state
   const isCustomized = settings?.isCustomized || false;
