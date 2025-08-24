@@ -1,4 +1,4 @@
-import { TrainingSession, InsertTrainingSession } from '@shared/schema';
+import { TrainingSession, InsertTrainingSession, DailyGoalSettings } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from '../cache-utils';
 import { offlineStorage } from '../offline-storage';
 import { queryClient } from '../queryClient';
@@ -583,6 +583,100 @@ export function stopSessionSync(): void {
   if (unsubscribeSessionSync) {
     unsubscribeSessionSync();
     unsubscribeSessionSync = null;
+  }
+}
+
+// Daily Goals Firebase Functions
+export async function getDailyGoalSettings(): Promise<DailyGoalSettings | null> {
+  try {
+    // Try offline storage first for instant loading
+    const cachedSettings = await offlineStorage.getDailyGoalSettings();
+    if (cachedSettings) {
+      // Schedule background update but don't wait
+      queueMicrotask(() => updateDailyGoalsInBackground());
+      return cachedSettings;
+    }
+  } catch (error) {
+    console.warn('Failed to get cached daily goal settings:', error);
+  }
+
+  // If no cache, fetch from Firebase
+  return await fetchDailyGoalsFromFirebase();
+}
+
+async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> {
+  try {
+    await waitForAuth();
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return null;
+
+    const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
+    const goalDoc = await getDocs(goalsRef);
+
+    if (!goalDoc.exists()) {
+      return null;
+    }
+
+    const data = goalDoc.data();
+    const settings: DailyGoalSettings = {
+      tacticsMinutes: data.tacticsMinutes,
+      gamesCount: data.gamesCount,
+      studyMinutes: data.studyMinutes,
+      isCustomized: data.isCustomized || false,
+      lastModified: data.lastModified?.toDate(),
+    };
+
+    // Cache the result
+    await offlineStorage.setDailyGoalSettings(settings);
+    return settings;
+  } catch (error) {
+    console.error('Failed to fetch daily goals from Firebase:', error);
+    return null;
+  }
+}
+
+export async function setDailyGoalSettings(settings: DailyGoalSettings): Promise<void> {
+  try {
+    // Update offline storage immediately for instant feedback
+    await offlineStorage.setDailyGoalSettings(settings);
+
+    // Queue Firebase sync (non-blocking)
+    queueMicrotask(() => syncDailyGoalsToFirebase(settings));
+  } catch (error) {
+    console.error('Error setting daily goal settings locally:', error);
+    throw new Error('Failed to set daily goal settings');
+  }
+}
+
+async function syncDailyGoalsToFirebase(settings: DailyGoalSettings): Promise<void> {
+  try {
+    await waitForAuth();
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return;
+
+    const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
+    
+    const firebaseData = {
+      ...settings,
+      lastModified: Timestamp.fromDate(new Date()),
+    };
+
+    await setDoc(goalsRef, firebaseData);
+    console.log('Daily goals synced to Firebase');
+  } catch (error) {
+    console.error('Failed to sync daily goals to Firebase:', error);
+    // Note: We don't queue for retry since daily goals are not critical for core functionality
+  }
+}
+
+async function updateDailyGoalsInBackground(): Promise<void> {
+  try {
+    const firebaseSettings = await fetchDailyGoalsFromFirebase();
+    if (firebaseSettings) {
+      await offlineStorage.setDailyGoalSettings(firebaseSettings);
+    }
+  } catch (error) {
+    console.warn('Failed to update daily goals in background:', error);
   }
 }
 

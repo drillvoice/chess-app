@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TrainingSession } from '@shared/schema';
+import { formatSessionDate, getGoalProperties, isToday } from '@/lib/utils';
 import versionData from '@/version.json';
 
 interface Statistics {
@@ -19,17 +20,7 @@ interface Statistics {
   todaySessions: number;
 }
 
-function formatSessionDate(date: Date | string) {
-  const d = date instanceof Date ? date : new Date(date);
-  return d
-    .toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      hour: 'numeric',
-      hour12: true,
-    })
-    .replace(',', '');
-}
+
 
 export default function Home() {
   const [tacticsModalOpen, setTacticsModalOpen] = useState(false);
@@ -113,11 +104,10 @@ export default function Home() {
   },
   });
 
-  const isGoalOld =
-    weeklyGoal && (weeklyGoal as any).goalWeekStart
-      ? new Date().getTime() - new Date((weeklyGoal as any).goalWeekStart).getTime() >
-        7 * 24 * 60 * 60 * 1000
-      : false;
+  const goalProperties = weeklyGoal ? getGoalProperties(weeklyGoal) : null;
+  const isGoalOld = goalProperties?.goalWeekStart
+    ? new Date().getTime() - goalProperties.goalWeekStart.getTime() > 7 * 24 * 60 * 60 * 1000
+    : false;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -182,10 +172,10 @@ export default function Home() {
                 <h3 className="mb-1 font-semibold text-gray-800">
                   {isGoalOld ? "Last week's goal" : 'Your goal for this week is:'}
                 </h3>
-                <p className="font-medium text-gray-700">{(weeklyGoal as any).goalTitle}</p>
-                {(weeklyGoal as any).goalDescription && (
+                <p className="font-medium text-gray-700">{goalProperties?.goalTitle || 'No title'}</p>
+                {goalProperties?.goalDescription && (
                   <p className="mt-1 text-sm text-gray-600">
-                    {(weeklyGoal as any).goalDescription}
+                    {goalProperties.goalDescription}
                   </p>
                 )}
                 {isGoalOld && (
