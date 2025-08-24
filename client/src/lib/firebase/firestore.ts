@@ -21,6 +21,7 @@ import {
   onAuthStateChanged,
   getCurrentUserId,
   db,
+  ensureFirebase,
 } from './core';
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
@@ -645,18 +646,33 @@ export async function getDailyGoalSettings(): Promise<DailyGoalSettings | null> 
 
 async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> {
   try {
+    console.log('🔍 Attempting to fetch daily goals from Firebase...');
+    
     await waitForAuth();
+    console.log('✅ Authentication successful');
+    
     const currentUserId = getCurrentUserId();
-    if (!currentUserId) return null;
+    console.log('👤 Current user ID:', currentUserId);
+    
+    if (!currentUserId) {
+      console.warn('❌ No current user ID found');
+      return null;
+    }
 
     const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
+    console.log('📄 Fetching document from:', goalsRef.path);
+    
     const goalDoc = await getDoc(goalsRef);
+    console.log('📋 Document exists:', goalDoc.exists());
 
     if (!goalDoc.exists()) {
+      console.log('📝 No daily goals document found, returning null');
       return null;
     }
 
     const data = goalDoc.data();
+    console.log('📊 Document data:', data);
+    
     const settings: DailyGoalSettings = {
       tacticsMinutes: data.tacticsMinutes,
       gamesCount: data.gamesCount,
@@ -665,11 +681,21 @@ async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> 
       lastModified: data.lastModified?.toDate(),
     };
 
+    console.log('✅ Parsed settings:', settings);
+
     // Cache the result
     await offlineStorage.setDailyGoalSettings(settings);
+    console.log('💾 Settings cached to offline storage');
+    
     return settings;
   } catch (error) {
-    console.error('Failed to fetch daily goals from Firebase:', error);
+    console.error('❌ Failed to fetch daily goals from Firebase:', error);
+    console.error('🔍 Error details:', {
+      name: (error as any).name,
+      message: (error as any).message,
+      code: (error as any).code,
+      stack: (error as any).stack
+    });
     return null;
   }
 }
@@ -716,6 +742,62 @@ async function updateDailyGoalsInBackground(): Promise<void> {
     }
   } catch (error) {
     console.warn('Failed to update daily goals in background:', error);
+  }
+}
+
+// Diagnostic function to help identify Firebase issues
+export async function diagnoseFirebaseConnection(): Promise<{
+  isOnline: boolean;
+  authStatus: string;
+  currentUserId: string | null;
+  firebaseConfig: boolean;
+}> {
+  try {
+    console.log('🔍 Diagnosing Firebase connection...');
+    
+    // Check if Firebase is initialized
+    const firebaseConfig = !!db;
+    console.log('📋 Firebase config loaded:', firebaseConfig);
+    
+    // Check auth status
+    let authStatus = 'unknown';
+    let currentUserId = null;
+    
+    try {
+      await ensureFirebase();
+      authStatus = 'firebase_ensured';
+      
+      if (auth.currentUser) {
+        authStatus = 'user_authenticated';
+        currentUserId = auth.currentUser.uid;
+      } else {
+        authStatus = 'no_user';
+      }
+    } catch (error) {
+      authStatus = 'auth_failed';
+      console.error('Auth check failed:', error);
+    }
+    
+    // Simple online check
+    const isOnline = navigator.onLine;
+    
+    const result = {
+      isOnline,
+      authStatus,
+      currentUserId,
+      firebaseConfig
+    };
+    
+    console.log('📊 Firebase diagnosis result:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Firebase diagnosis failed:', error);
+    return {
+      isOnline: navigator.onLine,
+      authStatus: 'diagnosis_failed',
+      currentUserId: null,
+      firebaseConfig: false
+    };
   }
 }
 

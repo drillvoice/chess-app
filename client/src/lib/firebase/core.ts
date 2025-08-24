@@ -129,46 +129,69 @@ async function ensureAnonymousAuth(): Promise<void> {
 }
 
 export async function waitForAuth(timeoutMs = 15000): Promise<void> {
-  await ensureFirebase();
-  if (currentUserId) return;
-  if (auth.currentUser) {
-    currentUserId = auth.currentUser.uid;
-    await ensureUserDoc();
-    return;
-  }
-
-  // Try anonymous sign-in first as fallback
+  console.log('🔐 waitForAuth called with timeout:', timeoutMs);
+  
   try {
-    await ensureAnonymousAuth();
-    // Wait a moment for the auth state change to propagate
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const user = auth.currentUser;
-    if (user) {
-      currentUserId = (user as any).uid;
+    await ensureFirebase();
+    console.log('✅ Firebase ensured');
+    
+    if (currentUserId) {
+      console.log('✅ User already authenticated:', currentUserId);
+      return;
+    }
+    
+    if (auth.currentUser) {
+      console.log('✅ Auth current user found:', auth.currentUser.uid);
+      currentUserId = auth.currentUser.uid;
       await ensureUserDoc();
       return;
     }
-  } catch (error) {
-    console.warn('Anonymous auth fallback failed:', error);
-  }
 
-  // If anonymous auth didn't work, wait for any auth state change
-  return new Promise((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout>;
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    console.log('🔄 No current user, attempting anonymous sign-in...');
+    
+    // Try anonymous sign-in first as fallback
+    try {
+      await ensureAnonymousAuth();
+      console.log('✅ Anonymous auth successful');
+      
+      // Wait a moment for the auth state change to propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const user = auth.currentUser;
       if (user) {
-        currentUserId = user.uid;
+        console.log('✅ Anonymous user created:', user.uid);
+        currentUserId = (user as any).uid;
         await ensureUserDoc();
-        clearTimeout(timer);
-        unsubscribe();
-        resolve();
+        return;
       }
+    } catch (error) {
+      console.warn('⚠️ Anonymous auth fallback failed:', error);
+    }
+
+    console.log('⏳ Waiting for auth state change...');
+    
+    // If anonymous auth didn't work, wait for any auth state change
+    return new Promise((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout>;
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          console.log('✅ Auth state changed, user found:', user.uid);
+          currentUserId = user.uid;
+          await ensureUserDoc();
+          clearTimeout(timer);
+          unsubscribe();
+          resolve();
+        }
+      });
+      timer = setTimeout(() => {
+        console.error('⏰ Authentication timeout after', timeoutMs, 'ms');
+        unsubscribe();
+        reject(new Error(`Authentication timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
     });
-    timer = setTimeout(() => {
-      unsubscribe();
-      reject(new Error(`Authentication timeout after ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
+  } catch (error) {
+    console.error('❌ waitForAuth failed:', error);
+    throw error;
+  }
 }
 
 export async function getSessionsCollection() {
