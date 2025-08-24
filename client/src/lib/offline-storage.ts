@@ -22,46 +22,54 @@ class OfflineStorage {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
+        console.log('IndexedDB initialized successfully with version:', this.db.version);
+        console.log('Available object stores:', Array.from(this.db.objectStoreNames));
         resolve();
       };
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        console.log('IndexedDB upgrade needed from version', event.oldVersion, 'to', event.newVersion);
 
         // Sessions store
         if (!db.objectStoreNames.contains('sessions')) {
           const sessionsStore = db.createObjectStore('sessions', { keyPath: 'id' });
           sessionsStore.createIndex('date', 'date', { unique: false });
           sessionsStore.createIndex('type', 'type', { unique: false });
+          console.log('Created sessions object store');
         }
 
         // Cache metadata store
         if (!db.objectStoreNames.contains('cache_meta')) {
           db.createObjectStore('cache_meta', { keyPath: 'key' });
+          console.log('Created cache_meta object store');
         }
 
         // Statistics store
         if (!db.objectStoreNames.contains('statistics')) {
           db.createObjectStore('statistics', { keyPath: 'id' });
+          console.log('Created statistics object store');
         }
 
         // Settings store for user preferences
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'id' });
+          console.log('Created settings object store');
         }
 
         // Daily goals store
         if (!db.objectStoreNames.contains('daily_goals')) {
           db.createObjectStore('daily_goals', { keyPath: 'id' });
+          console.log('Created daily_goals object store');
         }
+
         // Sync queue store for tracking unsynced changes
         if (!db.objectStoreNames.contains('sync_queue')) {
           const syncStore = db.createObjectStore('sync_queue', { keyPath: 'sessionId' });
           syncStore.createIndex('operation', 'operation', { unique: false });
           syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+          console.log('Created sync_queue object store');
         }
-
-        
       };
     });
   }
@@ -70,7 +78,36 @@ class OfflineStorage {
     if (!this.db) {
       await this.init();
     }
-    return this.db!;
+    if (!this.db) {
+      throw new Error('Failed to initialize IndexedDB');
+    }
+    
+    // Check if all required object stores exist
+    const requiredStores = ['sessions', 'cache_meta', 'statistics', 'settings', 'daily_goals', 'sync_queue'];
+    const existingStores = Array.from(this.db.objectStoreNames);
+    const missingStores = requiredStores.filter(store => !existingStores.includes(store));
+    
+    if (missingStores.length > 0) {
+      console.warn('Missing object stores detected:', missingStores);
+      console.log('Existing stores:', existingStores);
+      console.log('Database version:', this.db.version);
+      
+      // Force a database upgrade by closing and reopening with higher version
+      this.db.close();
+      this.db = null;
+      
+      // Increment version to force upgrade
+      this.version += 1;
+      console.log('Forcing database upgrade to version:', this.version);
+      
+      await this.init();
+      
+      if (!this.db) {
+        throw new Error('Failed to reinitialize IndexedDB after upgrade');
+      }
+    }
+    
+    return this.db;
   }
 
   async getSessions(): Promise<TrainingSession[]> {
@@ -510,47 +547,64 @@ async setLastSyncAttempt(): Promise<void> {
 
 // Daily Goals Storage Methods
 async getDailyGoalSettings(): Promise<DailyGoalSettings | null> {
-  const db = await this.ensureDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['daily_goals'], 'readonly');
-    const store = transaction.objectStore('daily_goals');
-    const request = store.get('current');
+  try {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['daily_goals'], 'readonly');
+      const store = transaction.objectStore('daily_goals');
+      const request = store.get('current');
 
-    request.onsuccess = () => {
-      const result = request.result;
-      if (result) {
-        // Convert date strings back to Date objects
-        const settings = {
-          ...result,
-          lastModified: result.lastModified ? new Date(result.lastModified) : undefined,
-        };
-        resolve(settings);
-      } else {
-        resolve(null);
-      }
-    };
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => {
+        const result = request.result;
+        if (result) {
+          // Convert date strings back to Date objects
+          const settings = {
+            ...result,
+            lastModified: result.lastModified ? new Date(result.lastModified) : undefined,
+          };
+          resolve(settings);
+        } else {
+          resolve(null);
+        }
+      };
+      request.onerror = () => {
+        console.error('IndexedDB read error:', request.error);
+        reject(new Error(`Failed to read daily goals: ${request.error?.message || 'Unknown error'}`));
+      };
+    });
+  } catch (error) {
+    console.error('Error in getDailyGoalSettings:', error);
+    // Return null instead of throwing to allow graceful fallback
+    return null;
+  }
 }
 
 async setDailyGoalSettings(settings: DailyGoalSettings): Promise<void> {
-  const db = await this.ensureDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['daily_goals'], 'readwrite');
-    const store = transaction.objectStore('daily_goals');
-    
-    // Add id and lastModified timestamp
-    const settingsWithMeta = {
-      id: 'current',
-      ...settings,
-      lastModified: new Date(),
-    };
-    
-    store.put(settingsWithMeta);
+  try {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['daily_goals'], 'readwrite');
+      const store = transaction.objectStore('daily_goals');
+      
+      // Add id and lastModified timestamp
+      const settingsWithMeta = {
+        id: 'current',
+        ...settings,
+        lastModified: new Date(),
+      };
+      
+      store.put(settingsWithMeta);
 
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => {
+        console.error('IndexedDB transaction error:', transaction.error);
+        reject(new Error(`Failed to save daily goals: ${transaction.error?.message || 'Unknown error'}`));
+      };
+    });
+  } catch (error) {
+    console.error('Error in setDailyGoalSettings:', error);
+    throw new Error(`Failed to save daily goals: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 async clearDailyGoalSettings(): Promise<void> {
