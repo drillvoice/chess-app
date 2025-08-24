@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getUserSettings, updateUserSettings, SettingsError } from '@/lib/firebase';
 
-export default function LichessSettings() {
+function LichessSettingsContent() {
   const [username, setUsername] = useState('');
   const [originalUsername, setOriginalUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -129,48 +129,58 @@ export default function LichessSettings() {
   const hasUnsavedChanges = username.trim() !== originalUsername;
 
   return (
+    <div className="space-y-4">
+      {loadError && (
+        <div className="rounded bg-red-50 p-2 text-sm text-red-600">{loadError}</div>
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex-1">
+          <Label htmlFor="lichess-username" className="sr-only">
+            Lichess Username
+          </Label>
+          <Input
+            id="lichess-username"
+            placeholder="Enter your Lichess username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
+            className={validationError ? 'border-red-500' : ''}
+          />
+          {validationError && <p className="mt-1 text-sm text-red-600">{validationError}</p>}
+        </div>
+
+        <Button
+          onClick={handleSave}
+          disabled={isLoading || !!validationError || !hasUnsavedChanges}
+          className="shrink-0"
+        >
+          {isLoading ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+
+      <p className="text-xs text-gray-600">
+        Link your Lichess account to automatically import completed games into your training
+        log.
+      </p>
+    </div>
+  );
+}
+
+// Original component with Card wrapper for backward compatibility
+export default function LichessSettings() {
+  return (
     <Card>
       <CardHeader>
         <CardTitle>Lichess integration</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {loadError && (
-            <div className="rounded bg-red-50 p-2 text-sm text-red-600">{loadError}</div>
-          )}
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="flex-1">
-              <Label htmlFor="lichess-username" className="sr-only">
-                Lichess Username
-              </Label>
-              <Input
-                id="lichess-username"
-                placeholder="Enter your Lichess username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading}
-                className={validationError ? 'border-red-500' : ''}
-              />
-              {validationError && <p className="mt-1 text-sm text-red-600">{validationError}</p>}
-            </div>
-
-            <Button
-              onClick={handleSave}
-              disabled={isLoading || !!validationError || !hasUnsavedChanges}
-              className="shrink-0"
-            >
-              {isLoading ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-
-          <p className="text-xs text-gray-600">
-            Link your Lichess account to automatically import completed games into your training
-            log.
-          </p>
-        </div>
+        <LichessSettingsContent />
       </CardContent>
     </Card>
   );
 }
+
+// Export the content component for use in accordions
+export { LichessSettingsContent };

@@ -7,8 +7,14 @@ vi.mock('@/components/lazy-components', () => ({
   DataManagement: () => <div>Data Management</div>,
 }));
 
+vi.mock('@/components/data-management', () => ({
+  default: () => <div>Data Management</div>,
+  DataManagementContent: () => <div>Data Management Content</div>,
+}));
+
 vi.mock('@/components/lichess-settings', () => ({
   default: () => <div>Lichess Settings</div>,
+  LichessSettingsContent: () => <div>Lichess Settings Content</div>,
 }));
 
 vi.mock('@/lib/firebase', () => ({

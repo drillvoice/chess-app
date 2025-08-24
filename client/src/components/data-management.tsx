@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import FirebaseAuth from './firebase-auth';
 // Dynamic import for firebase to maintain code splitting
 
-export default function DataManagement() {
+function DataManagementContent() {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const { toast } = useToast();
@@ -106,6 +106,82 @@ export default function DataManagement() {
   };
 
   return (
+    <div className="space-y-6">
+      {/* Firebase Cloud Sync */}
+      <div>
+        <Label className="mb-3 block text-sm font-medium text-gray-700">Cloud sync</Label>
+        <div className="space-y-3">
+          <FirebaseAuth />
+          <p className="text-sm text-gray-600">
+            Your data is automatically synced to Firebase Cloud for this device when you're
+            online. Disabling cloud sync keeps existing data on this device unless you clear it
+            below.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <Label className="mb-2 block text-sm font-medium text-gray-700">Export data</Label>
+        <p className="mb-3 text-sm text-gray-600">
+          Download all your training sessions and goals as a JSON file
+        </p>
+        <Button onClick={handleExport} className="w-full" variant="outline">
+          <Download className="mr-2 h-4 w-4" />
+          Export data
+        </Button>
+      </div>
+
+      <div>
+        <Label className="mb-2 block text-sm font-medium text-gray-700">Import data</Label>
+        <p className="mb-3 text-sm text-gray-600">
+          Import a previously exported JSON file to restore your training data
+        </p>
+        <Label htmlFor="import-file" className="cursor-pointer">
+          <Button asChild className="w-full" variant="outline" disabled={importing}>
+            <span>
+              <Upload className="mr-2 h-4 w-4" />
+              {importing
+                ? progress
+                  ? `Importing ${progress.processed}/${progress.total}`
+                  : 'Importing...'
+                : 'Import data'}
+            </span>
+          </Button>
+        </Label>
+        <Input
+          id="import-file"
+          type="file"
+          accept=".json"
+          onChange={handleImport}
+          className="hidden"
+        />
+      </div>
+
+      <div>
+        <Label className="mb-2 block text-sm font-medium text-gray-700">Clear local data</Label>
+        <p className="mb-3 text-sm text-gray-600">
+          Remove all locally stored training data from this device. Cloud data will remain
+          unaffected.
+        </p>
+        <Button onClick={handleClearLocalData} className="w-full" variant="destructive">
+          Clear local data
+        </Button>
+      </div>
+
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> Disabling cloud sync will stop future syncing but leaves existing
+          data on this device. Use Clear Local Data above to remove it. Export regularly to keep a
+          backup of your training history.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Original component with Card wrapper for backward compatibility
+export default function DataManagement() {
+  return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
@@ -113,76 +189,12 @@ export default function DataManagement() {
           <span>Data management</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Firebase Cloud Sync */}
-        <div>
-          <Label className="mb-3 block text-sm font-medium text-gray-700">Cloud sync</Label>
-          <div className="space-y-3">
-            <FirebaseAuth />
-            <p className="text-sm text-gray-600">
-              Your data is automatically synced to Firebase Cloud for this device when you're
-              online. Disabling cloud sync keeps existing data on this device unless you clear it
-              below.
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <Label className="mb-2 block text-sm font-medium text-gray-700">Export data</Label>
-          <p className="mb-3 text-sm text-gray-600">
-            Download all your training sessions and goals as a JSON file
-          </p>
-          <Button onClick={handleExport} className="w-full" variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export data
-          </Button>
-        </div>
-
-        <div>
-          <Label className="mb-2 block text-sm font-medium text-gray-700">Import data</Label>
-          <p className="mb-3 text-sm text-gray-600">
-            Import a previously exported JSON file to restore your training data
-          </p>
-          <Label htmlFor="import-file" className="cursor-pointer">
-            <Button asChild className="w-full" variant="outline" disabled={importing}>
-              <span>
-                <Upload className="mr-2 h-4 w-4" />
-                {importing
-                  ? progress
-                    ? `Importing ${progress.processed}/${progress.total}`
-                    : 'Importing...'
-                  : 'Import data'}
-              </span>
-            </Button>
-          </Label>
-          <Input
-            id="import-file"
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-          />
-        </div>
-
-        <div>
-          <Label className="mb-2 block text-sm font-medium text-gray-700">Clear local data</Label>
-          <p className="mb-3 text-sm text-gray-600">
-            Remove all locally stored training data from this device. Cloud data will remain
-            unaffected.
-          </p>
-          <Button onClick={handleClearLocalData} className="w-full" variant="destructive">
-            Clear local data
-          </Button>
-        </div>
-
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Disabling cloud sync will stop future syncing but leaves existing
-            data on this device. Use Clear Local Data above to remove it. Export regularly to keep a
-            backup of your training history.
-          </p>
-        </div>
+      <CardContent>
+        <DataManagementContent />
       </CardContent>
     </Card>
   );
 }
+
+// Export the content component for use in accordions
+export { DataManagementContent };

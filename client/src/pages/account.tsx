@@ -1,8 +1,9 @@
 import { Suspense, useState } from 'react';
-import { DataManagement } from '@/components/lazy-components';
+import { DataManagementContent } from '@/components/data-management';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import LichessSettings from '@/components/lichess-settings';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { LichessSettingsContent } from '@/components/lichess-settings';
 import { diagnoseDatabase, logDatabaseDiagnostics, forceDatabaseUpgrade, clearDatabaseAndReinitialize } from '@/lib/debug-utils';
 
 export default function Account() {
@@ -81,66 +82,78 @@ ${diagnostics.errors.map(error => `  - ${error}`).join('\n')}
         </CardContent>
       </Card>
       
-      {/* Debug Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Database Debug Tools</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-gray-600 mb-4">
-            Use these tools to diagnose and fix database issues after the recent upgrade.
-          </p>
-          
-          <div className="space-y-2">
-            <Button 
-              onClick={handleRunDiagnostics} 
-              disabled={isRunningDiagnostics}
-              variant="outline"
-              className="w-full"
-            >
-              {isRunningDiagnostics ? 'Running Diagnostics...' : '🔍 Run Database Diagnostics'}
-            </Button>
-            
-            <Button 
-              onClick={handleForceUpgrade} 
-              disabled={isUpgrading}
-              variant="outline"
-              className="w-full"
-            >
-              {isUpgrading ? 'Upgrading...' : '🔄 Force Database Upgrade'}
-            </Button>
-            
-            <Button 
-              onClick={handleClearDatabase} 
-              disabled={isClearing}
-              variant="destructive"
-              className="w-full"
-            >
-              {isClearing ? 'Clearing...' : '🗑️ Clear Database & Reinitialize'}
-            </Button>
-          </div>
-          
-          {/* Diagnostic Results Display */}
-          {diagnosticResults && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-md">
-              <h4 className="font-semibold mb-2">Diagnostic Results:</h4>
-              <pre className="text-xs whitespace-pre-wrap text-gray-700">
-                {diagnosticResults}
-              </pre>
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="lichess">
+          <AccordionTrigger>Lichess integration</AccordionTrigger>
+          <AccordionContent>
+            <LichessSettingsContent />
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="data-management">
+          <AccordionTrigger>Data management</AccordionTrigger>
+          <AccordionContent>
+            <Suspense fallback={<div>Loading account data...</div>}>
+              <DataManagementContent />
+            </Suspense>
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="debug-tools">
+          <AccordionTrigger>Database debug tools</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600 mb-4">
+                Use these tools to diagnose and fix database issues after the recent upgrade.
+              </p>
+              
+              <div className="space-y-2">
+                <Button 
+                  onClick={handleRunDiagnostics} 
+                  disabled={isRunningDiagnostics}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {isRunningDiagnostics ? 'Running Diagnostics...' : '🔍 Run Database Diagnostics'}
+                </Button>
+                
+                <Button 
+                  onClick={handleForceUpgrade} 
+                  disabled={isUpgrading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {isUpgrading ? 'Upgrading...' : '🔄 Force Database Upgrade'}
+                </Button>
+                
+                <Button 
+                  onClick={handleClearDatabase} 
+                  disabled={isClearing}
+                  variant="destructive"
+                  className="w-full"
+                >
+                  {isClearing ? 'Clearing...' : '🗑️ Clear Database & Reinitialize'}
+                </Button>
+              </div>
+              
+              {/* Diagnostic Results Display */}
+              {diagnosticResults && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-md">
+                  <h4 className="font-semibold mb-2">Diagnostic Results:</h4>
+                  <pre className="text-xs whitespace-pre-wrap text-gray-700">
+                    {diagnosticResults}
+                  </pre>
+                </div>
+              )}
+              
+              <p className="text-xs text-gray-500 mt-4">
+                <strong>Note:</strong> The "Clear Database" option will delete all local data. 
+                If you're logged in with cloud sync, your data should be restored from the cloud.
+              </p>
             </div>
-          )}
-          
-          <p className="text-xs text-gray-500 mt-4">
-            <strong>Note:</strong> The "Clear Database" option will delete all local data. 
-            If you're logged in with cloud sync, your data should be restored from the cloud.
-          </p>
-        </CardContent>
-      </Card>
-      
-      <LichessSettings />
-      <Suspense fallback={<div>Loading account data...</div>}>
-        <DataManagement />
-      </Suspense>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
