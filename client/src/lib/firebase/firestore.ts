@@ -244,6 +244,17 @@ export async function getSessionsByDateRange(
   }
 }
 
+/**
+ * Get today's training sessions
+ */
+export async function getTodaySessions(): Promise<TrainingSession[]> {
+  const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  
+  return getSessionsByDateRange(startOfDay, endOfDay);
+}
+
 export async function createSession(
   insertSession: InsertTrainingSession,
   id?: number,

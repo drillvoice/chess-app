@@ -6,9 +6,11 @@ import {
   validateGamesCount, 
   validateStudyMinutes,
   hasActiveGoals,
-  GoalValidationResult 
+  GoalValidationResult,
+  calculateDailyGoalsProgress,
+  DailyGoalsProgress
 } from '@/lib/utils';
-import { getDailyGoalSettings, setDailyGoalSettings } from '@/lib/firebase/firestore';
+import { getDailyGoalSettings, setDailyGoalSettings, getTodaySessions } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export interface DailyGoalsFormData {
@@ -42,6 +44,10 @@ export interface UseDailyGoalsSettingsReturn {
   isCustomized: boolean;
   hasAnyActiveGoals: boolean;
   
+  // Progress calculation
+  progress: DailyGoalsProgress;
+  isProgressLoading: boolean;
+  
   // Actions
   saveSettings: () => Promise<void>;
   enableCustomGoals: () => Promise<void>;
@@ -73,6 +79,22 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Query for today's sessions for progress calculation
+  const {
+    data: todaySessions = [],
+    isLoading: isProgressLoading,
+  } = useQuery({
+    queryKey: ['today-sessions'],
+    queryFn: getTodaySessions,
+    staleTime: 30 * 1000, // 30 seconds - more frequent updates for progress
+    refetchOnWindowFocus: true,
+  });
+
+  // Calculate progress based on settings and today's sessions
+  const progress: DailyGoalsProgress = useMemo(() => {
+    return calculateDailyGoalsProgress(settings || null, todaySessions);
+  }, [settings, todaySessions]);
 
   // Initialize form data when settings load
   useEffect(() => {
@@ -190,7 +212,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 
   return {
     // Current settings
-    settings,
+    settings: settings || null,
     isLoading,
     error,
     
@@ -205,6 +227,10 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     // State helpers
     isCustomized,
     hasAnyActiveGoals,
+    
+    // Progress calculation
+    progress,
+    isProgressLoading,
     
     // Actions
     saveSettings,

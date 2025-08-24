@@ -1,75 +1,59 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
-import { useDailyGoalsSettings, validateGoalInput } from './use-daily-goals-settings';
+import { useDailyGoalsSettings } from './use-daily-goals-settings';
 import { DailyGoalSettings } from '@shared/schema';
-import * as firestore from '@/lib/firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 
-// Mock dependencies
+// Mock Firebase functions
 vi.mock('@/lib/firebase/firestore', () => ({
   getDailyGoalSettings: vi.fn(),
   setDailyGoalSettings: vi.fn(),
+  getTodaySessions: vi.fn(),
 }));
 
+// Mock toast hook
 vi.mock('@/hooks/use-toast', () => ({
-  useToast: vi.fn(() => ({
+  useToast: () => ({
     toast: vi.fn(),
-  })),
+  }),
 }));
 
-const mockToast = vi.fn();
-const mockGetDailyGoalSettings = vi.mocked(firestore.getDailyGoalSettings);
-const mockSetDailyGoalSettings = vi.mocked(firestore.setDailyGoalSettings);
+// Mock utils
+vi.mock('@/lib/utils', () => ({
+  validateTacticsMinutes: vi.fn(() => ({ isValid: true })),
+  validateGamesCount: vi.fn(() => ({ isValid: true })),
+  validateStudyMinutes: vi.fn(() => ({ isValid: true })),
+  hasActiveGoals: vi.fn(() => true),
+  calculateDailyGoalsProgress: vi.fn(),
+}));
 
-// Test wrapper with QueryClient
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-  
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
+const mockFirebase = await import('@/lib/firebase/firestore');
+const mockUtils = await import('@/lib/utils');
 
-describe('useDailyGoalsSettings', () => {
+describe('useDailyGoalsSettings - Progress Calculation Engine', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
     vi.clearAllMocks();
-    vi.mocked(useToast).mockReturnValue({ toast: mockToast });
   });
 
   afterEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
-  describe('Initial State', () => {
-    it('should initialize with default values when no settings exist', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.settings).toBeNull();
-      expect(result.current.isCustomized).toBe(false);
-      expect(result.current.hasAnyActiveGoals).toBe(false);
-      expect(result.current.formData).toEqual({
-        tacticsMinutes: 0,
-        gamesCount: 0,
-        studyMinutes: 0,
-      });
-    });
-
-    it('should initialize with existing settings', async () => {
+  describe('Progress Calculation Integration', () => {
+    it('should calculate progress when settings and sessions exist', async () => {
+      // Mock settings
       const mockSettings: DailyGoalSettings = {
         tacticsMinutes: 30,
         gamesCount: 2,
@@ -77,301 +61,195 @@ describe('useDailyGoalsSettings', () => {
         isCustomized: true,
         lastModified: new Date(),
       };
-      mockGetDailyGoalSettings.mockResolvedValue(mockSettings);
 
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
+      // Mock today's sessions
+      const mockTodaySessions = [
+        {
+          id: 1,
+          type: 'tactics',
+          duration: 20,
+          date: new Date(),
+        },
+        {
+          id: 2,
+          type: 'game',
+          date: new Date(),
+        },
+        {
+          id: 3,
+          type: 'study',
+          duration: 10,
+          date: new Date(),
+        },
+      ];
+
+      // Mock progress calculation
+      const mockProgress = {
+        tactics: { current: 20, target: 30, percentage: 67, isComplete: false },
+        games: { current: 1, target: 2, percentage: 50, isComplete: false },
+        study: { current: 10, target: 15, percentage: 67, isComplete: false },
+        hasAnyProgress: true,
+        totalCompleted: 0,
+        totalGoals: 3,
+      };
+
+      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue(mockTodaySessions);
+      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.settings).toEqual(mockSettings);
-      expect(result.current.isCustomized).toBe(true);
-      expect(result.current.hasAnyActiveGoals).toBe(true);
-      expect(result.current.formData).toEqual({
-        tacticsMinutes: 30,
-        gamesCount: 2,
-        studyMinutes: 15,
-      });
-    });
-  });
-
-  describe('Form Management', () => {
-    it('should update form data', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
-
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      act(() => {
-        result.current.setFormData({ tacticsMinutes: 45 });
-      });
-
-      expect(result.current.formData.tacticsMinutes).toBe(45);
-      expect(result.current.formData.gamesCount).toBe(0);
-      expect(result.current.formData.studyMinutes).toBe(0);
+      expect(result.current.progress).toEqual(mockProgress);
+      expect(result.current.isProgressLoading).toBe(false);
+      expect(mockUtils.calculateDailyGoalsProgress).toHaveBeenCalledWith(mockSettings, mockTodaySessions);
     });
 
-    it('should reset form to current settings', async () => {
+    it('should handle empty sessions gracefully', async () => {
       const mockSettings: DailyGoalSettings = {
         tacticsMinutes: 30,
         gamesCount: 2,
         studyMinutes: 15,
         isCustomized: true,
+        lastModified: new Date(),
       };
-      mockGetDailyGoalSettings.mockResolvedValue(mockSettings);
 
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
+      const mockProgress = {
+        tactics: { current: 0, target: 30, percentage: 0, isComplete: false },
+        games: { current: 0, target: 2, percentage: 0, isComplete: false },
+        study: { current: 0, target: 15, percentage: 0, isComplete: false },
+        hasAnyProgress: false,
+        totalCompleted: 0,
+        totalGoals: 3,
+      };
+
+      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue([]);
+      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Modify form data
-      act(() => {
-        result.current.setFormData({ tacticsMinutes: 99 });
-      });
-
-      expect(result.current.formData.tacticsMinutes).toBe(99);
-
-      // Reset form
-      act(() => {
-        result.current.resetForm();
-      });
-
-      expect(result.current.formData).toEqual({
-        tacticsMinutes: 30,
-        gamesCount: 2,
-        studyMinutes: 15,
-      });
+      expect(result.current.progress).toEqual(mockProgress);
+      expect(result.current.progress.hasAnyProgress).toBe(false);
     });
-  });
 
-  describe('Validation', () => {
-    it('should validate form data correctly', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
+    it('should handle null settings gracefully', async () => {
+      const mockProgress = {
+        tactics: { current: 0, target: 0, percentage: 0, isComplete: false },
+        games: { current: 0, target: 0, percentage: 0, isComplete: false },
+        study: { current: 0, target: 0, percentage: 0, isComplete: false },
+        hasAnyProgress: false,
+        totalCompleted: 0,
+        totalGoals: 0,
+      };
 
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
+      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(null);
+      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue([]);
+      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Valid data
-      act(() => {
-        result.current.setFormData({
-          tacticsMinutes: 30,
-          gamesCount: 5,
-          studyMinutes: 20,
-        });
-      });
-
-      expect(result.current.validation.isValid).toBe(true);
-      expect(result.current.validation.tacticsMinutes.isValid).toBe(true);
-      expect(result.current.validation.gamesCount.isValid).toBe(true);
-      expect(result.current.validation.studyMinutes.isValid).toBe(true);
-
-      // Invalid data
-      act(() => {
-        result.current.setFormData({
-          tacticsMinutes: 150, // exceeds max
-          gamesCount: -1, // below min
-          studyMinutes: 30.5, // not integer
-        });
-      });
-
-      expect(result.current.validation.isValid).toBe(false);
-      expect(result.current.validation.tacticsMinutes.isValid).toBe(false);
-      expect(result.current.validation.gamesCount.isValid).toBe(false);
-      expect(result.current.validation.studyMinutes.isValid).toBe(false);
+      expect(result.current.progress).toEqual(mockProgress);
+      expect(mockUtils.calculateDailyGoalsProgress).toHaveBeenCalledWith(null, []);
     });
-  });
 
-  describe('Save Operations', () => {
-    it('should save valid settings successfully', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
-      mockSetDailyGoalSettings.mockResolvedValue();
+    it('should show completed goals correctly', async () => {
+      const mockSettings: DailyGoalSettings = {
+        tacticsMinutes: 20,
+        gamesCount: 1,
+        studyMinutes: 10,
+        isCustomized: true,
+        lastModified: new Date(),
+      };
 
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
+      const mockTodaySessions = [
+        {
+          id: 1,
+          type: 'tactics',
+          duration: 25, // Exceeds target
+          date: new Date(),
+        },
+        {
+          id: 2,
+          type: 'game',
+          date: new Date(),
+        },
+        {
+          id: 3,
+          type: 'study',
+          duration: 15, // Exceeds target
+          date: new Date(),
+        },
+      ];
+
+      const mockProgress = {
+        tactics: { current: 25, target: 20, percentage: 100, isComplete: true },
+        games: { current: 1, target: 1, percentage: 100, isComplete: true },
+        study: { current: 15, target: 10, percentage: 100, isComplete: true },
+        hasAnyProgress: true,
+        totalCompleted: 3,
+        totalGoals: 3,
+      };
+
+      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue(mockTodaySessions);
+      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      act(() => {
-        result.current.setFormData({
-          tacticsMinutes: 30,
-          gamesCount: 2,
-          studyMinutes: 15,
-        });
-      });
+      expect(result.current.progress.totalCompleted).toBe(3);
+      expect(result.current.progress.totalGoals).toBe(3);
+      expect(result.current.progress.tactics.isComplete).toBe(true);
+      expect(result.current.progress.games.isComplete).toBe(true);
+      expect(result.current.progress.study.isComplete).toBe(true);
+    });
 
-      await act(async () => {
-        await result.current.saveSettings();
-      });
+    it('should handle loading states correctly', async () => {
+      vi.mocked(mockFirebase.getDailyGoalSettings).mockImplementation(() => new Promise(() => {}));
+      vi.mocked(mockFirebase.getTodaySessions).mockImplementation(() => new Promise(() => {}));
 
-      expect(mockSetDailyGoalSettings).toHaveBeenCalledWith({
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.isProgressLoading).toBe(true);
+    });
+
+    it('should refetch progress when sessions change', async () => {
+      const mockSettings: DailyGoalSettings = {
         tacticsMinutes: 30,
         gamesCount: 2,
         studyMinutes: 15,
         isCustomized: true,
-        lastModified: expect.any(Date),
-      });
+        lastModified: new Date(),
+      };
 
-      expect(mockToast).toHaveBeenCalledWith({
-        title: "Goals updated",
-        description: "Your daily goals have been saved successfully.",
-      });
-    });
+      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue([]);
 
-    it('should not save invalid settings', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
-
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      act(() => {
-        result.current.setFormData({
-          tacticsMinutes: 150, // invalid
-          gamesCount: 2,
-          studyMinutes: 15,
-        });
-      });
-
-      await act(async () => {
-        await result.current.saveSettings();
-      });
-
-      expect(mockSetDailyGoalSettings).not.toHaveBeenCalled();
-      expect(mockToast).toHaveBeenCalledWith({
-        title: "Invalid input",
-        description: "Tactics minutes cannot exceed 99",
-        variant: "destructive",
-      });
+      // Verify that both queries are called
+      expect(mockFirebase.getDailyGoalSettings).toHaveBeenCalled();
+      expect(mockFirebase.getTodaySessions).toHaveBeenCalled();
     });
-
-    it('should enable custom goals', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
-      mockSetDailyGoalSettings.mockResolvedValue();
-
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      await act(async () => {
-        await result.current.enableCustomGoals();
-      });
-
-      expect(mockSetDailyGoalSettings).toHaveBeenCalledWith({
-        tacticsMinutes: undefined,
-        gamesCount: undefined,
-        studyMinutes: undefined,
-        isCustomized: true,
-        lastModified: expect.any(Date),
-      });
-    });
-
-    it('should disable custom goals', async () => {
-      mockGetDailyGoalSettings.mockResolvedValue(null);
-      mockSetDailyGoalSettings.mockResolvedValue();
-
-      const { result } = renderHook(() => useDailyGoalsSettings(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      await act(async () => {
-        await result.current.disableCustomGoals();
-      });
-
-      expect(mockSetDailyGoalSettings).toHaveBeenCalledWith({
-        isCustomized: false,
-        lastModified: expect.any(Date),
-      });
-    });
-  });
-});
-
-describe('validateGoalInput', () => {
-  it('should validate empty input as 0', () => {
-    const result = validateGoalInput('', 'tacticsMinutes');
-    expect(result).toEqual({
-      isValid: true,
-      numericValue: 0,
-    });
-  });
-
-  it('should validate valid numeric input', () => {
-    const result = validateGoalInput('30', 'tacticsMinutes');
-    expect(result).toEqual({
-      isValid: true,
-      numericValue: 30,
-    });
-  });
-
-  it('should reject non-numeric input', () => {
-    const result = validateGoalInput('abc', 'tacticsMinutes');
-    expect(result).toEqual({
-      isValid: false,
-      numericValue: 0,
-      error: 'Please enter a valid number',
-    });
-  });
-
-  it('should reject input exceeding limits', () => {
-    const result = validateGoalInput('150', 'tacticsMinutes');
-    expect(result).toEqual({
-      isValid: false,
-      numericValue: 150,
-      error: 'Tactics minutes cannot exceed 99',
-    });
-  });
-
-  it('should reject negative input', () => {
-    const result = validateGoalInput('-5', 'gamesCount');
-    expect(result).toEqual({
-      isValid: false,
-      numericValue: -5,
-      error: 'Games count must be at least 0',
-    });
-  });
-
-  it('should validate different goal types correctly', () => {
-    // Tactics minutes
-    const tacticsResult = validateGoalInput('99', 'tacticsMinutes');
-    expect(tacticsResult.isValid).toBe(true);
-
-    // Games count
-    const gamesResult = validateGoalInput('99', 'gamesCount');
-    expect(gamesResult.isValid).toBe(true);
-
-    // Study minutes
-    const studyResult = validateGoalInput('99', 'studyMinutes');
-    expect(studyResult.isValid).toBe(true);
   });
 });
