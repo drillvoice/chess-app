@@ -1,7 +1,14 @@
 {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "lastUpdated": "24 August 2025",
   "changelog": [
+    {
+      "version": "0.3.1",
+      "date": "24 August 2025",
+      "changes": [
+        "Bugfix: can't save daily goals"
+      ]
+    }, 
     {
       "version": "0.3.0",
       "date": "24 August 2025",
