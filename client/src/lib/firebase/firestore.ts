@@ -6,6 +6,7 @@ import {
   waitForAuth,
   getSessionsCollection,
   doc,
+  getDoc,
   getDocs,
   deleteDoc,
   setDoc,
@@ -611,7 +612,7 @@ async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> 
     if (!currentUserId) return null;
 
     const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
-    const goalDoc = await getDocs(goalsRef);
+    const goalDoc = await getDoc(goalsRef);
 
     if (!goalDoc.exists()) {
       return null;
