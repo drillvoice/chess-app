@@ -2,6 +2,7 @@ import { TrainingSession, InsertTrainingSession, DailyGoalSettings } from '@shar
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from '../cache-utils';
 import { offlineStorage } from '../offline-storage';
 import { queryClient } from '../queryClient';
+import { safeDatabaseOperation } from '../query-timeout';
 import {
   waitForAuth,
   getSessionsCollection,
@@ -23,35 +24,41 @@ import {
 } from './core';
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
-  try {
-    // Prefer cached sessions for instant load
-    const cachedSessions = await offlineStorage.getSessions();
-    if (cachedSessions && cachedSessions.length > 0) {
+  return safeDatabaseOperation(
+    async () => {
       try {
-        const cacheAge = await offlineStorage.getCacheAge('sessions');
-        if (cacheAge > 30000) {
-          // Fetch fresh data in background when cache is stale
-          queueMicrotask(() => updateSessionsInBackground());
+        // Prefer cached sessions for instant load
+        const cachedSessions = await offlineStorage.getSessions();
+        if (cachedSessions && cachedSessions.length > 0) {
+          try {
+            const cacheAge = await offlineStorage.getCacheAge('sessions');
+            if (cacheAge > 30000) {
+              // Fetch fresh data in background when cache is stale
+              queueMicrotask(() => updateSessionsInBackground());
+            }
+          } catch (ageError) {
+            console.warn('Failed to check cache age:', ageError);
+            // Still attempt background update
+            queueMicrotask(() => updateSessionsInBackground());
+          }
+          return cachedSessions;
         }
-      } catch (ageError) {
-        console.warn('Failed to check cache age:', ageError);
-        // Still attempt background update
-        queueMicrotask(() => updateSessionsInBackground());
+      } catch (error) {
+        console.warn('Failed to read sessions from offline storage:', error);
       }
-      return cachedSessions;
-    }
-  } catch (error) {
-    console.warn('Failed to read sessions from offline storage:', error);
-  }
 
-  // No cached data, fall back to Firebase
-  try {
-    const firebaseSessions = await fetchSessionsFromFirebase();
-    return firebaseSessions;
-  } catch (error) {
-    console.error('Failed to fetch sessions from Firebase:', error);
-    return [];
-  }
+      // No cached data, fall back to Firebase
+      try {
+        const firebaseSessions = await fetchSessionsFromFirebase();
+        return firebaseSessions;
+      } catch (error) {
+        console.error('Failed to fetch sessions from Firebase:', error);
+        return [];
+      }
+    },
+    15000, // 15 second timeout
+    [] // Return empty array as fallback
+  );
 }
 
 export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
@@ -347,20 +354,33 @@ export async function deleteSession(id: number): Promise<boolean> {
 }
 
 export async function getStatistics() {
-  // Try IndexedDB first for instant loading
-  try {
-    const cachedStats = await offlineStorage.getStatistics();
-    if (cachedStats) {
-      // Schedule background update but don't wait
-      queueMicrotask(() => updateStatisticsInBackground());
-      return cachedStats;
-    }
-  } catch (error) {
-    console.warn('Failed to get cached statistics:', error);
-  }
+  return safeDatabaseOperation(
+    async () => {
+      // Try IndexedDB first for instant loading
+      try {
+        const cachedStats = await offlineStorage.getStatistics();
+        if (cachedStats) {
+          // Schedule background update but don't wait
+          queueMicrotask(() => updateStatisticsInBackground());
+          return cachedStats;
+        }
+      } catch (error) {
+        console.warn('Failed to get cached statistics:', error);
+      }
 
-  // If no cache, calculate from sessions
-  return await calculateStatistics();
+      // If no cache, calculate from sessions
+      return await calculateStatistics();
+    },
+    10000, // 10 second timeout
+    {
+      totalHours: 0,
+      totalSessions: 0,
+      tacticsRating: 0,
+      winRate: 0,
+      todayTotalTime: 0,
+      todaySessions: 0,
+    } // Return default stats as fallback
+  );
 }
 
 async function calculateStatistics() {

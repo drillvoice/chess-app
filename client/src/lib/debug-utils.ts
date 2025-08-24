@@ -100,3 +100,137 @@ export function exportDebugInfo(): string {
   
   return JSON.stringify(info, null, 2);
 }
+
+import { offlineStorage } from './offline-storage';
+
+export interface DatabaseDiagnostics {
+  databaseVersion: number;
+  objectStores: string[];
+  sessionsCount: number;
+  statisticsExists: boolean;
+  settingsExists: boolean;
+  dailyGoalsExists: boolean;
+  hasErrors: boolean;
+  errors: string[];
+}
+
+export async function diagnoseDatabase(): Promise<DatabaseDiagnostics> {
+  const diagnostics: DatabaseDiagnostics = {
+    databaseVersion: 0,
+    objectStores: [],
+    sessionsCount: 0,
+    statisticsExists: false,
+    settingsExists: false,
+    dailyGoalsExists: false,
+    hasErrors: false,
+    errors: [],
+  };
+
+  try {
+    // Check database version and stores
+    const db = await offlineStorage['ensureDB']();
+    diagnostics.databaseVersion = db.version;
+    diagnostics.objectStores = Array.from(db.objectStoreNames);
+
+    // Check sessions
+    try {
+      const sessions = await offlineStorage.getSessions();
+      diagnostics.sessionsCount = sessions.length;
+    } catch (error) {
+      diagnostics.hasErrors = true;
+      diagnostics.errors.push(`Sessions error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Check statistics
+    try {
+      const stats = await offlineStorage.getStatistics();
+      diagnostics.statisticsExists = stats !== null;
+    } catch (error) {
+      diagnostics.hasErrors = true;
+      diagnostics.errors.push(`Statistics error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Check settings
+    try {
+      const settings = await offlineStorage.getSettings();
+      diagnostics.settingsExists = settings !== null;
+    } catch (error) {
+      diagnostics.hasErrors = true;
+      diagnostics.errors.push(`Settings error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Check daily goals
+    try {
+      const dailyGoals = await offlineStorage.getDailyGoalSettings();
+      diagnostics.dailyGoalsExists = dailyGoals !== null;
+    } catch (error) {
+      diagnostics.hasErrors = true;
+      diagnostics.errors.push(`Daily goals error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+  } catch (error) {
+    diagnostics.hasErrors = true;
+    diagnostics.errors.push(`Database initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  return diagnostics;
+}
+
+export function logDatabaseDiagnostics(diagnostics: DatabaseDiagnostics): void {
+  console.group('🔍 Database Diagnostics');
+  console.log('Database Version:', diagnostics.databaseVersion);
+  console.log('Object Stores:', diagnostics.objectStores);
+  console.log('Sessions Count:', diagnostics.sessionsCount);
+  console.log('Statistics Exists:', diagnostics.statisticsExists);
+  console.log('Settings Exists:', diagnostics.settingsExists);
+  console.log('Daily Goals Exists:', diagnostics.dailyGoalsExists);
+  
+  if (diagnostics.hasErrors) {
+    console.error('❌ Errors Found:');
+    diagnostics.errors.forEach(error => console.error('  -', error));
+  } else {
+    console.log('✅ No errors detected');
+  }
+  console.groupEnd();
+}
+
+export async function forceDatabaseUpgrade(): Promise<void> {
+  console.log('🔄 Forcing database upgrade...');
+  
+  try {
+    // Close existing connection
+    if (offlineStorage['db']) {
+      offlineStorage['db'].close();
+      offlineStorage['db'] = null;
+    }
+    
+    // Increment version to force upgrade
+    offlineStorage['version'] += 1;
+    console.log('New version:', offlineStorage['version']);
+    
+    // Reinitialize
+    await offlineStorage['init']();
+    
+    console.log('✅ Database upgrade completed');
+  } catch (error) {
+    console.error('❌ Database upgrade failed:', error);
+    throw error;
+  }
+}
+
+export async function clearDatabaseAndReinitialize(): Promise<void> {
+  console.log('🗑️ Clearing database and reinitializing...');
+  
+  try {
+    // Clear all data
+    await offlineStorage.clearAll();
+    
+    // Force reinitialization
+    await forceDatabaseUpgrade();
+    
+    console.log('✅ Database cleared and reinitialized');
+  } catch (error) {
+    console.error('❌ Database clear failed:', error);
+    throw error;
+  }
+}
