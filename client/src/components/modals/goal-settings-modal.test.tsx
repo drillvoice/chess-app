@@ -166,11 +166,10 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-    // Simulate making a change to trigger the save button
-    const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
-    fireEvent.change(tacticsInput, { target: { value: '50' } });
-
+    // Save button should be enabled even without changes
     const saveButton = screen.getByText('Save Goals');
+    expect(saveButton.disabled).toBe(false);
+    
     fireEvent.click(saveButton);
 
     await waitFor(() => {
@@ -256,6 +255,17 @@ describe('GoalSettingsModal', () => {
     expect(screen.getByText('• Set goals to 0 to disable that goal type')).toBeTruthy();
     expect(screen.getByText('• Maximum value for any goal is 99')).toBeTruthy();
     expect(screen.getByText('• Goals persist across days until changed')).toBeTruthy();
+  });
+
+  it('should enable save button even without changes', () => {
+    render(
+      <GoalSettingsModal isOpen={true} onClose={mockClose} />,
+      { wrapper: createWrapper() }
+    );
+
+    // Save button should be enabled from the start (no changes needed)
+    const saveButton = screen.getByText('Save Goals');
+    expect(saveButton.disabled).toBe(false);
   });
 
   it('should prevent saving when value exceeds 99', async () => {
