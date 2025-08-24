@@ -70,10 +70,10 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('Daily Goal Settings')).toBeTruthy();
-    expect(screen.getByText('Tactics Training (minutes)')).toBeTruthy();
-    expect(screen.getByText('Games Played (count)')).toBeTruthy();
-    expect(screen.getByText('Study Time (minutes)')).toBeTruthy();
+    expect(screen.getByText('Daily goal settings')).toBeTruthy();
+    expect(screen.getByText('Tactics training (minutes)')).toBeTruthy();
+    expect(screen.getByText('Games played (count)')).toBeTruthy();
+    expect(screen.getByText('Study time (minutes)')).toBeTruthy();
   });
 
   it('should not render modal when closed', () => {
@@ -82,7 +82,7 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-    expect(screen.queryByText('Daily Goal Settings')).toBeNull();
+    expect(screen.queryByText('Daily goal settings')).toBeNull();
   });
 
   it('should display current form values', () => {
@@ -91,9 +91,9 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-    const tacticsInput = screen.getByLabelText('Tactics Training (minutes)') as HTMLInputElement;
-    const gamesInput = screen.getByLabelText('Games Played (count)') as HTMLInputElement;
-    const studyInput = screen.getByLabelText('Study Time (minutes)') as HTMLInputElement;
+         const tacticsInput = screen.getByLabelText('Tactics training (minutes)') as HTMLInputElement;
+     const gamesInput = screen.getByLabelText('Games played (count)') as HTMLInputElement;
+     const studyInput = screen.getByLabelText('Study time (minutes)') as HTMLInputElement;
 
     expect(tacticsInput.value).toBe('30');
     expect(gamesInput.value).toBe('2');
@@ -112,13 +112,13 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-    const tacticsInput = screen.getByLabelText('Tactics Training (minutes)');
-    fireEvent.change(tacticsInput, { target: { value: '45' } });
+         const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
+     fireEvent.change(tacticsInput, { target: { value: '45' } });
 
-    await waitFor(() => {
-      expect(mockValidateGoalInput).toHaveBeenCalledWith('45', 'tacticsMinutes');
-      expect(mockSetFormData).toHaveBeenCalledWith({ tacticsMinutes: 45 });
-    });
+     await waitFor(() => {
+       expect(mockValidateGoalInput).toHaveBeenCalledWith('45', 'tacticsMinutes');
+       expect(mockSetFormData).toHaveBeenCalledWith({ tacticsMinutes: 45 });
+     });
   });
 
   it('should show validation errors for invalid input', () => {
@@ -178,9 +178,9 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-    // Simulate making a change to trigger the save button
-    const tacticsInput = screen.getByLabelText('Tactics Training (minutes)');
-    fireEvent.change(tacticsInput, { target: { value: '50' } });
+         // Simulate making a change to trigger the save button
+     const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
+     fireEvent.change(tacticsInput, { target: { value: '50' } });
 
     const saveButton = screen.getByText('Save Goals');
     fireEvent.click(saveButton);
