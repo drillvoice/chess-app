@@ -4,7 +4,45 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { useDailyGoalsSettings, validateGoalInput } from '@/hooks/use-daily-goals-settings';
+import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
+import { DailyGoalSettings } from '@shared/schema';
+import { DAILY_GOAL_LIMITS, GoalValidationResult } from '@/lib/utils';
+
+// Local validation function for real-time form validation
+function validateGoalInput(
+  value: string,
+  type: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes'
+): { isValid: boolean; numericValue: number; error?: string } {
+  // Allow empty string (will be treated as 0)
+  if (value === '') {
+    return { isValid: true, numericValue: 0 };
+  }
+
+  // Check if it's a valid number
+  const numericValue = parseInt(value, 10);
+  if (isNaN(numericValue)) {
+    return { 
+      isValid: false, 
+      numericValue: 0, 
+      error: 'Please enter a valid number' 
+    };
+  }
+
+  // Validate based on type
+  const limits = type === 'gamesCount' ? DAILY_GOAL_LIMITS.gamesCount : 
+                 type === 'tacticsMinutes' ? DAILY_GOAL_LIMITS.tacticsMinutes : 
+                 DAILY_GOAL_LIMITS.studyMinutes;
+  
+  if (numericValue < limits.min || numericValue > limits.max) {
+    return { 
+      isValid: false, 
+      numericValue, 
+      error: `Must be between ${limits.min} and ${limits.max}` 
+    };
+  }
+
+  return { isValid: true, numericValue, error: undefined };
+}
 import { Settings } from 'lucide-react';
 
 interface GoalSettingsModalProps {
@@ -30,14 +68,26 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     studyMinutes: '',
   });
 
+  // Store initial form data when modal opens to compare changes
+  const [initialFormData, setInitialFormData] = useState<DailyGoalSettings | null>(null);
+
   // Initialize local form data when modal opens
   useEffect(() => {
     if (isOpen && !isLoading) {
+      const initialData: DailyGoalSettings = {
+        tacticsMinutes: formData.tacticsMinutes,
+        gamesCount: formData.gamesCount,
+        studyMinutes: formData.studyMinutes,
+        isCustomized: true,
+      };
+      setInitialFormData(initialData);
       setLocalFormData({
         tacticsMinutes: formData.tacticsMinutes.toString(),
         gamesCount: formData.gamesCount.toString(),
         studyMinutes: formData.studyMinutes.toString(),
       });
+    } else if (!isOpen) {
+      setInitialFormData(null);
     }
   }, [isOpen, isLoading, formData]);
 
@@ -72,13 +122,15 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     onClose();
   };
 
-  // Check if form has changes
+  // Check if form has changes compared to initial state
   const hasChanges = useMemo(() => {
-    const tacticsChanged = localFormData.tacticsMinutes !== formData.tacticsMinutes.toString();
-    const gamesChanged = localFormData.gamesCount !== formData.gamesCount.toString();
-    const studyChanged = localFormData.studyMinutes !== formData.studyMinutes.toString();
+    if (!initialFormData) return false;
+    
+    const tacticsChanged = localFormData.tacticsMinutes !== initialFormData.tacticsMinutes?.toString();
+    const gamesChanged = localFormData.gamesCount !== initialFormData.gamesCount?.toString();
+    const studyChanged = localFormData.studyMinutes !== initialFormData.studyMinutes?.toString();
     return tacticsChanged || gamesChanged || studyChanged;
-  }, [localFormData, formData]);
+  }, [localFormData, initialFormData]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

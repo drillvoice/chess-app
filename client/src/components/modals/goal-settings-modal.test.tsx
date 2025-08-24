@@ -9,13 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 // Mock dependencies
 vi.mock('@/hooks/use-daily-goals-settings', () => ({
   useDailyGoalsSettings: vi.fn(),
-  validateGoalInput: vi.fn(),
 }));
 vi.mock('@/hooks/use-toast');
 
 const mockUseToast = vi.mocked(useToast);
 const mockUseDailyGoalsSettings = vi.mocked(dailyGoalsHook.useDailyGoalsSettings);
-const mockValidateGoalInput = vi.mocked(dailyGoalsHook.validateGoalInput);
 
 // Test wrapper with QueryClient
 function createWrapper() {
@@ -57,7 +55,6 @@ describe('GoalSettingsModal', () => {
     vi.clearAllMocks();
     mockUseToast.mockReturnValue({ toast: vi.fn() });
     mockUseDailyGoalsSettings.mockReturnValue(defaultMockHook);
-    mockValidateGoalInput.mockReturnValue({ isValid: true, numericValue: 45 });
   });
 
   afterEach(() => {
@@ -100,7 +97,7 @@ describe('GoalSettingsModal', () => {
     expect(studyInput.value).toBe('15');
   });
 
-  it('should handle input changes', async () => {
+    it('should handle input changes', async () => {
     const mockSetFormData = vi.fn();
     mockUseDailyGoalsSettings.mockReturnValue({
       ...defaultMockHook,
@@ -112,13 +109,12 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-         const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
-     fireEvent.change(tacticsInput, { target: { value: '45' } });
+    const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
+    fireEvent.change(tacticsInput, { target: { value: '45' } });
 
-     await waitFor(() => {
-       expect(mockValidateGoalInput).toHaveBeenCalledWith('45', 'tacticsMinutes');
-       expect(mockSetFormData).toHaveBeenCalledWith({ tacticsMinutes: 45 });
-     });
+    await waitFor(() => {
+      expect(mockSetFormData).toHaveBeenCalledWith({ tacticsMinutes: 45 });
+    });
   });
 
   it('should show validation errors for invalid input', () => {
