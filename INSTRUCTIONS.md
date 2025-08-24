@@ -221,6 +221,20 @@ npm run deploy # Deploys to Firebase Hosting
 
 ## Core Coding Principles
 
+### Simplicity Over Complexity
+- **Start with the simplest solution** - Always ask "What's the simplest way to solve this?"
+- **Avoid premature optimization** - Don't add complexity for edge cases that may never occur
+- **Question every feature** - Before implementing something, ask "Do users actually need this?"
+- **Prefer obvious over clever** - If you have to explain how it works, it's probably too complex
+- **User feedback first** - When in doubt about implementation choices, choose what feels most natural to users
+
+### Implementation Decision Making
+- **Default to the obvious choice** - When multiple approaches exist, choose the one that requires the least explanation
+- **Avoid "smart" features** - Don't add logic to detect edge cases unless users explicitly request it
+- **Question assumptions** - Before implementing complex logic, verify that the problem actually exists
+- **Start simple, iterate later** - Build the basic functionality first, add complexity only if needed
+- **User behavior over developer preference** - Choose implementations that feel natural to users, not what's technically interesting
+
 ### Function & Component Design
 - **Single responsibility** - Each function/component should do one thing well
 - **Descriptive naming** - Names should clearly indicate purpose (e.g., `validateGoalInput`, `handleSaveSettings`)
