@@ -117,46 +117,38 @@ describe('GoalSettingsModal', () => {
     });
   });
 
-  it('should show validation errors for invalid input', () => {
-    mockUseDailyGoalsSettings.mockReturnValue({
-      ...defaultMockHook,
-      validation: {
-        tacticsMinutes: { isValid: false, error: 'Tactics minutes cannot exceed 99' },
-        gamesCount: { isValid: true },
-        studyMinutes: { isValid: true },
-        isValid: false,
-      },
-    });
-
+  it('should show validation errors for invalid input', async () => {
     render(
       <GoalSettingsModal isOpen={true} onClose={mockClose} />,
       { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('Tactics minutes cannot exceed 99')).toBeTruthy();
+    // Enter an invalid value (over 99)
+    const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
+    fireEvent.change(tacticsInput, { target: { value: '150' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Maximum value is 99')).toBeTruthy();
+    });
   });
 
-  it('should disable save button when form is invalid', () => {
-    mockUseDailyGoalsSettings.mockReturnValue({
-      ...defaultMockHook,
-      validation: {
-        tacticsMinutes: { isValid: false, error: 'Invalid input' },
-        gamesCount: { isValid: true },
-        studyMinutes: { isValid: true },
-        isValid: false,
-      },
-    });
-
+  it('should disable save button when form is invalid', async () => {
     render(
       <GoalSettingsModal isOpen={true} onClose={mockClose} />,
       { wrapper: createWrapper() }
     );
 
-    const saveButton = screen.getByText('Save Goals');
-    expect(saveButton.disabled).toBe(true);
+    // Enter an invalid value to make form invalid
+    const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
+    fireEvent.change(tacticsInput, { target: { value: '150' } });
+
+    await waitFor(() => {
+      const saveButton = screen.getByText('Save Goals');
+      expect(saveButton.disabled).toBe(true);
+    });
   });
 
-  it('should call saveSettings when save button is clicked', async () => {
+    it('should call saveSettings when save button is clicked', async () => {
     const mockSaveSettings = vi.fn().mockResolvedValue(undefined);
     mockUseDailyGoalsSettings.mockReturnValue({
       ...defaultMockHook,
@@ -174,9 +166,9 @@ describe('GoalSettingsModal', () => {
       { wrapper: createWrapper() }
     );
 
-         // Simulate making a change to trigger the save button
-     const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
-     fireEvent.change(tacticsInput, { target: { value: '50' } });
+    // Simulate making a change to trigger the save button
+    const tacticsInput = screen.getByLabelText('Tactics training (minutes)');
+    fireEvent.change(tacticsInput, { target: { value: '50' } });
 
     const saveButton = screen.getByText('Save Goals');
     fireEvent.click(saveButton);
@@ -186,6 +178,40 @@ describe('GoalSettingsModal', () => {
     });
     
     expect(mockClose).toHaveBeenCalled();
+  });
+
+  it('should enable save button when study time changes from 0 to non-zero', async () => {
+    const mockSaveSettings = vi.fn().mockResolvedValue(undefined);
+    mockUseDailyGoalsSettings.mockReturnValue({
+      formData: {
+        tacticsMinutes: 0,
+        gamesCount: 0,
+        studyMinutes: 0,
+      },
+      setFormData: vi.fn(),
+      resetForm: vi.fn(),
+      validation: {
+        tacticsMinutes: { isValid: true },
+        gamesCount: { isValid: true },
+        studyMinutes: { isValid: true },
+        isValid: true,
+      },
+      saveSettings: mockSaveSettings,
+      isSaving: false,
+      isLoading: false,
+    });
+
+    render(
+      <GoalSettingsModal isOpen={true} onClose={mockClose} />,
+      { wrapper: createWrapper() }
+    );
+
+    // Change study time from 0 to 15
+    const studyInput = screen.getByLabelText('Study time (minutes)');
+    fireEvent.change(studyInput, { target: { value: '15' } });
+
+    const saveButton = screen.getByText('Save Goals');
+    expect(saveButton.disabled).toBe(false);
   });
 
   it('should call resetForm and close when cancel is clicked', () => {
@@ -230,5 +256,28 @@ describe('GoalSettingsModal', () => {
     expect(screen.getByText('• Set goals to 0 to disable that goal type')).toBeTruthy();
     expect(screen.getByText('• Maximum value for any goal is 99')).toBeTruthy();
     expect(screen.getByText('• Goals persist across days until changed')).toBeTruthy();
+  });
+
+  it('should prevent saving when value exceeds 99', async () => {
+    render(
+      <GoalSettingsModal isOpen={true} onClose={mockClose} />,
+      { wrapper: createWrapper() }
+    );
+
+    // Enter a value above 99 (like in the user's screenshot)
+    const studyInput = screen.getByLabelText('Study time (minutes)');
+    fireEvent.change(studyInput, { target: { value: '999' } });
+
+    await waitFor(() => {
+      // Should show validation error
+      expect(screen.getByText('Maximum value is 99')).toBeTruthy();
+      
+      // Should show red border on input
+      expect(studyInput.className).toContain('border-red-500');
+      
+      // Save button should be disabled
+      const saveButton = screen.getByText('Save Goals');
+      expect(saveButton.disabled).toBe(true);
+    });
   });
 });

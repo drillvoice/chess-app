@@ -37,7 +37,7 @@ function validateGoalInput(
     return { 
       isValid: false, 
       numericValue, 
-      error: `Must be between ${limits.min} and ${limits.max}` 
+      error: `Maximum value is ${limits.max}` 
     };
   }
 
@@ -68,6 +68,13 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     studyMinutes: '',
   });
 
+  // Local validation state
+  const [localValidation, setLocalValidation] = useState({
+    tacticsMinutes: { isValid: true, error: undefined },
+    gamesCount: { isValid: true, error: undefined },
+    studyMinutes: { isValid: true, error: undefined },
+  });
+
   // Store initial form data when modal opens to compare changes
   const [initialFormData, setInitialFormData] = useState<DailyGoalSettings | null>(null);
 
@@ -81,10 +88,15 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         isCustomized: true,
       };
       setInitialFormData(initialData);
+      // Helper function to safely convert to string, handling undefined/null
+      const safeToString = (value: number | undefined | null): string => {
+        return value?.toString() || '0';
+      };
+      
       setLocalFormData({
-        tacticsMinutes: formData.tacticsMinutes.toString(),
-        gamesCount: formData.gamesCount.toString(),
-        studyMinutes: formData.studyMinutes.toString(),
+        tacticsMinutes: safeToString(formData.tacticsMinutes),
+        gamesCount: safeToString(formData.gamesCount),
+        studyMinutes: safeToString(formData.studyMinutes),
       });
     } else if (!isOpen) {
       setInitialFormData(null);
@@ -98,10 +110,21 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
   ) => {
     setLocalFormData(prev => ({ ...prev, [field]: value }));
     
-    // Validate and update form data
-    const validation = validateGoalInput(value, field);
-    if (validation.isValid) {
-      setFormData({ [field]: validation.numericValue });
+    // Validate input
+    const validationResult = validateGoalInput(value, field);
+    
+    // Update local validation state
+    setLocalValidation(prev => ({
+      ...prev,
+      [field]: {
+        isValid: validationResult.isValid,
+        error: validationResult.error,
+      }
+    }));
+    
+    // Only update form data if valid
+    if (validationResult.isValid) {
+      setFormData({ [field]: validationResult.numericValue });
     }
   };
 
@@ -122,13 +145,33 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     onClose();
   };
 
+  // Compute overall validation state
+  const computedValidation = useMemo(() => {
+    const isValid = localValidation.tacticsMinutes.isValid && 
+                   localValidation.gamesCount.isValid && 
+                   localValidation.studyMinutes.isValid;
+    
+    return {
+      tacticsMinutes: localValidation.tacticsMinutes,
+      gamesCount: localValidation.gamesCount,
+      studyMinutes: localValidation.studyMinutes,
+      isValid,
+    };
+  }, [localValidation]);
+
   // Check if form has changes compared to initial state
   const hasChanges = useMemo(() => {
     if (!initialFormData) return false;
     
-    const tacticsChanged = localFormData.tacticsMinutes !== initialFormData.tacticsMinutes?.toString();
-    const gamesChanged = localFormData.gamesCount !== initialFormData.gamesCount?.toString();
-    const studyChanged = localFormData.studyMinutes !== initialFormData.studyMinutes?.toString();
+    // Helper function to safely convert to string, handling undefined/null
+    const safeToString = (value: number | undefined | null): string => {
+      return value?.toString() || '0';
+    };
+    
+    const tacticsChanged = localFormData.tacticsMinutes !== safeToString(initialFormData.tacticsMinutes);
+    const gamesChanged = localFormData.gamesCount !== safeToString(initialFormData.gamesCount);
+    const studyChanged = localFormData.studyMinutes !== safeToString(initialFormData.studyMinutes);
+    
     return tacticsChanged || gamesChanged || studyChanged;
   }, [localFormData, initialFormData]);
 
@@ -156,12 +199,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
                placeholder="0"
                value={localFormData.tacticsMinutes}
                onChange={(e) => handleInputChange('tacticsMinutes', e.target.value)}
-               className={`w-20 ${validation.tacticsMinutes.isValid ? '' : 'border-red-500'}`}
+               className={`w-20 ${computedValidation.tacticsMinutes.isValid ? '' : 'border-red-500'}`}
              />
            </div>
-           {!validation.tacticsMinutes.isValid && (
+           {!computedValidation.tacticsMinutes.isValid && (
              <p className="text-sm text-red-500 -mt-2">
-               {validation.tacticsMinutes.error}
+               {computedValidation.tacticsMinutes.error}
              </p>
            )}
 
@@ -178,12 +221,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
                placeholder="0"
                value={localFormData.gamesCount}
                onChange={(e) => handleInputChange('gamesCount', e.target.value)}
-               className={`w-20 ${validation.gamesCount.isValid ? '' : 'border-red-500'}`}
+               className={`w-20 ${computedValidation.gamesCount.isValid ? '' : 'border-red-500'}`}
              />
            </div>
-           {!validation.gamesCount.isValid && (
+           {!computedValidation.gamesCount.isValid && (
              <p className="text-sm text-red-500 -mt-2">
-               {validation.gamesCount.error}
+               {computedValidation.gamesCount.error}
              </p>
            )}
 
@@ -200,12 +243,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
                placeholder="0"
                value={localFormData.studyMinutes}
                onChange={(e) => handleInputChange('studyMinutes', e.target.value)}
-               className={`w-20 ${validation.studyMinutes.isValid ? '' : 'border-red-500'}`}
+               className={`w-20 ${computedValidation.studyMinutes.isValid ? '' : 'border-red-500'}`}
              />
            </div>
-           {!validation.studyMinutes.isValid && (
+           {!computedValidation.studyMinutes.isValid && (
              <p className="text-sm text-red-500 -mt-2">
-               {validation.studyMinutes.error}
+               {computedValidation.studyMinutes.error}
              </p>
            )}
 
@@ -227,7 +270,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || !validation.isValid || !hasChanges}
+              disabled={isSaving || !computedValidation.isValid || !hasChanges}
             >
               {isSaving ? 'Saving...' : 'Save Goals'}
             </Button>
