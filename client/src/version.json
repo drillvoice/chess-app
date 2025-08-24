@@ -1,12 +1,14 @@
 {
-  "version": "0.3.2b",
+  "version": "0.3.2c",
   "lastUpdated": "24 August 2025",
   "changelog": [
     {
-      "version": "0.3.2b",
+      "version": "0.3.2c",
       "date": "24 August 2025",
       "changes": [
-        "Bugfix: can't save daily goals"
+        "Bugfix: addressed database issues bedeviling daily goals",
+        "UI: changed account screen to include database debugging and use accordings",
+        "Meta: added instructions.md to assist future AI dev"
       ]
     }, 
     {
