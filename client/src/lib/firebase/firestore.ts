@@ -216,9 +216,10 @@ export async function getSessionsByDateRange(
     console.warn('Failed to read from offline storage:', error);
   }
 
-  await waitForAuth();
-
+  // Try Firebase but don't hang if offline
   try {
+    await waitForAuth();
+    
     const sessionsRef = await getSessionsCollection();
     const q = query(
       sessionsRef,
@@ -239,7 +240,7 @@ export async function getSessionsByDateRange(
 
     return sessions;
   } catch (error) {
-    console.error('Error getting sessions by date range:', error);
+    console.warn('Failed to fetch sessions from Firebase (likely offline):', error);
     return [];
   }
 }
@@ -632,8 +633,14 @@ export async function getDailyGoalSettings(): Promise<DailyGoalSettings | null> 
     console.warn('Failed to get cached daily goal settings:', error);
   }
 
-  // If no cache, fetch from Firebase
-  return await fetchDailyGoalsFromFirebase();
+  // If no cache, try Firebase but don't hang if offline
+  try {
+    return await fetchDailyGoalsFromFirebase();
+  } catch (error) {
+    console.warn('Failed to fetch daily goals from Firebase (likely offline):', error);
+    // Return null instead of hanging - this allows the component to load with default state
+    return null;
+  }
 }
 
 async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> {

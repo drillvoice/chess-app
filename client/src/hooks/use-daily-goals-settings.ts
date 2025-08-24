@@ -79,12 +79,13 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
-      // Retry up to 3 times for network errors, but not for validation errors
-      if (failureCount < 3 && error.message.includes('network')) {
+      // Retry up to 2 times for network errors, but not for validation errors
+      if (failureCount < 2 && error.message.includes('network')) {
         return true;
       }
       return false;
     },
+    retryDelay: 1000, // 1 second delay between retries
   });
 
   // Query for today's sessions for progress calculation
@@ -98,12 +99,13 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     staleTime: 30 * 1000, // 30 seconds - more frequent updates for progress
     refetchOnWindowFocus: true,
     retry: (failureCount, error) => {
-      // Retry up to 2 times for sessions, as they're less critical
+      // Retry up to 2 times for network errors
       if (failureCount < 2 && error.message.includes('network')) {
         return true;
       }
       return false;
     },
+    retryDelay: 1000, // 1 second delay between retries
   });
 
   // Calculate progress based on settings and today's sessions
