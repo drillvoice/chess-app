@@ -78,32 +78,61 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     queryFn: getDailyGoalSettings,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      // Retry up to 3 times for network errors, but not for validation errors
+      if (failureCount < 3 && error.message.includes('network')) {
+        return true;
+      }
+      return false;
+    },
   });
 
   // Query for today's sessions for progress calculation
   const {
     data: todaySessions = [],
     isLoading: isProgressLoading,
+    error: sessionsError,
   } = useQuery({
     queryKey: ['today-sessions'],
     queryFn: getTodaySessions,
     staleTime: 30 * 1000, // 30 seconds - more frequent updates for progress
     refetchOnWindowFocus: true,
+    retry: (failureCount, error) => {
+      // Retry up to 2 times for sessions, as they're less critical
+      if (failureCount < 2 && error.message.includes('network')) {
+        return true;
+      }
+      return false;
+    },
   });
 
   // Calculate progress based on settings and today's sessions
   const progress: DailyGoalsProgress = useMemo(() => {
-    return calculateDailyGoalsProgress(settings || null, todaySessions);
+    try {
+      return calculateDailyGoalsProgress(settings || null, todaySessions);
+    } catch (error) {
+      console.error('Error calculating progress:', error);
+      // Return default progress on error
+      return {
+        tactics: { current: 0, target: 0, percentage: 0, isComplete: false },
+        games: { current: 0, target: 0, percentage: 0, isComplete: false },
+        study: { current: 0, target: 0, percentage: 0, isComplete: false },
+        hasAnyProgress: false,
+        totalCompleted: 0,
+        totalGoals: 0,
+      };
+    }
   }, [settings, todaySessions]);
 
-  // Initialize form data when settings load
+  // Initialize form data and track original settings when settings load
   useEffect(() => {
     if (settings) {
-      setFormDataState({
+      const newFormData = {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
-      });
+      };
+      setFormDataState(newFormData);
     }
   }, [settings]);
 
@@ -138,18 +167,40 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     }
   }, [settings]);
 
-  // Save settings mutation
+  // Save settings mutation with enhanced error handling
   const saveMutation = useMutation({
     mutationFn: async (newSettings: DailyGoalSettings) => {
-      await setDailyGoalSettings(newSettings);
+      try {
+        await setDailyGoalSettings(newSettings);
+      } catch (error) {
+        // Log the error for debugging
+        console.error('Failed to save daily goal settings:', error);
+        
+        // Re-throw with a user-friendly message
+        if (error instanceof Error) {
+          throw new Error(`Failed to save goals: ${error.message}`);
+        }
+        throw new Error('Failed to save goals. Please check your connection and try again.');
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, newSettings) => {
       // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: ['daily-goal-settings'] });
-      toast({
-        title: "Goals updated",
-        description: "Your daily goals have been saved successfully.",
-      });
+      queryClient.invalidateQueries({ queryKey: ['today-sessions'] });
+      
+      // Show success message
+      const hasActiveGoalsInSettings = hasActiveGoals(newSettings);
+      if (hasActiveGoalsInSettings) {
+        toast({
+          title: "Goals updated",
+          description: "Your daily goals have been saved successfully.",
+        });
+      } else {
+        toast({
+          title: "Goals cleared",
+          description: "All daily goals have been disabled.",
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -160,7 +211,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     },
   });
 
-  // Action functions
+  // Action functions with enhanced validation and error handling
   const saveSettings = useCallback(async () => {
     if (!validation.isValid) {
       // Show validation errors
@@ -202,6 +253,13 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
   }, [formData, saveMutation]);
 
   const disableCustomGoals = useCallback(async () => {
+    const confirmed = window.confirm(
+      "This will disable all custom goals and return to the default system. Continue?"
+    );
+    if (!confirmed) {
+      return;
+    }
+
     const newSettings: DailyGoalSettings = {
       isCustomized: false,
       lastModified: new Date(),
@@ -214,7 +272,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     // Current settings
     settings: settings || null,
     isLoading,
-    error,
+    error: error || sessionsError,
     
     // Form state
     formData,

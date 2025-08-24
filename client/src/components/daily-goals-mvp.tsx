@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle, Circle, Puzzle, Crown, Book, Target, Settings } from 'lucide-react';
+import { CheckCircle, Circle, Puzzle, Crown, Book, Target, Settings, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDailyGoals } from '@/hooks/use-daily-goals';
 import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
 import { GoalSettingsModal } from '@/components/modals/goal-settings-modal';
@@ -23,7 +24,14 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
     onGoalComplete,
   });
 
-  const { settings, isCustomized, progress, isProgressLoading } = useDailyGoalsSettings();
+  const { 
+    settings, 
+    isCustomized, 
+    progress, 
+    isProgressLoading, 
+    isLoading, 
+    error
+  } = useDailyGoalsSettings();
 
   // Generate dynamic goal configuration based on custom settings
   const goalConfig = useMemo(() => {
@@ -101,6 +109,47 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
   // Check if there are any active goals to show
   const activeGoals = Object.values(goalConfig).filter(config => config.label !== null && config.target > 0);
   const hasActiveGoals = activeGoals.length > 0;
+
+  // Handle error state
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="p-4">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Failed to load daily goals. Please check your connection and try refreshing the page.
+            </AlertDescription>
+          </Alert>
+          <div className="mt-3 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <Card className="border-gray-200 bg-gray-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-gray-600">Loading daily goals...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Don't render the component if there are no active goals
   if (!hasActiveGoals) {
@@ -234,7 +283,10 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
 
           {isProgressLoading && (
             <div className="mt-2 text-center">
-              <p className="text-xs text-gray-500">Updating progress...</p>
+              <div className="flex items-center justify-center space-x-2">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                <p className="text-xs text-gray-500">Updating progress...</p>
+              </div>
             </div>
           )}
         </CardContent>

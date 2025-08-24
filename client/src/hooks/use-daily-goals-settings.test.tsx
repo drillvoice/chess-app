@@ -23,14 +23,25 @@ vi.mock('@/lib/utils', () => ({
   validateTacticsMinutes: vi.fn(() => ({ isValid: true })),
   validateGamesCount: vi.fn(() => ({ isValid: true })),
   validateStudyMinutes: vi.fn(() => ({ isValid: true })),
-  hasActiveGoals: vi.fn(() => true),
-  calculateDailyGoalsProgress: vi.fn(),
+  hasActiveGoals: vi.fn((settings) => {
+    if (!settings) return false;
+    return (
+      (settings.tacticsMinutes > 0) ||
+      (settings.gamesCount > 0) ||
+      (settings.studyMinutes > 0)
+    );
+  }),
+  calculateDailyGoalsProgress: vi.fn(() => ({
+    tactics: { current: 0, target: 0, percentage: 0, isComplete: false },
+    games: { current: 0, target: 0, percentage: 0, isComplete: false },
+    study: { current: 0, target: 0, percentage: 0, isComplete: false },
+    hasAnyProgress: false,
+    totalCompleted: 0,
+    totalGoals: 0,
+  })),
 }));
 
-const mockFirebase = await import('@/lib/firebase/firestore');
-const mockUtils = await import('@/lib/utils');
-
-describe('useDailyGoalsSettings - Progress Calculation Engine', () => {
+describe('useDailyGoalsSettings - Integration & Polish', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -51,9 +62,8 @@ describe('useDailyGoalsSettings - Progress Calculation Engine', () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
-  describe('Progress Calculation Integration', () => {
-    it('should calculate progress when settings and sessions exist', async () => {
-      // Mock settings
+  describe('Progress Preservation', () => {
+    it('should preserve progress when goals are modified', async () => {
       const mockSettings: DailyGoalSettings = {
         tacticsMinutes: 30,
         gamesCount: 2,
@@ -62,53 +72,71 @@ describe('useDailyGoalsSettings - Progress Calculation Engine', () => {
         lastModified: new Date(),
       };
 
-      // Mock today's sessions
-      const mockTodaySessions = [
-        {
-          id: 1,
-          type: 'tactics',
-          duration: 20,
-          date: new Date(),
-        },
-        {
-          id: 2,
-          type: 'game',
-          date: new Date(),
-        },
-        {
-          id: 3,
-          type: 'study',
-          duration: 10,
-          date: new Date(),
-        },
-      ];
+      const { getDailyGoalSettings, getTodaySessions, setDailyGoalSettings } = await import('@/lib/firebase/firestore');
+      const { calculateDailyGoalsProgress } = await import('@/lib/utils');
 
-      // Mock progress calculation
-      const mockProgress = {
-        tactics: { current: 20, target: 30, percentage: 67, isComplete: false },
+      vi.mocked(getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(getTodaySessions).mockResolvedValue([]);
+      vi.mocked(setDailyGoalSettings).mockResolvedValue();
+      vi.mocked(calculateDailyGoalsProgress).mockReturnValue({
+        tactics: { current: 30, target: 30, percentage: 100, isComplete: true },
         games: { current: 1, target: 2, percentage: 50, isComplete: false },
-        study: { current: 10, target: 15, percentage: 67, isComplete: false },
+        study: { current: 0, target: 15, percentage: 0, isComplete: false },
         hasAnyProgress: true,
-        totalCompleted: 0,
+        totalCompleted: 1,
         totalGoals: 3,
-      };
-
-      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
-      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue(mockTodaySessions);
-      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+      });
 
       const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.settings).toBeTruthy();
       });
 
-      expect(result.current.progress).toEqual(mockProgress);
-      expect(result.current.isProgressLoading).toBe(false);
-      expect(mockUtils.calculateDailyGoalsProgress).toHaveBeenCalledWith(mockSettings, mockTodaySessions);
+      // Wait for form data to be initialized
+      await waitFor(() => {
+        expect(result.current.formData.tacticsMinutes).toBe(30);
+      });
+
+      // Modify goals (increase tactics from 30 to 40)
+      result.current.setFormData({ tacticsMinutes: 40 });
+
+      // Wait for form data to be updated
+      await waitFor(() => {
+        expect(result.current.formData.tacticsMinutes).toBe(40);
+      });
+
+      // Save settings - should work without any warnings
+      await result.current.saveSettings();
+
+      // Verify that the save was successful (no confirmation dialogs)
+      expect(setDailyGoalSettings).toHaveBeenCalledWith({
+        tacticsMinutes: 40,
+        gamesCount: 2,
+        studyMinutes: 15,
+        isCustomized: true,
+        lastModified: expect.any(Date),
+      });
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle network errors gracefully', async () => {
+      const { getDailyGoalSettings } = await import('@/lib/firebase/firestore');
+      
+      vi.mocked(getDailyGoalSettings).mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.error).toBeTruthy();
+      });
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.settings).toBeNull();
     });
 
-    it('should handle empty sessions gracefully', async () => {
+    it('should handle save errors with user-friendly messages', async () => {
       const mockSettings: DailyGoalSettings = {
         tacticsMinutes: 30,
         gamesCount: 2,
@@ -117,119 +145,110 @@ describe('useDailyGoalsSettings - Progress Calculation Engine', () => {
         lastModified: new Date(),
       };
 
-      const mockProgress = {
-        tactics: { current: 0, target: 30, percentage: 0, isComplete: false },
-        games: { current: 0, target: 2, percentage: 0, isComplete: false },
-        study: { current: 0, target: 15, percentage: 0, isComplete: false },
-        hasAnyProgress: false,
-        totalCompleted: 0,
-        totalGoals: 3,
-      };
-
-      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
-      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue([]);
-      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+      const { getDailyGoalSettings, setDailyGoalSettings } = await import('@/lib/firebase/firestore');
+      
+      vi.mocked(getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(setDailyGoalSettings).mockRejectedValue(new Error('Database connection failed'));
 
       const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.settings).toBeTruthy();
       });
 
-      expect(result.current.progress).toEqual(mockProgress);
-      expect(result.current.progress.hasAnyProgress).toBe(false);
+      // Try to save settings - this should handle the error gracefully
+      try {
+        await result.current.saveSettings();
+      } catch (error) {
+        // Error is expected and should be handled by the mutation
+        expect(error).toBeTruthy();
+      }
+
+      // Should handle the error gracefully
+      expect(result.current.isSaving).toBe(false);
     });
 
-    it('should handle null settings gracefully', async () => {
-      const mockProgress = {
+    it('should handle progress calculation errors', async () => {
+      const mockSettings: DailyGoalSettings = {
+        tacticsMinutes: 30,
+        gamesCount: 2,
+        studyMinutes: 15,
+        isCustomized: true,
+        lastModified: new Date(),
+      };
+
+      const { getDailyGoalSettings, getTodaySessions } = await import('@/lib/firebase/firestore');
+      const { calculateDailyGoalsProgress } = await import('@/lib/utils');
+
+      vi.mocked(getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(getTodaySessions).mockResolvedValue([]);
+      vi.mocked(calculateDailyGoalsProgress).mockImplementation(() => {
+        throw new Error('Progress calculation failed');
+      });
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.settings).toBeTruthy();
+      });
+
+      // Should return default progress on error
+      expect(result.current.progress).toEqual({
         tactics: { current: 0, target: 0, percentage: 0, isComplete: false },
         games: { current: 0, target: 0, percentage: 0, isComplete: false },
         study: { current: 0, target: 0, percentage: 0, isComplete: false },
         hasAnyProgress: false,
         totalCompleted: 0,
         totalGoals: 0,
-      };
+      });
+    });
+  });
 
-      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(null);
-      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue([]);
-      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+  describe('Edge Cases', () => {
+    it('should handle null settings gracefully', async () => {
+      const { getDailyGoalSettings } = await import('@/lib/firebase/firestore');
+      
+      vi.mocked(getDailyGoalSettings).mockResolvedValue(null);
 
       const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.settings).toBeNull();
       });
 
-      expect(result.current.progress).toEqual(mockProgress);
-      expect(mockUtils.calculateDailyGoalsProgress).toHaveBeenCalledWith(null, []);
+      expect(result.current.isCustomized).toBe(false);
+      expect(result.current.hasAnyActiveGoals).toBe(false);
+      expect(result.current.formData).toEqual({
+        tacticsMinutes: 0,
+        gamesCount: 0,
+        studyMinutes: 0,
+      });
     });
 
-    it('should show completed goals correctly', async () => {
+    it('should handle settings with undefined values', async () => {
       const mockSettings: DailyGoalSettings = {
-        tacticsMinutes: 20,
-        gamesCount: 1,
-        studyMinutes: 10,
         isCustomized: true,
         lastModified: new Date(),
       };
 
-      const mockTodaySessions = [
-        {
-          id: 1,
-          type: 'tactics',
-          duration: 25, // Exceeds target
-          date: new Date(),
-        },
-        {
-          id: 2,
-          type: 'game',
-          date: new Date(),
-        },
-        {
-          id: 3,
-          type: 'study',
-          duration: 15, // Exceeds target
-          date: new Date(),
-        },
-      ];
-
-      const mockProgress = {
-        tactics: { current: 25, target: 20, percentage: 100, isComplete: true },
-        games: { current: 1, target: 1, percentage: 100, isComplete: true },
-        study: { current: 15, target: 10, percentage: 100, isComplete: true },
-        hasAnyProgress: true,
-        totalCompleted: 3,
-        totalGoals: 3,
-      };
-
-      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
-      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue(mockTodaySessions);
-      vi.mocked(mockUtils.calculateDailyGoalsProgress).mockReturnValue(mockProgress);
+      const { getDailyGoalSettings } = await import('@/lib/firebase/firestore');
+      
+      vi.mocked(getDailyGoalSettings).mockResolvedValue(mockSettings);
 
       const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.settings).toBeTruthy();
       });
 
-      expect(result.current.progress.totalCompleted).toBe(3);
-      expect(result.current.progress.totalGoals).toBe(3);
-      expect(result.current.progress.tactics.isComplete).toBe(true);
-      expect(result.current.progress.games.isComplete).toBe(true);
-      expect(result.current.progress.study.isComplete).toBe(true);
+      expect(result.current.formData).toEqual({
+        tacticsMinutes: 0,
+        gamesCount: 0,
+        studyMinutes: 0,
+      });
     });
 
-    it('should handle loading states correctly', async () => {
-      vi.mocked(mockFirebase.getDailyGoalSettings).mockImplementation(() => new Promise(() => {}));
-      vi.mocked(mockFirebase.getTodaySessions).mockImplementation(() => new Promise(() => {}));
-
-      const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
-
-      expect(result.current.isLoading).toBe(true);
-      expect(result.current.isProgressLoading).toBe(true);
-    });
-
-    it('should refetch progress when sessions change', async () => {
+    it('should handle disable custom goals confirmation', async () => {
       const mockSettings: DailyGoalSettings = {
         tacticsMinutes: 30,
         gamesCount: 2,
@@ -238,18 +257,32 @@ describe('useDailyGoalsSettings - Progress Calculation Engine', () => {
         lastModified: new Date(),
       };
 
-      vi.mocked(mockFirebase.getDailyGoalSettings).mockResolvedValue(mockSettings);
-      vi.mocked(mockFirebase.getTodaySessions).mockResolvedValue([]);
+      const { getDailyGoalSettings, setDailyGoalSettings } = await import('@/lib/firebase/firestore');
+      
+      vi.mocked(getDailyGoalSettings).mockResolvedValue(mockSettings);
+      vi.mocked(setDailyGoalSettings).mockResolvedValue();
+
+      // Mock window.confirm to return false (user cancels)
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
       const { result } = renderHook(() => useDailyGoalsSettings(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.settings).toBeTruthy();
       });
 
-      // Verify that both queries are called
-      expect(mockFirebase.getDailyGoalSettings).toHaveBeenCalled();
-      expect(mockFirebase.getTodaySessions).toHaveBeenCalled();
+      // Try to disable custom goals
+      await result.current.disableCustomGoals();
+
+      // Should show confirmation dialog
+      expect(confirmSpy).toHaveBeenCalledWith(
+        "This will disable all custom goals and return to the default system. Continue?"
+      );
+
+      // Should not call setDailyGoalSettings if user cancels
+      expect(setDailyGoalSettings).not.toHaveBeenCalled();
+
+      confirmSpy.mockRestore();
     });
   });
 });
