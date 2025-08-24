@@ -1,7 +1,15 @@
 {
-  "version": "0.2.10",
-  "lastUpdated": "23 August 2025",
+  "version": "0.3.0",
+  "lastUpdated": "24 August 2025",
   "changelog": [
+    {
+      "version": "0.3.0",
+      "date": "24 August 2025",
+      "changes": [
+        "Introduce user-customisable daily goals",
+        "User can add custom goals reflected on home screen. Updating is manual."
+      ]
+    }, 
     {
       "version": "0.2.10",
       "date": "23 August 2025",
