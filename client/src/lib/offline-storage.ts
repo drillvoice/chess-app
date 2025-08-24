@@ -12,7 +12,7 @@ interface UnsyncedSession {
 class OfflineStorage {
   private dbName = 'chess-logger-offline';
   // Increment version when adding new object stores
-  private version = 3;
+  private version = 5;
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
