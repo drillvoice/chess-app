@@ -153,33 +153,93 @@ const DEFAULT_STUDY_PREFERENCES: UserStudyPreferences = {
   lastModified: new Date(),
 };
 
-// Retrieve user study preferences, with smart defaults for new users
+// Retrieve user study preferences, with smart defaults for new users (OFFLINE-FIRST)
 export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
+  console.log('🏷️ getUserStudyPreferences - starting offline-first load');
+  
   try {
-    // Try to get from user settings first
-    const settings = await getUserSettings();
+    // 1. Try offline storage FIRST (instant response)
+    console.log('📱 Trying offline storage first...');
+    const cachedSettings = await offlineStorage.getSettings();
     
-    if (settings.studyPreferences) {
-      // Validate the data structure
-      const parsed = userStudyPreferencesSchema.safeParse(settings.studyPreferences);
+    if (cachedSettings?.studyPreferences) {
+      console.log('📱 Found study preferences in offline storage:', cachedSettings.studyPreferences);
+      const parsed = userStudyPreferencesSchema.safeParse(cachedSettings.studyPreferences);
       if (parsed.success) {
+        console.log('✅ Offline study preferences valid, returning immediately');
+        
+        // Background sync from Firestore (non-blocking)
+        queueMicrotask(() => syncStudyPreferencesFromFirestore());
+        
         return parsed.data;
       } else {
-        console.warn('Invalid study preferences data, using defaults:', parsed.error);
+        console.warn('❌ Invalid offline study preferences, will try Firestore:', parsed.error);
+      }
+    } else {
+      console.log('📱 No study preferences in offline storage');
+    }
+    
+    // 2. If no valid offline data, try Firestore (but with quick timeout)
+    console.log('☁️ Trying Firestore with timeout...');
+    const firestoreSettings = await Promise.race([
+      getUserSettings(),
+      new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error('Firestore timeout')), 3000)
+      )
+    ]);
+    
+    if (firestoreSettings?.studyPreferences) {
+      const parsed = userStudyPreferencesSchema.safeParse(firestoreSettings.studyPreferences);
+      if (parsed.success) {
+        console.log('✅ Got study preferences from Firestore');
+        // Cache for next time
+        await offlineStorage.setSettings(firestoreSettings);
+        return parsed.data;
       }
     }
     
-    // No preferences found or invalid data, return defaults
-    console.log('No study preferences found, initializing with defaults');
-    return DEFAULT_STUDY_PREFERENCES;
+    // 3. Fall back to defaults
+    console.log('🎯 Using default study preferences');
+    const defaults = DEFAULT_STUDY_PREFERENCES;
+    
+    // Save defaults to offline storage for next time
+    try {
+      const defaultSettings = { studyPreferences: defaults };
+      await offlineStorage.setSettings(defaultSettings);
+      console.log('💾 Saved default preferences to offline storage');
+    } catch (cacheError) {
+      console.warn('Failed to cache default preferences:', cacheError);
+    }
+    
+    return defaults;
+    
   } catch (error) {
-    console.error('Error getting study preferences:', error);
-    // On error, return defaults to keep the app functional
+    console.error('❌ Error in getUserStudyPreferences:', error);
+    // Always return defaults to keep app functional
     return DEFAULT_STUDY_PREFERENCES;
   }
 }
 
-// Update user study preferences
+// Background sync function (non-blocking)
+async function syncStudyPreferencesFromFirestore(): Promise<void> {
+  try {
+    console.log('🔄 Background sync: checking Firestore for updated study preferences...');
+    const settings = await getUserSettings();
+    
+    if (settings.studyPreferences) {
+      const parsed = userStudyPreferencesSchema.safeParse(settings.studyPreferences);
+      if (parsed.success) {
+        // Update offline cache with latest from Firestore
+        await offlineStorage.setSettings(settings);
+        console.log('🔄 Background sync: updated offline cache with Firestore data');
+      }
+    }
+  } catch (error) {
+    console.log('🔄 Background sync failed (this is normal if offline):', error.message);
+  }
+}
+
+// Update user study preferences (OFFLINE-FIRST)
 export async function updateUserStudyPreferences(preferences: UserStudyPreferences): Promise<void> {
   console.log('🏷️ updateUserStudyPreferences called with:', preferences);
   
@@ -193,25 +253,61 @@ export async function updateUserStudyPreferences(preferences: UserStudyPreferenc
       lastModified: new Date(),
     };
     
-    // Get current settings
-    const currentSettings = await getUserSettings();
+    // 1. Save to offline storage FIRST (instant feedback)
+    console.log('💾 Saving to offline storage first...');
+    try {
+      const currentOfflineSettings = await offlineStorage.getSettings() || {};
+      const updatedOfflineSettings = {
+        ...currentOfflineSettings,
+        studyPreferences: preferencesWithTimestamp,
+      };
+      
+      await offlineStorage.setSettings(updatedOfflineSettings);
+      console.log('✅ Study preferences saved to offline storage');
+    } catch (offlineError) {
+      console.error('❌ Failed to save to offline storage:', offlineError);
+      throw new SettingsError('Failed to save preferences offline', offlineError);
+    }
     
-    // Update with new study preferences
-    const updatedSettings: UserSettings = {
-      ...currentSettings,
-      studyPreferences: preferencesWithTimestamp,
-    };
+    // 2. Queue Firestore sync in background (non-blocking)
+    queueMicrotask(() => syncStudyPreferencesToFirestore(preferencesWithTimestamp));
     
-    // Save the updated settings
-    await updateUserSettings(updatedSettings);
-    
-    console.log('✅ Study preferences updated successfully');
+    console.log('✅ Study preferences updated successfully (offline-first)');
   } catch (error) {
     console.error('❌ Error updating study preferences:', error);
     if (error instanceof Error) {
       throw new SettingsError('Failed to save study preferences', error);
     }
     throw new SettingsError('Failed to save study preferences');
+  }
+}
+
+// Background sync to Firestore (non-blocking)
+async function syncStudyPreferencesToFirestore(preferences: UserStudyPreferences): Promise<void> {
+  try {
+    console.log('🔄 Background sync: saving study preferences to Firestore...');
+    
+    // Get current settings from Firestore (with timeout)
+    const currentSettings = await Promise.race([
+      getUserSettings(),
+      new Promise<UserSettings>((_, reject) => 
+        setTimeout(() => reject(new Error('Firestore timeout')), 5000)
+      )
+    ]);
+    
+    // Update with new study preferences
+    const updatedSettings: UserSettings = {
+      ...currentSettings,
+      studyPreferences: preferences,
+    };
+    
+    // Save to Firestore
+    await updateUserSettings(updatedSettings);
+    console.log('🔄 Background sync: study preferences saved to Firestore');
+    
+  } catch (error) {
+    console.log('🔄 Background Firestore sync failed (this is normal if offline):', error.message);
+    // Don't throw - the offline save already succeeded
   }
 }
 
