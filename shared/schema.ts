@@ -90,6 +90,15 @@ export const gameSessionSchema = insertTrainingSessionSchema
     goalDescription: true,
   });
 
+// Study tag validation schema
+export const studyTagSchema = z.string()
+  .min(1, 'Tag cannot be empty')
+  .max(20, 'Tag cannot exceed 20 characters')
+  .refine(
+    (tag) => !/[<>&"']/.test(tag),
+    'Tag cannot contain special characters < > & " \''
+  );
+
 export const studySessionSchema = insertTrainingSessionSchema
   .extend({
     type: z.literal('study'),
@@ -137,15 +146,6 @@ export const goalSessionSchema = insertTrainingSessionSchema
     studyType: true,
     studyNotes: true,
   });
-
-// Study tag validation schema
-export const studyTagSchema = z.string()
-  .min(1, 'Tag cannot be empty')
-  .max(20, 'Tag cannot exceed 20 characters')
-  .refine(
-    (tag) => !/[<>&"']/.test(tag),
-    'Tag cannot contain special characters < > & " \''
-  );
 
 // User Study Preferences Schema
 export const userStudyPreferencesSchema = z.object({
