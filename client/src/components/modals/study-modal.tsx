@@ -244,10 +244,10 @@ export default function StudyModal({
               )}
             </div>
 
-            <div>
-              <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
-                Notes (optional)
-              </Label>
+                         <div>
+               <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
+                 Notes
+               </Label>
               <Textarea
                 id="studyNotes"
                 className="mt-1"

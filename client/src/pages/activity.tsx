@@ -263,20 +263,7 @@ export default function Activity() {
       case 'game':
         return session.gameResult === 'win' ? 'W' : session.gameResult === 'draw' ? 'D' : 'L';
       case 'study':
-        // Show number of tags if available, otherwise fall back to study type
-        if (session.studyTags) {
-          try {
-            const tags = typeof session.studyTags === 'string' 
-              ? JSON.parse(session.studyTags) 
-              : session.studyTags;
-            if (Array.isArray(tags) && tags.length > 0) {
-              return tags.length.toString();
-            }
-          } catch (error) {
-            console.warn('Failed to parse studyTags for value display:', error);
-          }
-        }
-        return session.studyType?.charAt(0).toUpperCase() || '';
+        return ''; // No value indicator for study sessions
       case 'goal':
         return '🎯';
       default:

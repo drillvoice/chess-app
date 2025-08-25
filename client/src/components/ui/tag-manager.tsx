@@ -315,13 +315,7 @@ export function TagManager({
         </div>
       )}
       
-      {/* Helper text */}
-      <div className="space-y-1 text-xs text-gray-500">
-        <p>Click tags to select/deselect for this study session</p>
-        <p>
-          {availableTags.length}/{maxTags} custom tags • {selectedTags.length}/10 selected
-        </p>
-      </div>
+
     </div>
   );
 }
