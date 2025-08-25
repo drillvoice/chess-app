@@ -79,16 +79,6 @@ export function startLichessSync(username: string) {
       if (game.status === 'draw') result = 'draw';
       else result = game.winner === color ? 'win' : 'loss';
 
-      // Generate game score for display
-      let gameScore: string;
-      if (game.status === 'draw') {
-        gameScore = '1/2-1/2';
-      } else if (game.winner === 'white') {
-        gameScore = '1-0';
-      } else {
-        gameScore = '0-1';
-      }
-
       const duration = Math.round((game.lastMoveAt - game.createdAt) / 60000);
 
       let timeControl = '';
@@ -107,7 +97,7 @@ export function startLichessSync(username: string) {
         timeControl,
         opponentUsername,
         needsReview: true,
-        gameComments: `Score: ${gameScore}`, // Add score to comments for display
+        gameComments: '', // Leave comments empty for user to fill
       };
 
       await createSession(session);

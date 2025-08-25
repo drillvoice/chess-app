@@ -126,9 +126,13 @@ export default function Home() {
               <div key={session.id} className="flex items-center justify-between text-sm">
                 <div className="flex flex-col">
                   <span className="text-gray-700">{formatSessionDate(session.date)}</span>
-                  {session.gameComments && session.gameComments.startsWith('Score: ') && (
+                  {/* Display score dynamically based on game result */}
+                  {session.type === 'game' && (
                     <span className="text-xs text-gray-500 font-mono">
-                      {session.gameComments.replace('Score: ', '')}
+                      {session.gameResult === 'draw' ? '1/2-1/2' : 
+                       session.gameResult === 'win' ? 
+                         (session.playerColor === 'white' ? '1-0' : '0-1') :
+                         (session.playerColor === 'white' ? '0-1' : '1-0')}
                     </span>
                   )}
                   {session.opponentUsername && (

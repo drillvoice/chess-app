@@ -45,7 +45,7 @@ export default function GameModal({
     type: 'game',
     gameResult: isEditMode && editingSession ? 
       (editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined) : undefined,
-    gameComments: isEditMode && editingSession ? 
+    gameComments: isEditMode && editingSession && !editingSession.opponentUsername ? 
       (editingSession.gameComments || '') : '',
     playerColor: isEditMode && editingSession ? 
       (editingSession.playerColor as 'white' | 'black' | undefined) : undefined,
@@ -227,7 +227,8 @@ export default function GameModal({
     if (platform) {
       setValue('platform', platform as any, { shouldValidate: true });
     }
-    if (editingSession.gameComments) {
+    // Don't pre-fill comments for synced games - let user add their own
+    if (editingSession.gameComments && !editingSession.opponentUsername) {
       setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
     }
   }
