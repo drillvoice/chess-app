@@ -215,7 +215,7 @@ export default function StudyModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-bold text-gray-800">Log study session</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-800">Other study</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-2">

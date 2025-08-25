@@ -258,8 +258,7 @@ export default function Home() {
           <div className="flex items-center justify-center space-x-3">
             <Book className="h-8 w-8" />
             <div className="text-left">
-              <div className="text-lg">Log study</div>
-              <div className="text-sm opacity-90">Videos & Analysis</div>
+              <div className="text-lg">Other study</div>
             </div>
           </div>
         </Button>
