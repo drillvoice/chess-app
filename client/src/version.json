@@ -1,7 +1,14 @@
 {
-  "version": "0.3.3",
+  "version": "0.3.4",
   "lastUpdated": "25 August 2025",
   "changelog": [
+    {
+      "version": "0.3.4",
+      "date": "25 August 2025",
+      "changes": [
+        "UI: update 'study' modal to use tags"
+      ]
+    }, 
     {
       "version": "0.3.3",
       "date": "25 August 2025",
