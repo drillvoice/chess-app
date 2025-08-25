@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import Navigation from '@/components/layout/navigation';
 import { NetworkWarning } from '@/components/ui/network-status';
 import { initializeCacheWarming, setupOnlineCacheWarming } from '@/lib/cache-warming';
+import { preloadStudyPreferences } from '@/hooks/use-study-preferences';
 
 // Static imports for core pages (better reliability)
 import Home from '@/pages/home';
@@ -74,6 +75,9 @@ function App() {
       // Initialize cache warming
       initializeCacheWarming();
       cleanupOnlineWarming = setupOnlineCacheWarming();
+
+      // Preload study preferences for instant TagManager loading
+      preloadStudyPreferences();
 
       init();
 
