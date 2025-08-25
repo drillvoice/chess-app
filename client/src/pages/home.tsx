@@ -11,6 +11,7 @@ import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties, isToday } from '@/lib/utils';
 import versionData from '@/version.json';
 import { getUserStudyPreferences, addCustomStudyTag, removeCustomStudyTag } from '@/lib/firebase/settings';
+import { TagManager } from '@/components/ui/tag-manager';
 
 interface Statistics {
   totalHours: number;
@@ -29,6 +30,9 @@ export default function Home() {
   const [studyModalOpen, setStudyModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
+  
+  // Test state for TagManager
+  const [testSelectedTags, setTestSelectedTags] = useState<string[]>([]);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
@@ -317,6 +321,22 @@ export default function Home() {
         <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
       </Suspense>
+
+      {/* TEMPORARY: Test TagManager Component */}
+      <div className="mt-6 rounded-xl bg-green-50 p-4">
+        <h3 className="mb-3 text-sm font-semibold text-green-800">🏷️ Test TagManager Component</h3>
+        <TagManager
+          selectedTags={testSelectedTags}
+          onTagsChange={setTestSelectedTags}
+          label="Test Study Tags"
+          placeholder="Add a custom tag..."
+        />
+        <div className="mt-3 rounded bg-green-100 p-2">
+          <p className="text-xs text-green-700">
+            <strong>Selected tags:</strong> {testSelectedTags.length > 0 ? testSelectedTags.join(', ') : 'None'}
+          </p>
+        </div>
+      </div>
 
       {/* TEMPORARY: Test Study Preferences Backend */}
       <div className="mt-6 rounded-xl bg-blue-50 p-4">

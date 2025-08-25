@@ -235,7 +235,7 @@ async function syncStudyPreferencesFromFirestore(): Promise<void> {
       }
     }
   } catch (error) {
-    console.log('🔄 Background sync failed (this is normal if offline):', error.message);
+    console.log('🔄 Background sync failed (this is normal if offline):', error instanceof Error ? error.message : error);
   }
 }
 
@@ -266,7 +266,7 @@ export async function updateUserStudyPreferences(preferences: UserStudyPreferenc
       console.log('✅ Study preferences saved to offline storage');
     } catch (offlineError) {
       console.error('❌ Failed to save to offline storage:', offlineError);
-      throw new SettingsError('Failed to save preferences offline', offlineError);
+      throw new SettingsError('Failed to save preferences offline', offlineError instanceof Error ? offlineError : undefined);
     }
     
     // 2. Queue Firestore sync in background (non-blocking)
@@ -306,7 +306,7 @@ async function syncStudyPreferencesToFirestore(preferences: UserStudyPreferences
     console.log('🔄 Background sync: study preferences saved to Firestore');
     
   } catch (error) {
-    console.log('🔄 Background Firestore sync failed (this is normal if offline):', error.message);
+    console.log('🔄 Background Firestore sync failed (this is normal if offline):', error instanceof Error ? error.message : error);
     // Don't throw - the offline save already succeeded
   }
 }
