@@ -77,6 +77,7 @@ export class MemStorage implements IStorage {
       timeControl: insertSession.timeControl ?? null,
       opponentUsername: insertSession.opponentUsername ?? null,
       studyType: insertSession.studyType ?? null,
+      studyTags: insertSession.studyTags ?? null,
       studyNotes: insertSession.studyNotes ?? null,
       goalTitle: insertSession.goalTitle ?? null,
       goalDescription: insertSession.goalDescription ?? null,

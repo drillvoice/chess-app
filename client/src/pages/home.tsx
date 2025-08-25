@@ -11,6 +11,7 @@ import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties, isToday } from '@/lib/utils';
 import versionData from '@/version.json';
 
+
 interface Statistics {
   totalHours: number;
   totalSessions: number;
@@ -28,6 +29,8 @@ export default function Home() {
   const [studyModalOpen, setStudyModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
+  
+
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
@@ -316,6 +319,8 @@ export default function Home() {
         <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
       </Suspense>
+
+      
 
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">

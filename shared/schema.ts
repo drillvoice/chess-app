@@ -21,7 +21,8 @@ export const trainingSessionsTable = pgTable('training_sessions', {
   opponentUsername: text('opponent_username'), // opponent's username for games
   needsReview: boolean('needs_review').notNull().default(false),
   // Study specific fields
-  studyType: text('study_type'), // 'video', 'book', 'analysis', 'opening', 'endgame'
+  studyType: text('study_type'), // Legacy field - kept for backward compatibility
+  studyTags: text('study_tags'), // JSON array of custom tags, replaces studyType (nullable for non-study sessions)
   studyNotes: text('study_notes'),
   // Goal specific fields
   goalTitle: text('goal_title'),
@@ -89,14 +90,26 @@ export const gameSessionSchema = insertTrainingSessionSchema
     goalDescription: true,
   });
 
+// Study tag validation schema
+export const studyTagSchema = z.string()
+  .min(1, 'Tag cannot be empty')
+  .max(20, 'Tag cannot exceed 20 characters')
+  .refine(
+    (tag) => !/[<>&"']/.test(tag),
+    'Tag cannot contain special characters < > & " \''
+  );
+
 export const studySessionSchema = insertTrainingSessionSchema
   .extend({
     type: z.literal('study'),
     duration: z.number().min(1, 'Duration must be at least 1 minute'),
-    studyType: z.enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course'], {
-      required_error: 'Study type is required',
-    }),
+    studyTags: z.array(studyTagSchema)
+      .max(10, 'Cannot select more than 10 tags')
+      .optional()
+      .default([]),
     studyNotes: z.string().optional(),
+    // Keep studyType as optional for backward compatibility
+    studyType: z.enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course']).optional(),
   })
   .omit({
     pointsGained: true,
@@ -134,6 +147,14 @@ export const goalSessionSchema = insertTrainingSessionSchema
     studyNotes: true,
   });
 
+// User Study Preferences Schema
+export const userStudyPreferencesSchema = z.object({
+  customTags: z.array(studyTagSchema)
+    .max(10, 'Cannot have more than 10 custom tags')
+    .default(['reading', 'videos', 'coaching']), // Default tags
+  lastModified: z.date().optional(),
+});
+
 // Daily Goals Schema
 export const dailyGoalSettingsSchema = z.object({
   tacticsMinutes: z.number().min(0).max(99).optional(),
@@ -150,3 +171,5 @@ export type StudySession = z.infer<typeof studySessionSchema>;
 export type GoalSession = z.infer<typeof goalSessionSchema>;
 export type TrainingSession = typeof trainingSessionsTable.$inferSelect;
 export type DailyGoalSettings = z.infer<typeof dailyGoalSettingsSchema>;
+export type StudyTag = z.infer<typeof studyTagSchema>;
+export type UserStudyPreferences = z.infer<typeof userStudyPreferencesSchema>;

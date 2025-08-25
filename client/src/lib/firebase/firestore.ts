@@ -3,6 +3,7 @@ import { SessionsCache, StatisticsCache, WeeklyGoalCache } from '../cache-utils'
 import { offlineStorage } from '../offline-storage';
 import { queryClient } from '../queryClient';
 import { safeDatabaseOperation } from '../query-timeout';
+import { migrateStudySessions, getMigrationStats } from '../migration';
 import {
   waitForAuth,
   getSessionsCollection,
@@ -30,6 +31,17 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
         // Prefer cached sessions for instant load
         const cachedSessions = await offlineStorage.getSessions();
         if (cachedSessions && cachedSessions.length > 0) {
+          // Check if migration is needed
+          const migrationStats = getMigrationStats(cachedSessions);
+          if (migrationStats.migrationNeeded) {
+            console.log('Migration needed:', migrationStats);
+            const migratedSessions = migrateStudySessions(cachedSessions);
+            // Save migrated sessions back to cache
+            await offlineStorage.setSessions(migratedSessions);
+            console.log(`Migrated ${migrationStats.needsMigration} study sessions`);
+            return migratedSessions;
+          }
+
           try {
             const cacheAge = await offlineStorage.getCacheAge('sessions');
             if (cacheAge > 30000) {
@@ -101,6 +113,19 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     }
 
     const allSessions = await offlineStorage.getSessions();
+    
+    // Check if migration is needed for fetched sessions
+    const migrationStats = getMigrationStats(allSessions);
+    if (migrationStats.migrationNeeded) {
+      console.log('Migration needed for fetched sessions:', migrationStats);
+      const migratedSessions = migrateStudySessions(allSessions);
+      // Save migrated sessions back to cache
+      await offlineStorage.setSessions(migratedSessions);
+      SessionsCache.set(migratedSessions);
+      console.log(`Migrated ${migrationStats.needsMigration} study sessions from Firebase`);
+      return migratedSessions;
+    }
+    
     SessionsCache.set(allSessions);
 
     console.log(`Fetched ${sessions.length} sessions from Firebase (lastSynced: ${lastSynced || 'none'})`);
@@ -244,6 +269,35 @@ export async function getSessionsByDateRange(
   }
 }
 
+// Helper function to convert studyTags array to JSON string for storage
+function prepareSessionForStorage(session: InsertTrainingSession): any {
+  const prepared = { ...session };
+  
+  // Convert studyTags array to JSON string for database storage
+  if (prepared.studyTags && Array.isArray(prepared.studyTags)) {
+    prepared.studyTags = JSON.stringify(prepared.studyTags);
+  }
+  
+  return prepared;
+}
+
+// Helper function to parse studyTags JSON string back to array
+function parseSessionFromStorage(session: any): TrainingSession {
+  const parsed = { ...session };
+  
+  // Parse studyTags JSON string back to array
+  if (parsed.studyTags && typeof parsed.studyTags === 'string') {
+    try {
+      parsed.studyTags = JSON.parse(parsed.studyTags);
+    } catch (error) {
+      console.warn('Failed to parse studyTags:', parsed.studyTags);
+      parsed.studyTags = null;
+    }
+  }
+  
+  return parsed as TrainingSession;
+}
+
 export async function createSession(
   insertSession: InsertTrainingSession,
   id?: number,
@@ -253,8 +307,11 @@ export async function createSession(
   const sessionDate = insertSession.date || new Date();
   const now = new Date();
 
+  // Prepare session data for storage (convert arrays to JSON)
+  const preparedSession = prepareSessionForStorage(insertSession);
+  
   const newSession: TrainingSession = {
-    ...insertSession,
+    ...preparedSession,
     id: sessionId,
     date: sessionDate,
     createdAt: now,
@@ -297,8 +354,11 @@ export async function updateSession(
 ): Promise<TrainingSession | null> {
   console.log('updateSession called with id:', id, 'updateData:', updateData);
   try {
+    // Prepare update data for storage (convert arrays to JSON)
+    const preparedUpdateData = prepareSessionForStorage(updateData);
+    
     // Update locally first (we'll add this method later)
-    const updatedSession = await offlineStorage.updateSession(id, updateData);
+    const updatedSession = await offlineStorage.updateSession(id, preparedUpdateData);
     console.log('updateSession - updated session from offline storage:', updatedSession);
     if (!updatedSession) {
       throw new Error('Session not found locally');

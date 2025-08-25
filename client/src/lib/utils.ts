@@ -260,3 +260,32 @@ export function hasActiveGoals(settings: any): boolean {
     (settings.studyMinutes > 0)
   );
 }
+
+/**
+ * Format study tags for display in history
+ * Handles both new studyTags format and legacy studyType format
+ */
+export function formatStudyDisplay(session: any): string {
+  // Try to parse studyTags first (new format)
+  if (session.studyTags) {
+    try {
+      const tags = typeof session.studyTags === 'string' 
+        ? JSON.parse(session.studyTags) 
+        : session.studyTags;
+      
+      if (Array.isArray(tags) && tags.length > 0) {
+        return `Study: ${tags.join(', ')}`;
+      }
+    } catch (error) {
+      console.warn('Failed to parse studyTags:', error);
+    }
+  }
+  
+  // Fall back to legacy studyType format
+  if (session.studyType) {
+    return `${session.studyType.charAt(0).toUpperCase()}${session.studyType.slice(1)} Study`;
+  }
+  
+  // Default fallback
+  return 'Study';
+}

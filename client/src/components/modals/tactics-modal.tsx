@@ -95,6 +95,7 @@ export default function TacticsModal({
           timeControl: null,
           opponentUsername: null,
           studyType: null,
+          studyTags: null,
           studyNotes: null,
           goalTitle: null,
           goalDescription: null,

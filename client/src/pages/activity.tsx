@@ -33,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, formatStudyDisplay } from '@/lib/utils';
 import type { TrainingSession } from '@shared/schema';
 import {
   TacticsModal,
@@ -229,7 +229,7 @@ export default function Activity() {
       case 'game':
         return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
       case 'study':
-        return `${session.studyType?.charAt(0).toUpperCase()}${session.studyType?.slice(1)} Study`;
+        return formatStudyDisplay(session);
       case 'goal':
         return session.goalTitle || 'Weekly Goal';
       default:
@@ -263,7 +263,7 @@ export default function Activity() {
       case 'game':
         return session.gameResult === 'win' ? 'W' : session.gameResult === 'draw' ? 'D' : 'L';
       case 'study':
-        return session.studyType?.charAt(0).toUpperCase() || '';
+        return ''; // No value indicator for study sessions
       case 'goal':
         return '🎯';
       default:
