@@ -331,11 +331,6 @@ export default function Home() {
           label="Test Study Tags"
           placeholder="Add a custom tag..."
         />
-        <div className="mt-3 rounded bg-green-100 p-2">
-          <p className="text-xs text-green-700">
-            <strong>Selected tags:</strong> {testSelectedTags.length > 0 ? testSelectedTags.join(', ') : 'None'}
-          </p>
-        </div>
       </div>
 
       {/* TEMPORARY: Test Study Preferences Backend */}

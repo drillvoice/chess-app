@@ -33,6 +33,7 @@ export function TagManager({
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isDeletingTag, setIsDeletingTag] = useState<string | null>(null);
+  const [showAddInput, setShowAddInput] = useState(false);
   const { toast } = useToast();
 
   // Load available tags on mount
@@ -108,6 +109,7 @@ export function TagManager({
       const newTags = [...availableTags, trimmedTag].sort();
       setAvailableTags(newTags);
       setNewTagInput('');
+      setShowAddInput(false); // Hide input after adding
       
       toast({
         title: 'Tag added',
@@ -229,44 +231,89 @@ export function TagManager({
                 </button>
               </div>
             ))}
+            
+            {/* Add button at the end of tag list */}
+            {!showAddInput && availableTags.length < maxTags && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAddInput(true)}
+                disabled={disabled}
+                className="flex items-center gap-1 px-2 py-1 text-sm border-dashed"
+              >
+                <Plus className="h-3 w-3" />
+                Add
+              </Button>
+            )}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">No custom tags yet. Add one below!</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-500">No custom tags yet.</p>
+            {!showAddInput && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAddInput(true)}
+                disabled={disabled}
+                className="flex items-center gap-1 px-2 py-1 text-sm border-dashed"
+              >
+                <Plus className="h-3 w-3" />
+                Add first tag
+              </Button>
+            )}
+          </div>
         )}
       </div>
       
-      {/* Add new tag input */}
-      <div className="flex gap-2">
-        <Input
-          type="text"
-          placeholder={placeholder}
-          value={newTagInput}
-          onChange={(e) => setNewTagInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isAddingTag || disabled || availableTags.length >= maxTags}
-          className="flex-1 text-sm"
-          maxLength={20}
-        />
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleAddTag}
-          disabled={
-            !newTagInput.trim() || 
-            isAddingTag || 
-            disabled || 
-            availableTags.length >= maxTags
-          }
-          className="flex items-center gap-1 px-3"
-        >
-          {isAddingTag ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
-          {isAddingTag ? 'Adding...' : 'Add'}
-        </Button>
-      </div>
+      {/* Add new tag input (only shown when adding) */}
+      {showAddInput && (
+        <div className="flex gap-2">
+          <Input
+            type="text"
+            placeholder={placeholder}
+            value={newTagInput}
+            onChange={(e) => setNewTagInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={isAddingTag || disabled || availableTags.length >= maxTags}
+            className="flex-1 text-sm"
+            maxLength={20}
+            autoFocus
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleAddTag}
+            disabled={
+              !newTagInput.trim() || 
+              isAddingTag || 
+              disabled || 
+              availableTags.length >= maxTags
+            }
+            className="flex items-center gap-1 px-3"
+          >
+            {isAddingTag ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            {isAddingTag ? 'Adding...' : 'Add'}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setShowAddInput(false);
+              setNewTagInput('');
+            }}
+            disabled={isAddingTag}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
       
       {/* Helper text */}
       <div className="space-y-1 text-xs text-gray-500">
