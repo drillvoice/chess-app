@@ -10,8 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties, isToday } from '@/lib/utils';
 import versionData from '@/version.json';
-import { getUserStudyPreferences, addCustomStudyTag, removeCustomStudyTag } from '@/lib/firebase/settings';
-import { TagManager } from '@/components/ui/tag-manager';
+
 
 interface Statistics {
   totalHours: number;
@@ -31,8 +30,7 @@ export default function Home() {
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
   
-  // Test state for TagManager
-  const [testSelectedTags, setTestSelectedTags] = useState<string[]>([]);
+
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
@@ -322,75 +320,7 @@ export default function Home() {
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
       </Suspense>
 
-      {/* TEMPORARY: Test TagManager Component */}
-      <div className="mt-6 rounded-xl bg-green-50 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-green-800">🏷️ Test TagManager Component</h3>
-        <TagManager
-          selectedTags={testSelectedTags}
-          onTagsChange={setTestSelectedTags}
-          label="Test Study Tags"
-          placeholder="Add a custom tag..."
-        />
-      </div>
-
-      {/* TEMPORARY: Test Study Preferences Backend */}
-      <div className="mt-6 rounded-xl bg-blue-50 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-blue-800">🧪 Test Study Tags Backend</h3>
-        <div className="space-y-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              try {
-                const prefs = await getUserStudyPreferences();
-                console.log('📋 Current study preferences:', prefs);
-                alert(`Current tags: ${prefs.customTags.join(', ')}`);
-              } catch (error) {
-                console.error('❌ Error loading preferences:', error);
-                alert('Error loading preferences - check console');
-              }
-            }}
-            className="mr-2 text-xs"
-          >
-            Load Tags
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              try {
-                await addCustomStudyTag('test-tag');
-                console.log('✅ Added test-tag');
-                alert('Added "test-tag" - click Load Tags to see');
-              } catch (error) {
-                console.error('❌ Error adding tag:', error);
-                alert('Error adding tag - check console');
-              }
-            }}
-            className="mr-2 text-xs"
-          >
-            Add Test Tag
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              try {
-                await removeCustomStudyTag('test-tag');
-                console.log('🗑️ Removed test-tag');
-                alert('Removed "test-tag" - click Load Tags to see');
-              } catch (error) {
-                console.error('❌ Error removing tag:', error);
-                alert('Error removing tag - check console');
-              }
-            }}
-            className="text-xs"
-          >
-            Remove Test Tag
-          </Button>
-        </div>
-        <p className="mt-2 text-xs text-blue-600">Open browser console (F12) to see detailed logs</p>
-      </div>
+      
 
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">

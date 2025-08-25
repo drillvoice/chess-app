@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,14 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { TagManager } from '@/components/ui/tag-manager';
 // Dynamic import for firebase to maintain code splitting
 import { studySessionSchema, type StudySession, type TrainingSession } from '@shared/schema';
 
@@ -33,6 +27,7 @@ export default function StudyModal({
 }: StudyModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const {
     register,
@@ -48,20 +43,13 @@ export default function StudyModal({
         ? {
             type: 'study',
             duration: editingSession.duration || 0,
-            studyType: editingSession.studyType as
-              | 'video'
-              | 'book'
-              | 'analysis'
-              | 'chessable'
-              | 'coaching'
-              | 'online-course'
-              | undefined,
+            studyTags: editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [],
             studyNotes: editingSession.studyNotes || '',
           }
         : {
             type: 'study',
             duration: 0,
-            studyType: undefined,
+            studyTags: [],
             studyNotes: '',
           },
   });
@@ -70,9 +58,9 @@ export default function StudyModal({
     mutationFn: async (data: StudySession) => {
       const { createSession, updateSession } = await import('@/lib/firebase');
       if (isEditMode && editingSession) {
-        return await updateSession(editingSession.id, data);
+        return await updateSession(editingSession.id, data as any);
       }
-      return await createSession(data);
+      return await createSession(data as any);
     },
     onMutate: async (newSession) => {
       // Close modal immediately for better UX
@@ -110,7 +98,7 @@ export default function StudyModal({
           timeControl: null,
           opponentUsername: null,
           studyType: newSession.studyType || null,
-          studyTags: null, // TODO: Will be updated in Chunk 4 to use actual studyTags
+          studyTags: JSON.stringify(selectedTags),
           studyNotes: newSession.studyNotes || null,
           goalTitle: null,
           goalDescription: null,
@@ -125,29 +113,29 @@ export default function StudyModal({
         return { previousSessions, previousStats };
       } else {
         const tempId = Date.now();
-        const optimisticSession: TrainingSession = {
-          id: tempId,
-          type: 'study',
-          date: new Date(),
-          duration: newSession.duration,
-          pointsGained: null,
-          finalScore: null,
-          tacticsNotes: null,
-          gameResult: null,
-          gameType: null,
-          gameComments: null,
-          playerColor: null,
-          platform: null,
-          timeControl: null,
-          opponentUsername: null,
-          studyType: newSession.studyType || null,
-          studyTags: null, // TODO: Will be updated in Chunk 4 to use actual studyTags
-          studyNotes: newSession.studyNotes || null,
-          goalTitle: null,
-          goalDescription: null,
-          goalWeekStart: null,
-          needsReview: false,
-        };
+                 const optimisticSession: TrainingSession = {
+           id: tempId,
+           type: 'study',
+           date: new Date(),
+           duration: newSession.duration,
+           pointsGained: null,
+           finalScore: null,
+           tacticsNotes: null,
+           gameResult: null,
+           gameType: null,
+           gameComments: null,
+           playerColor: null,
+           platform: null,
+           timeControl: null,
+           opponentUsername: null,
+           studyType: newSession.studyType || null,
+           studyTags: JSON.stringify(selectedTags),
+           studyNotes: newSession.studyNotes || null,
+           goalTitle: null,
+           goalDescription: null,
+           goalWeekStart: null,
+           needsReview: false,
+         };
 
         queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) => [
           optimisticSession,
@@ -198,16 +186,28 @@ export default function StudyModal({
 
   useEffect(() => {
     if (isEditMode && editingSession) {
-      setValue('studyType', editingSession.studyType as any, {
-        shouldValidate: true,
-      });
+      // Set selected tags from editing session
+      const tags = editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [];
+      setSelectedTags(tags);
+    } else {
+      // Reset selected tags for new sessions
+      setSelectedTags([]);
     }
-  }, [editingSession, isEditMode, setValue]);
+  }, [editingSession, isEditMode]);
+
+  // Reset form and tags when modal closes
+  useEffect(() => {
+    if (!open) {
+      reset();
+      setSelectedTags([]);
+    }
+  }, [open, reset]);
 
   const onSubmit = (data: StudySession) => {
-    // Add current date to the session data
+    // Add current date and selected tags to the session data
     const sessionData = {
       ...data,
+      studyTags: selectedTags,
       date: isEditMode && editingSession ? editingSession.date : new Date(),
     };
     mutation.mutate(sessionData);
@@ -221,34 +221,12 @@ export default function StudyModal({
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-2">
-            <div>
-              <Label htmlFor="studyType" className="text-sm font-medium text-gray-700">
-                Study type
-              </Label>
-              <Select
-                value={watch('studyType')}
-                onValueChange={(value) =>
-                  setValue('studyType', value as any, {
-                    shouldValidate: true,
-                  })
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select study type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="analysis">Analysis</SelectItem>
-                  <SelectItem value="book">Book</SelectItem>
-                  <SelectItem value="chessable">Chessable</SelectItem>
-                  <SelectItem value="coaching">Coaching session</SelectItem>
-                  <SelectItem value="online-course">Online course</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.studyType && (
-                <p className="mt-1 text-sm text-red-600">{errors.studyType.message}</p>
-              )}
-            </div>
+            <TagManager
+              selectedTags={selectedTags}
+              onTagsChange={setSelectedTags}
+              label="Study tags"
+              placeholder="Add a study tag..."
+            />
 
             <div>
               <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
