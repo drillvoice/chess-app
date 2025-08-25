@@ -1,4 +1,4 @@
-import { TrainingSession } from '@shared/schema';
+import { TrainingSession, UserStudyPreferences } from '@shared/schema';
 import { WeeklyGoalCache } from '../cache-utils';
 import { offlineStorage } from '../offline-storage';
 import {
@@ -67,6 +67,7 @@ async function updateWeeklyGoalInBackground(): Promise<void> {
 
 export interface UserSettings {
   lichessUsername?: string;
+  studyPreferences?: UserStudyPreferences;
 }
 
 // Retrieve user settings, preferring cached offline data when available

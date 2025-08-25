@@ -116,6 +116,7 @@ export default function GameModal({
           timeControl: newSession.timeControl ?? editingSession.timeControl, // Preserve existing timeControl if not changed
           opponentUsername: editingSession.opponentUsername, // Preserve existing opponentUsername
           studyType: null,
+          studyTags: null,
           studyNotes: null,
           goalTitle: null,
           goalDescription: null,
@@ -146,6 +147,7 @@ export default function GameModal({
           timeControl: newSession.timeControl ?? null,
           opponentUsername: null,
           studyType: null,
+          studyTags: null,
           studyNotes: null,
           goalTitle: null,
           goalDescription: null,

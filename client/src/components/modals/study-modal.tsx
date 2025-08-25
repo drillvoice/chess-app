@@ -110,6 +110,7 @@ export default function StudyModal({
           timeControl: null,
           opponentUsername: null,
           studyType: newSession.studyType,
+          studyTags: null, // TODO: Update in Chunk 4 to use studyTags
           studyNotes: newSession.studyNotes || null,
           goalTitle: null,
           goalDescription: null,
@@ -140,6 +141,7 @@ export default function StudyModal({
           timeControl: null,
           opponentUsername: null,
           studyType: newSession.studyType,
+          studyTags: null, // TODO: Update in Chunk 4 to use studyTags
           studyNotes: newSession.studyNotes || null,
           goalTitle: null,
           goalDescription: null,
