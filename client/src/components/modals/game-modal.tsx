@@ -60,7 +60,18 @@ export default function GameModal({
     mutationFn: async (data: GameSession) => {
       const { createSession, updateSession } = await import('@/lib/firebase');
       if (isEditMode && editingSession) {
-        return await updateSession(editingSession.id, { ...data, needsReview: false });
+        // Preserve existing fields that shouldn't be overwritten
+        const updateData = {
+          ...data,
+          needsReview: false,
+          // Preserve existing fields that aren't being edited
+          opponentUsername: editingSession.opponentUsername,
+          duration: editingSession.duration,
+          // Only update platform/timeControl if they were actually changed
+          platform: data.platform ?? editingSession.platform,
+          timeControl: data.timeControl ?? editingSession.timeControl,
+        };
+        return await updateSession(editingSession.id, updateData);
       }
       return await createSession(data);
     },
@@ -93,7 +104,7 @@ export default function GameModal({
           id: editingSession.id,
           type: 'game',
           date: editingSession.date,
-          duration: null,
+          duration: editingSession.duration, // Preserve existing duration
           pointsGained: null,
           finalScore: null,
           tacticsNotes: null,
@@ -101,9 +112,9 @@ export default function GameModal({
           gameType: null,
           gameComments: newSession.gameComments || null,
           playerColor: newSession.playerColor,
-          platform: newSession.platform ?? null,
-          timeControl: newSession.timeControl ?? null,
-          opponentUsername: null,
+          platform: newSession.platform ?? editingSession.platform, // Preserve existing platform if not changed
+          timeControl: newSession.timeControl ?? editingSession.timeControl, // Preserve existing timeControl if not changed
+          opponentUsername: editingSession.opponentUsername, // Preserve existing opponentUsername
           studyType: null,
           studyNotes: null,
           goalTitle: null,
