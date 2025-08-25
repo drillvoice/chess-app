@@ -3,6 +3,7 @@ import { SessionsCache, StatisticsCache, WeeklyGoalCache } from '../cache-utils'
 import { offlineStorage } from '../offline-storage';
 import { queryClient } from '../queryClient';
 import { safeDatabaseOperation } from '../query-timeout';
+import { migrateStudySessions, getMigrationStats } from '../migration';
 import {
   waitForAuth,
   getSessionsCollection,
@@ -30,6 +31,17 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
         // Prefer cached sessions for instant load
         const cachedSessions = await offlineStorage.getSessions();
         if (cachedSessions && cachedSessions.length > 0) {
+          // Check if migration is needed
+          const migrationStats = getMigrationStats(cachedSessions);
+          if (migrationStats.migrationNeeded) {
+            console.log('Migration needed:', migrationStats);
+            const migratedSessions = migrateStudySessions(cachedSessions);
+            // Save migrated sessions back to cache
+            await offlineStorage.setSessions(migratedSessions);
+            console.log(`Migrated ${migrationStats.needsMigration} study sessions`);
+            return migratedSessions;
+          }
+
           try {
             const cacheAge = await offlineStorage.getCacheAge('sessions');
             if (cacheAge > 30000) {
@@ -101,6 +113,19 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     }
 
     const allSessions = await offlineStorage.getSessions();
+    
+    // Check if migration is needed for fetched sessions
+    const migrationStats = getMigrationStats(allSessions);
+    if (migrationStats.migrationNeeded) {
+      console.log('Migration needed for fetched sessions:', migrationStats);
+      const migratedSessions = migrateStudySessions(allSessions);
+      // Save migrated sessions back to cache
+      await offlineStorage.setSessions(migratedSessions);
+      SessionsCache.set(migratedSessions);
+      console.log(`Migrated ${migrationStats.needsMigration} study sessions from Firebase`);
+      return migratedSessions;
+    }
+    
     SessionsCache.set(allSessions);
 
     console.log(`Fetched ${sessions.length} sessions from Firebase (lastSynced: ${lastSynced || 'none'})`);
