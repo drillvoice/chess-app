@@ -3,12 +3,12 @@ import { Plus, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+
 import { 
-  getUserStudyPreferences, 
   addCustomStudyTag, 
   removeCustomStudyTag 
 } from '@/lib/firebase/settings';
+import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
 import type { StudyTag } from '@shared/schema';
 
 interface TagManagerProps {
@@ -34,29 +34,22 @@ export function TagManager({
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isDeletingTag, setIsDeletingTag] = useState<string | null>(null);
   const [showAddInput, setShowAddInput] = useState(false);
-  const { toast } = useToast();
 
-  // Load available tags on mount
+  // Use the optimized hook for study preferences
+  const { preferences, isLoading: preferencesLoading, error: preferencesError } = useStudyPreferences();
+
+  // Update available tags when preferences change
   useEffect(() => {
-    loadAvailableTags();
-  }, []);
-
-  const loadAvailableTags = async () => {
-    try {
-      setIsLoading(true);
-      const preferences = await getUserStudyPreferences();
+    if (preferences) {
       setAvailableTags(preferences.customTags);
-    } catch (error) {
-      console.error('Failed to load tags:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load study tags',
-        variant: 'destructive',
-      });
-    } finally {
       setIsLoading(false);
     }
-  };
+  }, [preferences]);
+
+  // Set loading state based on preferences loading
+  useEffect(() => {
+    setIsLoading(preferencesLoading);
+  }, [preferencesLoading]);
 
   const handleAddTag = async () => {
     const trimmedTag = newTagInput.trim();
@@ -65,39 +58,19 @@ export function TagManager({
     
     // Validation
     if (trimmedTag.length > 20) {
-      toast({
-        title: 'Tag too long',
-        description: 'Tags cannot exceed 20 characters',
-        variant: 'destructive',
-      });
       return;
     }
     
     if (!/^[a-zA-Z0-9\s\-']+$/.test(trimmedTag)) {
-      toast({
-        title: 'Invalid characters',
-        description: 'Tags can only contain letters, numbers, spaces, hyphens, and apostrophes',
-        variant: 'destructive',
-      });
       return;
     }
     
     if (availableTags.length >= maxTags) {
-      toast({
-        title: 'Too many tags',
-        description: `You can only have up to ${maxTags} custom tags`,
-        variant: 'destructive',
-      });
       return;
     }
     
     // Check if tag already exists (case-insensitive)
     if (availableTags.some(tag => tag.toLowerCase() === trimmedTag.toLowerCase())) {
-      toast({
-        title: 'Tag exists',
-        description: 'This tag already exists',
-        variant: 'destructive',
-      });
       return;
     }
     
@@ -111,17 +84,16 @@ export function TagManager({
       setNewTagInput('');
       setShowAddInput(false); // Hide input after adding
       
-      toast({
-        title: 'Tag added',
-        description: `"${trimmedTag}" has been added to your study tags`,
-      });
+      // Update the global cache
+      if (preferences) {
+        const updatedPreferences = {
+          ...preferences,
+          customTags: newTags,
+        };
+        await updateStudyPreferences(updatedPreferences);
+      }
     } catch (error) {
       console.error('Failed to add tag:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to add tag',
-        variant: 'destructive',
-      });
     } finally {
       setIsAddingTag(false);
     }
@@ -141,17 +113,16 @@ export function TagManager({
         onTagsChange(selectedTags.filter(tag => tag !== tagToRemove));
       }
       
-      toast({
-        title: 'Tag removed',
-        description: `"${tagToRemove}" has been removed from your study tags`,
-      });
+      // Update the global cache
+      if (preferences) {
+        const updatedPreferences = {
+          ...preferences,
+          customTags: newTags,
+        };
+        await updateStudyPreferences(updatedPreferences);
+      }
     } catch (error) {
       console.error('Failed to remove tag:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove tag',
-        variant: 'destructive',
-      });
     } finally {
       setIsDeletingTag(null);
     }
@@ -166,11 +137,6 @@ export function TagManager({
     } else {
       // Add tag (limit to 10 selected)
       if (selectedTags.length >= 10) {
-        toast({
-          title: 'Too many tags selected',
-          description: 'You can only select up to 10 tags per study session',
-          variant: 'destructive',
-        });
         return;
       }
       onTagsChange([...selectedTags, tag]);
