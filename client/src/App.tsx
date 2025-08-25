@@ -6,11 +6,14 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import Navigation from '@/components/layout/navigation';
-import { AccountPage } from '@/components/lazy-components';
 import { NetworkWarning } from '@/components/ui/network-status';
 import { initializeCacheWarming, setupOnlineCacheWarming } from '@/lib/cache-warming';
 
-const Home = lazy(() => import('@/pages/home'));
+// Static imports for core pages (better reliability)
+import Home from '@/pages/home';
+import AccountPage from '@/pages/account';
+
+// Lazy imports for less critical pages
 const Activity = lazy(() => import('@/pages/activity'));
 const Info = lazy(() => import('@/pages/info'));
 const NotFound = lazy(() => import('@/pages/not-found'));
