@@ -82,6 +82,15 @@ export function TagManager({
       setAvailableTags(newTags);
       setNewTagInput('');
       setShowAddInput(false); // Hide input after adding
+
+      // Automatically select the new tag if it isn't already selected
+      // and we haven't reached the 10-tag limit
+      if (
+        !selectedTags.some(tag => tag.toLowerCase() === trimmedTag.toLowerCase()) &&
+        selectedTags.length < 10
+      ) {
+        onTagsChange([...selectedTags, trimmedTag]);
+      }
       
       // Update the global cache
       if (preferences) {
