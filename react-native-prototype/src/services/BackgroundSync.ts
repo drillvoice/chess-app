@@ -1,4 +1,5 @@
 // Background sync service for React Native
+/* eslint-disable import/no-unresolved */
 import BackgroundJob from 'react-native-background-job';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

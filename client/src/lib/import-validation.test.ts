@@ -73,9 +73,7 @@ describe('React Import Validation', () => {
       }
     }
     
-    if (errors.length > 0) {
-      throw new Error(`Missing React imports found:\n${errors.join('\n')}`);
-    }
+    expect(errors).toHaveLength(0);
   });
   
   it('should have proper React imports for JSX usage', () => {
@@ -102,8 +100,6 @@ describe('React Import Validation', () => {
       }
     }
     
-    if (errors.length > 0) {
-      throw new Error(`Missing React imports for JSX found:\n${errors.join('\n')}`);
-    }
+    expect(errors).toHaveLength(0);
   });
 });

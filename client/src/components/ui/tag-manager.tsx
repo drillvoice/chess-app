@@ -9,7 +9,6 @@ import {
   removeCustomStudyTag 
 } from '@/lib/firebase/settings';
 import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
-import type { StudyTag } from '@shared/schema';
 
 interface TagManagerProps {
   selectedTags: string[];
@@ -36,7 +35,7 @@ export function TagManager({
   const [showAddInput, setShowAddInput] = useState(false);
 
   // Use the optimized hook for study preferences
-  const { preferences, isLoading: preferencesLoading, error: preferencesError } = useStudyPreferences();
+  const { preferences, isLoading: preferencesLoading, error: _preferencesError } = useStudyPreferences();
 
   // Update available tags when preferences change
   useEffect(() => {
@@ -245,7 +244,6 @@ export function TagManager({
             disabled={isAddingTag || disabled || availableTags.length >= maxTags}
             className="flex-1 text-sm"
             maxLength={20}
-            autoFocus
           />
           <Button
             type="button"

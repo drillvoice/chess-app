@@ -33,10 +33,14 @@ function createWrapper() {
       mutations: { retry: false },
     },
   });
-  
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  }
+
+  Wrapper.displayName = 'Wrapper';
+
+  return Wrapper;
 }
 
 describe('useDailyGoalsSettings', () => {

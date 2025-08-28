@@ -121,7 +121,7 @@ function DefaultErrorFallback({
   retry, 
   isRetrying, 
   retryCount, 
-  isNetworkError, 
+  _isNetworkError,
   isOffline 
 }: { 
   error: Error; 

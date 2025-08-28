@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TrainingSession } from '@shared/schema';
-import { formatSessionDate, getGoalProperties, isToday } from '@/lib/utils';
+import { formatSessionDate, getGoalProperties } from '@/lib/utils';
 import versionData from '@/version.json';
 
 

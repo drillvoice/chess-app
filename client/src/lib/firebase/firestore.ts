@@ -284,7 +284,7 @@ function prepareSessionForStorage(
 }
 
 // Helper function to parse studyTags JSON string back to array
-function parseSessionFromStorage(session: any): TrainingSession {
+function _parseSessionFromStorage(session: any): TrainingSession {
   const parsed = { ...session };
   
   // Parse studyTags JSON string back to array
