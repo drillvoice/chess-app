@@ -1,7 +1,15 @@
 {
-  "version": "0.3.4",
-  "lastUpdated": "25 August 2025",
+  "version": "0.3.5",
+  "lastUpdated": "29 August 2025",
   "changelog": [
+    {
+      "version": "0.3.5",
+      "date": "29 August 2025",
+      "changes": [
+        "Bugfix: address failing tests",
+        "Bugfix: improve saving of lichess username"
+      ]
+    }, 
     {
       "version": "0.3.4",
       "date": "25 August 2025",
