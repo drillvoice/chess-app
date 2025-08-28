@@ -22,6 +22,12 @@ vi.mock('@/lib/firebase', () => ({
   getAllSessions: async () => [],
 }));
 
+vi.mock('@/lib/offline-storage', () => ({
+  offlineStorage: {
+    getSessions: vi.fn().mockResolvedValue([]),
+  },
+}));
+
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useMutation: vi.fn(() => ({ mutate: vi.fn() })),

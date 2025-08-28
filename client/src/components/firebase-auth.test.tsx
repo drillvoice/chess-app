@@ -37,6 +37,7 @@ vi.mock('firebase/auth', () => ({
   signOut: vi.fn(),
   onAuthStateChanged: vi.fn(),
   getRedirectResult: vi.fn(() => Promise.resolve(null)),
+  signInAnonymously: vi.fn(),
 }));
 
 vi.mock('@/lib/cache-utils', () => ({
@@ -51,6 +52,9 @@ vi.mock('@/lib/offline-storage', () => ({
     mergeSessions: vi.fn(),
     getLastSyncedTimestamp: vi.fn(),
     setLastSyncedTimestamp: vi.fn(),
+    markAsUnsynced: vi.fn(),
+    markAsSynced: vi.fn(),
+    incrementSyncRetries: vi.fn(),
   },
 }));
 

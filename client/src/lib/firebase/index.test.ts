@@ -29,6 +29,9 @@ vi.mock('../offline-storage', () => ({
     mergeSessions: vi.fn(),
     getLastSyncedTimestamp: vi.fn(),
     setLastSyncedTimestamp: vi.fn(),
+    markAsUnsynced: vi.fn(),
+    markAsSynced: vi.fn(),
+    incrementSyncRetries: vi.fn(),
   },
 }));
 
@@ -75,6 +78,7 @@ vi.mock('firebase/auth', () => ({
   linkWithCredential: vi.fn(),
   linkWithRedirect: vi.fn(),
   onAuthStateChanged: vi.fn(),
+  signInAnonymously: vi.fn(),
 }));
 
 describe('firebase auth utilities', () => {
