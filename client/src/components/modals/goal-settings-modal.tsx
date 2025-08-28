@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Settings } from 'lucide-react';
 
 import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
-import { DailyGoalSettings } from '@shared/schema';
 import { DAILY_GOAL_LIMITS } from '@/lib/utils';
 
 interface GoalSettingsModalProps {

@@ -1,4 +1,5 @@
 // SQLite storage implementation for React Native
+/* eslint-disable import/no-unresolved */
 import SQLite from 'react-native-sqlite-storage';
 
 interface TrainingSession {

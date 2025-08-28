@@ -34,8 +34,6 @@ export default function StudyModal({
     handleSubmit,
     formState: { errors },
     reset,
-    setValue,
-    watch,
   } = useForm<StudySession>({
     resolver: zodResolver(studySessionSchema),
     defaultValues:
