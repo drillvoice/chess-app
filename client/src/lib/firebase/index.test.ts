@@ -199,11 +199,17 @@ describe('firebase auth utilities', () => {
 
     const offline = await import('../offline-storage');
 
+    vi.mocked(offline.offlineStorage.getSettings).mockResolvedValue({ theme: 'dark' });
+
     await utils.updateUserSettings({ lichessUsername: 'abc' });
 
     expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123', 'settings', 'settings');
     expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'abc' }, { merge: true });
-    expect(offline.offlineStorage.setSettings).toHaveBeenCalledWith({ lichessUsername: 'abc' });
+    expect(offline.offlineStorage.getSettings).toHaveBeenCalled();
+    expect(offline.offlineStorage.setSettings).toHaveBeenCalledWith({
+      theme: 'dark',
+      lichessUsername: 'abc',
+    });
   });
 
   it('updates currentUserId on sign-out', async () => {
