@@ -120,7 +120,7 @@ function LichessSettingsContent() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSave();
     }
@@ -144,7 +144,7 @@ function LichessSettingsContent() {
             placeholder="Enter your Lichess username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             disabled={isLoading}
             className={validationError ? 'border-red-500' : ''}
           />
