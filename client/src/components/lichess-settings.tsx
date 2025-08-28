@@ -16,11 +16,11 @@ function LichessSettingsContent() {
 
   // Validation function
   const validateUsername = (username: string): string | null => {
-    const trimmed = username.trim();
-    if (!trimmed) return null; // Allow empty username
-    if (trimmed.length < 3) return 'Username must be at least 3 characters';
-    if (trimmed.length > 20) return 'Username must be 20 characters or less';
-    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    const normalized = username.trim().toLowerCase();
+    if (!normalized) return null; // Allow empty username
+    if (normalized.length < 3) return 'Username must be at least 3 characters';
+    if (normalized.length > 20) return 'Username must be 20 characters or less';
+    if (!/^[a-z0-9_-]+$/.test(normalized)) {
       return 'Username can only contain letters, numbers, underscores, and hyphens';
     }
     return null;
@@ -35,8 +35,9 @@ function LichessSettingsContent() {
         setLoadError(null);
         const settings = await getUserSettings();
         if (mounted && settings?.lichessUsername) {
-          setUsername(settings.lichessUsername);
-          setOriginalUsername(settings.lichessUsername);
+          const savedUsername = settings.lichessUsername.trim().toLowerCase();
+          setUsername(savedUsername);
+          setOriginalUsername(savedUsername);
         }
       } catch (error) {
         console.warn('Failed to load settings', error);
@@ -74,8 +75,10 @@ function LichessSettingsContent() {
       return;
     }
 
+    const trimmedValue = username.trim().toLowerCase();
+
     // Don't save if nothing changed
-    if (username.trim() === originalUsername) {
+    if (trimmedValue === originalUsername) {
       toast({
         title: 'No Changes',
         description: 'Username is already saved',
@@ -86,12 +89,13 @@ function LichessSettingsContent() {
     setIsLoading(true);
 
     try {
-      await updateUserSettings({ lichessUsername: username.trim() });
-      setOriginalUsername(username.trim());
-      
+      await updateUserSettings({ lichessUsername: trimmedValue });
+      setOriginalUsername(trimmedValue);
+      setUsername(trimmedValue);
+
       // Restart Lichess sync with new username
       const { restartLichessSync } = await import('@/lib/lichess-sync');
-      restartLichessSync(username.trim() || undefined);
+      restartLichessSync(trimmedValue || undefined);
       
       toast({
         title: 'Saved',
@@ -126,7 +130,7 @@ function LichessSettingsContent() {
     }
   };
 
-  const hasUnsavedChanges = username.trim() !== originalUsername;
+  const hasUnsavedChanges = username.trim().toLowerCase() !== originalUsername;
 
   return (
     <div className="space-y-4">
