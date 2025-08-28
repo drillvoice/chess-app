@@ -114,7 +114,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/training-sessions/study', async (req, res) => {
     try {
       const validatedData = studySessionSchema.parse(req.body);
-      const session = await storage.createTrainingSession(validatedData);
+      const session = await storage.createTrainingSession({
+        ...validatedData,
+        studyTags: validatedData.studyTags
+          ? JSON.stringify(validatedData.studyTags)
+          : undefined,
+      });
       res.status(201).json(session);
     } catch (error: any) {
       if (error.name === 'ZodError') {
