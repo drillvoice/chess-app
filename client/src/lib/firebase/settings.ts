@@ -109,6 +109,15 @@ export async function getUserSettings(): Promise<UserSettings> {
 // Update user settings in Firestore and offline storage
 export async function updateUserSettings(settings: UserSettings): Promise<void> {
   console.log('🔧 updateUserSettings called with:', settings);
+
+  // Merge incoming settings with any existing ones in offline storage
+  let existingSettings: UserSettings = {};
+  try {
+    existingSettings = ((await offlineStorage.getSettings()) as UserSettings) || {};
+  } catch (error) {
+    console.warn('Failed to read settings from offline storage:', error);
+  }
+  const mergedSettings = { ...existingSettings, ...settings };
   
   try {
     await waitForAuth();
@@ -140,7 +149,7 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
 
   // Cache offline separately - don't fail the operation if this fails
   try {
-    await offlineStorage.setSettings(settings);
+    await offlineStorage.setSettings(mergedSettings);
   } catch (error) {
     console.warn('Failed to cache settings offline, but cloud save succeeded:', error);
     // Don't throw - the main save succeeded
