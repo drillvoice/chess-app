@@ -190,7 +190,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 
   return {
     // Current settings
-    settings,
+    settings: settings ?? null,
     isLoading,
     error,
     

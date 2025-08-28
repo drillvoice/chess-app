@@ -16,6 +16,8 @@ vi.mock('@/lib/firebase/firestore', () => ({
 vi.mock('@/hooks/use-toast', () => ({
   useToast: vi.fn(() => ({
     toast: vi.fn(),
+    dismiss: vi.fn(),
+    toasts: [],
   })),
 }));
 
@@ -40,7 +42,7 @@ function createWrapper() {
 describe('useDailyGoalsSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useToast).mockReturnValue({ toast: mockToast });
+    vi.mocked(useToast).mockReturnValue({ toast: mockToast, dismiss: vi.fn(), toasts: [] });
   });
 
   afterEach(() => {

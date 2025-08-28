@@ -270,7 +270,9 @@ export async function getSessionsByDateRange(
 }
 
 // Helper function to convert studyTags array to JSON string for storage
-function prepareSessionForStorage(session: InsertTrainingSession): any {
+function prepareSessionForStorage(
+  session: Partial<InsertTrainingSession>,
+): Partial<InsertTrainingSession> {
   const prepared = { ...session };
   
   // Convert studyTags array to JSON string for database storage

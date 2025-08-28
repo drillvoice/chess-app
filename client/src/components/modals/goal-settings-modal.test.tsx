@@ -31,8 +31,11 @@ function createWrapper() {
 
 describe('GoalSettingsModal', () => {
   const mockClose = vi.fn();
-  
-  const defaultMockHook = {
+
+  const defaultMockHook: dailyGoalsHook.UseDailyGoalsSettingsReturn = {
+    settings: null,
+    isLoading: false,
+    error: null,
     formData: {
       tacticsMinutes: 30,
       gamesCount: 2,
@@ -46,14 +49,17 @@ describe('GoalSettingsModal', () => {
       studyMinutes: { isValid: true },
       isValid: true,
     },
+    isCustomized: false,
+    hasAnyActiveGoals: false,
     saveSettings: vi.fn(),
+    enableCustomGoals: vi.fn(),
+    disableCustomGoals: vi.fn(),
     isSaving: false,
-    isLoading: false,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseToast.mockReturnValue({ toast: vi.fn() });
+    mockUseToast.mockReturnValue({ toast: vi.fn(), dismiss: vi.fn(), toasts: [] });
     mockUseDailyGoalsSettings.mockReturnValue(defaultMockHook);
   });
 
@@ -143,7 +149,7 @@ describe('GoalSettingsModal', () => {
     fireEvent.change(tacticsInput, { target: { value: '150' } });
 
     await waitFor(() => {
-      const saveButton = screen.getByText('Save Goals');
+      const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
       expect(saveButton.disabled).toBe(true);
     });
   });
@@ -167,7 +173,7 @@ describe('GoalSettingsModal', () => {
     );
 
     // Save button should be enabled even without changes
-    const saveButton = screen.getByText('Save Goals');
+    const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
     
     fireEvent.click(saveButton);
@@ -182,6 +188,7 @@ describe('GoalSettingsModal', () => {
   it('should enable save button when study time changes from 0 to non-zero', async () => {
     const mockSaveSettings = vi.fn().mockResolvedValue(undefined);
     mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
       formData: {
         tacticsMinutes: 0,
         gamesCount: 0,
@@ -189,15 +196,7 @@ describe('GoalSettingsModal', () => {
       },
       setFormData: vi.fn(),
       resetForm: vi.fn(),
-      validation: {
-        tacticsMinutes: { isValid: true },
-        gamesCount: { isValid: true },
-        studyMinutes: { isValid: true },
-        isValid: true,
-      },
       saveSettings: mockSaveSettings,
-      isSaving: false,
-      isLoading: false,
     });
 
     render(
@@ -209,7 +208,7 @@ describe('GoalSettingsModal', () => {
     const studyInput = screen.getByLabelText('Study time (minutes)');
     fireEvent.change(studyInput, { target: { value: '15' } });
 
-    const saveButton = screen.getByText('Save Goals');
+    const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
   });
 
@@ -264,7 +263,7 @@ describe('GoalSettingsModal', () => {
     );
 
     // Save button should be enabled from the start (no changes needed)
-    const saveButton = screen.getByText('Save Goals');
+    const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
   });
 
@@ -286,7 +285,7 @@ describe('GoalSettingsModal', () => {
       expect(studyInput.className).toContain('border-red-500');
       
       // Save button should be disabled
-      const saveButton = screen.getByText('Save Goals');
+      const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
       expect(saveButton.disabled).toBe(true);
     });
   });
