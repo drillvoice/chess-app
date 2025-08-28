@@ -191,7 +191,9 @@ export function TagManager({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleRemoveTag(tag);
+                    if (window.confirm('Confirm tag delete: yes / no')) {
+                      handleRemoveTag(tag);
+                    }
                   }}
                   disabled={isDeletingTag === tag || disabled}
                   className="ml-1 flex h-4 w-4 items-center justify-center rounded-sm text-gray-400 hover:bg-red-100 hover:text-red-600 disabled:opacity-50"
