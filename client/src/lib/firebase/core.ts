@@ -210,6 +210,12 @@ export function getCurrentUserId(): string | null {
 // Public function to ensure anonymous authentication for apps that need Firebase access
 export async function ensureAuthentication(): Promise<void> {
   await ensureFirebase();
+  await new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, () => {
+      unsub();
+      resolve(undefined);
+    });
+  });
   if (!auth.currentUser) {
     await ensureAnonymousAuth();
   }
