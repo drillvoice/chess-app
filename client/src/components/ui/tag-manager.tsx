@@ -216,18 +216,18 @@ export function TagManager({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Tag</AlertDialogTitle>
+                      <AlertDialogTitle>Delete tag</AlertDialogTitle>
                       <AlertDialogDescription>
                         Are you sure you want to delete the “{tag}” tag?
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>No, cancel</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-red-600 hover:bg-red-700"
                         onClick={() => handleRemoveTag(tag)}
                       >
-                        Delete
+                        Yes, delete
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
