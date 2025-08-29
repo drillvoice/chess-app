@@ -1,42 +1,42 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // Utility for handling dynamic import failures with retry logic
 export async function dynamicImportWithRetry<T>(
   importFn: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelay: number = 1000
+  baseDelay: number = 1000,
 ): Promise<T> {
   let lastError: Error;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await importFn();
     } catch (error) {
       lastError = error as Error;
-      
+
       // If it's not a network-related error, don't retry
       if (!isNetworkError(error as Error)) {
         throw error;
       }
-      
+
       // If this is the last attempt, throw the error
       if (attempt === maxRetries) {
         console.error(`Dynamic import failed after ${maxRetries + 1} attempts:`, error);
         throw error;
       }
-      
+
       // Wait before retrying with exponential backoff
       const delay = baseDelay * Math.pow(2, attempt);
       console.warn(`Dynamic import attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  
+
   throw lastError!;
 }
 
@@ -48,12 +48,10 @@ export function isNetworkError(error: Error): boolean {
     'dynamically imported module',
     'ERR_NETWORK',
     'ERR_INTERNET_DISCONNECTED',
-    'ERR_NETWORK_CHANGED'
+    'ERR_NETWORK_CHANGED',
   ];
-  
-  return networkErrorPatterns.some(pattern => 
-    error.message.includes(pattern)
-  );
+
+  return networkErrorPatterns.some((pattern) => error.message.includes(pattern));
 }
 
 // Utility to clear app cache
@@ -63,34 +61,32 @@ export async function clearAppCache(): Promise<void> {
     if ('caches' in window) {
       const cacheNames = await caches.keys();
       await Promise.all(
-        cacheNames.map(cacheName => {
+        cacheNames.map((cacheName) => {
           if (cacheName.includes('chess-training')) {
             return caches.delete(cacheName);
           }
-        })
+        }),
       );
     }
-    
+
     // Clear IndexedDB
     if ('indexedDB' in window) {
       const databases = await indexedDB.databases();
       await Promise.all(
-        databases.map(db => {
+        databases.map((db) => {
           if (db.name && db.name.includes('chess')) {
             return indexedDB.deleteDatabase(db.name);
           }
-        })
+        }),
       );
     }
-    
+
     // Unregister service workers
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(
-        registrations.map(registration => registration.unregister())
-      );
+      await Promise.all(registrations.map((registration) => registration.unregister()));
     }
-    
+
     console.log('App cache cleared successfully');
   } catch (error) {
     console.error('Failed to clear app cache:', error);
@@ -99,8 +95,10 @@ export async function clearAppCache(): Promise<void> {
 
 // Utility to check if the app is running in a PWA context
 export function isPWA(): boolean {
-  return window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
 }
 
 // Utility to get app version for debugging
@@ -176,10 +174,11 @@ export interface GoalProperties {
  * Check if a TrainingSession has goal properties
  */
 export function hasGoalProperties(session: any): session is GoalProperties {
-  return session && (
-    typeof session.goalTitle === 'string' ||
-    typeof session.goalDescription === 'string' ||
-    session.goalWeekStart instanceof Date
+  return (
+    session &&
+    (typeof session.goalTitle === 'string' ||
+      typeof session.goalDescription === 'string' ||
+      session.goalWeekStart instanceof Date)
   );
 }
 
@@ -190,13 +189,16 @@ export function getGoalProperties(session: any): GoalProperties | null {
   if (!hasGoalProperties(session)) {
     return null;
   }
-  
+
   return {
     goalTitle: session.goalTitle,
     goalDescription: session.goalDescription,
-    goalWeekStart: session.goalWeekStart instanceof Date 
-      ? session.goalWeekStart 
-      : session.goalWeekStart ? new Date(session.goalWeekStart) : undefined,
+    goalWeekStart:
+      session.goalWeekStart instanceof Date
+        ? session.goalWeekStart
+        : session.goalWeekStart
+          ? new Date(session.goalWeekStart)
+          : undefined,
   };
 }
 
@@ -253,12 +255,8 @@ export function validateStudyMinutes(value: number): GoalValidationResult {
 
 export function hasActiveGoals(settings: any): boolean {
   if (!settings) return false;
-  
-  return (
-    (settings.tacticsMinutes > 0) ||
-    (settings.gamesCount > 0) ||
-    (settings.studyMinutes > 0)
-  );
+
+  return settings.tacticsMinutes > 0 || settings.gamesCount > 0 || settings.studyMinutes > 0;
 }
 
 /**
@@ -269,10 +267,9 @@ export function formatStudyDisplay(session: any): string {
   // Try to parse studyTags first (new format)
   if (session.studyTags) {
     try {
-      const tags = typeof session.studyTags === 'string' 
-        ? JSON.parse(session.studyTags) 
-        : session.studyTags;
-      
+      const tags =
+        typeof session.studyTags === 'string' ? JSON.parse(session.studyTags) : session.studyTags;
+
       if (Array.isArray(tags) && tags.length > 0) {
         return `Study: ${tags.join(', ')}`;
       }
@@ -280,12 +277,12 @@ export function formatStudyDisplay(session: any): string {
       console.warn('Failed to parse studyTags:', error);
     }
   }
-  
+
   // Fall back to legacy studyType format
   if (session.studyType) {
     return `${session.studyType.charAt(0).toUpperCase()}${session.studyType.slice(1)} Study`;
   }
-  
+
   // Default fallback
   return 'Study';
 }

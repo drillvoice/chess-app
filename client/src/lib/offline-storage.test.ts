@@ -8,8 +8,16 @@ beforeEach(async () => {
 
 describe('offlineStorage', () => {
   it('adds and retrieves sessions in descending date order', async () => {
-    await offlineStorage.addSession({ id: 1, type: 'tactics', date: new Date('2024-01-01') } as any);
-    await offlineStorage.addSession({ id: 2, type: 'tactics', date: new Date('2024-01-02') } as any);
+    await offlineStorage.addSession({
+      id: 1,
+      type: 'tactics',
+      date: new Date('2024-01-01'),
+    } as any);
+    await offlineStorage.addSession({
+      id: 2,
+      type: 'tactics',
+      date: new Date('2024-01-02'),
+    } as any);
     const sessions = await offlineStorage.getSessions();
     expect(sessions.map((s) => s.id)).toEqual([2, 1]);
   });

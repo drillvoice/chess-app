@@ -1,9 +1,4 @@
-import {
-  type ComponentType,
-  type ErrorInfo,
-  type ReactNode,
-  Component,
-} from 'react';
+import { type ComponentType, type ErrorInfo, type ReactNode, Component } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
@@ -32,17 +27,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
-    
+
     // Log specific dynamic import failures for debugging
     if (error.message.includes('Failed to fetch dynamically imported module')) {
-      console.warn('Dynamic import failure detected. This may be due to network issues or cache problems.');
+      console.warn(
+        'Dynamic import failure detected. This may be due to network issues or cache problems.',
+      );
     }
   }
 
   handleRetry = async () => {
     const { retryCount } = this.state;
     const maxRetries = 3;
-    
+
     if (retryCount >= maxRetries) {
       // After max retries, try to clear cache and reload
       this.handleHardRefresh();
@@ -50,47 +47,49 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     this.setState({ isRetrying: true });
-    
+
     // Wait a bit before retrying with exponential backoff
-    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-    
-    this.setState(prevState => ({
+    await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+
+    this.setState((prevState) => ({
       hasError: false,
       error: undefined,
       retryCount: prevState.retryCount + 1,
-      isRetrying: false
+      isRetrying: false,
     }));
   };
 
   handleHardRefresh = () => {
     // Clear service worker cache and reload
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(registration => {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
           registration.unregister();
         });
       });
     }
-    
+
     // Clear browser cache for this domain
     if ('caches' in window) {
-      caches.keys().then(cacheNames => {
-        cacheNames.forEach(cacheName => {
+      caches.keys().then((cacheNames) => {
+        cacheNames.forEach((cacheName) => {
           if (cacheName.includes('chess-training')) {
             caches.delete(cacheName);
           }
         });
       });
     }
-    
+
     // Reload the page
     window.location.reload();
   };
 
   isNetworkError = (error: Error): boolean => {
-    return error.message.includes('Failed to fetch') ||
-           error.message.includes('NetworkError') ||
-           error.message.includes('dynamically imported module');
+    return (
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('NetworkError') ||
+      error.message.includes('dynamically imported module')
+    );
   };
 
   isOffline = (): boolean => {
@@ -101,8 +100,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       const FallbackComponent = this.props.fallback || DefaultErrorFallback;
       return (
-        <FallbackComponent 
-          error={this.state.error!} 
+        <FallbackComponent
+          error={this.state.error!}
           retry={this.handleRetry}
           isRetrying={this.state.isRetrying}
           retryCount={this.state.retryCount}
@@ -116,16 +115,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 }
 
-function DefaultErrorFallback({ 
-  error, 
-  retry, 
-  isRetrying, 
-  retryCount, 
+function DefaultErrorFallback({
+  error,
+  retry,
+  isRetrying,
+  retryCount,
   _isNetworkError,
-  isOffline 
-}: { 
-  error: Error; 
-  retry: () => void; 
+  isOffline,
+}: {
+  error: Error;
+  retry: () => void;
   isRetrying: boolean;
   retryCount: number;
   isNetworkError: boolean;
@@ -133,24 +132,23 @@ function DefaultErrorFallback({
 }) {
   const maxRetries = 3;
   const isDynamicImportError = error.message.includes('dynamically imported module');
-  
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardContent className="p-6 text-center">
           <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
-          
+
           <h2 className="mb-2 text-lg font-semibold text-gray-900">
-            {isOffline ? 'You\'re offline' : 'Something went wrong'}
+            {isOffline ? "You're offline" : 'Something went wrong'}
           </h2>
-          
+
           <p className="mb-4 text-gray-600">
-            {isOffline 
+            {isOffline
               ? 'Please check your internet connection and try again.'
               : isDynamicImportError
                 ? 'The app is having trouble loading some components. This is usually temporary.'
-                : 'The app encountered an unexpected error. This might be a temporary issue.'
-            }
+                : 'The app encountered an unexpected error. This might be a temporary issue.'}
           </p>
 
           {/* Show network status */}
@@ -183,18 +181,18 @@ function DefaultErrorFallback({
           </details>
 
           <div className="flex flex-col gap-2">
-            <Button 
-              onClick={retry} 
+            <Button
+              onClick={retry}
               disabled={isRetrying || isOffline}
               className="flex items-center gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
               {isRetrying ? 'Retrying...' : 'Try Again'}
             </Button>
-            
+
             {retryCount >= maxRetries && (
-              <Button 
-                onClick={() => window.location.reload()} 
+              <Button
+                onClick={() => window.location.reload()}
                 variant="outline"
                 className="flex items-center gap-2"
               >

@@ -100,7 +100,7 @@ class SQLiteStorage {
 
     try {
       const [results] = await this.db.executeSql(
-        'SELECT * FROM training_sessions ORDER BY date DESC'
+        'SELECT * FROM training_sessions ORDER BY date DESC',
       );
 
       const sessions: TrainingSession[] = [];
@@ -167,7 +167,7 @@ class SQLiteStorage {
           session.goalTitle,
           session.goalDescription,
           session.goalWeekStart?.toISOString(),
-        ]
+        ],
       );
 
       return {
@@ -185,8 +185,8 @@ class SQLiteStorage {
 
     try {
       const setClause = Object.keys(updates)
-        .filter(key => key !== 'id')
-        .map(key => `${this.camelToSnake(key)} = ?`)
+        .filter((key) => key !== 'id')
+        .map((key) => `${this.camelToSnake(key)} = ?`)
         .join(', ');
 
       const values = Object.entries(updates)
@@ -199,7 +199,7 @@ class SQLiteStorage {
 
       await this.db.executeSql(
         `UPDATE training_sessions SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [...values, id]
+        [...values, id],
       );
     } catch (error) {
       console.error('Failed to update session in SQLite:', error);
@@ -222,10 +222,7 @@ class SQLiteStorage {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
-      const [results] = await this.db.executeSql(
-        'SELECT value FROM settings WHERE key = ?',
-        [key]
-      );
+      const [results] = await this.db.executeSql('SELECT value FROM settings WHERE key = ?', [key]);
 
       if (results.rows.length > 0) {
         return results.rows.item(0).value;
@@ -243,7 +240,7 @@ class SQLiteStorage {
     try {
       await this.db.executeSql(
         'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
-        [key, value]
+        [key, value],
       );
     } catch (error) {
       console.error('Failed to set setting in SQLite:', error);
@@ -255,9 +252,7 @@ class SQLiteStorage {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
-      const [results] = await this.db.executeSql(
-        'SELECT data FROM statistics_cache WHERE id = 1'
-      );
+      const [results] = await this.db.executeSql('SELECT data FROM statistics_cache WHERE id = 1');
 
       if (results.rows.length > 0) {
         return JSON.parse(results.rows.item(0).data);
@@ -275,7 +270,7 @@ class SQLiteStorage {
     try {
       await this.db.executeSql(
         'INSERT OR REPLACE INTO statistics_cache (id, data, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)',
-        [JSON.stringify(stats)]
+        [JSON.stringify(stats)],
       );
     } catch (error) {
       console.error('Failed to set statistics in SQLite:', error);
@@ -301,9 +296,9 @@ class SQLiteStorage {
 
     try {
       const [sessionResults] = await this.db.executeSql(
-        'SELECT COUNT(*) as count FROM training_sessions'
+        'SELECT COUNT(*) as count FROM training_sessions',
       );
-      
+
       // Note: Getting actual database file size would require native module
       // This is a simplified estimate
       const sessionCount = sessionResults.rows.item(0).count;
@@ -320,7 +315,7 @@ class SQLiteStorage {
   }
 
   private camelToSnake(str: string): string {
-    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
   }
 
   async close(): Promise<void> {

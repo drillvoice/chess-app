@@ -15,10 +15,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-import { 
-  addCustomStudyTag, 
-  removeCustomStudyTag 
-} from '@/lib/firebase/settings';
+import { addCustomStudyTag, removeCustomStudyTag } from '@/lib/firebase/settings';
 import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
 
 interface TagManagerProps {
@@ -33,8 +30,8 @@ interface TagManagerProps {
 export function TagManager({
   selectedTags,
   onTagsChange,
-  label = "Study tags",
-  placeholder = "Add new tag...",
+  label = 'Study tags',
+  placeholder = 'Add new tag...',
   maxTags = 10,
   disabled = false,
 }: TagManagerProps) {
@@ -46,7 +43,11 @@ export function TagManager({
   const [showAddInput, setShowAddInput] = useState(false);
 
   // Use the optimized hook for study preferences
-  const { preferences, isLoading: preferencesLoading, error: _preferencesError } = useStudyPreferences();
+  const {
+    preferences,
+    isLoading: preferencesLoading,
+    error: _preferencesError,
+  } = useStudyPreferences();
 
   // Update available tags when preferences change
   useEffect(() => {
@@ -63,31 +64,31 @@ export function TagManager({
 
   const handleAddTag = async () => {
     const trimmedTag = newTagInput.trim();
-    
+
     if (!trimmedTag) return;
-    
+
     // Validation
     if (trimmedTag.length > 25) {
       return;
     }
-    
+
     if (!/^[a-zA-Z0-9\s\-']+$/.test(trimmedTag)) {
       return;
     }
-    
+
     if (availableTags.length >= maxTags) {
       return;
     }
-    
+
     // Check if tag already exists (case-insensitive)
-    if (availableTags.some(tag => tag.toLowerCase() === trimmedTag.toLowerCase())) {
+    if (availableTags.some((tag) => tag.toLowerCase() === trimmedTag.toLowerCase())) {
       return;
     }
-    
+
     try {
       setIsAddingTag(true);
       await addCustomStudyTag(trimmedTag);
-      
+
       // Update local state immediately for better UX
       const newTags = [...availableTags, trimmedTag].sort();
       setAvailableTags(newTags);
@@ -97,12 +98,12 @@ export function TagManager({
       // Automatically select the new tag if it isn't already selected
       // and we haven't reached the 10-tag limit
       if (
-        !selectedTags.some(tag => tag.toLowerCase() === trimmedTag.toLowerCase()) &&
+        !selectedTags.some((tag) => tag.toLowerCase() === trimmedTag.toLowerCase()) &&
         selectedTags.length < 10
       ) {
         onTagsChange([...selectedTags, trimmedTag]);
       }
-      
+
       // Update the global cache
       if (preferences) {
         const updatedPreferences = {
@@ -122,16 +123,16 @@ export function TagManager({
     try {
       setIsDeletingTag(tagToRemove);
       await removeCustomStudyTag(tagToRemove);
-      
+
       // Update local state immediately
-      const newTags = availableTags.filter(tag => tag !== tagToRemove);
+      const newTags = availableTags.filter((tag) => tag !== tagToRemove);
       setAvailableTags(newTags);
-      
+
       // Also remove from selected tags if it was selected
       if (selectedTags.includes(tagToRemove)) {
-        onTagsChange(selectedTags.filter(tag => tag !== tagToRemove));
+        onTagsChange(selectedTags.filter((tag) => tag !== tagToRemove));
       }
-      
+
       // Update the global cache
       if (preferences) {
         const updatedPreferences = {
@@ -149,10 +150,10 @@ export function TagManager({
 
   const handleTagToggle = (tag: string) => {
     if (disabled) return;
-    
+
     if (selectedTags.includes(tag)) {
       // Remove tag
-      onTagsChange(selectedTags.filter(t => t !== tag));
+      onTagsChange(selectedTags.filter((t) => t !== tag));
     } else {
       // Add tag (limit to 10 selected)
       if (selectedTags.length >= 10) {
@@ -183,7 +184,7 @@ export function TagManager({
   return (
     <div className="space-y-3">
       <Label className="text-sm font-medium text-gray-700">{label}</Label>
-      
+
       {/* Available tags display */}
       <div className="space-y-2">
         {availableTags.length > 0 ? (
@@ -234,7 +235,7 @@ export function TagManager({
                 </AlertDialog>
               </div>
             ))}
-            
+
             {/* Add button at the end of tag list */}
             {!showAddInput && availableTags.length < maxTags && (
               <Button
@@ -243,7 +244,7 @@ export function TagManager({
                 variant="outline"
                 onClick={() => setShowAddInput(true)}
                 disabled={disabled}
-                className="flex items-center gap-1 px-2 py-1 text-sm border-dashed"
+                className="flex items-center gap-1 border-dashed px-2 py-1 text-sm"
               >
                 <Plus className="h-3 w-3" />
                 Add
@@ -260,7 +261,7 @@ export function TagManager({
                 variant="outline"
                 onClick={() => setShowAddInput(true)}
                 disabled={disabled}
-                className="flex items-center gap-1 px-2 py-1 text-sm border-dashed"
+                className="flex items-center gap-1 border-dashed px-2 py-1 text-sm"
               >
                 <Plus className="h-3 w-3" />
                 Add first tag
@@ -269,7 +270,7 @@ export function TagManager({
           </div>
         )}
       </div>
-      
+
       {/* Add new tag input (only shown when adding) */}
       {showAddInput && (
         <div className="flex gap-2">
@@ -288,10 +289,7 @@ export function TagManager({
             size="sm"
             onClick={handleAddTag}
             disabled={
-              !newTagInput.trim() || 
-              isAddingTag || 
-              disabled || 
-              availableTags.length >= maxTags
+              !newTagInput.trim() || isAddingTag || disabled || availableTags.length >= maxTags
             }
             className="flex items-center gap-1 px-3"
           >
@@ -316,8 +314,6 @@ export function TagManager({
           </Button>
         </div>
       )}
-      
-
     </div>
   );
 }

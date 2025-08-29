@@ -96,7 +96,7 @@ function LichessSettingsContent() {
       // Restart Lichess sync with new username
       const { restartLichessSync } = await import('@/lib/lichess-sync');
       restartLichessSync(trimmedValue || undefined);
-      
+
       toast({
         title: 'Saved',
         description: 'Lichess username updated successfully',
@@ -134,9 +134,7 @@ function LichessSettingsContent() {
 
   return (
     <div className="space-y-4">
-      {loadError && (
-        <div className="rounded bg-red-50 p-2 text-sm text-red-600">{loadError}</div>
-      )}
+      {loadError && <div className="rounded bg-red-50 p-2 text-sm text-red-600">{loadError}</div>}
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="flex-1">
@@ -165,8 +163,7 @@ function LichessSettingsContent() {
       </div>
 
       <p className="text-xs text-gray-600">
-        Link your Lichess account to automatically import completed games into your training
-        log.
+        Link your Lichess account to automatically import completed games into your training log.
       </p>
     </div>
   );

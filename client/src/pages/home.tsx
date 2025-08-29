@@ -11,7 +11,6 @@ import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties } from '@/lib/utils';
 import versionData from '@/version.json';
 
-
 interface Statistics {
   totalHours: number;
   totalSessions: number;
@@ -21,16 +20,12 @@ interface Statistics {
   todaySessions: number;
 }
 
-
-
 export default function Home() {
   const [tacticsModalOpen, setTacticsModalOpen] = useState(false);
   const [gameModalOpen, setGameModalOpen] = useState(false);
   const [studyModalOpen, setStudyModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
-  
-
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
@@ -67,44 +62,46 @@ export default function Home() {
 
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
-  mutationFn: async (sessionId: number) => {
-    console.log('Archive mutation called for session:', sessionId);
-    const { updateSession } = await import('@/lib/firebase');
-    const result = await updateSession(sessionId, { needsReview: false });
-    console.log('Archive mutation result:', result);
-    return result;
-  },
-  onMutate: async (sessionId) => {
-    console.log('Archive mutation onMutate for session:', sessionId);
-    // Cancel any outgoing refetches
-    await queryClient.cancelQueries({ queryKey: ['pending-review'] });
-    
-    // Snapshot the previous value
-    const previousPendingSessions = queryClient.getQueryData<TrainingSession[]>(['pending-review']);
-    console.log('Previous pending sessions:', previousPendingSessions);
-    
-    // Optimistically update to new value
-    queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) => {
-      const filtered = old.filter(session => session.id !== sessionId);
-      console.log('Optimistically filtered sessions:', filtered);
-      return filtered;
-    });
-    
-    // Return a context object with the snapshotted value
-    return { previousPendingSessions };
-  },
-  onError: (err, sessionId, context) => {
-    console.error('Archive mutation error:', err);
-    // If the mutation fails, use the context returned from onMutate to roll back
-    if (context?.previousPendingSessions) {
-      queryClient.setQueryData(['pending-review'], context.previousPendingSessions);
-    }
-  },
-  onSuccess: (data, sessionId) => {
-    console.log('Archive mutation success for session:', sessionId, 'data:', data);
-    // Don't invalidate queries here as it might refetch old data before background sync completes
-    // The optimistic update should be sufficient for immediate UI feedback
-  },
+    mutationFn: async (sessionId: number) => {
+      console.log('Archive mutation called for session:', sessionId);
+      const { updateSession } = await import('@/lib/firebase');
+      const result = await updateSession(sessionId, { needsReview: false });
+      console.log('Archive mutation result:', result);
+      return result;
+    },
+    onMutate: async (sessionId) => {
+      console.log('Archive mutation onMutate for session:', sessionId);
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['pending-review'] });
+
+      // Snapshot the previous value
+      const previousPendingSessions = queryClient.getQueryData<TrainingSession[]>([
+        'pending-review',
+      ]);
+      console.log('Previous pending sessions:', previousPendingSessions);
+
+      // Optimistically update to new value
+      queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) => {
+        const filtered = old.filter((session) => session.id !== sessionId);
+        console.log('Optimistically filtered sessions:', filtered);
+        return filtered;
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousPendingSessions };
+    },
+    onError: (err, sessionId, context) => {
+      console.error('Archive mutation error:', err);
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousPendingSessions) {
+        queryClient.setQueryData(['pending-review'], context.previousPendingSessions);
+      }
+    },
+    onSuccess: (data, sessionId) => {
+      console.log('Archive mutation success for session:', sessionId, 'data:', data);
+      // Don't invalidate queries here as it might refetch old data before background sync completes
+      // The optimistic update should be sufficient for immediate UI feedback
+    },
   });
 
   const goalProperties = weeklyGoal ? getGoalProperties(weeklyGoal) : null;
@@ -131,17 +128,20 @@ export default function Home() {
                   <span className="text-gray-700">{formatSessionDate(session.date)}</span>
                   {/* Display score dynamically based on game result */}
                   {session.type === 'game' && (
-                    <span className="text-xs text-gray-500 font-mono">
-                      {session.gameResult === 'draw' ? '1/2-1/2' : 
-                       session.gameResult === 'win' ? 
-                         (session.playerColor === 'white' ? '1-0' : '0-1') :
-                         (session.playerColor === 'white' ? '0-1' : '1-0')}
+                    <span className="font-mono text-xs text-gray-500">
+                      {session.gameResult === 'draw'
+                        ? '1/2-1/2'
+                        : session.gameResult === 'win'
+                          ? session.playerColor === 'white'
+                            ? '1-0'
+                            : '0-1'
+                          : session.playerColor === 'white'
+                            ? '0-1'
+                            : '1-0'}
                     </span>
                   )}
                   {session.opponentUsername && (
-                    <span className="text-xs text-gray-500">
-                      vs {session.opponentUsername}
-                    </span>
+                    <span className="text-xs text-gray-500">vs {session.opponentUsername}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -179,11 +179,11 @@ export default function Home() {
                 <h3 className="mb-1 font-semibold text-gray-800">
                   {isGoalOld ? "Last week's goal" : 'Your goal for this week is:'}
                 </h3>
-                <p className="font-medium text-gray-700">{goalProperties?.goalTitle || 'No title'}</p>
+                <p className="font-medium text-gray-700">
+                  {goalProperties?.goalTitle || 'No title'}
+                </p>
                 {goalProperties?.goalDescription && (
-                  <p className="mt-1 text-sm text-gray-600">
-                    {goalProperties.goalDescription}
-                  </p>
+                  <p className="mt-1 text-sm text-gray-600">{goalProperties.goalDescription}</p>
                 )}
                 {isGoalOld && (
                   <div className="mt-2">
@@ -320,11 +320,12 @@ export default function Home() {
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
       </Suspense>
 
-      
-
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">
-        <p className="text-xs text-gray-500">  Pawn Star Chess Log v{versionData.version} - {versionData.lastUpdated}</p>
+        <p className="text-xs text-gray-500">
+          {' '}
+          Pawn Star Chess Log v{versionData.version} - {versionData.lastUpdated}
+        </p>
       </div>
     </div>
   );

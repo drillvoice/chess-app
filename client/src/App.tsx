@@ -67,19 +67,19 @@ function App() {
             }
           }
         });
-              } catch (err) {
-          console.error('Lichess sync init failed:', err);
-        }
-      };
+      } catch (err) {
+        console.error('Lichess sync init failed:', err);
+      }
+    };
 
-      // Initialize cache warming
-      initializeCacheWarming();
-      cleanupOnlineWarming = setupOnlineCacheWarming();
+    // Initialize cache warming
+    initializeCacheWarming();
+    cleanupOnlineWarming = setupOnlineCacheWarming();
 
-      // Preload study preferences for instant TagManager loading
-      preloadStudyPreferences();
+    // Preload study preferences for instant TagManager loading
+    preloadStudyPreferences();
 
-      init();
+    init();
 
     return () => {
       if (unsub) unsub();

@@ -12,7 +12,7 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 10000): 
 export async function safeDatabaseOperation<T>(
   operation: () => Promise<T>,
   timeoutMs: number = 10000,
-  fallback: T
+  fallback: T,
 ): Promise<T> {
   try {
     return await withTimeout(operation(), timeoutMs);

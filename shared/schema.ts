@@ -91,25 +91,26 @@ export const gameSessionSchema = insertTrainingSessionSchema
   });
 
 // Study tag validation schema
-export const studyTagSchema = z.string()
+export const studyTagSchema = z
+  .string()
   .min(1, 'Tag cannot be empty')
   .max(25, 'Tag cannot exceed 25 characters')
-  .refine(
-    (tag) => !/[<>&"']/.test(tag),
-    'Tag cannot contain special characters < > & " \''
-  );
+  .refine((tag) => !/[<>&"']/.test(tag), 'Tag cannot contain special characters < > & " \'');
 
 export const studySessionSchema = insertTrainingSessionSchema
   .extend({
     type: z.literal('study'),
     duration: z.number().min(1, 'Duration must be at least 1 minute'),
-    studyTags: z.array(studyTagSchema)
+    studyTags: z
+      .array(studyTagSchema)
       .max(10, 'Cannot select more than 10 tags')
       .optional()
       .default([]),
     studyNotes: z.string().optional(),
     // Keep studyType as optional for backward compatibility
-    studyType: z.enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course']).optional(),
+    studyType: z
+      .enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course'])
+      .optional(),
   })
   .omit({
     pointsGained: true,
@@ -149,7 +150,8 @@ export const goalSessionSchema = insertTrainingSessionSchema
 
 // User Study Preferences Schema
 export const userStudyPreferencesSchema = z.object({
-  customTags: z.array(studyTagSchema)
+  customTags: z
+    .array(studyTagSchema)
     .max(10, 'Cannot have more than 10 custom tags')
     .default(['reading', 'videos', 'coaching']), // Default tags
   lastModified: z.date().optional(),

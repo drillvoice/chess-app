@@ -30,31 +30,43 @@ export default function GameModal({
   const [selectedResult, setSelectedResult] = useState<'win' | 'loss' | 'draw' | null>(null);
   const [selectedColor, setSelectedColor] = useState<'white' | 'black' | null>(null);
   const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(
+    null,
+  );
 
   const {
-  register,
-  handleSubmit,
-  formState: { errors },
-  reset,
-  setValue,
-  trigger,
-} = useForm<GameSession>({
-  resolver: zodResolver(gameSessionSchema),
-  defaultValues: {
-    type: 'game',
-    gameResult: isEditMode && editingSession ? 
-      (editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined) : undefined,
-    gameComments: isEditMode && editingSession && !editingSession.opponentUsername ? 
-      (editingSession.gameComments || '') : '',
-    playerColor: isEditMode && editingSession ? 
-      (editingSession.playerColor as 'white' | 'black' | undefined) : undefined,
-    platform: isEditMode && editingSession ? 
-      (editingSession.platform as 'lichess' | 'chess.com' | 'otb' | undefined) : undefined,
-    timeControl: isEditMode && editingSession ? 
-      (editingSession.timeControl as 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined) : undefined,
-  },
-});
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    trigger,
+  } = useForm<GameSession>({
+    resolver: zodResolver(gameSessionSchema),
+    defaultValues: {
+      type: 'game',
+      gameResult:
+        isEditMode && editingSession
+          ? (editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined)
+          : undefined,
+      gameComments:
+        isEditMode && editingSession && !editingSession.opponentUsername
+          ? editingSession.gameComments || ''
+          : '',
+      playerColor:
+        isEditMode && editingSession
+          ? (editingSession.playerColor as 'white' | 'black' | undefined)
+          : undefined,
+      platform:
+        isEditMode && editingSession
+          ? (editingSession.platform as 'lichess' | 'chess.com' | 'otb' | undefined)
+          : undefined,
+      timeControl:
+        isEditMode && editingSession
+          ? (editingSession.timeControl as 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined)
+          : undefined,
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
@@ -204,37 +216,37 @@ export default function GameModal({
   });
 
   useEffect(() => {
-  if (isEditMode && editingSession) {
-    const gameResult = editingSession.gameResult as 'win' | 'loss' | 'draw' | null;
-    const playerColor = editingSession.playerColor as 'white' | 'black' | null;
-    const timeControl = editingSession.timeControl;
-    const platform = editingSession.platform;
-    
-    // Set visual state
-    setSelectedResult(gameResult);
-    setSelectedColor(playerColor);
-    setSelectedTimeControl(timeControl);
-    setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
-    
-    // Set form values properly with validation
-    if (gameResult) {
-      setValue('gameResult', gameResult, { shouldValidate: true });
+    if (isEditMode && editingSession) {
+      const gameResult = editingSession.gameResult as 'win' | 'loss' | 'draw' | null;
+      const playerColor = editingSession.playerColor as 'white' | 'black' | null;
+      const timeControl = editingSession.timeControl;
+      const platform = editingSession.platform;
+
+      // Set visual state
+      setSelectedResult(gameResult);
+      setSelectedColor(playerColor);
+      setSelectedTimeControl(timeControl);
+      setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
+
+      // Set form values properly with validation
+      if (gameResult) {
+        setValue('gameResult', gameResult, { shouldValidate: true });
+      }
+      if (playerColor) {
+        setValue('playerColor', playerColor, { shouldValidate: true });
+      }
+      if (timeControl) {
+        setValue('timeControl', timeControl as any, { shouldValidate: true });
+      }
+      if (platform) {
+        setValue('platform', platform as any, { shouldValidate: true });
+      }
+      // Don't pre-fill comments for synced games - let user add their own
+      if (editingSession.gameComments && !editingSession.opponentUsername) {
+        setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
+      }
     }
-    if (playerColor) {
-      setValue('playerColor', playerColor, { shouldValidate: true });
-    }
-    if (timeControl) {
-      setValue('timeControl', timeControl as any, { shouldValidate: true });
-    }
-    if (platform) {
-      setValue('platform', platform as any, { shouldValidate: true });
-    }
-    // Don't pre-fill comments for synced games - let user add their own
-    if (editingSession.gameComments && !editingSession.opponentUsername) {
-      setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
-    }
-  }
-}, [editingSession, isEditMode, setValue]);
+  }, [editingSession, isEditMode, setValue]);
 
   const onSubmit = (data: GameSession) => {
     // Add current date to the session data
@@ -282,25 +294,25 @@ export default function GameModal({
   };
 
   const handleModalChange = (open: boolean) => {
-  if (!open) {
-    // Only reset if not in edit mode or if we're closing after editing
-    if (!isEditMode) {
-      reset({
-        type: 'game',
-        gameResult: undefined,
-        gameComments: '',
-        playerColor: undefined,
-        platform: undefined,
-        timeControl: undefined,
-      });
-      setSelectedResult(null);
-      setSelectedColor(null);
-      setSelectedTimeControl(null);
-      setSelectedPlatform(null);
+    if (!open) {
+      // Only reset if not in edit mode or if we're closing after editing
+      if (!isEditMode) {
+        reset({
+          type: 'game',
+          gameResult: undefined,
+          gameComments: '',
+          playerColor: undefined,
+          platform: undefined,
+          timeControl: undefined,
+        });
+        setSelectedResult(null);
+        setSelectedColor(null);
+        setSelectedTimeControl(null);
+        setSelectedPlatform(null);
+      }
     }
-  }
-  onOpenChange(open);
-};
+    onOpenChange(open);
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleModalChange}>
@@ -447,15 +459,13 @@ export default function GameModal({
             </div>
 
             <div>
-              <Label className="mb-2 block text-sm font-medium text-gray-700">
-                Time control
-              </Label>
+              <Label className="mb-2 block text-sm font-medium text-gray-700">Time control</Label>
               <div className="flex gap-2">
                 {[
                   { value: 'bullet', label: 'Bullet', icon: '•' },
                   { value: 'blitz', label: 'Blitz', icon: Zap },
                   { value: 'rapid', label: 'Rapid', icon: Hourglass },
-                  { value: 'classical', label: 'Classical', icon: Clock3 }
+                  { value: 'classical', label: 'Classical', icon: Clock3 },
                 ].map((tc) => (
                   <Button
                     key={tc.value}
@@ -487,13 +497,13 @@ export default function GameModal({
               <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
                 Comments
               </Label>
-                             <Textarea
-                 id="gameComments"
-                 placeholder="Great endgame technique..."
-                 className="mt-1"
-                 rows={2}
-                 {...register('gameComments')}
-               />
+              <Textarea
+                id="gameComments"
+                placeholder="Great endgame technique..."
+                className="mt-1"
+                rows={2}
+                {...register('gameComments')}
+              />
             </div>
           </div>
 

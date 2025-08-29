@@ -31,7 +31,9 @@ export default defineConfig({
         },
         // Improve chunk naming for better caching
         chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
+          const facadeModuleId = chunkInfo.facadeModuleId
+            ? chunkInfo.facadeModuleId.split('/').pop()
+            : 'chunk';
           return `assets/${facadeModuleId}-[hash].js`;
         },
         // Ensure consistent asset naming
@@ -58,6 +60,6 @@ export default defineConfig({
     },
     headers: {
       'Cache-Control': 'public, max-age=31536000', // 1 year for versioned assets
-    }
+    },
   },
 });

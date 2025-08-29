@@ -69,7 +69,7 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
       }
     },
     15000, // 15 second timeout
-    [] // Return empty array as fallback
+    [], // Return empty array as fallback
   );
 }
 
@@ -82,13 +82,14 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
 
     // For new devices or when lastSynced is 0, fetch all sessions
     // This ensures new devices get all existing data
-    const q = lastSynced && lastSynced > 0
-      ? query(
-          sessionsRef,
-          where('date', '>', Timestamp.fromMillis(lastSynced)),
-          orderBy('date', 'desc'),
-        )
-      : query(sessionsRef, orderBy('date', 'desc'));
+    const q =
+      lastSynced && lastSynced > 0
+        ? query(
+            sessionsRef,
+            where('date', '>', Timestamp.fromMillis(lastSynced)),
+            orderBy('date', 'desc'),
+          )
+        : query(sessionsRef, orderBy('date', 'desc'));
 
     const snapshot = await getDocs(q);
 
@@ -105,15 +106,12 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
     await offlineStorage.mergeSessions(sessions);
 
     if (sessions.length > 0) {
-      const latest = sessions.reduce(
-        (max, s) => Math.max(max, s.date.getTime()),
-        lastSynced || 0,
-      );
+      const latest = sessions.reduce((max, s) => Math.max(max, s.date.getTime()), lastSynced || 0);
       await offlineStorage.setLastSyncedTimestamp(latest);
     }
 
     const allSessions = await offlineStorage.getSessions();
-    
+
     // Check if migration is needed for fetched sessions
     const migrationStats = getMigrationStats(allSessions);
     if (migrationStats.migrationNeeded) {
@@ -125,10 +123,12 @@ export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
       console.log(`Migrated ${migrationStats.needsMigration} study sessions from Firebase`);
       return migratedSessions;
     }
-    
+
     SessionsCache.set(allSessions);
 
-    console.log(`Fetched ${sessions.length} sessions from Firebase (lastSynced: ${lastSynced || 'none'})`);
+    console.log(
+      `Fetched ${sessions.length} sessions from Firebase (lastSynced: ${lastSynced || 'none'})`,
+    );
     return allSessions;
   } catch (error) {
     console.error('Error fetching sessions from Firebase:', error);
@@ -195,7 +195,14 @@ export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
     console.log('getSessionsNeedingReview - cached sessions:', cachedSessions);
     if (cachedSessions && cachedSessions.length > 0) {
       const filteredSessions = cachedSessions.filter((session) => {
-        console.log('Filtering session:', session.id, 'needsReview:', session.needsReview, 'type:', typeof session.needsReview);
+        console.log(
+          'Filtering session:',
+          session.id,
+          'needsReview:',
+          session.needsReview,
+          'type:',
+          typeof session.needsReview,
+        );
         return session.needsReview === true;
       });
       console.log('getSessionsNeedingReview - filtered sessions:', filteredSessions);
@@ -274,19 +281,19 @@ function prepareSessionForStorage(
   session: Partial<InsertTrainingSession>,
 ): Partial<InsertTrainingSession> {
   const prepared = { ...session };
-  
+
   // Convert studyTags array to JSON string for database storage
   if (prepared.studyTags && Array.isArray(prepared.studyTags)) {
     prepared.studyTags = JSON.stringify(prepared.studyTags);
   }
-  
+
   return prepared;
 }
 
 // Helper function to parse studyTags JSON string back to array
 function _parseSessionFromStorage(session: any): TrainingSession {
   const parsed = { ...session };
-  
+
   // Parse studyTags JSON string back to array
   if (parsed.studyTags && typeof parsed.studyTags === 'string') {
     try {
@@ -296,7 +303,7 @@ function _parseSessionFromStorage(session: any): TrainingSession {
       parsed.studyTags = null;
     }
   }
-  
+
   return parsed as TrainingSession;
 }
 
@@ -311,7 +318,7 @@ export async function createSession(
 
   // Prepare session data for storage (convert arrays to JSON)
   const preparedSession = prepareSessionForStorage(insertSession);
-  
+
   const newSession: TrainingSession = {
     ...preparedSession,
     id: sessionId,
@@ -319,7 +326,7 @@ export async function createSession(
     createdAt: now,
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
-  
+
   console.log('createSession - new session created:', newSession);
 
   // 1. Save locally FIRST for instant user feedback
@@ -358,7 +365,7 @@ export async function updateSession(
   try {
     // Prepare update data for storage (convert arrays to JSON)
     const preparedUpdateData = prepareSessionForStorage(updateData);
-    
+
     // Update locally first (we'll add this method later)
     const updatedSession = await offlineStorage.updateSession(id, preparedUpdateData);
     console.log('updateSession - updated session from offline storage:', updatedSession);
@@ -441,7 +448,7 @@ export async function getStatistics() {
       winRate: 0,
       todayTotalTime: 0,
       todaySessions: 0,
-    } // Return default stats as fallback
+    }, // Return default stats as fallback
   );
 }
 
@@ -553,7 +560,6 @@ async function syncSessionToFirebase(sessionId: number, session: TrainingSession
     const sessionData = {
       ...session,
       date: Timestamp.fromDate(session.date),
-
     };
 
     const docRef = doc(sessionsRef, sessionId.toString());
@@ -561,7 +567,7 @@ async function syncSessionToFirebase(sessionId: number, session: TrainingSession
 
     // Mark as synced on success (we'll add this method later)
     await offlineStorage.markAsSynced(sessionId);
-    
+
     console.log(`Session ${sessionId} synced to Firebase successfully`);
   } catch (error) {
     console.error('Failed to sync session to Firebase:', sessionId, error);
@@ -570,7 +576,10 @@ async function syncSessionToFirebase(sessionId: number, session: TrainingSession
   }
 }
 
-async function syncUpdateToFirebase(id: number, updateData: Partial<InsertTrainingSession>): Promise<void> {
+async function syncUpdateToFirebase(
+  id: number,
+  updateData: Partial<InsertTrainingSession>,
+): Promise<void> {
   try {
     await waitForAuth();
     const sessionsRef = await getSessionsCollection();
@@ -584,7 +593,7 @@ async function syncUpdateToFirebase(id: number, updateData: Partial<InsertTraini
 
     await setDoc(docRef, updatePayload, { merge: true });
     await offlineStorage.markAsSynced(id);
-    
+
     console.log(`Session ${id} update synced to Firebase`);
   } catch (error) {
     console.error('Failed to sync update to Firebase:', id, error);
@@ -599,7 +608,7 @@ async function syncDeleteToFirebase(id: number): Promise<void> {
     const docRef = doc(sessionsRef, id.toString());
     await deleteDoc(docRef);
     await offlineStorage.markAsSynced(id);
-    
+
     console.log(`Session ${id} deletion synced to Firebase`);
   } catch (error) {
     console.error('Failed to sync deletion to Firebase:', id, error);
@@ -738,7 +747,7 @@ async function syncDailyGoalsToFirebase(settings: DailyGoalSettings): Promise<vo
     if (!currentUserId) return;
 
     const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
-    
+
     const firebaseData = {
       ...settings,
       lastModified: Timestamp.fromDate(new Date()),
@@ -762,4 +771,3 @@ async function updateDailyGoalsInBackground(): Promise<void> {
     console.warn('Failed to update daily goals in background:', error);
   }
 }
-
