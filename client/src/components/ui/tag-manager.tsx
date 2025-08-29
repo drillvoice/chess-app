@@ -56,7 +56,7 @@ export function TagManager({
     if (!trimmedTag) return;
     
     // Validation
-    if (trimmedTag.length > 20) {
+    if (trimmedTag.length > 25) {
       return;
     }
     
@@ -252,7 +252,7 @@ export function TagManager({
             onKeyPress={handleKeyPress}
             disabled={isAddingTag || disabled || availableTags.length >= maxTags}
             className="flex-1 text-sm"
-            maxLength={20}
+            maxLength={25}
           />
           <Button
             type="button"
