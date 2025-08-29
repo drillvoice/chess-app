@@ -7,7 +7,8 @@
       "date": "29 August 2025",
       "changes": [
         "Bugfix: address failing tests",
-        "Bugfix: improve saving of lichess username"
+        "Bugfix: improve saving of lichess username",
+        "Tweaked tag manager UI including delete confirmation"
       ]
     }, 
     {
