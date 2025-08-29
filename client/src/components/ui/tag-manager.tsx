@@ -3,6 +3,17 @@ import { Plus, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 import { 
   addCustomStudyTag, 
@@ -188,21 +199,39 @@ export function TagManager({
                 onClick={() => handleTagToggle(tag)}
               >
                 <span>{tag}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveTag(tag);
-                  }}
-                  disabled={isDeletingTag === tag || disabled}
-                  className="ml-1 flex h-4 w-4 items-center justify-center rounded-sm text-gray-400 hover:bg-red-100 hover:text-red-600 disabled:opacity-50"
-                  title={`Remove "${tag}" tag`}
-                >
-                  {isDeletingTag === tag ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <X className="h-3 w-3" />
-                  )}
-                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={isDeletingTag === tag || disabled}
+                      className="ml-1 flex h-4 w-4 items-center justify-center rounded-sm text-gray-400 hover:bg-red-100 hover:text-red-600 disabled:opacity-50"
+                      title={`Remove "${tag}" tag`}
+                    >
+                      {isDeletingTag === tag ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <X className="h-3 w-3" />
+                      )}
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Tag</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete the “{tag}” tag?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 hover:bg-red-700"
+                        onClick={() => handleRemoveTag(tag)}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ))}
             
