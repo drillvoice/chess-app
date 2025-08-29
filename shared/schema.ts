@@ -93,7 +93,7 @@ export const gameSessionSchema = insertTrainingSessionSchema
 // Study tag validation schema
 export const studyTagSchema = z.string()
   .min(1, 'Tag cannot be empty')
-  .max(20, 'Tag cannot exceed 20 characters')
+  .max(25, 'Tag cannot exceed 25 characters')
   .refine(
     (tag) => !/[<>&"']/.test(tag),
     'Tag cannot contain special characters < > & " \''
