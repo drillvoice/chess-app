@@ -113,9 +113,8 @@ function DataManagementContent() {
         <div className="space-y-3">
           <FirebaseAuth />
           <p className="text-sm text-gray-600">
-            Your data is automatically synced to Firebase Cloud for this device when you're
-            online. Disabling cloud sync keeps existing data on this device unless you clear it
-            below.
+            Your data is automatically synced to Firebase Cloud for this device when you're online.
+            Disabling cloud sync keeps existing data on this device unless you clear it below.
           </p>
         </div>
       </div>

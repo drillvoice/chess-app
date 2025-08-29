@@ -12,20 +12,25 @@ class CapacitorStorage {
   private useNative = false;
   private fallbackStorage: any;
 
-  async init(options: CapacitorStorageOptions = { useNativeStorage: true, fallbackToIndexedDB: true }): Promise<void> {
+  async init(
+    options: CapacitorStorageOptions = { useNativeStorage: true, fallbackToIndexedDB: true },
+  ): Promise<void> {
     try {
       // Check if we're running in a Capacitor environment
       const info = await Device.getInfo();
-      this.useNative = options.useNativeStorage && (info.platform === 'android' || info.platform === 'ios');
-      
+      this.useNative =
+        options.useNativeStorage && (info.platform === 'android' || info.platform === 'ios');
+
       if (!this.useNative && options.fallbackToIndexedDB) {
         // Fallback to IndexedDB for web
         const { offlineStorage } = await import('./offline-storage');
         this.fallbackStorage = offlineStorage;
         await this.fallbackStorage.init();
       }
-      
-      console.log(`CapacitorStorage initialized: native=${this.useNative}, platform=${info.platform}`);
+
+      console.log(
+        `CapacitorStorage initialized: native=${this.useNative}, platform=${info.platform}`,
+      );
     } catch (error) {
       console.warn('Failed to initialize Capacitor storage, using fallback:', error);
       if (options.fallbackToIndexedDB) {
@@ -63,7 +68,7 @@ class CapacitorStorage {
   async setSessions(sessions: TrainingSession[]): Promise<void> {
     if (this.useNative) {
       try {
-        const serializedSessions = sessions.map(session => ({
+        const serializedSessions = sessions.map((session) => ({
           ...session,
           date: session.date.toISOString(),
         }));

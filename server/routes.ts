@@ -116,9 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = studySessionSchema.parse(req.body);
       const session = await storage.createTrainingSession({
         ...validatedData,
-        studyTags: validatedData.studyTags
-          ? JSON.stringify(validatedData.studyTags)
-          : undefined,
+        studyTags: validatedData.studyTags ? JSON.stringify(validatedData.studyTags) : undefined,
       });
       res.status(201).json(session);
     } catch (error: any) {

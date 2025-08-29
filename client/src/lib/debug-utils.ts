@@ -22,7 +22,7 @@ export async function collectDebugInfo(): Promise<DebugInfo> {
     isPWA: window.matchMedia('(display-mode: standalone)').matches,
     appVersion: (window as any).__APP_VERSION__ || 'unknown',
     cacheStatus: 'unknown',
-    serviceWorkerStatus: 'unknown'
+    serviceWorkerStatus: 'unknown',
   };
 
   // Check cache status
@@ -68,14 +68,14 @@ export function logDebugInfo(info: DebugInfo) {
 // Monitor dynamic imports for debugging
 export function monitorDynamicImports() {
   const originalFetch = window.fetch;
-  
-  window.fetch = async function(...args) {
+
+  window.fetch = async function (...args) {
     const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
-    
+
     // Monitor JS file requests
     if (url.includes('.js') && (url.includes('assets/') || url.includes('.chunk.'))) {
       console.log('🔍 Dynamic import request:', url);
-      
+
       try {
         const response = await originalFetch.apply(this, args);
         console.log('✅ Dynamic import success:', url, response.status);
@@ -85,7 +85,7 @@ export function monitorDynamicImports() {
         throw error;
       }
     }
-    
+
     return originalFetch.apply(this, args);
   };
 }
@@ -97,9 +97,9 @@ export function exportDebugInfo(): string {
     userAgent: navigator.userAgent,
     isOnline: navigator.onLine,
     timestamp: new Date().toISOString(),
-    error: 'Dynamic import failure'
+    error: 'Dynamic import failure',
   };
-  
+
   return JSON.stringify(info, null, 2);
 }
 
@@ -138,7 +138,9 @@ export async function diagnoseDatabase(): Promise<DatabaseDiagnostics> {
       diagnostics.sessionsCount = sessions.length;
     } catch (error) {
       diagnostics.hasErrors = true;
-      diagnostics.errors.push(`Sessions error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      diagnostics.errors.push(
+        `Sessions error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
 
     // Check statistics
@@ -147,7 +149,9 @@ export async function diagnoseDatabase(): Promise<DatabaseDiagnostics> {
       diagnostics.statisticsExists = stats !== null;
     } catch (error) {
       diagnostics.hasErrors = true;
-      diagnostics.errors.push(`Statistics error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      diagnostics.errors.push(
+        `Statistics error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
 
     // Check settings
@@ -156,7 +160,9 @@ export async function diagnoseDatabase(): Promise<DatabaseDiagnostics> {
       diagnostics.settingsExists = settings !== null;
     } catch (error) {
       diagnostics.hasErrors = true;
-      diagnostics.errors.push(`Settings error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      diagnostics.errors.push(
+        `Settings error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
 
     // Check daily goals
@@ -165,12 +171,15 @@ export async function diagnoseDatabase(): Promise<DatabaseDiagnostics> {
       diagnostics.dailyGoalsExists = dailyGoals !== null;
     } catch (error) {
       diagnostics.hasErrors = true;
-      diagnostics.errors.push(`Daily goals error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      diagnostics.errors.push(
+        `Daily goals error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
-
   } catch (error) {
     diagnostics.hasErrors = true;
-    diagnostics.errors.push(`Database initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    diagnostics.errors.push(
+      `Database initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
   }
 
   return diagnostics;
@@ -184,10 +193,10 @@ export function logDatabaseDiagnostics(diagnostics: DatabaseDiagnostics): void {
   console.log('Statistics Exists:', diagnostics.statisticsExists);
   console.log('Settings Exists:', diagnostics.settingsExists);
   console.log('Daily Goals Exists:', diagnostics.dailyGoalsExists);
-  
+
   if (diagnostics.hasErrors) {
     console.error('❌ Errors Found:');
-    diagnostics.errors.forEach(error => console.error('  -', error));
+    diagnostics.errors.forEach((error) => console.error('  -', error));
   } else {
     console.log('✅ No errors detected');
   }
@@ -196,21 +205,21 @@ export function logDatabaseDiagnostics(diagnostics: DatabaseDiagnostics): void {
 
 export async function forceDatabaseUpgrade(): Promise<void> {
   console.log('🔄 Forcing database upgrade...');
-  
+
   try {
     // Close existing connection
     if (offlineStorage['db']) {
       offlineStorage['db'].close();
       offlineStorage['db'] = null;
     }
-    
+
     // Increment version to force upgrade
     offlineStorage['version'] += 1;
     console.log('New version:', offlineStorage['version']);
-    
+
     // Reinitialize
     await offlineStorage['init']();
-    
+
     console.log('✅ Database upgrade completed');
   } catch (error) {
     console.error('❌ Database upgrade failed:', error);
@@ -220,14 +229,14 @@ export async function forceDatabaseUpgrade(): Promise<void> {
 
 export async function clearDatabaseAndReinitialize(): Promise<void> {
   console.log('🗑️ Clearing database and reinitializing...');
-  
+
   try {
     // Clear all data
     await offlineStorage.clearAll();
-    
+
     // Force reinitialization
     await forceDatabaseUpgrade();
-    
+
     console.log('✅ Database cleared and reinitialized');
   } catch (error) {
     console.error('❌ Database clear failed:', error);

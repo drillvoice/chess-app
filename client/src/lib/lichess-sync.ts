@@ -7,22 +7,22 @@ const POLL_INTERVAL = 30 * 1000; // 30 seconds
 // Helper function to map Lichess time controls to our categories
 export function mapLichessTimeControl(initialMinutes: number, _incrementSeconds: number): string {
   const totalInitialMinutes = initialMinutes;
-  
+
   // Bullet: 1 minute and 2+1
   if (totalInitialMinutes <= 2) {
     return 'bullet';
   }
-  
+
   // Blitz: 3+0, 3+2, 5, and 5+3
   if (totalInitialMinutes <= 5) {
     return 'blitz';
   }
-  
+
   // Rapid: 10, 10+5, 15+10
   if (totalInitialMinutes <= 15) {
     return 'rapid';
   }
-  
+
   // Classical: anything longer than 15+10
   return 'classical';
 }
@@ -71,9 +71,8 @@ export function startLichessSync(username: string) {
         game.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
 
       // Extract opponent username
-      const opponentUsername = color === 'white' 
-        ? game.players?.black?.user?.name 
-        : game.players?.white?.user?.name;
+      const opponentUsername =
+        color === 'white' ? game.players?.black?.user?.name : game.players?.white?.user?.name;
 
       let result: 'win' | 'loss' | 'draw';
       if (game.status === 'draw') result = 'draw';
@@ -101,7 +100,7 @@ export function startLichessSync(username: string) {
       };
 
       await createSession(session);
-      
+
       // Invalidate relevant queries to update UI immediately
       queryClient.invalidateQueries({ queryKey: ['pending-review'] });
       queryClient.invalidateQueries({ queryKey: ['statistics'] });
@@ -125,7 +124,7 @@ export function startLichessSync(username: string) {
     }
     console.log('Lichess sync stopped for:', username);
   };
-  
+
   currentSyncFunction = stopFunction;
   return stopFunction;
 }
@@ -135,7 +134,7 @@ export function restartLichessSync(newUsername: string | undefined) {
   if (currentSyncFunction) {
     currentSyncFunction();
   }
-  
+
   if (newUsername) {
     startLichessSync(newUsername);
   }

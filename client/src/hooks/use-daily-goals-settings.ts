@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DailyGoalSettings } from '@shared/schema';
-import { 
-  validateTacticsMinutes, 
-  validateGamesCount, 
+import {
+  validateTacticsMinutes,
+  validateGamesCount,
   validateStudyMinutes,
   hasActiveGoals,
-  GoalValidationResult 
+  GoalValidationResult,
 } from '@/lib/utils';
 import { getDailyGoalSettings, setDailyGoalSettings } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -29,19 +29,19 @@ export interface UseDailyGoalsSettingsReturn {
   settings: DailyGoalSettings | null;
   isLoading: boolean;
   error: Error | null;
-  
+
   // Form state
   formData: DailyGoalsFormData;
   setFormData: (data: Partial<DailyGoalsFormData>) => void;
   resetForm: () => void;
-  
+
   // Validation
   validation: DailyGoalsValidation;
-  
+
   // State helpers
   isCustomized: boolean;
   hasAnyActiveGoals: boolean;
-  
+
   // Actions
   saveSettings: () => Promise<void>;
   enableCustomGoals: () => Promise<void>;
@@ -58,10 +58,10 @@ const DEFAULT_FORM_DATA: DailyGoalsFormData = {
 export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Form state
   const [formData, setFormDataState] = useState<DailyGoalsFormData>(DEFAULT_FORM_DATA);
-  
+
   // Query for current settings
   const {
     data: settings,
@@ -86,14 +86,17 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
   }, [settings]);
 
   // Validation state
-  const validation: DailyGoalsValidation = useMemo(() => ({
-    tacticsMinutes: validateTacticsMinutes(formData.tacticsMinutes),
-    gamesCount: validateGamesCount(formData.gamesCount),
-    studyMinutes: validateStudyMinutes(formData.studyMinutes),
-    get isValid() {
-      return this.tacticsMinutes.isValid && this.gamesCount.isValid && this.studyMinutes.isValid;
-    },
-  }), [formData.tacticsMinutes, formData.gamesCount, formData.studyMinutes]);
+  const validation: DailyGoalsValidation = useMemo(
+    () => ({
+      tacticsMinutes: validateTacticsMinutes(formData.tacticsMinutes),
+      gamesCount: validateGamesCount(formData.gamesCount),
+      studyMinutes: validateStudyMinutes(formData.studyMinutes),
+      get isValid() {
+        return this.tacticsMinutes.isValid && this.gamesCount.isValid && this.studyMinutes.isValid;
+      },
+    }),
+    [formData.tacticsMinutes, formData.gamesCount, formData.studyMinutes],
+  );
 
   // Computed state
   const isCustomized = settings?.isCustomized || false;
@@ -101,7 +104,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 
   // Form helpers
   const setFormData = useCallback((data: Partial<DailyGoalsFormData>) => {
-    setFormDataState(prev => ({ ...prev, ...data }));
+    setFormDataState((prev) => ({ ...prev, ...data }));
   }, []);
 
   const resetForm = useCallback(() => {
@@ -125,15 +128,15 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: ['daily-goal-settings'] });
       toast({
-        title: "Goals updated",
-        description: "Your daily goals have been saved successfully.",
+        title: 'Goals updated',
+        description: 'Your daily goals have been saved successfully.',
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error saving goals",
-        description: error.message || "Failed to save your daily goals. Please try again.",
-        variant: "destructive",
+        title: 'Error saving goals',
+        description: error.message || 'Failed to save your daily goals. Please try again.',
+        variant: 'destructive',
       });
     },
   });
@@ -147,11 +150,11 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         validation.gamesCount.error,
         validation.studyMinutes.error,
       ].filter(Boolean);
-      
+
       toast({
-        title: "Invalid input",
+        title: 'Invalid input',
         description: errors.join(', '),
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
@@ -193,19 +196,19 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     settings: settings ?? null,
     isLoading,
     error,
-    
+
     // Form state
     formData,
     setFormData,
     resetForm,
-    
+
     // Validation
     validation,
-    
+
     // State helpers
     isCustomized,
     hasAnyActiveGoals,
-    
+
     // Actions
     saveSettings,
     enableCustomGoals,
@@ -217,7 +220,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 // Input validation helpers for real-time form validation
 export function validateGoalInput(
   value: string,
-  type: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes'
+  type: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes',
 ): { isValid: boolean; numericValue: number; error?: string } {
   // Allow empty string (will be treated as 0)
   if (value === '') {
@@ -227,10 +230,10 @@ export function validateGoalInput(
   // Check if it's a valid number
   const numericValue = parseInt(value, 10);
   if (isNaN(numericValue)) {
-    return { 
-      isValid: false, 
-      numericValue: 0, 
-      error: 'Please enter a valid number' 
+    return {
+      isValid: false,
+      numericValue: 0,
+      error: 'Please enter a valid number',
     };
   }
 

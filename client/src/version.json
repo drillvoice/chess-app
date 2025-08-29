@@ -10,14 +10,12 @@
         "Bugfix: improve saving of lichess username",
         "Tweaked tag manager UI including delete confirmation"
       ]
-    }, 
+    },
     {
       "version": "0.3.4",
       "date": "25 August 2025",
-      "changes": [
-        "UI: update 'study' modal to use tags"
-      ]
-    }, 
+      "changes": ["UI: update 'study' modal to use tags"]
+    },
     {
       "version": "0.3.3",
       "date": "25 August 2025",
@@ -25,7 +23,7 @@
         "Bugfix: Improvements to lichess syncing and editing of synced games",
         "Bugfix: increase static page loads to reduce dynamic import errors"
       ]
-    }, 
+    },
     {
       "version": "0.3.2c",
       "date": "24 August 2025",
@@ -34,7 +32,7 @@
         "UI: changed account screen to include database debugging and use accordings",
         "Meta: added instructions.md to assist future AI dev"
       ]
-    }, 
+    },
     {
       "version": "0.3.0",
       "date": "24 August 2025",
@@ -42,7 +40,7 @@
         "Introduce user-customisable daily goals",
         "User can add custom goals reflected on home screen. Updating is manual."
       ]
-    }, 
+    },
     {
       "version": "0.2.10",
       "date": "23 August 2025",
@@ -50,7 +48,7 @@
         "Change titles from title case to sentence case",
         "Cosmetic changes to game modal to make it clearer when something has been selected"
       ]
-    }, 
+    },
     {
       "version": "0.2.9",
       "date": "22 August 2025",
@@ -58,7 +56,7 @@
         "Improve lichess syncing so that synced games automatically appear on homescreen",
         "UI tweaks to log game modal"
       ]
-    }, 
+    },
     {
       "version": "0.2.8",
       "date": "21 August 2025",
@@ -67,7 +65,7 @@
         "Bugfix: better handling of lazy loading and dynamic import",
         "Bugfix: improve caching behaviour to avoid empty history"
       ]
-    }, 
+    },
     {
       "version": "0.2.7",
       "date": "20 August 2025",
@@ -78,7 +76,7 @@
         "Feature: record username from lichess sync and show in history"
       ]
     },
-     {
+    {
       "version": "1.2.6",
       "date": "18 August 2025",
       "changes": [

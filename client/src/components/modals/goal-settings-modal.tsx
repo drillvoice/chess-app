@@ -16,7 +16,7 @@ interface GoalSettingsModalProps {
 // Validation function
 function validateGoalInput(
   value: string,
-  type: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes'
+  type: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes',
 ): { isValid: boolean; numericValue: number; error?: string } {
   // Allow empty string (will be treated as 0)
   if (value === '') {
@@ -26,23 +26,26 @@ function validateGoalInput(
   // Check if it's a valid number
   const numericValue = parseInt(value, 10);
   if (isNaN(numericValue)) {
-    return { 
-      isValid: false, 
-      numericValue: 0, 
-      error: 'Please enter a valid number' 
+    return {
+      isValid: false,
+      numericValue: 0,
+      error: 'Please enter a valid number',
     };
   }
 
   // Validate based on type
-  const limits = type === 'gamesCount' ? DAILY_GOAL_LIMITS.gamesCount : 
-                 type === 'tacticsMinutes' ? DAILY_GOAL_LIMITS.tacticsMinutes : 
-                 DAILY_GOAL_LIMITS.studyMinutes;
-  
+  const limits =
+    type === 'gamesCount'
+      ? DAILY_GOAL_LIMITS.gamesCount
+      : type === 'tacticsMinutes'
+        ? DAILY_GOAL_LIMITS.tacticsMinutes
+        : DAILY_GOAL_LIMITS.studyMinutes;
+
   if (numericValue < limits.min || numericValue > limits.max) {
-    return { 
-      isValid: false, 
-      numericValue, 
-      error: `Maximum value is ${limits.max}` 
+    return {
+      isValid: false,
+      numericValue,
+      error: `Maximum value is ${limits.max}`,
     };
   }
 
@@ -50,14 +53,8 @@ function validateGoalInput(
 }
 
 export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
-  const {
-    formData,
-    setFormData,
-    resetForm,
-    saveSettings,
-    isSaving,
-    isLoading,
-  } = useDailyGoalsSettings();
+  const { formData, setFormData, resetForm, saveSettings, isSaving, isLoading } =
+    useDailyGoalsSettings();
 
   // Local form state
   const [localFormData, setLocalFormData] = useState({
@@ -81,7 +78,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         gamesCount: (formData.gamesCount || 0).toString(),
         studyMinutes: (formData.studyMinutes || 0).toString(),
       });
-      
+
       // Reset validation
       setLocalValidation({
         tacticsMinutes: { isValid: true, error: undefined },
@@ -94,22 +91,22 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
   // Handle input changes
   const handleInputChange = (
     field: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes',
-    value: string
+    value: string,
   ) => {
-    setLocalFormData(prev => ({ ...prev, [field]: value }));
-    
+    setLocalFormData((prev) => ({ ...prev, [field]: value }));
+
     // Validate input
     const validationResult = validateGoalInput(value, field);
-    
+
     // Update validation state
-    setLocalValidation(prev => ({
+    setLocalValidation((prev) => ({
       ...prev,
       [field]: {
         isValid: validationResult.isValid,
         error: validationResult.error,
-      }
+      },
     }));
-    
+
     // Update form data if valid
     if (validationResult.isValid) {
       setFormData({ [field]: validationResult.numericValue });
@@ -118,9 +115,11 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
   // Check if form is valid
   const isFormValid = useMemo(() => {
-    return localValidation.tacticsMinutes.isValid &&
-           localValidation.gamesCount.isValid &&
-           localValidation.studyMinutes.isValid;
+    return (
+      localValidation.tacticsMinutes.isValid &&
+      localValidation.gamesCount.isValid &&
+      localValidation.studyMinutes.isValid
+    );
   }, [localValidation]);
 
   // Handle save
@@ -152,7 +151,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         <div className="space-y-4">
           {/* Tactics Goal */}
           <div className="flex items-center space-x-3">
-            <Label htmlFor="tactics-minutes" className="text-sm font-medium min-w-0 flex-1">
+            <Label htmlFor="tactics-minutes" className="min-w-0 flex-1 text-sm font-medium">
               Tactics training (minutes)
             </Label>
             <Input
@@ -167,14 +166,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
             />
           </div>
           {!localValidation.tacticsMinutes.isValid && (
-            <p className="text-sm text-red-500 -mt-2">
-              {localValidation.tacticsMinutes.error}
-            </p>
+            <p className="-mt-2 text-sm text-red-500">{localValidation.tacticsMinutes.error}</p>
           )}
 
           {/* Games Goal */}
           <div className="flex items-center space-x-3">
-            <Label htmlFor="games-count" className="text-sm font-medium min-w-0 flex-1">
+            <Label htmlFor="games-count" className="min-w-0 flex-1 text-sm font-medium">
               Games played (count)
             </Label>
             <Input
@@ -189,14 +186,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
             />
           </div>
           {!localValidation.gamesCount.isValid && (
-            <p className="text-sm text-red-500 -mt-2">
-              {localValidation.gamesCount.error}
-            </p>
+            <p className="-mt-2 text-sm text-red-500">{localValidation.gamesCount.error}</p>
           )}
 
           {/* Study Goal */}
           <div className="flex items-center space-x-3">
-            <Label htmlFor="study-minutes" className="text-sm font-medium min-w-0 flex-1">
+            <Label htmlFor="study-minutes" className="min-w-0 flex-1 text-sm font-medium">
               Study time (minutes)
             </Label>
             <Input
@@ -211,13 +206,11 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
             />
           </div>
           {!localValidation.studyMinutes.isValid && (
-            <p className="text-sm text-red-500 -mt-2">
-              {localValidation.studyMinutes.error}
-            </p>
+            <p className="-mt-2 text-sm text-red-500">{localValidation.studyMinutes.error}</p>
           )}
 
           {/* Help Text */}
-          <div className="text-xs text-muted-foreground space-y-1">
+          <div className="space-y-1 text-xs text-muted-foreground">
             <p>• Set goals to 0 to disable that goal type</p>
             <p>• Maximum value for any goal is 99</p>
             <p>• Goals persist across days until changed</p>
@@ -225,17 +218,10 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isSaving}
-            >
+            <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !isFormValid}
-            >
+            <Button onClick={handleSave} disabled={isSaving || !isFormValid}>
               {isSaving ? 'Saving...' : 'Save Goals'}
             </Button>
           </div>

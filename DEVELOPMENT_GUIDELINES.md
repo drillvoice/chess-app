@@ -3,6 +3,7 @@
 ## Preventing Import Errors
 
 ### React Hooks Import Checklist
+
 When adding React hooks to a component, always ensure you import them:
 
 ```typescript
@@ -14,7 +15,9 @@ import { useState } from 'react';
 ```
 
 ### Common React Hooks
+
 Always import these when used:
+
 - `useState` - State management
 - `useEffect` - Side effects
 - `useCallback` - Memoized callbacks
@@ -24,12 +27,15 @@ Always import these when used:
 - `useReducer` - Complex state logic
 
 ### Import Validation
+
 Before committing, run:
+
 ```bash
 npm run validate
 ```
 
 This will:
+
 1. Check TypeScript types
 2. Run ESLint (catches missing imports)
 3. Run tests (including import validation)
@@ -37,14 +43,18 @@ This will:
 ## Code Quality Checks
 
 ### Pre-commit Validation
+
 The project includes automatic validation that runs:
+
 - TypeScript type checking
 - ESLint with enhanced import rules
 - React hooks validation tests
 - Import validation tests
 
 ### Manual Validation
+
 You can run validation manually:
+
 ```bash
 # Full validation
 npm run validate
@@ -58,20 +68,25 @@ npm run test
 ## Common Issues and Solutions
 
 ### "useEffect is not defined"
+
 **Cause**: Missing import from React
 **Solution**: Add `useEffect` to React imports
+
 ```typescript
 import { useState, useEffect } from 'react';
 ```
 
 ### "useState is not defined"
+
 **Cause**: Missing import from React
 **Solution**: Add `useState` to React imports
+
 ```typescript
 import { useState } from 'react';
 ```
 
 ### Dynamic Import Failures
+
 **Cause**: Network issues or cache conflicts
 **Solution**: The app includes retry logic and error boundaries
 
@@ -86,13 +101,16 @@ import { useState } from 'react';
 ## IDE Setup
 
 ### VS Code Extensions (Recommended)
+
 - ESLint
 - TypeScript and JavaScript Language Features
 - Prettier
 - Error Lens (shows errors inline)
 
 ### Auto-fix on Save
+
 Add to VS Code settings:
+
 ```json
 {
   "editor.codeActionsOnSave": {
@@ -104,20 +122,25 @@ Add to VS Code settings:
 ## Troubleshooting
 
 ### If validation fails:
+
 1. Check the error message
 2. Fix the specific issue (usually missing imports)
 3. Run validation again
 4. Commit only when all checks pass
 
 ### If tests fail:
+
 1. Check the test output
 2. Look for import-related errors
 3. Fix missing imports
 4. Re-run tests
 
 ## Emergency Override
+
 If you need to commit urgently (not recommended):
+
 ```bash
 git commit --no-verify
 ```
+
 But always fix the issues afterward!

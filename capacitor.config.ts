@@ -5,19 +5,19 @@ const config: CapacitorConfig = {
   appName: 'Pawn Star Chess Log',
   webDir: 'dist/public',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
-      backgroundColor: "#1E40AF",
+      backgroundColor: '#1E40AF',
       showSpinner: true,
-      spinnerColor: "#ffffff"
+      spinnerColor: '#ffffff',
     },
     StatusBar: {
-      style: "dark"
-    }
-  }
+      style: 'dark',
+    },
+  },
 };
 
 export default config;

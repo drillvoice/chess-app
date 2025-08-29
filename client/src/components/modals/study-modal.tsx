@@ -111,29 +111,29 @@ export default function StudyModal({
         return { previousSessions, previousStats };
       } else {
         const tempId = Date.now();
-                 const optimisticSession: TrainingSession = {
-           id: tempId,
-           type: 'study',
-           date: new Date(),
-           duration: newSession.duration,
-           pointsGained: null,
-           finalScore: null,
-           tacticsNotes: null,
-           gameResult: null,
-           gameType: null,
-           gameComments: null,
-           playerColor: null,
-           platform: null,
-           timeControl: null,
-           opponentUsername: null,
-           studyType: newSession.studyType || null,
-           studyTags: JSON.stringify(selectedTags),
-           studyNotes: newSession.studyNotes || null,
-           goalTitle: null,
-           goalDescription: null,
-           goalWeekStart: null,
-           needsReview: false,
-         };
+        const optimisticSession: TrainingSession = {
+          id: tempId,
+          type: 'study',
+          date: new Date(),
+          duration: newSession.duration,
+          pointsGained: null,
+          finalScore: null,
+          tacticsNotes: null,
+          gameResult: null,
+          gameType: null,
+          gameComments: null,
+          playerColor: null,
+          platform: null,
+          timeControl: null,
+          opponentUsername: null,
+          studyType: newSession.studyType || null,
+          studyTags: JSON.stringify(selectedTags),
+          studyNotes: newSession.studyNotes || null,
+          goalTitle: null,
+          goalDescription: null,
+          goalWeekStart: null,
+          needsReview: false,
+        };
 
         queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) => [
           optimisticSession,
@@ -242,10 +242,10 @@ export default function StudyModal({
               )}
             </div>
 
-                         <div>
-               <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
-                 Notes
-               </Label>
+            <div>
+              <Label htmlFor="studyNotes" className="text-sm font-medium text-gray-700">
+                Notes
+              </Label>
               <Textarea
                 id="studyNotes"
                 className="mt-1"

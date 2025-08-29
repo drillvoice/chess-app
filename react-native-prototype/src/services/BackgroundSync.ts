@@ -25,7 +25,7 @@ class BackgroundSyncService {
 
   async init(): Promise<void> {
     console.log('BackgroundSyncService initialized');
-    
+
     // Start background job for periodic sync
     this.startBackgroundSync();
   }
@@ -34,7 +34,7 @@ class BackgroundSyncService {
     if (this.isRunning) return;
 
     this.isRunning = true;
-    
+
     // Configure background job
     BackgroundJob.on('background', () => {
       console.log('App went to background, starting sync job');
@@ -47,18 +47,21 @@ class BackgroundSyncService {
     });
 
     // Periodic sync when app is active
-    this.syncInterval = setInterval(() => {
-      this.syncNow();
-    }, 5 * 60 * 1000); // Every 5 minutes
+    this.syncInterval = setInterval(
+      () => {
+        this.syncNow();
+      },
+      5 * 60 * 1000,
+    ); // Every 5 minutes
   }
 
   private async performBackgroundSync(): Promise<void> {
     try {
       console.log('Performing background sync...');
-      
+
       // Get pending sync items
       const pendingItems = await this.getPendingSyncItems();
-      
+
       if (pendingItems.length === 0) {
         console.log('No pending sync items');
         return;
@@ -66,13 +69,12 @@ class BackgroundSyncService {
 
       // Process items with timeout for background execution
       const syncPromise = this.processSyncItems(pendingItems);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Background sync timeout')), 25000)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Background sync timeout')), 25000),
       );
 
       await Promise.race([syncPromise, timeoutPromise]);
       console.log('Background sync completed');
-      
     } catch (error) {
       console.error('Background sync failed:', error);
     }
@@ -101,17 +103,17 @@ class BackgroundSyncService {
 
   private async processSyncItems(items: SyncQueueItem[]): Promise<void> {
     const processed: string[] = [];
-    
+
     for (const item of items) {
       try {
         await this.syncItem(item);
         processed.push(item.id);
       } catch (error) {
         console.error(`Failed to sync item ${item.id}:`, error);
-        
+
         // Increment retry count
         item.retryCount += 1;
-        
+
         // Remove items that have failed too many times
         if (item.retryCount > 5) {
           processed.push(item.id);
@@ -122,7 +124,7 @@ class BackgroundSyncService {
 
     // Remove processed items from queue
     if (processed.length > 0) {
-      const remainingItems = items.filter(item => !processed.includes(item.id));
+      const remainingItems = items.filter((item) => !processed.includes(item.id));
       await AsyncStorage.setItem('sync_queue', JSON.stringify(remainingItems));
     }
   }
@@ -130,7 +132,7 @@ class BackgroundSyncService {
   private async syncItem(item: SyncQueueItem): Promise<void> {
     // This would integrate with your Firebase sync logic
     console.log(`Syncing item ${item.id} of type ${item.type}`);
-    
+
     switch (item.type) {
       case 'create':
         // await firebaseService.createSession(item.data);
@@ -142,15 +144,15 @@ class BackgroundSyncService {
         // await firebaseService.deleteSession(item.data.id);
         break;
     }
-    
+
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   async addToSyncQueue(type: 'create' | 'update' | 'delete', data: any): Promise<void> {
     try {
       const queueItems = await this.getPendingSyncItems();
-      
+
       const newItem: SyncQueueItem = {
         id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type,
@@ -161,12 +163,11 @@ class BackgroundSyncService {
 
       queueItems.push(newItem);
       await AsyncStorage.setItem('sync_queue', JSON.stringify(queueItems));
-      
+
       console.log(`Added ${type} operation to sync queue`);
-      
+
       // Try immediate sync if online
       this.syncNow();
-      
     } catch (error) {
       console.error('Failed to add item to sync queue:', error);
     }
@@ -180,7 +181,7 @@ class BackgroundSyncService {
     try {
       const pendingItems = await this.getPendingSyncItems();
       const lastSync = await AsyncStorage.getItem('last_sync_time');
-      
+
       return {
         pendingCount: pendingItems.length,
         lastSyncTime: lastSync ? parseInt(lastSync) : undefined,
@@ -208,7 +209,7 @@ class BackgroundSyncService {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
-    
+
     BackgroundJob.stop();
     this.isRunning = false;
     console.log('BackgroundSyncService stopped');

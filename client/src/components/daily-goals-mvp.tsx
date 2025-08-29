@@ -14,9 +14,12 @@ interface DailyGoalsProps {
 
 const GOAL_TYPES = ['tactics', 'study', 'game'] as const;
 
-export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions }: DailyGoalsProps) {
+export default function DailyGoalsMVP({
+  onGoalComplete,
+  autoCompleteFromSessions,
+}: DailyGoalsProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  
+
   const { checklist, toggleItem, completedCount, allComplete } = useDailyGoals({
     autoCompleteFromSessions,
     onGoalComplete,
@@ -52,21 +55,24 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
       return {
         tactics: {
           ...baseConfig.tactics,
-          label: (settings.tacticsMinutes || 0) > 0 
-            ? `Practice tactics for ${settings.tacticsMinutes || 0} minutes`
-            : null, // Will be filtered out
+          label:
+            (settings.tacticsMinutes || 0) > 0
+              ? `Practice tactics for ${settings.tacticsMinutes || 0} minutes`
+              : null, // Will be filtered out
         },
         game: {
           ...baseConfig.game,
-          label: (settings.gamesCount || 0) > 0 
-            ? `Play ${settings.gamesCount || 0} game${(settings.gamesCount || 0) !== 1 ? 's' : ''}`
-            : null, // Will be filtered out
+          label:
+            (settings.gamesCount || 0) > 0
+              ? `Play ${settings.gamesCount || 0} game${(settings.gamesCount || 0) !== 1 ? 's' : ''}`
+              : null, // Will be filtered out
         },
         study: {
           ...baseConfig.study,
-          label: (settings.studyMinutes || 0) > 0 
-            ? `Study for ${settings.studyMinutes || 0} minutes`
-            : null, // Will be filtered out
+          label:
+            (settings.studyMinutes || 0) > 0
+              ? `Study for ${settings.studyMinutes || 0} minutes`
+              : null, // Will be filtered out
         },
       };
     }
@@ -89,7 +95,7 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
   }, [isCustomized, settings]);
 
   // Check if there are any active goals to show
-  const activeGoals = Object.values(goalConfig).filter(config => config.label !== null);
+  const activeGoals = Object.values(goalConfig).filter((config) => config.label !== null);
   const hasActiveGoals = activeGoals.length > 0;
 
   // Don't render the component if there are no active goals
@@ -131,9 +137,7 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
     <>
       <Card
         className={`${
-          allComplete 
-            ? 'border-green-300 bg-green-50' 
-            : 'border-blue-300 bg-blue-50'
+          allComplete ? 'border-green-300 bg-green-50' : 'border-blue-300 bg-blue-50'
         } transition-colors duration-300`}
       >
         <CardContent className="p-4">
@@ -163,12 +167,12 @@ export default function DailyGoalsMVP({ onGoalComplete, autoCompleteFromSessions
           <div className="space-y-2">
             {GOAL_TYPES.map((goalType) => {
               const config = goalConfig[goalType];
-              
+
               // Skip goals that are set to 0 (null label)
               if (config.label === null) {
                 return null;
               }
-              
+
               const IconComponent = config.icon;
               const isCompleted = checklist[goalType];
 

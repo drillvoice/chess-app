@@ -47,11 +47,11 @@ export function useStudyPreferences(): UseStudyPreferencesReturn {
       try {
         globalLoadingPromise = getUserStudyPreferences();
         const result = await globalLoadingPromise;
-        
+
         // Update global cache
         globalPreferences = result;
         globalLoadingPromise = null;
-        
+
         setPreferences(result);
         setIsLoading(false);
       } catch (err) {
@@ -67,12 +67,12 @@ export function useStudyPreferences(): UseStudyPreferencesReturn {
   const refetch = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Clear global cache to force fresh load
       globalPreferences = null;
       globalLoadingPromise = null;
-      
+
       const result = await getUserStudyPreferences();
       globalPreferences = result;
       setPreferences(result);
@@ -110,7 +110,7 @@ export async function preloadStudyPreferences(): Promise<void> {
 // Function to update preferences and invalidate cache
 export async function updateStudyPreferences(preferences: UserStudyPreferences): Promise<void> {
   await updateUserStudyPreferences(preferences);
-  
+
   // Update global cache
   globalPreferences = preferences;
 }

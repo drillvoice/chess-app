@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DailyGoalSettings } from '@shared/schema';
-import { 
-  validateTacticsMinutes, 
-  validateGamesCount, 
-  validateStudyMinutes, 
+import {
+  validateTacticsMinutes,
+  validateGamesCount,
+  validateStudyMinutes,
   hasActiveGoals,
-  DAILY_GOAL_LIMITS 
+  DAILY_GOAL_LIMITS,
 } from './utils';
 import { offlineStorage } from './offline-storage';
 
@@ -54,15 +54,15 @@ describe('Daily Goals Data Layer', () => {
       it('should reject invalid tactics minutes', () => {
         expect(validateTacticsMinutes(-1)).toEqual({
           isValid: false,
-          error: 'Tactics minutes must be at least 0'
+          error: 'Tactics minutes must be at least 0',
         });
         expect(validateTacticsMinutes(100)).toEqual({
           isValid: false,
-          error: 'Tactics minutes cannot exceed 99'
+          error: 'Tactics minutes cannot exceed 99',
         });
         expect(validateTacticsMinutes(30.5)).toEqual({
           isValid: false,
-          error: 'Tactics minutes must be a whole number'
+          error: 'Tactics minutes must be a whole number',
         });
       });
     });
@@ -77,15 +77,15 @@ describe('Daily Goals Data Layer', () => {
       it('should reject invalid games count', () => {
         expect(validateGamesCount(-1)).toEqual({
           isValid: false,
-          error: 'Games count must be at least 0'
+          error: 'Games count must be at least 0',
         });
         expect(validateGamesCount(100)).toEqual({
           isValid: false,
-          error: 'Games count cannot exceed 99'
+          error: 'Games count cannot exceed 99',
         });
         expect(validateGamesCount(5.5)).toEqual({
           isValid: false,
-          error: 'Games count must be a whole number'
+          error: 'Games count must be a whole number',
         });
       });
     });
@@ -100,15 +100,15 @@ describe('Daily Goals Data Layer', () => {
       it('should reject invalid study minutes', () => {
         expect(validateStudyMinutes(-1)).toEqual({
           isValid: false,
-          error: 'Study minutes must be at least 0'
+          error: 'Study minutes must be at least 0',
         });
         expect(validateStudyMinutes(100)).toEqual({
           isValid: false,
-          error: 'Study minutes cannot exceed 99'
+          error: 'Study minutes cannot exceed 99',
         });
         expect(validateStudyMinutes(45.5)).toEqual({
           isValid: false,
-          error: 'Study minutes must be a whole number'
+          error: 'Study minutes must be a whole number',
         });
       });
     });

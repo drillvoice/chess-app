@@ -24,7 +24,7 @@ export function useNetworkStatus() {
   useEffect(() => {
     const updateNetworkStatus = () => {
       setIsOnline(navigator.onLine);
-      
+
       // Try to get connection type if available
       if ('connection' in navigator) {
         const connection = (navigator as any).connection;
@@ -45,10 +45,10 @@ export function useNetworkStatus() {
     };
 
     updateNetworkStatus();
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     // Listen for connection changes if supported
     if ('connection' in navigator) {
       const connection = (navigator as any).connection;
@@ -60,7 +60,7 @@ export function useNetworkStatus() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      
+
       if ('connection' in navigator) {
         const connection = (navigator as any).connection;
         if (connection) {

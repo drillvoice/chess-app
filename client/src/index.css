@@ -165,14 +165,14 @@
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
-  
+
   /* Fix for iOS Safari viewport issues */
   .app-container {
     width: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
   }
-  
+
   /* Ensure modals work properly on iOS */
   .mobile-modal {
     -webkit-overflow-scrolling: touch;
@@ -186,7 +186,7 @@
     margin: 0;
     box-shadow: none;
   }
-  
+
   main {
     padding: 0.5rem;
   }

@@ -17,7 +17,7 @@ const STORAGE_KEY = 'dailyChecklist';
 
 export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
   const { autoCompleteFromSessions = false, onGoalComplete } = options;
-  
+
   const [checklist, setChecklist] = useState<DailyChecklist>({
     tactics: false,
     study: false,
@@ -30,13 +30,13 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
     queryKey: ['today-sessions'],
     queryFn: async () => {
       if (!autoCompleteFromSessions) return [];
-      
+
       const { getAllSessions } = await import('@/lib/firebase');
       const allSessions = await getAllSessions();
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      return allSessions.filter(session => {
+
+      return allSessions.filter((session) => {
         const sessionDate = new Date(session.date);
         sessionDate.setHours(0, 0, 0, 0);
         return sessionDate.getTime() === today.getTime();
@@ -89,11 +89,11 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
   useEffect(() => {
     if (!autoCompleteFromSessions || !todaySessions) return;
 
-    const hasTactics = todaySessions.some(s => s.type === 'tactics');
-    const hasStudy = todaySessions.some(s => s.type === 'study');
-    const hasGame = todaySessions.some(s => s.type === 'game');
+    const hasTactics = todaySessions.some((s) => s.type === 'tactics');
+    const hasStudy = todaySessions.some((s) => s.type === 'study');
+    const hasGame = todaySessions.some((s) => s.type === 'game');
 
-    setChecklist(prev => {
+    setChecklist((prev) => {
       const updated = { ...prev };
       let changed = false;
 
@@ -127,24 +127,29 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
     saveChecklist();
   }, [checklist]);
 
-  const toggleItem = useCallback((item: keyof Omit<DailyChecklist, 'date'>) => {
-    setChecklist((prev) => {
-      const newValue = !prev[item];
-      const updated = {
-        ...prev,
-        [item]: newValue,
-      };
-      
-      // Call callback if provided
-      if (newValue && onGoalComplete) {
-        onGoalComplete(item);
-      }
-      
-      return updated;
-    });
-  }, [onGoalComplete]);
+  const toggleItem = useCallback(
+    (item: keyof Omit<DailyChecklist, 'date'>) => {
+      setChecklist((prev) => {
+        const newValue = !prev[item];
+        const updated = {
+          ...prev,
+          [item]: newValue,
+        };
 
-  const completedCount = [checklist.tactics, checklist.study, checklist.game].filter(Boolean).length;
+        // Call callback if provided
+        if (newValue && onGoalComplete) {
+          onGoalComplete(item);
+        }
+
+        return updated;
+      });
+    },
+    [onGoalComplete],
+  );
+
+  const completedCount = [checklist.tactics, checklist.study, checklist.game].filter(
+    Boolean,
+  ).length;
   const allComplete = completedCount === 3;
 
   return {

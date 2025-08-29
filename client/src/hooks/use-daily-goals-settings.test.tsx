@@ -238,8 +238,8 @@ describe('useDailyGoalsSettings', () => {
       });
 
       expect(mockToast).toHaveBeenCalledWith({
-        title: "Goals updated",
-        description: "Your daily goals have been saved successfully.",
+        title: 'Goals updated',
+        description: 'Your daily goals have been saved successfully.',
       });
     });
 
@@ -268,9 +268,9 @@ describe('useDailyGoalsSettings', () => {
 
       expect(mockSetDailyGoalSettings).not.toHaveBeenCalled();
       expect(mockToast).toHaveBeenCalledWith({
-        title: "Invalid input",
-        description: "Tactics minutes cannot exceed 99",
-        variant: "destructive",
+        title: 'Invalid input',
+        description: 'Tactics minutes cannot exceed 99',
+        variant: 'destructive',
       });
     });
 

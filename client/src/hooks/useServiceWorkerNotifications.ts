@@ -21,10 +21,10 @@ export function useServiceWorkerNotifications() {
       setNotification({
         message: `${event.detail.count} offline session(s) synchronized!`,
         type: 'success',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      setSyncStatus(prev => ({ ...prev, hasPendingSync: false, lastSyncTime: Date.now() }));
-      
+      setSyncStatus((prev) => ({ ...prev, hasPendingSync: false, lastSyncTime: Date.now() }));
+
       // Auto-clear after 5 seconds
       setTimeout(() => setNotification(null), 5000);
     };
@@ -34,7 +34,7 @@ export function useServiceWorkerNotifications() {
       setNotification({
         message: 'Some offline sessions failed to sync. Will retry automatically.',
         type: 'warning',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
       setTimeout(() => setNotification(null), 8000);
     };
@@ -56,9 +56,9 @@ export function useServiceWorkerNotifications() {
       setNotification({
         message: 'Session saved offline - will sync when online',
         type: 'info',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      setSyncStatus(prev => ({ ...prev, hasPendingSync: true }));
+      setSyncStatus((prev) => ({ ...prev, hasPendingSync: true }));
       setTimeout(() => setNotification(null), 4000);
     };
 
@@ -67,7 +67,7 @@ export function useServiceWorkerNotifications() {
       setNotification({
         message: event.detail.message,
         type: 'info',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
       // Don't auto-clear this one
     };
@@ -83,7 +83,7 @@ export function useServiceWorkerNotifications() {
         setNotification({
           message: 'Limited offline storage - data may be cleared by browser',
           type: 'warning',
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
         setTimeout(() => setNotification(null), 10000);
       }
@@ -106,12 +106,15 @@ export function useServiceWorkerNotifications() {
       window.removeEventListener('session-stored-offline', handleOfflineStore as EventListener);
       window.removeEventListener('app-updated', handleAppUpdate as EventListener);
       window.removeEventListener('sw-update-available', handleSWUpdate);
-      window.removeEventListener('storage-persistence-status', handleStorageStatus as EventListener);
+      window.removeEventListener(
+        'storage-persistence-status',
+        handleStorageStatus as EventListener,
+      );
     };
   }, []);
 
   const clearNotification = () => setNotification(null);
-  
+
   const refreshApp = () => {
     window.location.reload();
   };
@@ -121,6 +124,6 @@ export function useServiceWorkerNotifications() {
     isUpdateAvailable,
     syncStatus,
     clearNotification,
-    refreshApp
+    refreshApp,
   };
 }

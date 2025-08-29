@@ -7,11 +7,11 @@ import type { TrainingSession } from '@shared/schema';
 
 // Map of old studyType values to new tag names
 const STUDY_TYPE_TO_TAG_MAP: Record<string, string> = {
-  'video': 'videos',
-  'book': 'reading',
-  'analysis': 'analysis',
-  'chessable': 'chessable',
-  'coaching': 'coaching',
+  video: 'videos',
+  book: 'reading',
+  analysis: 'analysis',
+  chessable: 'chessable',
+  coaching: 'coaching',
   'online-course': 'online-course',
 };
 
@@ -49,19 +49,17 @@ export function migrateStudySessions(sessions: TrainingSession[]): TrainingSessi
  * Check if a session needs migration
  */
 export function needsMigration(session: TrainingSession): boolean {
-  return session.type === 'study' && 
-         !!session.studyType && 
-         !session.studyTags;
+  return session.type === 'study' && !!session.studyType && !session.studyTags;
 }
 
 /**
  * Get migration statistics for a list of sessions
  */
 export function getMigrationStats(sessions: TrainingSession[]) {
-  const studySessions = sessions.filter(s => s.type === 'study');
+  const studySessions = sessions.filter((s) => s.type === 'study');
   const needsMigrationCount = studySessions.filter(needsMigration).length;
-  const alreadyMigratedCount = studySessions.filter(s => s.studyTags).length;
-  const noStudyTypeCount = studySessions.filter(s => !s.studyType && !s.studyTags).length;
+  const alreadyMigratedCount = studySessions.filter((s) => s.studyTags).length;
+  const noStudyTypeCount = studySessions.filter((s) => !s.studyType && !s.studyTags).length;
 
   return {
     totalStudySessions: studySessions.length,
@@ -80,7 +78,7 @@ export function validateMigration(sessions: TrainingSession[]): {
   errors: string[];
 } {
   const errors: string[] = [];
-  
+
   for (const session of sessions) {
     if (session.type === 'study') {
       // Check for invalid studyTags JSON
