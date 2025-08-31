@@ -1,7 +1,15 @@
 {
-  "version": "0.3.5b",
-  "lastUpdated": "30 August 2025",
+  "version": "0.3.6",
+  "lastUpdated": "31 August 2025",
   "changelog": [
+    {
+      "version": "0.3.6",
+      "date": "31 August 2025",
+      "changes": [
+        "Bugfix: lichesse name syncing",
+        "UI: activity screen space efficiency"
+      ]
+    },
     {
       "version": "0.3.5b",
       "date": "30 August 2025",
