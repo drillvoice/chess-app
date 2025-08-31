@@ -298,7 +298,7 @@ export default function Activity() {
           <div className="flex items-center space-x-3">
             <div
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full',
+                'flex h-8 w-8 items-center justify-center rounded-full',
                 getSessionBgColor(session.type),
               )}
             >
@@ -309,7 +309,7 @@ export default function Activity() {
               <div className="text-sm text-gray-600">{getSessionSubtitle(session)}</div>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             <div className="text-right">
               <div className={cn('text-sm font-medium', getSessionValueColor(session))}>
                 {getSessionValue(session)}
@@ -320,19 +320,19 @@ export default function Activity() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
+                className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
                 onClick={() => setEditingSession(session)}
               >
-                <Edit3 className="h-4 w-4" />
+                <Edit3 className="h-3 w-3" />
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
+                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -363,25 +363,23 @@ export default function Activity() {
 
   if (statsLoading || sessionsLoading) {
     return (
-      <div className="space-y-4 md:space-y-6">
-        <div className="py-4 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-gray-800">Training statistics</h2>
-          <p className="text-sm text-gray-600">Your chess improvement overview</p>
+      <div className="space-y-3 md:space-y-4">
+        <div className="py-2 text-center">
+          <h2 className="mb-1 text-2xl font-bold text-gray-800">Training statistics</h2>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
+            <Skeleton key={i} className="h-20 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-40 rounded-xl" />
 
-        <div className="py-4 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-gray-800">Training history</h2>
-          <p className="text-sm text-gray-600">Your recent training sessions</p>
+        <div className="py-2 text-center">
+          <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
         </div>
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-16 rounded-xl" />
+            <Skeleton key={i} className="h-14 rounded-xl" />
           ))}
         </div>
       </div>
@@ -389,57 +387,44 @@ export default function Activity() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="py-4 text-center">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Training statistics</h2>
-        <p className="text-sm text-gray-600">Your chess improvement overview</p>
+    <div className="space-y-3 md:space-y-4">
+      <div className="py-2 text-center">
+        <h2 className="mb-1 text-2xl font-bold text-gray-800">Training statistics</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-4 gap-3">
         <Card className="border-blue-100 bg-blue-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-[#1E40AF]">{stats?.totalHours || 0}</div>
-                <div className="text-sm text-gray-600">Total hours</div>
-              </div>
-              <Clock className="h-5 w-5 text-[#1E40AF]" />
+          <CardContent className="p-3">
+            <div className="text-center">
+              <div className="text-xl font-bold text-[#1E40AF]">{stats?.totalHours || 0}</div>
+              <div className="text-xs text-gray-600">Total hours</div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-emerald-100 bg-emerald-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
-                <div className="text-sm text-gray-600">Sessions</div>
-              </div>
-              <Play className="h-5 w-5 text-[#059669]" />
+          <CardContent className="p-3">
+            <div className="text-center">
+              <div className="text-xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
+              <div className="text-xs text-gray-600">Sessions</div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-amber-100 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
-                <div className="text-sm text-gray-600">Tactics rating</div>
-              </div>
-              <Trophy className="h-5 w-5 text-[#F59E0B]" />
+          <CardContent className="p-3">
+            <div className="text-center">
+              <div className="text-xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
+              <div className="text-xs text-gray-600">Tactics rating</div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-green-100 bg-green-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-green-600">{stats?.winRate || 0}%</div>
-                <div className="text-sm text-gray-600">Win rate</div>
-              </div>
-              <TrendingUp className="h-5 w-5 text-green-600" />
+          <CardContent className="p-3">
+            <div className="text-center">
+              <div className="text-xl font-bold text-green-600">{stats?.winRate || 0}%</div>
+              <div className="text-xs text-gray-600">Win rate</div>
             </div>
           </CardContent>
         </Card>
@@ -463,12 +448,11 @@ export default function Activity() {
         </CardContent>
       </Card>
 
-      <div className="py-4 text-center">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Training history</h2>
-        <p className="text-sm text-gray-600">Your recent training sessions</p>
+      <div className="py-2 text-center">
+        <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
       </div>
 
-      <div className="mb-4 flex space-x-2">
+      <div className="mb-2 flex space-x-2">
         <Button
           variant={filter === 'all' ? 'default' : 'secondary'}
           size="sm"
@@ -531,10 +515,10 @@ export default function Activity() {
         </Button>
       </div>
 
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-3 md:space-y-4">
         {filteredSessions.length === 0 ? (
           <Card className="border-gray-200">
-            <CardContent className="p-8 text-center">
+            <CardContent className="p-6 text-center">
               <div className="text-gray-500">No training sessions found</div>
               <p className="mt-2 text-sm text-gray-400">
                 Start logging your training sessions to see them here
@@ -542,14 +526,14 @@ export default function Activity() {
             </CardContent>
           </Card>
         ) : (
-          <Accordion type="multiple" defaultValue={['today']} className="space-y-4">
+          <Accordion type="multiple" defaultValue={['today']} className="space-y-3">
             {/* Today Section */}
             {todaySessions.length > 0 && (
               <AccordionItem value="today" className="border-none">
                 <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
                   Today ({todaySessions.length})
                 </AccordionTrigger>
-                <AccordionContent className="pt-4">
+                <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {todaySessions.map((session) => (
                       <SessionCard key={session.id} session={session} />
@@ -565,7 +549,7 @@ export default function Activity() {
                 <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
                   Yesterday ({yesterdaySessions.length})
                 </AccordionTrigger>
-                <AccordionContent className="pt-4">
+                <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {yesterdaySessions.map((session) => (
                       <SessionCard key={session.id} session={session} />
@@ -581,7 +565,7 @@ export default function Activity() {
                 <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
                   Earlier ({earlierSessions.length})
                 </AccordionTrigger>
-                <AccordionContent className="pt-4">
+                <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {earlierSessions.map((session) => (
                       <SessionCard key={session.id} session={session} />
