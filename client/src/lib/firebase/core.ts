@@ -130,23 +130,32 @@ async function ensureAnonymousAuth(): Promise<void> {
   return anonymousSignInPromise;
 }
 
-export async function waitForAuth(timeoutMs = 15000): Promise<void> {
+export async function waitForAuth(timeoutMs = 30000): Promise<void> {
+  console.log('🔐 waitForAuth called with timeout:', timeoutMs);
   await ensureFirebase();
-  if (currentUserId) return;
+  
+  if (currentUserId) {
+    console.log('✅ User already authenticated:', currentUserId);
+    return;
+  }
+  
   if (auth.currentUser) {
     currentUserId = auth.currentUser.uid;
+    console.log('✅ Current user found:', currentUserId);
     await ensureUserDoc();
     return;
   }
 
   // Try anonymous sign-in first as fallback
   try {
+    console.log('🔄 Attempting anonymous authentication...');
     await ensureAnonymousAuth();
     // Wait a moment for the auth state change to propagate
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     const user = auth.currentUser;
     if (user) {
       currentUserId = (user as any).uid;
+      console.log('✅ Anonymous authentication successful:', currentUserId);
       await ensureUserDoc();
       return;
     }
@@ -155,11 +164,13 @@ export async function waitForAuth(timeoutMs = 15000): Promise<void> {
   }
 
   // If anonymous auth didn't work, wait for any auth state change
+  console.log('⏳ Waiting for auth state change...');
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUserId = user.uid;
+        console.log('✅ Auth state change detected, user authenticated:', currentUserId);
         await ensureUserDoc();
         clearTimeout(timer);
         unsubscribe();
@@ -168,7 +179,9 @@ export async function waitForAuth(timeoutMs = 15000): Promise<void> {
     });
     timer = setTimeout(() => {
       unsubscribe();
-      reject(new Error(`Authentication timeout after ${timeoutMs}ms`));
+      const error = new Error(`Authentication timeout after ${timeoutMs}ms`);
+      console.error('❌ Authentication timeout:', error);
+      reject(error);
     }, timeoutMs);
   });
 }
