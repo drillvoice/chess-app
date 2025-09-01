@@ -5,17 +5,12 @@
     {
       "version": "0.3.6",
       "date": "31 August 2025",
-      "changes": [
-        "Bugfix: lichesse name syncing",
-        "UI: activity screen space efficiency"
-      ]
+      "changes": ["Bugfix: lichesse name syncing", "UI: activity screen space efficiency"]
     },
     {
       "version": "0.3.5b",
       "date": "30 August 2025",
-      "changes": [
-        "Bugfix: google cloud syncing"
-      ]
+      "changes": ["Bugfix: google cloud syncing"]
     },
     {
       "version": "0.3.5",

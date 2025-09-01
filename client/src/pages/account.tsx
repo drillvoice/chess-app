@@ -103,7 +103,7 @@ ${diagnostics.errors.map((error) => `  - ${error}`).join('\n')}
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="multiple" className="w-full">
         <AccordionItem value="lichess">
           <AccordionTrigger>Lichess integration</AccordionTrigger>
           <AccordionContent>

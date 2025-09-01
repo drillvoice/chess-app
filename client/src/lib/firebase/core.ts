@@ -133,12 +133,12 @@ async function ensureAnonymousAuth(): Promise<void> {
 export async function waitForAuth(timeoutMs = 30000): Promise<void> {
   console.log('🔐 waitForAuth called with timeout:', timeoutMs);
   await ensureFirebase();
-  
+
   if (currentUserId) {
     console.log('✅ User already authenticated:', currentUserId);
     return;
   }
-  
+
   if (auth.currentUser) {
     currentUserId = auth.currentUser.uid;
     console.log('✅ Current user found:', currentUserId);

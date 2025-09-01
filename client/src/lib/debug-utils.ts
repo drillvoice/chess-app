@@ -247,30 +247,29 @@ export async function clearDatabaseAndReinitialize(): Promise<void> {
 // Test settings storage functionality
 export async function testSettingsStorage(): Promise<void> {
   console.log('🧪 Testing settings storage...');
-  
+
   try {
     // Test writing settings
     const testSettings = {
       lichessUsername: 'testuser123',
-      testTimestamp: Date.now()
+      testTimestamp: Date.now(),
     };
-    
+
     console.log('📝 Writing test settings:', testSettings);
     await offlineStorage.setSettings(testSettings);
     console.log('✅ Test settings written successfully');
-    
+
     // Test reading settings
     console.log('📖 Reading test settings...');
     const readSettings = await offlineStorage.getSettings();
     console.log('✅ Test settings read:', readSettings);
-    
+
     // Verify the data
     if (readSettings?.lichessUsername === testSettings.lichessUsername) {
       console.log('✅ Settings storage test PASSED');
     } else {
       console.error('❌ Settings storage test FAILED - data mismatch');
     }
-    
   } catch (error) {
     console.error('❌ Settings storage test FAILED:', error);
   }
@@ -279,30 +278,29 @@ export async function testSettingsStorage(): Promise<void> {
 // Test Firebase settings functions
 export async function testFirebaseSettings(): Promise<void> {
   console.log('🧪 Testing Firebase settings...');
-  
+
   try {
     // Test getting settings
     console.log('📖 Getting user settings...');
     const settings = await import('@/lib/firebase/settings');
     const userSettings = await settings.getUserSettings();
     console.log('✅ User settings loaded:', userSettings);
-    
+
     // Test updating settings
     const testUsername = `testuser_${Date.now()}`;
     console.log('📝 Updating settings with username:', testUsername);
     await settings.updateUserSettings({ lichessUsername: testUsername });
     console.log('✅ Settings updated successfully');
-    
+
     // Verify the update
     const updatedSettings = await settings.getUserSettings();
     console.log('✅ Updated settings:', updatedSettings);
-    
+
     if (updatedSettings.lichessUsername === testUsername) {
       console.log('✅ Firebase settings test PASSED');
     } else {
       console.error('❌ Firebase settings test FAILED - username not updated');
     }
-    
   } catch (error) {
     console.error('❌ Firebase settings test FAILED:', error);
   }
