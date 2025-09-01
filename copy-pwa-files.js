@@ -7,9 +7,7 @@ const sourceDir = 'public';
 const targetDir = 'client/public';
 
 // Read app version from source JSON
-const versionData = JSON.parse(
-  fs.readFileSync(path.join('client', 'src', 'version.json'), 'utf8'),
-);
+const versionData = JSON.parse(fs.readFileSync(path.join('client', 'src', 'version.json'), 'utf8'));
 const appVersion = versionData.version;
 
 // Ensure target directory exists
@@ -51,10 +49,7 @@ filesToCopy.forEach((file) => {
 });
 
 // Copy version.json from client source to target
-fs.copyFileSync(
-  path.join('client', 'src', 'version.json'),
-  path.join(targetDir, 'version.json'),
-);
+fs.copyFileSync(path.join('client', 'src', 'version.json'), path.join(targetDir, 'version.json'));
 console.log('✓ Copied version.json');
 
 console.log('PWA files copied successfully!');
