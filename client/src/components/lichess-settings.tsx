@@ -70,7 +70,7 @@ function LichessSettingsContent() {
 
   const handleSave = async () => {
     console.log('💾 Starting save process...');
-    
+
     // Don't save if there's a validation error
     if (validationError) {
       console.log('❌ Validation error:', validationError);
@@ -102,7 +102,7 @@ function LichessSettingsContent() {
       console.log('🔧 Calling updateUserSettings...');
       await updateUserSettings({ lichessUsername: trimmedValue });
       console.log('✅ Settings updated successfully');
-      
+
       setOriginalUsername(trimmedValue);
       setUsername(trimmedValue);
 
@@ -151,11 +151,11 @@ function LichessSettingsContent() {
   const handleDebugTest = async () => {
     try {
       const { testSettingsStorage, testFirebaseSettings } = await import('@/lib/debug-utils');
-      
+
       console.log('🧪 Starting debug tests...');
       await testSettingsStorage();
       await testFirebaseSettings();
-      
+
       toast({
         title: 'Debug Test Complete',
         description: 'Check console for test results',
@@ -208,31 +208,24 @@ function LichessSettingsContent() {
 
       {/* Debug section - only show in development */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 p-3 bg-gray-50 rounded border">
-          <div className="flex items-center justify-between mb-2">
+        <div className="mt-4 rounded border bg-gray-50 p-3">
+          <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-medium text-gray-700">Debug Tools</h4>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDebugMode(!isDebugMode)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setIsDebugMode(!isDebugMode)}>
               {isDebugMode ? 'Hide' : 'Show'}
             </Button>
           </div>
-          
+
           {isDebugMode && (
             <div className="space-y-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDebugTest}
-                className="w-full"
-              >
+              <Button variant="outline" size="sm" onClick={handleDebugTest} className="w-full">
                 Test Storage
               </Button>
               <p className="text-xs text-gray-500">
-                Current username: {originalUsername || 'none'}<br/>
-                Has changes: {hasUnsavedChanges ? 'yes' : 'no'}<br/>
+                Current username: {originalUsername || 'none'}
+                <br />
+                Has changes: {hasUnsavedChanges ? 'yes' : 'no'}
+                <br />
                 Loading: {isLoading ? 'yes' : 'no'}
               </p>
             </div>

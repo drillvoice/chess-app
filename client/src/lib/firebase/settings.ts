@@ -69,7 +69,7 @@ export interface UserSettings {
 // Retrieve user settings, preferring cached offline data when available
 export async function getUserSettings(): Promise<UserSettings> {
   console.log('📱 getUserSettings called');
-  
+
   // Try cached data first for instant loading
   try {
     const cached = await offlineStorage.getSettings();
@@ -102,7 +102,7 @@ export async function getUserSettings(): Promise<UserSettings> {
     return settings;
   } catch (error) {
     console.error('❌ Error getting user settings from Firestore:', error);
-    
+
     // Return empty settings if Firestore fails
     const emptySettings: UserSettings = {};
     console.log('📱 Returning empty settings due to Firestore error');
@@ -132,7 +132,10 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
     console.log('✅ Successfully saved to offline storage');
   } catch (error) {
     console.error('❌ Failed to save to offline storage:', error);
-    throw new SettingsError('Failed to save settings locally', error instanceof Error ? error : undefined);
+    throw new SettingsError(
+      'Failed to save settings locally',
+      error instanceof Error ? error : undefined,
+    );
   }
 
   // Try to save to Firestore (but don't fail if it doesn't work)

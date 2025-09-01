@@ -74,37 +74,25 @@ describe('account accordion behavior', () => {
     });
 
     // Initially, no section content is visible
-    expect(
-      screen.queryByText('Lichess Settings Content'),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText('Data Management Content'),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Lichess Settings Content')).not.toBeInTheDocument();
+    expect(screen.queryByText('Data Management Content')).not.toBeInTheDocument();
 
     // Open first section
     fireEvent.click(lichessTrigger);
-    expect(
-      await screen.findByText('Lichess Settings Content'),
-    ).toBeVisible();
+    expect(await screen.findByText('Lichess Settings Content')).toBeVisible();
 
     // Open second section; first remains open
     fireEvent.click(dataTrigger);
-    expect(
-      await screen.findByText('Data Management Content'),
-    ).toBeVisible();
+    expect(await screen.findByText('Data Management Content')).toBeVisible();
     expect(screen.getByText('Lichess Settings Content')).toBeVisible();
 
     // Collapse first section; second stays open
     fireEvent.click(lichessTrigger);
-    expect(
-      screen.queryByText('Lichess Settings Content'),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Lichess Settings Content')).not.toBeInTheDocument();
     expect(screen.getByText('Data Management Content')).toBeVisible();
 
     // Collapse second section
     fireEvent.click(dataTrigger);
-    expect(
-      screen.queryByText('Data Management Content'),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Data Management Content')).not.toBeInTheDocument();
   });
 });
