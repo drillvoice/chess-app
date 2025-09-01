@@ -39,6 +39,10 @@
           {
             "key": "Content-Type",
             "value": "application/javascript"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
           }
         ]
       },

@@ -34,6 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   serveStaticFile(app, '/manifest.json', 'manifest.json', 'application/manifest+json');
   serveStaticFile(app, '/sw.js', 'sw.js', 'application/javascript', {
     'Service-Worker-Allowed': '/',
+    'Cache-Control': 'no-cache',
   });
 
   ['192', '512'].forEach((size) => {

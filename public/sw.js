@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chess-training-v7';
+const CACHE_NAME = 'chess-training-' + __APP_VERSION__;
 const RUNTIME_CACHE = 'chess-training-runtime';
 const API_CACHE = 'chess-training-api';
 const STATIC_CACHE = 'chess-training-static';
@@ -102,7 +102,13 @@ self.addEventListener('fetch', (event) => {
   
   // Skip external services
   if (isExternalService(url)) return;
-  
+
+  // Always fetch version.json from the network to detect updates
+  if (url.pathname === '/version.json') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Route to appropriate caching strategy
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(handleApiRequest(request, url));
