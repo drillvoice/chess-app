@@ -150,6 +150,8 @@ export default function Activity() {
 
     const todaySessions: TrainingSession[] = [];
     const yesterdaySessions: TrainingSession[] = [];
+    const last7DaysSessions: TrainingSession[] = [];
+    const last30DaysSessions: TrainingSession[] = [];
     const earlierSessions: TrainingSession[] = [];
 
     sessions.forEach((session) => {
@@ -159,21 +161,41 @@ export default function Activity() {
         sessionDate.getMonth(),
         sessionDate.getDate(),
       );
+      const diffTime = today.getTime() - sessionDay.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-      if (sessionDay.getTime() === today.getTime()) {
+      if (diffDays === 0) {
         todaySessions.push(session);
-      } else if (sessionDay.getTime() === yesterday.getTime()) {
+      }
+      if (diffDays === 1) {
         yesterdaySessions.push(session);
+      }
+      if (diffDays < 7) {
+        last7DaysSessions.push(session);
+      }
+      if (diffDays < 30) {
+        last30DaysSessions.push(session);
       } else {
         earlierSessions.push(session);
       }
     });
 
-    return { todaySessions, yesterdaySessions, earlierSessions };
+    return {
+      todaySessions,
+      yesterdaySessions,
+      last7DaysSessions,
+      last30DaysSessions,
+      earlierSessions,
+    };
   };
 
-  const { todaySessions, yesterdaySessions, earlierSessions } =
-    groupSessionsByDate(filteredSessions);
+  const {
+    todaySessions,
+    yesterdaySessions,
+    last7DaysSessions,
+    last30DaysSessions,
+    earlierSessions,
+  } = groupSessionsByDate(filteredSessions);
 
   const formatDate = (date: string | Date) => {
     const d = new Date(date);
@@ -552,6 +574,38 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {yesterdaySessions.map((session) => (
+                      <SessionCard key={session.id} session={session} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* Last 7 days Section */}
+            {last7DaysSessions.length > 0 && (
+              <AccordionItem value="last7" className="border-none">
+                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
+                  Last 7 days ({last7DaysSessions.length})
+                </AccordionTrigger>
+                <AccordionContent className="pt-3">
+                  <div className="space-y-2">
+                    {last7DaysSessions.map((session) => (
+                      <SessionCard key={session.id} session={session} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* Last 30 days Section */}
+            {last30DaysSessions.length > 0 && (
+              <AccordionItem value="last30" className="border-none">
+                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
+                  Last 30 days ({last30DaysSessions.length})
+                </AccordionTrigger>
+                <AccordionContent className="pt-3">
+                  <div className="space-y-2">
+                    {last30DaysSessions.map((session) => (
                       <SessionCard key={session.id} session={session} />
                     ))}
                   </div>
