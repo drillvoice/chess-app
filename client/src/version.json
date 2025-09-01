@@ -1,7 +1,14 @@
 {
-  "version": "0.3.6",
-  "lastUpdated": "31 August 2025",
+  "version": "0.3.7",
+  "lastUpdated": "1 September 2025",
   "changelog": [
+    {
+      "version": "0.3.7",
+      "date": "1 September 2025",
+      "changes": [
+        "Change service worker to force update on version upgrade"
+      ]
+    },
     {
       "version": "0.3.6",
       "date": "31 August 2025",
