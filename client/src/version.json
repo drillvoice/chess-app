@@ -5,9 +5,7 @@
     {
       "version": "0.3.7",
       "date": "1 September 2025",
-      "changes": [
-        "Change service worker to force update on version upgrade"
-      ]
+      "changes": ["Change service worker to force update on version upgrade"]
     },
     {
       "version": "0.3.6",
