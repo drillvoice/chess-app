@@ -1,7 +1,14 @@
 {
-  "version": "0.3.7",
-  "lastUpdated": "1 September 2025",
+  "version": "0.3.7a",
+  "lastUpdated": "3 September 2025",
   "changelog": [
+    {
+      "version": "0.3.7a",
+      "date": "3 September 2025",
+      "changes": [
+        "Bugfixes re lichess syncing and google cloud sync"
+      ]
+    },
     {
       "version": "0.3.7",
       "date": "1 September 2025",
