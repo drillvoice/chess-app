@@ -1,17 +1,6 @@
 import { useState, Suspense, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Puzzle,
-  Crown,
-  Book,
-  Clock,
-  Target,
-  Trash2,
-  Edit3,
-  Play,
-  Trophy,
-  TrendingUp,
-} from 'lucide-react';
+import { Puzzle, Crown, Book, Clock, Target, Trash2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';

@@ -180,7 +180,7 @@ export default function TacticsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg font-bold text-gray-800">Log tactics session</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-800">Log tactics</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto p-2">
@@ -248,7 +248,7 @@ export default function TacticsModal({
             {/* Notes section - more compact */}
             <div>
               <Label htmlFor="tacticsNotes" className="text-sm font-medium text-gray-700">
-                Notes (optional)
+                Notes
               </Label>
               <Textarea
                 id="tacticsNotes"

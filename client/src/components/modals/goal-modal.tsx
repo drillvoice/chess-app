@@ -214,7 +214,7 @@ export default function GoalModal({
 
             <div>
               <Label htmlFor="goalDescription" className="text-sm font-medium text-gray-700">
-                Description (optional)
+                Description
               </Label>
               <Textarea
                 id="goalDescription"
