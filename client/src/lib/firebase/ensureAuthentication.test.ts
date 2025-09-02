@@ -23,7 +23,11 @@ vi.mock('firebase/firestore', () => ({
 
 const signInAnonymously = vi.fn();
 vi.mock('firebase/auth', () => ({
-  GoogleAuthProvider: class { static credentialFromResult() { return null; } },
+  GoogleAuthProvider: class {
+    static credentialFromResult() {
+      return null;
+    }
+  },
   signInWithPopup: vi.fn(),
   signInWithRedirect: vi.fn(),
   linkWithCredential: vi.fn(),
