@@ -306,12 +306,10 @@ export default function Home() {
         <TacticsModal open={tacticsModalOpen} onOpenChange={setTacticsModalOpen} />
         <GameModal
           open={gameModalOpen}
-          onOpenChange={(open: boolean) => {
-            setGameModalOpen(open);
-            if (!open) setEditingSession(undefined);
-          }}
+          onOpenChange={setGameModalOpen}
           editingSession={editingSession}
           isEditMode={!!editingSession}
+          onClearEditingSession={() => setEditingSession(undefined)}
         />
         <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
