@@ -17,6 +17,7 @@ interface GameModalProps {
   onOpenChange: (open: boolean) => void;
   editingSession?: TrainingSession;
   isEditMode?: boolean;
+  onClearEditingSession?: () => void;
 }
 
 export default function GameModal({
@@ -24,6 +25,7 @@ export default function GameModal({
   onOpenChange,
   editingSession,
   isEditMode = false,
+  onClearEditingSession,
 }: GameModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -190,6 +192,7 @@ export default function GameModal({
       queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
       queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
       queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+      onClearEditingSession?.();
     },
     onError: (error: any, _newSession, context) => {
       // Check if it's a timeout error but session might have been saved
@@ -212,6 +215,7 @@ export default function GameModal({
           variant: 'destructive',
         });
       }
+      onClearEditingSession?.();
     },
   });
 
@@ -309,6 +313,9 @@ export default function GameModal({
         setSelectedColor(null);
         setSelectedTimeControl(null);
         setSelectedPlatform(null);
+      }
+      if (!mutation.isPending) {
+        onClearEditingSession?.();
       }
     }
     onOpenChange(open);
