@@ -224,8 +224,9 @@ class OfflineStorage {
     console.log('offlineStorage.addSession called with:', session);
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['sessions'], 'readwrite');
+      const transaction = db.transaction(['sessions', 'cache_meta'], 'readwrite');
       const store = transaction.objectStore('sessions');
+      const metaStore = transaction.objectStore('cache_meta');
 
       const sessionToStore = {
         ...session,
@@ -235,6 +236,7 @@ class OfflineStorage {
       console.log('offlineStorage.addSession - storing session:', sessionToStore);
 
       store.put(sessionToStore);
+      metaStore.put({ key: 'sessions_last_updated', timestamp: Date.now() });
 
       transaction.oncomplete = () => {
         console.log('offlineStorage.addSession - session stored successfully');
@@ -251,8 +253,9 @@ class OfflineStorage {
     console.log('offlineStorage.updateSession called with id:', id, 'updateData:', updateData);
     const db = await this.ensureDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['sessions'], 'readwrite');
+      const transaction = db.transaction(['sessions', 'cache_meta'], 'readwrite');
       const store = transaction.objectStore('sessions');
+      const metaStore = transaction.objectStore('cache_meta');
 
       // First get the existing session
       const getRequest = store.get(id);
@@ -276,8 +279,9 @@ class OfflineStorage {
         console.log('offlineStorage.updateSession - updated session:', updatedSession);
 
         const putRequest = store.put(updatedSession);
+        metaStore.put({ key: 'sessions_last_updated', timestamp: Date.now() });
 
-        putRequest.onsuccess = () => {
+        transaction.oncomplete = () => {
           const result = {
             ...updatedSession,
             date: new Date(updatedSession.date),
@@ -289,6 +293,7 @@ class OfflineStorage {
           resolve(result);
         };
 
+        transaction.onerror = () => reject(transaction.error);
         putRequest.onerror = () => reject(putRequest.error);
       };
 
