@@ -1,6 +1,7 @@
 // Debug utilities for troubleshooting dynamic import issues
 
 import { offlineStorage } from './offline-storage';
+import { dbPromise } from './storage/db';
 
 interface DebugInfo {
   timestamp: string;
@@ -128,7 +129,8 @@ export async function diagnoseDatabase(): Promise<DatabaseDiagnostics> {
 
   try {
     // Check database version and stores
-    const db = await offlineStorage['ensureDB']();
+    await offlineStorage.init();
+    const db = await dbPromise;
     diagnostics.databaseVersion = db.version;
     diagnostics.objectStores = Array.from(db.objectStoreNames);
 
@@ -208,17 +210,18 @@ export async function forceDatabaseUpgrade(): Promise<void> {
 
   try {
     // Close existing connection
-    if (offlineStorage['db']) {
-      offlineStorage['db'].close();
-      offlineStorage['db'] = null;
+    const storage = offlineStorage as any;
+    if (storage.db) {
+      storage.db.close();
+      storage.db = null;
     }
 
     // Increment version to force upgrade
-    offlineStorage['version'] += 1;
-    console.log('New version:', offlineStorage['version']);
+    storage.version += 1;
+    console.log('New version:', storage.version);
 
     // Reinitialize
-    await offlineStorage['init']();
+    await storage.init();
 
     console.log('✅ Database upgrade completed');
   } catch (error) {
