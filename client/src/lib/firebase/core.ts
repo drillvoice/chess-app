@@ -72,6 +72,7 @@ export async function ensureFirebase() {
   }
 
   if (!authListenerInitialized) {
+    if (!onAuthStateChanged) throw new Error('Firebase auth not initialized');
     onAuthStateChanged(auth, async (user) => {
       const previousUserId = currentUserId;
       currentUserId = user ? user.uid : null;
@@ -165,6 +166,7 @@ export async function waitForAuth(timeoutMs = 30000): Promise<void> {
 
   // If anonymous auth didn't work, wait for any auth state change
   console.log('⏳ Waiting for auth state change...');
+  if (!onAuthStateChanged) throw new Error('Firebase auth not initialized');
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -227,6 +229,7 @@ export async function ensureAuthentication(): Promise<void> {
     await (auth as any).authStateReady();
   } else {
     await new Promise((resolve) => {
+      if (!onAuthStateChanged) throw new Error('Firebase auth not initialized');
       const unsub = onAuthStateChanged(auth, () => {
         unsub();
         resolve(undefined);
