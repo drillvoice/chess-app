@@ -59,6 +59,14 @@ vi.mock('@/lib/offline-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/useSyncStatus', () => ({
+  __esModule: true,
+  default: () => ({
+    data: { unsyncedCount: 0, lastSynced: new Date(), lastAttempt: null },
+    refetch: vi.fn(),
+  }),
+}));
+
 const toastMock = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: toastMock }),

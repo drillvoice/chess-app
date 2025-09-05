@@ -7,12 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Cloud, CloudOff, LogOut } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
+import useSyncStatus from '@/hooks/useSyncStatus';
 
 export default function FirebaseAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: syncStatus, refetch: refetchSyncStatus } = useSyncStatus();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -25,6 +28,7 @@ export default function FirebaseAuth() {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           setUser(user);
           setLoading(false);
+          refetchSyncStatus();
           if (user) {
             // Only show sync UI and start syncing for non-anonymous users
             if (!user.isAnonymous) {
@@ -37,6 +41,7 @@ export default function FirebaseAuth() {
                     queryClient.invalidateQueries({ queryKey: ['statistics'] });
                     queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
                     queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
+                    refetchSyncStatus();
                   });
                 }
               } catch (err) {
@@ -73,6 +78,7 @@ export default function FirebaseAuth() {
                   queryClient.invalidateQueries({ queryKey: ['statistics'] });
                   queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
                   queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
+                  refetchSyncStatus();
                 });
                 toast({
                   title: 'Connected',
@@ -148,6 +154,7 @@ export default function FirebaseAuth() {
         queryClient.invalidateQueries({ queryKey: ['statistics'] });
         queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
         queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
+        refetchSyncStatus();
       });
       toast({
         title: 'Connected',
@@ -174,6 +181,7 @@ export default function FirebaseAuth() {
       const { refreshAuthState, stopSessionSync } = await import('@/lib/firebase');
       await refreshAuthState();
       stopSessionSync();
+      refetchSyncStatus();
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.invalidateQueries({ queryKey: ['statistics'] });
       queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
@@ -225,6 +233,17 @@ export default function FirebaseAuth() {
             </>
           )}
         </CardTitle>
+        {syncStatus && (
+          <p className="text-xs text-gray-500">
+            {syncStatus.unsyncedCount > 0
+              ? `Syncing ${syncStatus.unsyncedCount} session(s)…`
+              : `All data up to date — last synced ${
+                  syncStatus.lastSynced
+                    ? formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })
+                    : 'never'
+                }`}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="pt-0">
         {user ? (
