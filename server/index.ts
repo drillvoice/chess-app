@@ -1,6 +1,13 @@
-import express, { type Request, Response, NextFunction, json, urlencoded } from 'express';
+import express, {
+  type Request,
+  Response,
+  NextFunction,
+  json,
+  urlencoded,
+} from 'express';
 import { registerRoutes } from './routes';
 import { setupVite, serveStatic, log } from './vite';
+import { fromZodError } from 'zod-validation-error';
 
 const app = express();
 app.use(json());
@@ -40,8 +47,14 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || 'Internal Server Error';
+    let status = err.status || err.statusCode || 500;
+    let message = err.message || 'Internal Server Error';
+
+    if (err.name === 'ZodError') {
+      const validationError = fromZodError(err);
+      status = 400;
+      message = validationError.message;
+    }
 
     res.status(status).json({ message });
     throw err;
