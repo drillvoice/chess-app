@@ -563,10 +563,12 @@ async function syncSessionToFirebase(sessionId: number, session: TrainingSession
     };
 
     const docRef = doc(sessionsRef, sessionId.toString());
+    await offlineStorage.setLastSyncAttempt();
     await setDoc(docRef, sessionData);
 
     // Mark as synced on success (we'll add this method later)
     await offlineStorage.markAsSynced(sessionId);
+    await offlineStorage.setLastSyncedTimestamp(Date.now());
 
     console.log(`Session ${sessionId} synced to Firebase successfully`);
   } catch (error) {
@@ -591,8 +593,10 @@ async function syncUpdateToFirebase(
       updatedAt: Timestamp.fromDate(new Date()),
     };
 
+    await offlineStorage.setLastSyncAttempt();
     await setDoc(docRef, updatePayload, { merge: true });
     await offlineStorage.markAsSynced(id);
+    await offlineStorage.setLastSyncedTimestamp(Date.now());
 
     console.log(`Session ${id} update synced to Firebase`);
   } catch (error) {
@@ -606,8 +610,10 @@ async function syncDeleteToFirebase(id: number): Promise<void> {
     await waitForAuth();
     const sessionsRef = await getSessionsCollection();
     const docRef = doc(sessionsRef, id.toString());
+    await offlineStorage.setLastSyncAttempt();
     await deleteDoc(docRef);
     await offlineStorage.markAsSynced(id);
+    await offlineStorage.setLastSyncedTimestamp(Date.now());
 
     console.log(`Session ${id} deletion synced to Firebase`);
   } catch (error) {

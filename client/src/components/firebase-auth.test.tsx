@@ -55,6 +55,7 @@ vi.mock('@/lib/offline-storage', () => ({
     markAsUnsynced: vi.fn(),
     markAsSynced: vi.fn(),
     incrementSyncRetries: vi.fn(),
+    setLastSyncAttempt: vi.fn(),
   },
 }));
 

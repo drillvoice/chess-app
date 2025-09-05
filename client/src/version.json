@@ -5,9 +5,7 @@
     {
       "version": "0.3.7a",
       "date": "3 September 2025",
-      "changes": [
-        "Bugfixes re lichess syncing and google cloud sync"
-      ]
+      "changes": ["Bugfixes re lichess syncing and google cloud sync"]
     },
     {
       "version": "0.3.7",
