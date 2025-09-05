@@ -73,9 +73,7 @@ describe('API routes', () => {
       .send({ type: 'goal', goalTitle: 'Win tournament' });
     expect(res.status).toBe(201);
 
-    const badRes = await request(app)
-      .post('/api/training-sessions/goal')
-      .send({ type: 'goal' });
+    const badRes = await request(app).post('/api/training-sessions/goal').send({ type: 'goal' });
     expect(badRes.status).toBe(400);
   });
 });
