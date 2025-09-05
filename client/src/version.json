@@ -1,7 +1,22 @@
 {
-  "version": "0.3.7b",
+  "version": "0.3.8",
   "lastUpdated": "5 September 2025",
   "changelog": [
+    {
+      "version": "0.3.8",
+      "date": "5 September 2025",
+      "changes": [
+        "Consolidate API error handling",
+        "Make server port configurable",
+        "Replace response capture with middleware",
+        "Refactor shared schema, reducing duplication",
+        "Split side effects into dedicated hooks",
+        "Modularize offline storage utility",
+        "Abstract common session-creation logic",
+        "Adopt structured logging with levels",
+        "Expand unit and integration test coverage"
+      ]
+    },
     {
       "version": "0.3.7b",
       "date": "5 September 2025",
