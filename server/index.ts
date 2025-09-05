@@ -1,10 +1,4 @@
-import express, {
-  type Request,
-  Response,
-  NextFunction,
-  json,
-  urlencoded,
-} from 'express';
+import express, { type Request, Response, NextFunction, json, urlencoded } from 'express';
 import { registerRoutes } from './routes';
 import { setupVite, serveStatic, log } from './vite';
 import { fromZodError } from 'zod-validation-error';
