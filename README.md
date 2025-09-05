@@ -23,7 +23,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 
 ## Environment & Secrets
 
-Local development uses a `.env.local` file that is not committed to version control. Follow these steps to set up your environment:
+Local development uses a `.env.local` file that is not committed to version control. The server listens on the port specified by the `PORT` environment variable (defaults to `5000`). Follow these steps to set up your environment:
 
 1. **Create `.env.local`**
 

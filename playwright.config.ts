@@ -1,15 +1,17 @@
 import { defineConfig } from '@playwright/test';
 
+const port = Number(process.env.PORT) || 5000;
+
 export default defineConfig({
   testDir: './tests',
   timeout: 30000,
   webServer: {
     command: 'npm run dev',
-    port: 5000,
+    port,
     reuseExistingServer: !process.env.CI,
   },
   use: {
-    baseURL: 'http://localhost:5000',
+    baseURL: `http://localhost:${port}`,
     headless: true,
   },
 });
