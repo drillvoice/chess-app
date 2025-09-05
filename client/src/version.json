@@ -1,7 +1,14 @@
 {
-  "version": "0.3.7a",
-  "lastUpdated": "3 September 2025",
+  "version": "0.3.7b",
+  "lastUpdated": "5 September 2025",
   "changelog": [
+    {
+      "version": "0.3.7b",
+      "date": "5 September 2025",
+      "changes": [
+        "Finally making google cloud sync work?"
+      ]
+    },
     {
       "version": "0.3.7a",
       "date": "3 September 2025",
