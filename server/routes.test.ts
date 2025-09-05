@@ -78,9 +78,7 @@ describe('API routes', () => {
   });
 
   it('handles storage errors with 500 responses', async () => {
-    const spy = vi
-      .spyOn(storage, 'createTrainingSession')
-      .mockRejectedValue(new Error('db error'));
+    const spy = vi.spyOn(storage, 'createTrainingSession').mockRejectedValue(new Error('db error'));
     const res = await request(app)
       .post('/api/training-sessions/tactics')
       .send({ type: 'tactics', duration: 15 });
