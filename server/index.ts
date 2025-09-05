@@ -1,8 +1,8 @@
 import express, { type Request, Response, NextFunction, json, urlencoded } from 'express';
 import { registerRoutes } from './routes';
-import { setupVite, serveStatic, log } from './vite';
+import { setupVite, serveStatic } from './vite';
 import { fromZodError } from 'zod-validation-error';
-import { requestLogger } from './logger';
+import { requestLogger, logger } from './logger';
 
 const app = express();
 app.use(json());
@@ -46,7 +46,7 @@ app.use(requestLogger);
       reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      logger.info(`serving on port ${port}`, 'server');
     },
   );
 })();
