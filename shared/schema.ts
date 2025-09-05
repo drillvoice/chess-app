@@ -91,9 +91,7 @@ export const gameSessionSchema = insertTrainingSessionSchema
     platform: z.enum(['lichess', 'chess.com', 'otb']).optional(),
     timeControl: z.enum(['bullet', 'blitz', 'rapid', 'classical']).optional(),
   })
-  .omit(
-    buildOmit(tacticsFields, studyFields, goalFields, ['gameType', 'duration'] as const),
-  );
+  .omit(buildOmit(tacticsFields, studyFields, goalFields, ['gameType', 'duration'] as const));
 
 // Study tag validation schema
 export const studyTagSchema = z
@@ -126,9 +124,7 @@ export const goalSessionSchema = insertTrainingSessionSchema
     goalDescription: z.string().optional(),
     goalWeekStart: z.date().optional(),
   })
-  .omit(
-    buildOmit(tacticsFields, gameFields, studyFields, ['duration'] as const),
-  );
+  .omit(buildOmit(tacticsFields, gameFields, studyFields, ['duration'] as const));
 
 // User Study Preferences Schema
 export const userStudyPreferencesSchema = z.object({
