@@ -10,11 +10,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       let line = `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`;
       const contentType = res.get('Content-Type');
       const contentLength = res.get('Content-Length');
-      if (
-        contentLength &&
-        contentType &&
-        contentType.includes('application/json')
-      ) {
+      if (contentLength && contentType && contentType.includes('application/json')) {
         line += ` ${contentLength}b`;
       }
       if (line.length > 80) {
