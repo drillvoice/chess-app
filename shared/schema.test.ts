@@ -10,8 +10,7 @@ import {
   tacticsFields,
 } from './schema';
 
-const keys = (schema: { shape: Record<string, unknown> }) =>
-  Object.keys(schema.shape);
+const keys = (schema: { shape: Record<string, unknown> }) => Object.keys(schema.shape);
 
 describe('session schema field omission', () => {
   it('tactics session omits game, study and goal fields', () => {
@@ -23,11 +22,9 @@ describe('session schema field omission', () => {
 
   it('game session omits tactics, study, goal fields plus gameType and duration', () => {
     const shape = keys(gameSessionSchema);
-    [...tacticsFields, ...studyFields, ...goalFields, 'gameType', 'duration'].forEach(
-      (field) => {
-        expect(shape).not.toContain(field);
-      },
-    );
+    [...tacticsFields, ...studyFields, ...goalFields, 'gameType', 'duration'].forEach((field) => {
+      expect(shape).not.toContain(field);
+    });
   });
 
   it('study session omits tactics, game and goal fields', () => {
@@ -44,4 +41,3 @@ describe('session schema field omission', () => {
     });
   });
 });
-
