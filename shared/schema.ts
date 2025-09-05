@@ -2,6 +2,26 @@ import { pgTable, text, serial, integer, boolean, timestamp } from 'drizzle-orm/
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
+const buildOmit = (...groups: readonly string[][]) =>
+  groups.reduce<Record<string, true>>((acc, group) => {
+    group.forEach((field) => {
+      acc[field] = true;
+    });
+    return acc;
+  }, {});
+
+export const tacticsFields = ['pointsGained', 'finalScore', 'tacticsNotes'] as const;
+export const gameFields = [
+  'gameResult',
+  'gameType',
+  'gameComments',
+  'playerColor',
+  'platform',
+  'timeControl',
+] as const;
+export const studyFields = ['studyType', 'studyNotes'] as const;
+export const goalFields = ['goalTitle', 'goalDescription'] as const;
+
 export const trainingSessionsTable = pgTable('training_sessions', {
   id: serial('id').primaryKey(),
   type: text('type').notNull(), // 'tactics', 'game', 'study', 'goal'
@@ -52,18 +72,7 @@ export const tacticsSessionSchema = insertTrainingSessionSchema
     ),
     tacticsNotes: z.string().optional(),
   })
-  .omit({
-    gameResult: true,
-    gameType: true,
-    gameComments: true,
-    playerColor: true,
-    platform: true,
-    timeControl: true,
-    studyType: true,
-    studyNotes: true,
-    goalTitle: true,
-    goalDescription: true,
-  });
+  .omit(buildOmit(gameFields, studyFields, goalFields));
 
 export const gameSessionSchema = insertTrainingSessionSchema
   .extend({
@@ -78,17 +87,7 @@ export const gameSessionSchema = insertTrainingSessionSchema
     platform: z.enum(['lichess', 'chess.com', 'otb']).optional(),
     timeControl: z.enum(['bullet', 'blitz', 'rapid', 'classical']).optional(),
   })
-  .omit({
-    duration: true,
-    pointsGained: true,
-    finalScore: true,
-    tacticsNotes: true,
-    gameType: true,
-    studyType: true,
-    studyNotes: true,
-    goalTitle: true,
-    goalDescription: true,
-  });
+  .omit(buildOmit(tacticsFields, studyFields, goalFields, ['gameType', 'duration']));
 
 // Study tag validation schema
 export const studyTagSchema = z
@@ -112,19 +111,7 @@ export const studySessionSchema = insertTrainingSessionSchema
       .enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course'])
       .optional(),
   })
-  .omit({
-    pointsGained: true,
-    finalScore: true,
-    tacticsNotes: true,
-    gameResult: true,
-    gameType: true,
-    gameComments: true,
-    playerColor: true,
-    platform: true,
-    timeControl: true,
-    goalTitle: true,
-    goalDescription: true,
-  });
+  .omit(buildOmit(tacticsFields, gameFields, goalFields));
 
 export const goalSessionSchema = insertTrainingSessionSchema
   .extend({
@@ -133,20 +120,7 @@ export const goalSessionSchema = insertTrainingSessionSchema
     goalDescription: z.string().optional(),
     goalWeekStart: z.date().optional(),
   })
-  .omit({
-    duration: true,
-    pointsGained: true,
-    finalScore: true,
-    tacticsNotes: true,
-    gameResult: true,
-    gameType: true,
-    gameComments: true,
-    playerColor: true,
-    platform: true,
-    timeControl: true,
-    studyType: true,
-    studyNotes: true,
-  });
+  .omit(buildOmit(tacticsFields, gameFields, studyFields, ['duration']));
 
 // User Study Preferences Schema
 export const userStudyPreferencesSchema = z.object({
