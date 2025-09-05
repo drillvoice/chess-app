@@ -42,12 +42,17 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     let status = err.status || err.statusCode || 500;
-    let message = err.message || 'Internal Server Error';
+    let message: string;
 
     if (err.name === 'ZodError') {
       const validationError = fromZodError(err);
       status = 400;
       message = validationError.message;
+    } else if (status >= 500) {
+      message = 'Internal Server Error';
+      console.error(err);
+    } else {
+      message = err.message || 'Internal Server Error';
     }
 
     res.status(status).json({ message });
