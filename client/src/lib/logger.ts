@@ -1,7 +1,4 @@
-const env =
-  typeof process !== 'undefined'
-    ? process.env.NODE_ENV
-    : (import.meta as any)?.env?.MODE;
+const env = typeof process !== 'undefined' ? process.env.NODE_ENV : (import.meta as any)?.env?.MODE;
 const isDev = env !== 'production';
 
 const noop = () => {};
