@@ -10,11 +10,7 @@ export type StoreName =
   | 'daily_goals'
   | 'sync_queue';
 
-export async function withStores<
-  N extends readonly StoreName[],
-  M extends IDBTransactionMode,
-  T,
->(
+export async function withStores<N extends readonly StoreName[], M extends IDBTransactionMode, T>(
   storeNames: N,
   mode: M,
   fn: (stores: { [K in N[number]]: IDBPObjectStore<any, any, any, M> }) => Promise<T>,
