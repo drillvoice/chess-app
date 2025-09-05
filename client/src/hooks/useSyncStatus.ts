@@ -27,4 +27,3 @@ export function useSyncStatus() {
 }
 
 export default useSyncStatus;
-
