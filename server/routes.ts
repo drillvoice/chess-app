@@ -6,9 +6,12 @@ import {
   gameSessionSchema,
   studySessionSchema,
   goalSessionSchema,
+  type InsertTrainingSession,
 } from '@shared/schema';
 import path from 'path';
 import { asyncHandler } from './asyncHandler';
+import { fromZodError } from 'zod-validation-error';
+import { z, ZodError, type ZodTypeAny } from 'zod';
 
 /**
  * Helper to register a static file route with predefined headers.
@@ -26,6 +29,30 @@ function serveStaticFile(
       res.setHeader(key, value);
     }
     res.sendFile(path.join(process.cwd(), 'public', filename));
+  });
+}
+
+/**
+ * Factory to create training session routes with consistent validation and error handling.
+ */
+function createSessionRoute<T extends ZodTypeAny>(
+  schema: T,
+  transform?: (data: z.infer<T>) => InsertTrainingSession,
+) {
+  return asyncHandler(async (req, res) => {
+    try {
+      const validated = schema.parse(req.body);
+      const toStore = transform ? transform(validated) : (validated as InsertTrainingSession);
+      const session = await storage.createTrainingSession(toStore);
+      res.status(201).json(session);
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const validationError = fromZodError(err);
+        res.status(400).json({ message: validationError.message });
+      } else {
+        throw err;
+      }
+    }
   });
 }
 
@@ -76,37 +103,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }),
   );
 
-  // Create a tactics session
-  app.post(
-    '/api/training-sessions/tactics',
-    asyncHandler(async (req, res) => {
-      const validatedData = tacticsSessionSchema.parse(req.body);
-      const session = await storage.createTrainingSession(validatedData);
-      res.status(201).json(session);
-    }),
-  );
+  // Create session endpoints
+  app.post('/api/training-sessions/tactics', createSessionRoute(tacticsSessionSchema));
 
-  // Create a game session
-  app.post(
-    '/api/training-sessions/game',
-    asyncHandler(async (req, res) => {
-      const validatedData = gameSessionSchema.parse(req.body);
-      const session = await storage.createTrainingSession(validatedData);
-      res.status(201).json(session);
-    }),
-  );
+  app.post('/api/training-sessions/game', createSessionRoute(gameSessionSchema));
 
-  // Create a study session
   app.post(
     '/api/training-sessions/study',
-    asyncHandler(async (req, res) => {
-      const validatedData = studySessionSchema.parse(req.body);
-      const session = await storage.createTrainingSession({
-        ...validatedData,
-        studyTags: validatedData.studyTags ? JSON.stringify(validatedData.studyTags) : undefined,
-      });
-      res.status(201).json(session);
-    }),
+    createSessionRoute(studySessionSchema, (data) => ({
+      ...data,
+      studyTags: data.studyTags ? JSON.stringify(data.studyTags) : undefined,
+    })),
   );
 
   // Get current weekly goal
@@ -155,15 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }),
   );
 
-  // Create a goal session
-  app.post(
-    '/api/training-sessions/goal',
-    asyncHandler(async (req, res) => {
-      const validatedData = goalSessionSchema.parse(req.body);
-      const session = await storage.createTrainingSession(validatedData);
-      res.status(201).json(session);
-    }),
-  );
+  app.post('/api/training-sessions/goal', createSessionRoute(goalSessionSchema));
 
   // Export data
   app.get(
