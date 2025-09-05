@@ -1,0 +1,70 @@
+import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
+import type { TrainingSession, DailyGoalSettings } from '@shared/schema';
+
+interface ChessLoggerDB extends DBSchema {
+  sessions: {
+    key: number;
+    value: TrainingSession & { date: string; updatedAt?: string; needsReview?: boolean };
+    indexes: { date: string; type: string };
+  };
+  cache_meta: {
+    key: string;
+    value: { key: string; timestamp: number };
+  };
+  statistics: {
+    key: string;
+    value: { id: string; data: any };
+  };
+  settings: {
+    key: string;
+    value: { id: string; data: any };
+  };
+  daily_goals: {
+    key: string;
+    value: DailyGoalSettings & { id: string; lastModified?: string };
+  };
+  sync_queue: {
+    key: number;
+    value: {
+      sessionId: number;
+      operation: 'create' | 'update' | 'delete';
+      timestamp: number;
+      retries: number;
+      updateData?: any;
+    };
+  };
+}
+
+export type DB = IDBPDatabase<ChessLoggerDB>;
+
+const DB_NAME = 'chess-logger-offline';
+const DB_VERSION = 5;
+
+export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
+  upgrade(db) {
+    if (!db.objectStoreNames.contains('sessions')) {
+      const store = db.createObjectStore('sessions', { keyPath: 'id' });
+      store.createIndex('date', 'date');
+      store.createIndex('type', 'type');
+    }
+    if (!db.objectStoreNames.contains('cache_meta')) {
+      db.createObjectStore('cache_meta', { keyPath: 'key' });
+    }
+    if (!db.objectStoreNames.contains('statistics')) {
+      db.createObjectStore('statistics', { keyPath: 'id' });
+    }
+    if (!db.objectStoreNames.contains('settings')) {
+      db.createObjectStore('settings', { keyPath: 'id' });
+    }
+    if (!db.objectStoreNames.contains('daily_goals')) {
+      db.createObjectStore('daily_goals', { keyPath: 'id' });
+    }
+    if (!db.objectStoreNames.contains('sync_queue')) {
+      db.createObjectStore('sync_queue', { keyPath: 'sessionId' });
+    }
+  },
+});
+
+export async function getDB(): Promise<DB> {
+  return dbPromise;
+}
