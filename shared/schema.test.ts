@@ -41,3 +41,34 @@ describe('session schema field omission', () => {
     });
   });
 });
+
+describe('session schema validation', () => {
+  it('validates tactics sessions', () => {
+    const valid = { type: 'tactics', duration: 5 } as any;
+    expect(tacticsSessionSchema.parse(valid)).toMatchObject(valid);
+    expect(() => tacticsSessionSchema.parse({ type: 'tactics' } as any)).toThrow();
+  });
+
+  it('validates game sessions', () => {
+    const valid = { type: 'game', gameResult: 'win', playerColor: 'white' } as any;
+    expect(gameSessionSchema.parse(valid)).toMatchObject(valid);
+    expect(() => gameSessionSchema.parse({ type: 'game' } as any)).toThrow();
+  });
+
+  it('validates study sessions', () => {
+    const valid = { type: 'study', duration: 10, studyTags: ['book'] } as any;
+    expect(studySessionSchema.parse(valid)).toMatchObject({
+      ...valid,
+      studyTags: ['book'],
+    });
+    expect(() =>
+      studySessionSchema.parse({ type: 'study', duration: 10, studyTags: ['<bad>'] } as any),
+    ).toThrow();
+  });
+
+  it('validates goal sessions', () => {
+    const valid = { type: 'goal', goalTitle: 'Win' } as any;
+    expect(goalSessionSchema.parse(valid)).toMatchObject(valid);
+    expect(() => goalSessionSchema.parse({ type: 'goal' } as any)).toThrow();
+  });
+});
