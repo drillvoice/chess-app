@@ -78,7 +78,12 @@ import * as firebaseUtils from '@/lib/firebase';
 
 beforeEach(() => {
   useSyncStatusMock.mockReturnValue({
-    data: { unsyncedCount: 0, lastSynced: new Date(), lastAttempt: null, state: SyncStateEnum.Synced },
+    data: {
+      unsyncedCount: 0,
+      lastSynced: new Date(),
+      lastAttempt: null,
+      state: SyncStateEnum.Synced,
+    },
     refetch: vi.fn(),
   });
 });
@@ -242,9 +247,7 @@ describe('FirebaseAuth sync status messages', () => {
     });
 
     renderWithClient(<FirebaseAuth />);
-    expect(
-      await screen.findByText(/121 session\(s\) pending sync/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/121 session\(s\) pending sync/i)).toBeInTheDocument();
   });
 
   it('shows syncing message when sessions are syncing', async () => {
@@ -267,9 +270,7 @@ describe('FirebaseAuth sync status messages', () => {
     });
 
     renderWithClient(<FirebaseAuth />);
-    expect(
-      await screen.findByText(/Syncing 5 session\(s\)…/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Syncing 5 session\(s\)…/i)).toBeInTheDocument();
   });
 });
 

@@ -217,7 +217,7 @@ export default function FirebaseAuth() {
     );
   }
 
-  const currentState = user ? syncStatus?.state ?? SyncState.Synced : SyncState.Disabled;
+  const currentState = user ? (syncStatus?.state ?? SyncState.Synced) : SyncState.Disabled;
   let statusMessage: string | null = null;
   if (syncStatus) {
     switch (currentState) {
