@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
@@ -61,11 +61,12 @@ vi.mock('@/lib/offline-storage', () => ({
 
 vi.mock('@/hooks/useSyncStatus', () => ({
   __esModule: true,
-  default: () => ({
-    data: { unsyncedCount: 0, lastSynced: new Date(), lastAttempt: null },
-    refetch: vi.fn(),
-  }),
+  default: vi.fn(),
+  SyncState: { Disabled: 'disabled', Pending: 'pending', Syncing: 'syncing', Synced: 'synced' },
 }));
+
+import useSyncStatus, { SyncState as SyncStateEnum } from '@/hooks/useSyncStatus';
+const useSyncStatusMock = useSyncStatus as unknown as vi.Mock;
 
 const toastMock = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({
@@ -74,6 +75,18 @@ vi.mock('@/hooks/use-toast', () => ({
 
 import FirebaseAuth from './firebase-auth';
 import * as firebaseUtils from '@/lib/firebase';
+
+beforeEach(() => {
+  useSyncStatusMock.mockReturnValue({
+    data: {
+      unsyncedCount: 0,
+      lastSynced: new Date(),
+      lastAttempt: null,
+      state: SyncStateEnum.Synced,
+    },
+    refetch: vi.fn(),
+  });
+});
 
 afterEach(() => {
   cleanup();
@@ -210,6 +223,54 @@ describe('FirebaseAuth sign-in', () => {
     expect(sessionStorage.getItem('redirectAuth')).toBe('true');
     expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
+  });
+});
+
+describe('FirebaseAuth sync status messages', () => {
+  it('shows pending message when cloud sync disabled with unsynced sessions', async () => {
+    useSyncStatusMock.mockReturnValue({
+      data: {
+        unsyncedCount: 121,
+        lastSynced: new Date(),
+        lastAttempt: null,
+        state: SyncStateEnum.Pending,
+      },
+      refetch: vi.fn(),
+    });
+    const mockAuth: any = { currentUser: null };
+    const firebaseClient = await import('@/lib/firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(null);
+      return () => {};
+    });
+
+    renderWithClient(<FirebaseAuth />);
+    expect(await screen.findByText(/121 session\(s\) pending sync/i)).toBeInTheDocument();
+  });
+
+  it('shows syncing message when sessions are syncing', async () => {
+    useSyncStatusMock.mockReturnValue({
+      data: {
+        unsyncedCount: 5,
+        lastSynced: new Date(Date.now() - 1000),
+        lastAttempt: new Date(),
+        state: SyncStateEnum.Syncing,
+      },
+      refetch: vi.fn(),
+    });
+    const mockAuth: any = { currentUser: { uid: 'user1' } };
+    const firebaseClient = await import('@/lib/firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(mockAuth.currentUser);
+      return () => {};
+    });
+
+    renderWithClient(<FirebaseAuth />);
+    expect(await screen.findByText(/Syncing 5 session\(s\)…/i)).toBeInTheDocument();
   });
 });
 
