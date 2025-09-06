@@ -8,7 +8,7 @@ import { Cloud, CloudOff, LogOut } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import useSyncStatus from '@/hooks/useSyncStatus';
+import useSyncStatus, { SyncState } from '@/hooks/useSyncStatus';
 
 export default function FirebaseAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -113,7 +113,7 @@ export default function FirebaseAuth() {
     });
 
     return () => unsubscribe?.();
-  }, [toast, queryClient]);
+  }, [toast, queryClient, refetchSyncStatus]);
 
   const handleSignIn = async () => {
     try {
@@ -217,6 +217,38 @@ export default function FirebaseAuth() {
     );
   }
 
+  const currentState = user ? syncStatus?.state ?? SyncState.Synced : SyncState.Disabled;
+  let statusMessage: string | null = null;
+  if (syncStatus) {
+    switch (currentState) {
+      case SyncState.Disabled:
+      case SyncState.Pending:
+        statusMessage =
+          syncStatus.unsyncedCount > 0
+            ? `${syncStatus.unsyncedCount} session(s) pending sync${
+                syncStatus.lastSynced
+                  ? ` — last synced ${formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })}`
+                  : ''
+              }`
+            : `Last synced ${
+                syncStatus.lastSynced
+                  ? formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })
+                  : 'never'
+              }`;
+        break;
+      case SyncState.Syncing:
+        statusMessage = `Syncing ${syncStatus.unsyncedCount} session(s)…`;
+        break;
+      case SyncState.Synced:
+        statusMessage = `All data up to date — last synced ${
+          syncStatus.lastSynced
+            ? formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })
+            : 'never'
+        }`;
+        break;
+    }
+  }
+
   return (
     <Card className={user ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}>
       <CardHeader className="pb-2">
@@ -233,17 +265,7 @@ export default function FirebaseAuth() {
             </>
           )}
         </CardTitle>
-        {syncStatus && (
-          <p className="text-xs text-gray-500">
-            {syncStatus.unsyncedCount > 0
-              ? `Syncing ${syncStatus.unsyncedCount} session(s)…`
-              : `All data up to date — last synced ${
-                  syncStatus.lastSynced
-                    ? formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })
-                    : 'never'
-                }`}
-          </p>
-        )}
+        {statusMessage && <p className="text-xs text-gray-500">{statusMessage}</p>}
       </CardHeader>
       <CardContent className="pt-0">
         {user ? (
