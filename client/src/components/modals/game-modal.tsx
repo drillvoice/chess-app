@@ -353,9 +353,7 @@ export default function GameModal({
                 className="rounded border p-1 text-sm"
                 value={format(selectedDate, 'yyyy-MM-dd')}
                 onChange={(e) => {
-                  const [year, month, day] = e.target.value
-                    .split('-')
-                    .map(Number);
+                  const [year, month, day] = e.target.value.split('-').map(Number);
                   setSelectedDate(new Date(year, month - 1, day));
                 }}
               />
