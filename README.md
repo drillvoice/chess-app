@@ -5,7 +5,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 ## Features
 
 - **Training Session Logging**: Track tactics, games, and study sessions
-- **Cloud Sync**: Firebase Firestore integration for cross-device synchronization with automatic redirect fallback when popups are blocked
+- **Cloud Sync**: Firebase Firestore integration for cross-device synchronization with automatic redirect fallback when popups are blocked. See [cloud-sync docs](docs/cloud-sync.md) for storage permissions and troubleshooting tips.
 - **Offline Support**: Works offline with IndexedDB storage
 - **Progressive Web App**: Installable on mobile devices
 - **Statistics Dashboard**: Track your progress over time
