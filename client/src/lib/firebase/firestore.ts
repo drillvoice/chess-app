@@ -552,6 +552,23 @@ async function updateStatisticsInBackground(): Promise<void> {
 }
 
 // Background sync functions
+let syncRetryDelay = 1000;
+const MAX_SYNC_RETRY_DELAY = 60000;
+
+function emitCloudSyncError(code: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cloudsync:error', { detail: { code } }));
+  }
+}
+
+function scheduleSyncRetry(fn: () => Promise<void>) {
+  setTimeout(fn, syncRetryDelay);
+  syncRetryDelay = Math.min(syncRetryDelay * 2, MAX_SYNC_RETRY_DELAY);
+}
+
+function resetSyncBackoff() {
+  syncRetryDelay = 1000;
+}
 async function syncSessionToFirebase(sessionId: number, session: TrainingSession): Promise<void> {
   try {
     await waitForAuth();
@@ -571,10 +588,18 @@ async function syncSessionToFirebase(sessionId: number, session: TrainingSession
     await offlineStorage.setLastSyncedTimestamp(Date.now());
 
     console.log(`Session ${sessionId} synced to Firebase successfully`);
-  } catch (error) {
+    resetSyncBackoff();
+  } catch (error: any) {
     console.error('Failed to sync session to Firebase:', sessionId, error);
-    // Keep marked as unsynced for retry (we'll add this method later)
     await offlineStorage.incrementSyncRetries(sessionId);
+    const code = error?.code;
+    if (
+      code &&
+      (code.startsWith('auth/') || code === 'unavailable' || code === 'network-request-failed')
+    ) {
+      emitCloudSyncError(code);
+    }
+    scheduleSyncRetry(() => syncSessionToFirebase(sessionId, session));
   }
 }
 
@@ -599,9 +624,18 @@ async function syncUpdateToFirebase(
     await offlineStorage.setLastSyncedTimestamp(Date.now());
 
     console.log(`Session ${id} update synced to Firebase`);
-  } catch (error) {
+    resetSyncBackoff();
+  } catch (error: any) {
     console.error('Failed to sync update to Firebase:', id, error);
     await offlineStorage.incrementSyncRetries(id);
+    const code = error?.code;
+    if (
+      code &&
+      (code.startsWith('auth/') || code === 'unavailable' || code === 'network-request-failed')
+    ) {
+      emitCloudSyncError(code);
+    }
+    scheduleSyncRetry(() => syncUpdateToFirebase(id, updateData));
   }
 }
 
@@ -616,9 +650,35 @@ async function syncDeleteToFirebase(id: number): Promise<void> {
     await offlineStorage.setLastSyncedTimestamp(Date.now());
 
     console.log(`Session ${id} deletion synced to Firebase`);
-  } catch (error) {
+    resetSyncBackoff();
+  } catch (error: any) {
     console.error('Failed to sync deletion to Firebase:', id, error);
     await offlineStorage.incrementSyncRetries(id);
+    const code = error?.code;
+    if (
+      code &&
+      (code.startsWith('auth/') || code === 'unavailable' || code === 'network-request-failed')
+    ) {
+      emitCloudSyncError(code);
+    }
+    scheduleSyncRetry(() => syncDeleteToFirebase(id));
+  }
+}
+
+export async function retryPendingSync(): Promise<void> {
+  resetSyncBackoff();
+  const unsynced = await offlineStorage.getUnsyncedSessions();
+  for (const item of unsynced) {
+    if (item.operation === 'create') {
+      const session = await offlineStorage.getSession(item.sessionId);
+      if (session) {
+        void syncSessionToFirebase(item.sessionId, session);
+      }
+    } else if (item.operation === 'update') {
+      void syncUpdateToFirebase(item.sessionId, item.updateData || {});
+    } else if (item.operation === 'delete') {
+      void syncDeleteToFirebase(item.sessionId);
+    }
   }
 }
 
