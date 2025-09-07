@@ -6,10 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 // Dynamic import for firebase to maintain code splitting
 import { gameSessionSchema, type GameSession, type TrainingSession } from '@shared/schema';
 import { Trophy, X, Square, Zap, Hourglass, Clock3 } from 'lucide-react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface GameModalProps {
@@ -35,6 +37,16 @@ export default function GameModal({
   const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(
     null,
   );
+  const initialDate = editingSession?.date
+    ? new Date(editingSession.date)
+    : new Date();
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
+  const [dateInput, setDateInput] = useState<string>(
+    format(initialDate, 'yyyy-MM-dd'),
+  );
+  const isDateValid =
+    /^\d{4}-\d{2}-\d{2}$/.test(dateInput) &&
+    !Number.isNaN(new Date(dateInput).getTime());
 
   const {
     register,
@@ -97,6 +109,9 @@ export default function GameModal({
       setSelectedColor(null);
       setSelectedTimeControl(null);
       setSelectedPlatform(null);
+      const now = new Date();
+      setSelectedDate(now);
+      setDateInput(format(now, 'yyyy-MM-dd'));
 
       // Show immediate feedback
       toast({
@@ -117,7 +132,7 @@ export default function GameModal({
         const optimisticSession: TrainingSession = {
           id: editingSession.id,
           type: 'game',
-          date: editingSession.date,
+          date: newSession.date,
           duration: editingSession.duration, // Preserve existing duration
           pointsGained: null,
           finalScore: null,
@@ -148,7 +163,7 @@ export default function GameModal({
         const optimisticSession: TrainingSession = {
           id: tempId,
           type: 'game',
-          date: new Date(),
+          date: newSession.date,
           duration: null,
           pointsGained: null,
           finalScore: null,
@@ -231,6 +246,9 @@ export default function GameModal({
       setSelectedColor(playerColor);
       setSelectedTimeControl(timeControl);
       setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
+      const editDate = new Date(editingSession.date);
+      setSelectedDate(editDate);
+      setDateInput(format(editDate, 'yyyy-MM-dd'));
 
       // Set form values properly with validation
       if (gameResult) {
@@ -249,14 +267,18 @@ export default function GameModal({
       if (editingSession.gameComments && !editingSession.opponentUsername) {
         setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
       }
+    } else {
+      const now = new Date();
+      setSelectedDate(now);
+      setDateInput(format(now, 'yyyy-MM-dd'));
     }
   }, [editingSession, isEditMode, setValue]);
 
   const onSubmit = (data: GameSession) => {
-    // Add current date to the session data
+    // Add selected date to the session data
     const sessionData = {
       ...data,
-      date: isEditMode && editingSession ? editingSession.date : new Date(),
+      date: selectedDate,
     };
     mutation.mutate(sessionData);
   };
@@ -317,6 +339,11 @@ export default function GameModal({
       if (!mutation.isPending) {
         onClearEditingSession?.();
       }
+      const resetDate = editingSession?.date
+        ? new Date(editingSession.date)
+        : new Date();
+      setSelectedDate(resetDate);
+      setDateInput(format(resetDate, 'yyyy-MM-dd'));
     }
     onOpenChange(open);
   };
@@ -324,7 +351,42 @@ export default function GameModal({
   return (
     <Dialog open={open} onOpenChange={handleModalChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
-        <DialogHeader className="pb-2">
+        <DialogHeader className="flex items-center justify-between pb-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto px-2 py-1 text-sm font-normal"
+                type="button"
+              >
+                {format(selectedDate, 'EEE d MMM')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-auto p-2">
+              <input
+                aria-label="Select date"
+                type="date"
+                className="rounded border p-1 text-sm"
+                value={dateInput}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDateInput(value);
+                  const [year, month, day] = value.split('-').map(Number);
+                  if (
+                    !Number.isNaN(year) &&
+                    !Number.isNaN(month) &&
+                    !Number.isNaN(day)
+                  ) {
+                    const parsed = new Date(year, month - 1, day);
+                    if (!Number.isNaN(parsed.getTime())) {
+                      setSelectedDate(parsed);
+                    }
+                  }
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           <DialogTitle className="text-xl font-bold text-gray-800">Log game</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
@@ -526,7 +588,7 @@ export default function GameModal({
             <Button
               type="submit"
               className="modal-button flex-1 bg-[#059669] hover:bg-emerald-700"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !isDateValid}
             >
               {mutation.isPending ? 'Saving...' : 'Save'}
             </Button>
