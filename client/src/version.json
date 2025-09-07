@@ -2,12 +2,10 @@
   "version": "0.3.9a",
   "lastUpdated": "7 September 2025",
   "changelog": [
-       {
+    {
       "version": "0.3.9a",
       "date": "7 September 2025",
-      "changes": [
-        "Add a date picker to games, to log past games"
-      ]
+      "changes": ["Add a date picker to games, to log past games"]
     },
     {
       "version": "0.3.9",
