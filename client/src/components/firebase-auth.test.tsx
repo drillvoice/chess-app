@@ -92,6 +92,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
 });
 
 function renderWithClient(ui: React.ReactElement) {
@@ -324,5 +325,27 @@ describe('FirebaseAuth redirect handling', () => {
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Verification Failed' }),
     );
+  });
+});
+
+describe('FirebaseAuth re-auth prompt', () => {
+  it('shows re-enable button when reauth event dispatched', async () => {
+    const mockAuth: any = { currentUser: null };
+    const firebaseClient = await import('@/lib/firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+
+    const authModule = await import('firebase/auth');
+    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
+      cb(null);
+      return () => {};
+    });
+
+    renderWithClient(<FirebaseAuth />);
+    await screen.findByRole('button', { name: /enable cloud sync/i });
+    fireEvent(window, new Event('auth:reauth-required'));
+    expect(
+      await screen.findByRole('button', { name: /re-enable cloud sync/i }),
+    ).toBeInTheDocument();
   });
 });
