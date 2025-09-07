@@ -4,7 +4,7 @@ The app uses both local storage and Firebase to keep your training data safe acr
 
 ## Persistent Storage Permission
 
-When the app detects that storage is not persistent, it dispatches a `storage:persistent-denied` event and shows an in‑app warning. Follow your browser's guidance to allow persistent storage so sessions are not lost when the device is under storage pressure.
+Follow your browser's guidance to allow persistent storage so sessions are not lost when the device is under storage pressure.
 
 ## `hasRealLogin` Flag
 
@@ -14,7 +14,6 @@ The app stores a `hasRealLogin` flag in `localStorage` after you sign in. This f
 
 - **"Authentication lost. Re‑enable Cloud Sync"** – your sign‑in expired; sign in again to resume syncing.
 - **"Network error. Sync paused"** – the device is offline or unreachable; data will sync automatically when a connection returns or after you retry.
-- **"Storage is not persistent"** – the browser may clear data; grant persistent storage or back up data to prevent loss.
 
 ## Troubleshooting
 
