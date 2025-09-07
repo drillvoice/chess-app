@@ -38,9 +38,19 @@ export default function CloudSyncStatus() {
         <AlertTitle>Cloud Sync stopped</AlertTitle>
         <AlertDescription className="flex flex-col gap-2">
           <span>{message}</span>
-          <Button size="sm" onClick={handleRetry} className="self-start">
-            Retry
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleRetry} className="self-start">
+              Retry
+            </Button>
+            <a
+              href="/docs/cloud-sync"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs underline"
+            >
+              Troubleshoot
+            </a>
+          </div>
         </AlertDescription>
       </Alert>
     </div>

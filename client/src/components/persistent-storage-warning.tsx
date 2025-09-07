@@ -26,13 +26,8 @@ export default function PersistentStorageWarning() {
             or back up your data to keep Cloud Sync stable.
           </p>
           <p className="mt-2">
-            <a
-              href="https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist"
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Learn how to enable persistent storage
+            <a href="/docs/cloud-sync" target="_blank" rel="noreferrer" className="underline">
+              Learn more about storage and sync
             </a>
             .
           </p>
