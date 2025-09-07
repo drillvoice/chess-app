@@ -8,7 +8,7 @@ import { Cloud, CloudOff, LogOut } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import useSyncStatus, { SyncState } from '@/hooks/useSyncStatus';
+import { useSyncStatus, SyncState } from '@/hooks/useSyncStatus';
 
 export default function FirebaseAuth() {
   const [user, setUser] = useState<User | null>(null);

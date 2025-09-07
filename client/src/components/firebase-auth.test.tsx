@@ -61,11 +61,11 @@ vi.mock('@/lib/offline-storage', () => ({
 
 vi.mock('@/hooks/useSyncStatus', () => ({
   __esModule: true,
-  default: vi.fn(),
+  useSyncStatus: vi.fn(),
   SyncState: { Disabled: 'disabled', Pending: 'pending', Syncing: 'syncing', Synced: 'synced' },
 }));
 
-import useSyncStatus, { SyncState as SyncStateEnum } from '@/hooks/useSyncStatus';
+import { useSyncStatus, SyncState as SyncStateEnum } from '@/hooks/useSyncStatus';
 const useSyncStatusMock = useSyncStatus as unknown as vi.Mock;
 
 const toastMock = vi.fn();

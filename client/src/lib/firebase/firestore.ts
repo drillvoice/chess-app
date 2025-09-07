@@ -150,7 +150,7 @@ async function updateSessionsInBackground(): Promise<void> {
 
     await fetchSessionsFromFirebase();
     // Cache will be updated in fetchSessionsFromFirebase
-  } catch (error) {
+  } catch (_error) {
     // Silently fail - user already has cached data
   }
 }
@@ -298,7 +298,7 @@ function _parseSessionFromStorage(session: any): TrainingSession {
   if (parsed.studyTags && typeof parsed.studyTags === 'string') {
     try {
       parsed.studyTags = JSON.parse(parsed.studyTags);
-    } catch (error) {
+    } catch (_error) {
       console.warn('Failed to parse studyTags:', parsed.studyTags);
       parsed.studyTags = null;
     }

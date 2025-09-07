@@ -88,7 +88,7 @@ export function validateMigration(sessions: TrainingSession[]): {
           if (!Array.isArray(tags)) {
             errors.push(`Session ${session.id}: studyTags is not an array`);
           }
-        } catch (e) {
+        } catch (_e) {
           errors.push(`Session ${session.id}: Invalid studyTags JSON`);
         }
       }

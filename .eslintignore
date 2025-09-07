@@ -1,8 +1,0 @@
-node_modules/
-dist/
-build/
-coverage/
-public/
-client/public/
-*.config.ts
-*.config.js

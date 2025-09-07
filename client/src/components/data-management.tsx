@@ -35,7 +35,7 @@ function DataManagementContent() {
         title: 'Success',
         description: 'Training data exported successfully!',
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Error',
         description: 'Failed to export data',
@@ -72,10 +72,10 @@ function DataManagementContent() {
         title: 'Success',
         description: desc,
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Import Failed',
-        description: error instanceof Error ? error.message : 'Failed to import data.',
+        description: _error instanceof Error ? _error.message : 'Failed to import data.',
         variant: 'destructive',
       });
     } finally {
@@ -96,7 +96,7 @@ function DataManagementContent() {
         title: 'Cleared',
         description: 'Local data removed from this device.',
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Error',
         description: 'Failed to clear local data',

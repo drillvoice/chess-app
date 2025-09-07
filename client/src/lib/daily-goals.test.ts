@@ -38,7 +38,7 @@ describe('Daily Goals Data Layer', () => {
     // Clean up any stored data
     try {
       await offlineStorage.clearDailyGoalSettings();
-    } catch (error) {
+    } catch (_error) {
       // Ignore cleanup errors
     }
   });
