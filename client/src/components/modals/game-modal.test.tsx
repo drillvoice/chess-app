@@ -27,15 +27,11 @@ describe('GameModal date selection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'White' }));
     fireEvent.click(screen.getByRole('button', { name: 'Win' }));
 
-    fireEvent.click(
-      screen.getByRole('button', { name: format(new Date(), 'EEE d MMM') }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: format(new Date(), 'EEE d MMM') }));
     const newDate = '2024-05-15';
     const dateInput = await screen.findByLabelText('Select date');
     fireEvent.change(dateInput, { target: { value: newDate } });
-    fireEvent.click(
-      screen.getByRole('button', { name: format(new Date(newDate), 'EEE d MMM') }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: format(new Date(newDate), 'EEE d MMM') }));
 
     fireEvent.click(screen.getByText('Save'));
 
@@ -44,4 +40,3 @@ describe('GameModal date selection', () => {
     expect(submitted.date).toEqual(new Date(newDate));
   });
 });
-
