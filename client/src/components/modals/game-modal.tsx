@@ -37,13 +37,9 @@ export default function GameModal({
   const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(
     null,
   );
-  const initialDate = editingSession?.date
-    ? new Date(editingSession.date)
-    : new Date();
+  const initialDate = editingSession?.date ? new Date(editingSession.date) : new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
-  const [dateInput, setDateInput] = useState<string>(
-    format(initialDate, 'yyyy-MM-dd'),
-  );
+  const [dateInput, setDateInput] = useState<string>(format(initialDate, 'yyyy-MM-dd'));
   const isDateValid =
     /^\d{4}-\d{2}-\d{2}$/.test(dateInput) &&
     !Number.isNaN(selectedDate.getTime()) &&
@@ -349,9 +345,7 @@ export default function GameModal({
       if (!mutation.isPending) {
         onClearEditingSession?.();
       }
-      const resetDate = editingSession?.date
-        ? new Date(editingSession.date)
-        : new Date();
+      const resetDate = editingSession?.date ? new Date(editingSession.date) : new Date();
       setSelectedDate(resetDate);
       setDateInput(format(resetDate, 'yyyy-MM-dd'));
     }
@@ -384,11 +378,7 @@ export default function GameModal({
                   const value = e.target.value;
                   setDateInput(value);
                   const [year, month, day] = value.split('-').map(Number);
-                  if (
-                    !Number.isNaN(year) &&
-                    !Number.isNaN(month) &&
-                    !Number.isNaN(day)
-                  ) {
+                  if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
                     const parsed = new Date(year, month - 1, day);
                     if (!Number.isNaN(parsed.getTime())) {
                       setSelectedDate(parsed);
@@ -398,9 +388,7 @@ export default function GameModal({
               />
             </PopoverContent>
           </Popover>
-          <DialogTitle className="text-xl font-bold text-gray-800">
-            Log game
-          </DialogTitle>
+          <DialogTitle className="text-xl font-bold text-gray-800">Log game</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-2">
