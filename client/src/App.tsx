@@ -7,7 +7,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import Navigation from '@/components/layout/navigation';
 import { NetworkWarning } from '@/components/ui/network-status';
-import PersistentStorageWarning from '@/components/persistent-storage-warning';
 import CloudSyncStatus from '@/components/cloud-sync-status';
 import { useAuthInit } from '@/hooks/useAuthInit';
 import { useCacheWarming } from '@/hooks/useCacheWarming';
@@ -53,7 +52,6 @@ function App() {
           </div>
           <NetworkWarning />
           <CloudSyncStatus />
-          <PersistentStorageWarning />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
