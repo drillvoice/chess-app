@@ -227,24 +227,23 @@ export default function FirebaseAuth() {
     );
   }
 
-  const currentState = user ? (syncStatus?.state ?? SyncState.Synced) : SyncState.Disabled;
+  const currentState = syncStatus?.state ?? (user ? SyncState.Synced : SyncState.Disabled);
   let statusMessage: string | null = null;
   if (syncStatus) {
     switch (currentState) {
       case SyncState.Disabled:
+        statusMessage = `Cloud sync disabled — last synced ${
+          syncStatus.lastSynced
+            ? formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })
+            : 'never'
+        }`;
+        break;
       case SyncState.Pending:
-        statusMessage =
-          syncStatus.unsyncedCount > 0
-            ? `${syncStatus.unsyncedCount} session(s) pending sync${
-                syncStatus.lastSynced
-                  ? ` — last synced ${formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })}`
-                  : ''
-              }`
-            : `Last synced ${
-                syncStatus.lastSynced
-                  ? formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })
-                  : 'never'
-              }`;
+        statusMessage = `${syncStatus.unsyncedCount} session(s) pending sync${
+          syncStatus.lastSynced
+            ? ` — last synced ${formatDistanceToNow(syncStatus.lastSynced, { addSuffix: true })}`
+            : ''
+        }`;
         break;
       case SyncState.Syncing:
         statusMessage = `Syncing ${syncStatus.unsyncedCount} session(s)…`;
