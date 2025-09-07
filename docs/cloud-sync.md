@@ -19,14 +19,16 @@ The app stores a `hasRealLogin` flag in `localStorage` after you sign in. This f
 ## Troubleshooting
 
 ### Storage denied
+
 - Revisit your browser's site settings and grant persistent storage.
 - Consider exporting your data as a backup before closing the app.
 
 ### Network offline
+
 - Check your internet connection and retry syncing.
 - The app queues sessions locally and will sync automatically when online.
 
 ### Session expired
+
 - Sign back in with the same account and choose **Re‑enable Cloud Sync**.
 - If you cannot sign in, your data remains stored locally until cleared.
-
