@@ -40,6 +40,7 @@ describe('ensureAuthentication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    localStorage.clear();
   });
 
   it('avoids anonymous sign-in when user exists after authStateReady', async () => {
@@ -74,5 +75,26 @@ describe('ensureAuthentication', () => {
     await ensureAuthentication();
 
     expect(signInAnonymously).toHaveBeenCalled();
+  });
+
+  it('dispatches reauth event when previous login detected', async () => {
+    localStorage.setItem('hasRealLogin', 'true');
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const mockAuth: any = {
+      currentUser: null,
+      authStateReady: vi.fn().mockResolvedValue(undefined),
+    };
+    const mockDb = {};
+    const firebaseClient = await import('../firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const { ensureAuthentication } = await import('./auth');
+    await ensureAuthentication();
+
+    expect(signInAnonymously).not.toHaveBeenCalled();
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'auth:reauth-required' }),
+    );
   });
 });

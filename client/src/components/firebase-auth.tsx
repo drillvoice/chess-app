@@ -13,6 +13,7 @@ import useSyncStatus, { SyncState } from '@/hooks/useSyncStatus';
 export default function FirebaseAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reauthRequired, setReauthRequired] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: syncStatus, refetch: refetchSyncStatus } = useSyncStatus();
@@ -30,6 +31,7 @@ export default function FirebaseAuth() {
           setLoading(false);
           refetchSyncStatus();
           if (user) {
+            setReauthRequired(false);
             // Only show sync UI and start syncing for non-anonymous users
             if (!user.isAnonymous) {
               try {
@@ -115,6 +117,12 @@ export default function FirebaseAuth() {
     return () => unsubscribe?.();
   }, [toast, queryClient, refetchSyncStatus]);
 
+  useEffect(() => {
+    const handler = () => setReauthRequired(true);
+    window.addEventListener('auth:reauth-required', handler);
+    return () => window.removeEventListener('auth:reauth-required', handler);
+  }, []);
+
   const handleSignIn = async () => {
     try {
       setLoading(true);
@@ -178,6 +186,8 @@ export default function FirebaseAuth() {
       const auth = await getFirebaseAuth();
       const { signOut } = await import('firebase/auth');
       await signOut(auth);
+      localStorage.removeItem('hasRealLogin');
+      setReauthRequired(false);
       const { refreshAuthState, stopSessionSync } = await import('@/lib/firebase');
       await refreshAuthState();
       stopSessionSync();
@@ -293,17 +303,35 @@ export default function FirebaseAuth() {
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">
-              Enable cloud sync to access your training data from any device.
-            </p>
-            <Button
-              onClick={handleSignIn}
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700"
-            >
-              <Cloud className="mr-2 h-4 w-4" />
-              Enable Cloud Sync
-            </Button>
+            {reauthRequired ? (
+              <>
+                <p className="text-sm text-gray-600">
+                  Your previous session was lost. Re-enable cloud sync to continue.
+                </p>
+                <Button
+                  onClick={handleSignIn}
+                  disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  <Cloud className="mr-2 h-4 w-4" />
+                  Re-enable Cloud Sync
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600">
+                  Enable cloud sync to access your training data from any device.
+                </p>
+                <Button
+                  onClick={handleSignIn}
+                  disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  <Cloud className="mr-2 h-4 w-4" />
+                  Enable Cloud Sync
+                </Button>
+              </>
+            )}
           </div>
         )}
       </CardContent>

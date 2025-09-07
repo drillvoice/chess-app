@@ -77,6 +77,10 @@ export async function ensureFirebase() {
       const previousUserId = currentUserId;
       currentUserId = user ? user.uid : null;
 
+      if (user && !user.isAnonymous) {
+        localStorage.setItem('hasRealLogin', 'true');
+      }
+
       if (currentUserId) {
         await ensureUserDoc();
 
@@ -237,6 +241,13 @@ export async function ensureAuthentication(): Promise<void> {
     });
   }
   if (!auth.currentUser) {
+    const hasRealLogin = localStorage.getItem('hasRealLogin') === 'true';
+    if (hasRealLogin) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('auth:reauth-required'));
+      }
+      return;
+    }
     await ensureAnonymousAuth();
   }
 }
