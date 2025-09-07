@@ -6,10 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 // Dynamic import for firebase to maintain code splitting
 import { gameSessionSchema, type GameSession, type TrainingSession } from '@shared/schema';
 import { Trophy, X, Square, Zap, Hourglass, Clock3 } from 'lucide-react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface GameModalProps {
@@ -34,6 +36,9 @@ export default function GameModal({
   const [selectedTimeControl, setSelectedTimeControl] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(
     null,
+  );
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    editingSession?.date ? new Date(editingSession.date) : new Date(),
   );
 
   const {
@@ -97,6 +102,7 @@ export default function GameModal({
       setSelectedColor(null);
       setSelectedTimeControl(null);
       setSelectedPlatform(null);
+      setSelectedDate(new Date());
 
       // Show immediate feedback
       toast({
@@ -117,7 +123,7 @@ export default function GameModal({
         const optimisticSession: TrainingSession = {
           id: editingSession.id,
           type: 'game',
-          date: editingSession.date,
+          date: newSession.date,
           duration: editingSession.duration, // Preserve existing duration
           pointsGained: null,
           finalScore: null,
@@ -148,7 +154,7 @@ export default function GameModal({
         const optimisticSession: TrainingSession = {
           id: tempId,
           type: 'game',
-          date: new Date(),
+          date: newSession.date,
           duration: null,
           pointsGained: null,
           finalScore: null,
@@ -231,6 +237,7 @@ export default function GameModal({
       setSelectedColor(playerColor);
       setSelectedTimeControl(timeControl);
       setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
+      setSelectedDate(new Date(editingSession.date));
 
       // Set form values properly with validation
       if (gameResult) {
@@ -249,14 +256,16 @@ export default function GameModal({
       if (editingSession.gameComments && !editingSession.opponentUsername) {
         setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
       }
+    } else {
+      setSelectedDate(new Date());
     }
   }, [editingSession, isEditMode, setValue]);
 
   const onSubmit = (data: GameSession) => {
-    // Add current date to the session data
+    // Add selected date to the session data
     const sessionData = {
       ...data,
-      date: isEditMode && editingSession ? editingSession.date : new Date(),
+      date: selectedDate,
     };
     mutation.mutate(sessionData);
   };
@@ -317,6 +326,7 @@ export default function GameModal({
       if (!mutation.isPending) {
         onClearEditingSession?.();
       }
+      setSelectedDate(editingSession?.date ? new Date(editingSession.date) : new Date());
     }
     onOpenChange(open);
   };
@@ -324,7 +334,33 @@ export default function GameModal({
   return (
     <Dialog open={open} onOpenChange={handleModalChange}>
       <DialogContent className="mobile-modal sm:max-w-md">
-        <DialogHeader className="pb-2">
+        <DialogHeader className="flex items-center justify-between pb-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto px-2 py-1 text-sm font-normal"
+                type="button"
+              >
+                {format(selectedDate, 'EEE d MMM')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-auto p-2">
+              <input
+                aria-label="Select date"
+                type="date"
+                className="rounded border p-1 text-sm"
+                value={format(selectedDate, 'yyyy-MM-dd')}
+                onChange={(e) => {
+                  const [year, month, day] = e.target.value
+                    .split('-')
+                    .map(Number);
+                  setSelectedDate(new Date(year, month - 1, day));
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           <DialogTitle className="text-xl font-bold text-gray-800">Log game</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
