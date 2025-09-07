@@ -221,13 +221,16 @@ window.addEventListener('load', async () => {
   await initializeServiceWorker();
   await checkAppVersion();
 
-  // Dispatch persistence status
-  if (!isPersistent && 'storage' in navigator) {
-    window.dispatchEvent(
-      new CustomEvent('storage-persistence-status', {
-        detail: { persistent: false },
-      }),
-    );
+  // Dispatch persistence status and warning if denied
+  if (!isPersistent) {
+    window.dispatchEvent(new Event('storage:persistent-denied'));
+    if ('storage' in navigator) {
+      window.dispatchEvent(
+        new CustomEvent('storage-persistence-status', {
+          detail: { persistent: false },
+        }),
+      );
+    }
   }
 });
 
