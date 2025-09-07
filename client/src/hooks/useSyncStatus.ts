@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { getFirebaseAuth } from '@/lib/firebaseClient';
 
 export enum SyncState {
   Disabled = 'disabled',
@@ -25,8 +26,12 @@ export function useSyncStatus() {
         offlineStorage.getLastSyncAttempt(),
       ]);
       const lastSynced = lastSyncedTs ? new Date(lastSyncedTs) : null;
+      const auth = await getFirebaseAuth();
+      const user = auth.currentUser;
       let state: SyncState;
-      if (unsynced.length > 0) {
+      if (!user || user.isAnonymous) {
+        state = unsynced.length > 0 ? SyncState.Pending : SyncState.Disabled;
+      } else if (unsynced.length > 0) {
         if (lastAttempt && (!lastSynced || lastAttempt > lastSynced)) {
           state = SyncState.Syncing;
         } else {
