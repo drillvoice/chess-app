@@ -43,6 +43,8 @@ export const offlineStorage = {
   getCacheAge: meta.getCacheAge,
   getLastSyncAttempt: meta.getLastSyncAttempt,
   setLastSyncAttempt: meta.setLastSyncAttempt,
+  getLastBackupTimestamp: meta.getLastBackupTimestamp,
+  setLastBackupTimestamp: meta.setLastBackupTimestamp,
   // maintenance
   clearAll,
   clear: clearAll,

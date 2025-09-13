@@ -34,3 +34,16 @@ export async function setLastSyncAttempt(): Promise<void> {
     await cache_meta.put({ key: 'last_sync_attempt', timestamp: Date.now() });
   });
 }
+
+export async function getLastBackupTimestamp(): Promise<number> {
+  return withStores([META] as const, 'readonly', async ({ cache_meta }) => {
+    const res = await cache_meta.get('last_backup');
+    return res?.timestamp || 0;
+  });
+}
+
+export async function setLastBackupTimestamp(timestamp: number): Promise<void> {
+  await withStores([META] as const, 'readwrite', async ({ cache_meta }) => {
+    await cache_meta.put({ key: 'last_backup', timestamp });
+  });
+}

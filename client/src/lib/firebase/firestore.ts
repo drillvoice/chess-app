@@ -4,31 +4,17 @@ import { offlineStorage } from '../offline-storage';
 import { queryClient } from '../queryClient';
 import { safeDatabaseOperation } from '../query-timeout';
 import { migrateStudySessions, getMigrationStats } from '../migration';
-import {
-  waitForAuth,
-  getSessionsCollection,
-  doc,
-  getDoc,
-  getDocs,
-  deleteDoc,
-  setDoc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  collection,
-  auth,
-  onAuthStateChanged,
-  getCurrentUserId,
-  db,
-} from './core';
+import { backupAllSessionsToCloud, backupDailyGoalsToCloud } from './firestore-backup';
+
+// Simplified Firebase integration - LOCAL FIRST with optional cloud backup
+// No real-time sync, no complex retry logic, no data loss scenarios
+// All operations work locally first, then queue backup operations
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
   return safeDatabaseOperation(
     async () => {
       try {
-        // Prefer cached sessions for instant load
+        // Always read from local cache first - this is the source of truth
         const cachedSessions = await offlineStorage.getSessions();
         if (cachedSessions && cachedSessions.length > 0) {
           // Check if migration is needed
@@ -41,147 +27,23 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
             console.log(`Migrated ${migrationStats.needsMigration} study sessions`);
             return migratedSessions;
           }
-
-          try {
-            const cacheAge = await offlineStorage.getCacheAge('sessions');
-            if (cacheAge > 30000) {
-              // Fetch fresh data in background when cache is stale
-              queueMicrotask(() => updateSessionsInBackground());
-            }
-          } catch (ageError) {
-            console.warn('Failed to check cache age:', ageError);
-            // Still attempt background update
-            queueMicrotask(() => updateSessionsInBackground());
-          }
           return cachedSessions;
         }
+        return [];
       } catch (error) {
         console.warn('Failed to read sessions from offline storage:', error);
-      }
-
-      // No cached data, fall back to Firebase
-      try {
-        const firebaseSessions = await fetchSessionsFromFirebase();
-        return firebaseSessions;
-      } catch (error) {
-        console.error('Failed to fetch sessions from Firebase:', error);
         return [];
       }
     },
-    15000, // 15 second timeout
-    [], // Return empty array as fallback
+    15000,
+    [],
   );
-}
-
-export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
-  await waitForAuth();
-
-  try {
-    const sessionsRef = await getSessionsCollection();
-    const lastSynced = await offlineStorage.getLastSyncedTimestamp();
-
-    // For new devices or when lastSynced is 0, fetch all sessions
-    // This ensures new devices get all existing data
-    const q =
-      lastSynced && lastSynced > 0
-        ? query(
-            sessionsRef,
-            where('date', '>', Timestamp.fromMillis(lastSynced)),
-            orderBy('date', 'desc'),
-          )
-        : query(sessionsRef, orderBy('date', 'desc'));
-
-    const snapshot = await getDocs(q);
-
-    if (!snapshot || !snapshot.docs) {
-      throw new Error('No snapshot returned from getDocs');
-    }
-
-    const sessions = snapshot.docs.map((doc) => ({
-      id: parseInt(doc.id),
-      ...doc.data(),
-      date: doc.data().date.toDate(),
-    })) as TrainingSession[];
-
-    await offlineStorage.mergeSessions(sessions);
-
-    if (sessions.length > 0) {
-      const latest = sessions.reduce((max, s) => Math.max(max, s.date.getTime()), lastSynced || 0);
-      await offlineStorage.setLastSyncedTimestamp(latest);
-    }
-
-    const allSessions = await offlineStorage.getSessions();
-
-    // Check if migration is needed for fetched sessions
-    const migrationStats = getMigrationStats(allSessions);
-    if (migrationStats.migrationNeeded) {
-      console.log('Migration needed for fetched sessions:', migrationStats);
-      const migratedSessions = migrateStudySessions(allSessions);
-      // Save migrated sessions back to cache
-      await offlineStorage.setSessions(migratedSessions);
-      SessionsCache.set(migratedSessions);
-      console.log(`Migrated ${migrationStats.needsMigration} study sessions from Firebase`);
-      return migratedSessions;
-    }
-
-    SessionsCache.set(allSessions);
-
-    console.log(
-      `Fetched ${sessions.length} sessions from Firebase (lastSynced: ${lastSynced || 'none'})`,
-    );
-    return allSessions;
-  } catch (error) {
-    console.error('Error fetching sessions from Firebase:', error);
-
-    // Only return cached data if explicitly requested, not as fallback
-    // This ensures we know when Firebase sync fails
-    throw error;
-  }
-}
-// Background update function - non-blocking
-async function updateSessionsInBackground(): Promise<void> {
-  try {
-    // Check cache age first
-    const cacheAge = await offlineStorage.getCacheAge('sessions');
-    if (cacheAge < 30000) {
-      // Less than 30 seconds old
-      return; // Skip update
-    }
-
-    await fetchSessionsFromFirebase();
-    // Cache will be updated in fetchSessionsFromFirebase
-  } catch (_error) {
-    // Silently fail - user already has cached data
-  }
 }
 
 export async function getSessionsByType(type: string): Promise<TrainingSession[]> {
   try {
-    const cachedSessions = await offlineStorage.getSessions();
-    if (cachedSessions && cachedSessions.length > 0) {
-      return cachedSessions.filter((session) => session.type === type);
-    }
-  } catch (error) {
-    console.warn('Failed to read from offline storage:', error);
-  }
-
-  await waitForAuth();
-
-  try {
-    const sessionsRef = await getSessionsCollection();
-    const q = query(sessionsRef, where('type', '==', type), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
-
-    const sessions = snapshot.docs.map((doc) => ({
-      id: parseInt(doc.id),
-      ...doc.data(),
-      date: doc.data().date.toDate(),
-    })) as TrainingSession[];
-
-    SessionsCache.set(sessions);
-    await offlineStorage.setSessions(sessions);
-
-    return sessions;
+    const allSessions = await getAllSessions();
+    return allSessions.filter((session) => session.type === type);
   } catch (error) {
     console.error('Error getting sessions by type:', error);
     return [];
@@ -191,42 +53,20 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
 export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
   console.log('getSessionsNeedingReview called');
   try {
-    const cachedSessions = await offlineStorage.getSessions();
-    console.log('getSessionsNeedingReview - cached sessions:', cachedSessions);
-    if (cachedSessions && cachedSessions.length > 0) {
-      const filteredSessions = cachedSessions.filter((session) => {
-        console.log(
-          'Filtering session:',
-          session.id,
-          'needsReview:',
-          session.needsReview,
-          'type:',
-          typeof session.needsReview,
-        );
-        return session.needsReview === true;
-      });
-      console.log('getSessionsNeedingReview - filtered sessions:', filteredSessions);
-      return filteredSessions;
-    }
-  } catch (error) {
-    console.warn('Failed to read from offline storage:', error);
-  }
-
-  await waitForAuth();
-
-  try {
-    const sessionsRef = await getSessionsCollection();
-    const q = query(sessionsRef, where('needsReview', '==', true), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
-
-    const sessions = snapshot.docs.map((doc) => ({
-      id: parseInt(doc.id),
-      ...doc.data(),
-      date: doc.data().date.toDate(),
-    })) as TrainingSession[];
-
-    console.log('getSessionsNeedingReview - Firebase sessions:', sessions);
-    return sessions;
+    const allSessions = await getAllSessions();
+    const filteredSessions = allSessions.filter((session) => {
+      console.log(
+        'Filtering session:',
+        session.id,
+        'needsReview:',
+        session.needsReview,
+        'type:',
+        typeof session.needsReview,
+      );
+      return session.needsReview === true;
+    });
+    console.log('getSessionsNeedingReview - filtered sessions:', filteredSessions);
+    return filteredSessions;
   } catch (error) {
     console.error('Error getting sessions needing review:', error);
     return [];
@@ -238,38 +78,10 @@ export async function getSessionsByDateRange(
   endDate: Date,
 ): Promise<TrainingSession[]> {
   try {
-    const cachedSessions = await offlineStorage.getSessions();
-    if (cachedSessions && cachedSessions.length > 0) {
-      return cachedSessions.filter(
-        (session) => session.date >= startDate && session.date <= endDate,
-      );
-    }
-  } catch (error) {
-    console.warn('Failed to read from offline storage:', error);
-  }
-
-  await waitForAuth();
-
-  try {
-    const sessionsRef = await getSessionsCollection();
-    const q = query(
-      sessionsRef,
-      where('date', '>=', Timestamp.fromDate(startDate)),
-      where('date', '<=', Timestamp.fromDate(endDate)),
-      orderBy('date', 'desc'),
+    const allSessions = await getAllSessions();
+    return allSessions.filter(
+      (session) => session.date >= startDate && session.date <= endDate,
     );
-    const snapshot = await getDocs(q);
-
-    const sessions = snapshot.docs.map((doc) => ({
-      id: parseInt(doc.id),
-      ...doc.data(),
-      date: doc.data().date.toDate(),
-    })) as TrainingSession[];
-
-    SessionsCache.set(sessions);
-    await offlineStorage.setSessions(sessions);
-
-    return sessions;
   } catch (error) {
     console.error('Error getting sessions by date range:', error);
     return [];
@@ -288,23 +100,6 @@ function prepareSessionForStorage(
   }
 
   return prepared;
-}
-
-// Helper function to parse studyTags JSON string back to array
-function _parseSessionFromStorage(session: any): TrainingSession {
-  const parsed = { ...session };
-
-  // Parse studyTags JSON string back to array
-  if (parsed.studyTags && typeof parsed.studyTags === 'string') {
-    try {
-      parsed.studyTags = JSON.parse(parsed.studyTags);
-    } catch (_error) {
-      console.warn('Failed to parse studyTags:', parsed.studyTags);
-      parsed.studyTags = null;
-    }
-  }
-
-  return parsed as TrainingSession;
 }
 
 export async function createSession(
@@ -329,13 +124,10 @@ export async function createSession(
 
   console.log('createSession - new session created:', newSession);
 
-  // 1. Save locally FIRST for instant user feedback
+  // Save locally FIRST - this is always the source of truth
   try {
     await offlineStorage.addSession(newSession);
     await offlineStorage.clearStatistics();
-
-    // Mark as unsynced for background sync (we'll add this method later)
-    await offlineStorage.markAsUnsynced(sessionId, 'create');
 
     // Update caches immediately
     SessionsCache.remove();
@@ -343,13 +135,18 @@ export async function createSession(
     WeeklyGoalCache.remove();
 
     queueMicrotask(() => updateStatisticsInBackground());
+    
+    // Queue backup operation (non-blocking)
+    queueMicrotask(() => {
+      backupAllSessionsToCloud().catch(error => {
+        console.warn('Background backup failed:', error);
+        // Don't throw - backup failure shouldn't affect user experience
+      });
+    });
   } catch (error) {
     console.error('Failed to save session locally:', error);
     throw new Error('Failed to save session offline');
   }
-
-  // 2. Queue for Firebase sync (non-blocking)
-  queueMicrotask(() => syncSessionToFirebase(sessionId, newSession));
 
   // Refresh pending review queries so UI reflects latest data
   queryClient.invalidateQueries({ queryKey: ['pending-review'] });
@@ -366,15 +163,12 @@ export async function updateSession(
     // Prepare update data for storage (convert arrays to JSON)
     const preparedUpdateData = prepareSessionForStorage(updateData);
 
-    // Update locally first (we'll add this method later)
+    // Update locally first - this is the source of truth
     const updatedSession = await offlineStorage.updateSession(id, preparedUpdateData);
     console.log('updateSession - updated session from offline storage:', updatedSession);
     if (!updatedSession) {
       throw new Error('Session not found locally');
     }
-
-    // Mark as unsynced for background sync (we'll add this method later)
-    await offlineStorage.markAsUnsynced(id, 'update', updateData);
 
     // Clear caches
     SessionsCache.remove();
@@ -383,8 +177,12 @@ export async function updateSession(
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue for Firebase sync (non-blocking)
-    queueMicrotask(() => syncUpdateToFirebase(id, updateData));
+    // Queue backup operation (non-blocking)
+    queueMicrotask(() => {
+      backupAllSessionsToCloud().catch(error => {
+        console.warn('Background backup after update failed:', error);
+      });
+    });
 
     // Refresh pending review queries so UI reflects latest data
     queryClient.invalidateQueries({ queryKey: ['pending-review'] });
@@ -398,12 +196,9 @@ export async function updateSession(
 
 export async function deleteSession(id: number): Promise<boolean> {
   try {
-    // Delete locally first
+    // Delete locally first - this is the source of truth
     await offlineStorage.deleteSession(id);
     await offlineStorage.clearStatistics();
-
-    // Mark as unsynced for background sync (we'll add this method later)
-    await offlineStorage.markAsUnsynced(id, 'delete');
 
     // Clear caches
     SessionsCache.remove();
@@ -412,8 +207,12 @@ export async function deleteSession(id: number): Promise<boolean> {
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue for Firebase sync (non-blocking)
-    queueMicrotask(() => syncDeleteToFirebase(id));
+    // Queue backup operation (non-blocking)
+    queueMicrotask(() => {
+      backupAllSessionsToCloud().catch(error => {
+        console.warn('Background backup after delete failed:', error);
+      });
+    });
 
     return true;
   } catch (error) {
@@ -440,7 +239,7 @@ export async function getStatistics() {
       // If no cache, calculate from sessions
       return await calculateStatistics();
     },
-    10000, // 10 second timeout
+    10000,
     {
       totalHours: 0,
       totalSessions: 0,
@@ -448,7 +247,7 @@ export async function getStatistics() {
       winRate: 0,
       todayTotalTime: 0,
       todaySessions: 0,
-    }, // Return default stats as fallback
+    },
   );
 }
 
@@ -472,11 +271,11 @@ async function calculateStatistics() {
   // Calculate tactics rating (most recent final score)
   const tacticsSessionsWithScores = sessions
     .filter((session) => session.type === 'tactics' && session.finalScore)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date, most recent first
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const tacticsRating =
     tacticsSessionsWithScores.length > 0
-      ? tacticsSessionsWithScores[0].finalScore || 0 // Get the most recent tactics score
+      ? tacticsSessionsWithScores[0].finalScore || 0
       : 0;
 
   // Calculate win rate
@@ -509,7 +308,7 @@ export async function getWeeklyActivity() {
   const now = new Date();
   const startOfWeek = new Date(now);
   const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
   startOfWeek.setDate(diff);
   startOfWeek.setHours(0, 0, 0, 0);
 
@@ -551,289 +350,41 @@ async function updateStatisticsInBackground(): Promise<void> {
   }
 }
 
-// Background sync functions
-let syncRetryDelay = 1000;
-const MAX_SYNC_RETRY_DELAY = 60000;
-
-function emitCloudSyncError(code: string) {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('cloudsync:error', { detail: { code } }));
-  }
-}
-
-function scheduleSyncRetry(fn: () => Promise<void>) {
-  setTimeout(fn, syncRetryDelay);
-  syncRetryDelay = Math.min(syncRetryDelay * 2, MAX_SYNC_RETRY_DELAY);
-}
-
-function resetSyncBackoff() {
-  syncRetryDelay = 1000;
-}
-async function syncSessionToFirebase(sessionId: number, session: TrainingSession): Promise<void> {
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
-
-    const sessionData = {
-      ...session,
-      date: Timestamp.fromDate(session.date),
-    };
-
-    const docRef = doc(sessionsRef, sessionId.toString());
-    await offlineStorage.setLastSyncAttempt();
-    await setDoc(docRef, sessionData);
-
-    // Mark as synced on success (we'll add this method later)
-    await offlineStorage.markAsSynced(sessionId);
-    await offlineStorage.setLastSyncedTimestamp(Date.now());
-
-    console.log(`Session ${sessionId} synced to Firebase successfully`);
-    resetSyncBackoff();
-  } catch (error: any) {
-    console.error('Failed to sync session to Firebase:', sessionId, error);
-    await offlineStorage.incrementSyncRetries(sessionId);
-    const code = error?.code;
-    if (
-      code &&
-      (code.startsWith('auth/') || code === 'unavailable' || code === 'network-request-failed')
-    ) {
-      emitCloudSyncError(code);
-    }
-    scheduleSyncRetry(() => syncSessionToFirebase(sessionId, session));
-  }
-}
-
-async function syncUpdateToFirebase(
-  id: number,
-  updateData: Partial<InsertTrainingSession>,
-): Promise<void> {
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
-    const docRef = doc(sessionsRef, id.toString());
-
-    const updatePayload = {
-      ...updateData,
-      ...(updateData.needsReview === undefined ? { needsReview: false } : {}),
-      updatedAt: Timestamp.fromDate(new Date()),
-    };
-
-    await offlineStorage.setLastSyncAttempt();
-    await setDoc(docRef, updatePayload, { merge: true });
-    await offlineStorage.markAsSynced(id);
-    await offlineStorage.setLastSyncedTimestamp(Date.now());
-
-    console.log(`Session ${id} update synced to Firebase`);
-    resetSyncBackoff();
-  } catch (error: any) {
-    console.error('Failed to sync update to Firebase:', id, error);
-    await offlineStorage.incrementSyncRetries(id);
-    const code = error?.code;
-    if (
-      code &&
-      (code.startsWith('auth/') || code === 'unavailable' || code === 'network-request-failed')
-    ) {
-      emitCloudSyncError(code);
-    }
-    scheduleSyncRetry(() => syncUpdateToFirebase(id, updateData));
-  }
-}
-
-async function syncDeleteToFirebase(id: number): Promise<void> {
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
-    const docRef = doc(sessionsRef, id.toString());
-    await offlineStorage.setLastSyncAttempt();
-    await deleteDoc(docRef);
-    await offlineStorage.markAsSynced(id);
-    await offlineStorage.setLastSyncedTimestamp(Date.now());
-
-    console.log(`Session ${id} deletion synced to Firebase`);
-    resetSyncBackoff();
-  } catch (error: any) {
-    console.error('Failed to sync deletion to Firebase:', id, error);
-    await offlineStorage.incrementSyncRetries(id);
-    const code = error?.code;
-    if (
-      code &&
-      (code.startsWith('auth/') || code === 'unavailable' || code === 'network-request-failed')
-    ) {
-      emitCloudSyncError(code);
-    }
-    scheduleSyncRetry(() => syncDeleteToFirebase(id));
-  }
-}
-
-export async function retryPendingSync(): Promise<void> {
-  resetSyncBackoff();
-  const unsynced = await offlineStorage.getUnsyncedSessions();
-  for (const item of unsynced) {
-    if (item.operation === 'create') {
-      const session = await offlineStorage.getSession(item.sessionId);
-      if (session) {
-        void syncSessionToFirebase(item.sessionId, session);
-      }
-    } else if (item.operation === 'update') {
-      void syncUpdateToFirebase(item.sessionId, item.updateData || {});
-    } else if (item.operation === 'delete') {
-      void syncDeleteToFirebase(item.sessionId);
-    }
-  }
-}
-
-// Real-time listener for sessions
-export async function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
-  try {
-    const currentUserId = getCurrentUserId();
-    if (!currentUserId) {
-      // Wait for auth and then subscribe
-      const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          unsubscribeAuth();
-          subscribeToSessions(callback);
-        }
-      });
-      return () => unsubscribeAuth();
-    }
-    const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
-    const q = query(sessionsRef, orderBy('date', 'desc'));
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const sessions = snapshot.docs.map((doc) => ({
-          id: parseInt(doc.id),
-          ...doc.data(),
-          date: doc.data().date.toDate(),
-        })) as TrainingSession[];
-
-        callback(sessions);
-      },
-      (error) => {
-        console.error('Error listening to sessions:', error);
-        callback([]);
-      },
-    );
-  } catch (error) {
-    console.error('Error setting up sessions listener:', error);
-    callback([]);
-  }
-}
-
-let unsubscribeSessionSync: (() => void) | null = null;
-
-export async function startSessionSync(onUpdate?: () => void): Promise<void> {
-  if (unsubscribeSessionSync) return;
-  try {
-    const unsub = await subscribeToSessions(async (sessions) => {
-      SessionsCache.set(sessions);
-      await offlineStorage.setSessions(sessions);
-      onUpdate?.();
-    });
-    unsubscribeSessionSync = unsub || null;
-  } catch (error) {
-    console.error('Error starting session sync:', error);
-  }
-}
-
-export function stopSessionSync(): void {
-  if (unsubscribeSessionSync) {
-    unsubscribeSessionSync();
-    unsubscribeSessionSync = null;
-  }
-}
-
-// Daily Goals Firebase Functions
+// Daily Goals - Simplified
 export async function getDailyGoalSettings(): Promise<DailyGoalSettings | null> {
   try {
-    // Try offline storage first for instant loading
+    // Always read from offline storage - this is the source of truth
     const cachedSettings = await offlineStorage.getDailyGoalSettings();
-    if (cachedSettings) {
-      // Schedule background update but don't wait
-      queueMicrotask(() => updateDailyGoalsInBackground());
-      return cachedSettings;
-    }
+    return cachedSettings;
   } catch (error) {
-    console.warn('Failed to get cached daily goal settings:', error);
-  }
-
-  // If no cache, fetch from Firebase
-  return await fetchDailyGoalsFromFirebase();
-}
-
-async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> {
-  try {
-    await waitForAuth();
-    const currentUserId = getCurrentUserId();
-    if (!currentUserId) return null;
-
-    const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
-    const goalDoc = await getDoc(goalsRef);
-
-    if (!goalDoc.exists()) {
-      return null;
-    }
-
-    const data = goalDoc.data();
-    const settings: DailyGoalSettings = {
-      tacticsMinutes: data.tacticsMinutes,
-      gamesCount: data.gamesCount,
-      studyMinutes: data.studyMinutes,
-      isCustomized: data.isCustomized || false,
-      lastModified: data.lastModified?.toDate(),
-    };
-
-    // Cache the result
-    await offlineStorage.setDailyGoalSettings(settings);
-    return settings;
-  } catch (error) {
-    console.error('Failed to fetch daily goals from Firebase:', error);
+    console.warn('Failed to get daily goal settings:', error);
     return null;
   }
 }
 
 export async function setDailyGoalSettings(settings: DailyGoalSettings): Promise<void> {
   try {
-    // Update offline storage immediately for instant feedback
+    // Update offline storage first - this is the source of truth
     await offlineStorage.setDailyGoalSettings(settings);
 
-    // Queue Firebase sync (non-blocking)
-    queueMicrotask(() => syncDailyGoalsToFirebase(settings));
+    // Queue Firebase backup (non-blocking)
+    queueMicrotask(() => {
+      backupDailyGoalsToCloud(settings).catch(error => {
+        console.warn('Daily goals backup failed:', error);
+      });
+    });
   } catch (error) {
     console.error('Error setting daily goal settings locally:', error);
     throw new Error('Failed to set daily goal settings');
   }
 }
 
-async function syncDailyGoalsToFirebase(settings: DailyGoalSettings): Promise<void> {
-  try {
-    await waitForAuth();
-    const currentUserId = getCurrentUserId();
-    if (!currentUserId) return;
-
-    const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
-
-    const firebaseData = {
-      ...settings,
-      lastModified: Timestamp.fromDate(new Date()),
-    };
-
-    await setDoc(goalsRef, firebaseData);
-    console.log('Daily goals synced to Firebase');
-  } catch (error) {
-    console.error('Failed to sync daily goals to Firebase:', error);
-    // Note: We don't queue for retry since daily goals are not critical for core functionality
-  }
+// Stub functions for backward compatibility
+export async function retryPendingSync(): Promise<void> {
+  console.log('retryPendingSync called - no-op in backup-only mode');
 }
 
-async function updateDailyGoalsInBackground(): Promise<void> {
-  try {
-    const firebaseSettings = await fetchDailyGoalsFromFirebase();
-    if (firebaseSettings) {
-      await offlineStorage.setDailyGoalSettings(firebaseSettings);
-    }
-  } catch (error) {
-    console.warn('Failed to update daily goals in background:', error);
-  }
+export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
+  console.log('fetchSessionsFromFirebase called - returning local sessions instead');
+  return await getAllSessions();
 }
