@@ -1,5 +1,7 @@
 import { offlineStorage } from '../offline-storage';
-import { getAllSessions, createSession } from './firestore';
+import { getAllSessions } from './firestore';
+import { exportManager } from '../export/export-manager';
+import { importManager } from '../import/import-manager';
 
 export async function verifyDataPresence(): Promise<boolean> {
   try {
@@ -17,69 +19,59 @@ export async function verifyDataPresence(): Promise<boolean> {
   }
 }
 
+/**
+ * Legacy export function for backward compatibility
+ * Uses new export manager with default options
+ */
 export async function exportData(): Promise<string> {
-  const sessions = await getAllSessions();
-  return JSON.stringify(sessions, null, 2);
+  const result = await exportManager.exportData({
+    includeTrainingSessions: true,
+    includeDailyGoals: false,
+    includeSettings: false,
+    includeMetadata: false,
+    format: 'json',
+  });
+
+  return result.data as string;
 }
 
+/**
+ * Legacy import function for backward compatibility
+ * Uses new import manager with default options
+ */
 export async function importData(
   data: string,
   onProgress?: (processed: number, total: number) => void,
 ): Promise<{ imported: number; skipped: number }> {
-  const sessions: any[] = JSON.parse(data);
-  const total = sessions.length;
-  const errors: Array<{ id: number; error: unknown }> = [];
+  // Convert legacy progress callback to new format
+  const progressCallback = onProgress
+    ? (progress: any) => {
+        if (progress.phase === 'importing_sessions') {
+          onProgress(progress.processed, progress.total);
+        }
+      }
+    : undefined;
 
-  const existingSessions = await offlineStorage.getSessions();
-  const existingIds = new Set(existingSessions.map((s) => s.id));
+  const result = await importManager.importData(
+    data,
+    {
+      conflictResolution: 'skip',
+      validateSchema: true,
+      createBackup: false,
+      dryRun: false,
+    },
+    progressCallback,
+  );
 
-  let imported = 0;
-  let skipped = 0;
-  let processed = 0;
-
-  // Import each session, preserving IDs when provided
-  for (const session of sessions) {
-    const { id, date, createdAt: _createdAt, ...rest } = session as any;
-
-    if (existingIds.has(id)) {
-      skipped++;
-      continue;
-    }
-
-    let normalizedDate: Date;
-    if (typeof date === 'string' || typeof date === 'number') {
-      normalizedDate = new Date(date);
-    } else if (date && typeof date === 'object' && 'seconds' in date && 'nanoseconds' in date) {
-      normalizedDate = new Date(date.seconds * 1000 + date.nanoseconds / 1e6);
-    } else if (date instanceof Date) {
-      normalizedDate = date;
-    } else {
-      normalizedDate = new Date();
-    }
-
-    // Skip sessions with invalid dates and record the error for reporting
-    if (isNaN(normalizedDate.getTime())) {
-      errors.push({ id, error: new Error('Invalid date') });
-      continue;
-    }
-
-    try {
-      await createSession({ ...rest, date: normalizedDate }, id);
-      imported++;
-      processed++;
-      existingIds.add(id);
-      onProgress?.(processed, total);
-    } catch (error) {
-      errors.push({ id, error });
-    }
-  }
-
-  if (errors.length > 0) {
+  if (!result.success && result.errors.length > 0) {
     throw new AggregateError(
-      errors.map((e) => e.error),
-      `Failed to import ${errors.length} sessions`,
+      result.errors.map((e) => new Error(e)),
+      `Failed to import ${result.errors.length} sessions`,
     );
   }
 
-  return { imported, skipped };
+  return {
+    imported: result.imported.sessions,
+    skipped: result.skipped,
+  };
 }

@@ -119,6 +119,11 @@ export async function getSessionsCollection() {
   return collection(db, 'users', currentUserId, 'trainingSessions');
 }
 
+export async function getDailyGoalsCollection() {
+  if (!currentUserId) throw new Error('User not authenticated');
+  return collection(db, 'users', currentUserId, 'dailyGoals');
+}
+
 async function ensureUserDoc(): Promise<void> {
   try {
     console.log('🔧 ensureUserDoc called for user:', currentUserId);
