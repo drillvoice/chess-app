@@ -7,7 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import Navigation from '@/components/layout/navigation';
 import { NetworkWarning } from '@/components/ui/network-status';
-import CloudSyncStatus from '@/components/cloud-sync-status';
+import FirebaseAuth from '@/components/firebase-auth';
 import { useAuthInit } from '@/hooks/useAuthInit';
 import { useCacheWarming } from '@/hooks/useCacheWarming';
 import { useLichessSync } from '@/hooks/useLichessSync';
@@ -51,7 +51,7 @@ function App() {
             </main>
           </div>
           <NetworkWarning />
-          <CloudSyncStatus />
+          <FirebaseAuth />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
