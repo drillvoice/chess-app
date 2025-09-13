@@ -78,10 +78,12 @@ export default function EnhancedDataManagement() {
       setExporting(true);
       const result = await exportManager.exportData(exportOptions);
 
-      // Create download
-      const blob = new Blob([result.data as string], {
-        type: exportOptions.format === 'json' ? 'application/json' : 'text/csv',
-      });
+      // Create download - handle both string and Blob data
+      const blob = result.data instanceof Blob 
+        ? result.data 
+        : new Blob([result.data as string], {
+            type: exportOptions.format === 'json' ? 'application/json' : 'text/csv',
+          });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

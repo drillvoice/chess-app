@@ -142,7 +142,7 @@ export class ExportManager {
         const backupData = await this.createBackupFormat(exportData);
         return {
           data: options.compressed ? await this.compressData(backupData) : backupData,
-          filename: filename.replace('.backup', '.backup.json'),
+          filename: filename.replace('.backup', options.compressed ? '.backup.gz' : '.backup.json'),
           metadata: exportData.metadata,
         };
 
