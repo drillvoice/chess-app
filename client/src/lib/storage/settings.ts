@@ -16,3 +16,10 @@ export async function setSettings(settingsData: any): Promise<void> {
     await cache_meta.put({ key: 'settings_last_updated', timestamp: Date.now() });
   });
 }
+
+export async function clearSettings(): Promise<void> {
+  await withStores([SETTINGS, META] as const, 'readwrite', async ({ settings, cache_meta }) => {
+    await settings.clear();
+    await cache_meta.delete('settings_last_updated');
+  });
+}

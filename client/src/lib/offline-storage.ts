@@ -21,6 +21,7 @@ export const offlineStorage = {
   getSession: sessions.getSession,
   removeSession: sessions.removeSession,
   deleteSession: sessions.deleteSession,
+  clearSessions: sessions.clearSessions,
   // sync queue
   markAsUnsynced: sessions.markAsUnsynced,
   markAsSynced: sessions.markAsSynced,
@@ -33,6 +34,7 @@ export const offlineStorage = {
   // settings
   getSettings: settings.getSettings,
   setSettings: settings.setSettings,
+  clearSettings: settings.clearSettings,
   // daily goals
   getDailyGoalSettings: dailyGoals.getDailyGoalSettings,
   setDailyGoalSettings: dailyGoals.setDailyGoalSettings,

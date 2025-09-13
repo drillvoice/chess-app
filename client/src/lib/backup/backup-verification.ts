@@ -537,23 +537,30 @@ export class BackupVerificationManager {
   }
 
   /**
-   * Clear current data based on options
+   * Clear current data based on options (FIXED: granular clearing)
    */
   private async clearCurrentData(options: {
     includeTrainingSessions: boolean;
     includeDailyGoals: boolean;
     includeSettings: boolean;
   }): Promise<void> {
+    // Clear ONLY the data the user chose to restore
     if (options.includeTrainingSessions) {
-      // Clear all sessions - this would need to be implemented in offline storage
-      await offlineStorage.clearAll();
+      await offlineStorage.clearSessions(); // Clear ONLY sessions, not everything
     }
 
     if (options.includeDailyGoals) {
       await offlineStorage.clearDailyGoalSettings();
     }
 
-    // Settings clearing would be implemented if needed
+    if (options.includeSettings) {
+      await offlineStorage.clearSettings(); // Clear ONLY settings
+    }
+
+    // Also clear statistics cache when sessions are cleared
+    if (options.includeTrainingSessions) {
+      await offlineStorage.clearStatistics();
+    }
   }
 }
 

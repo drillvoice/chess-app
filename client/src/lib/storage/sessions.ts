@@ -137,3 +137,11 @@ export async function getUnsyncedSessions(): Promise<UnsyncedSession[]> {
     return (await sync_queue.getAll()) as UnsyncedSession[];
   });
 }
+
+export async function clearSessions(): Promise<void> {
+  logger.info('Clearing all sessions from offline storage');
+  await withStores([SESSIONS, META] as const, 'readwrite', async ({ sessions, cache_meta }) => {
+    await sessions.clear();
+    await cache_meta.delete('sessions_last_updated');
+  });
+}
