@@ -1,258 +1,119 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import '@testing-library/jest-dom/vitest';
+import FirebaseAuth from './firebase-auth';
 
+// Mock Firebase client
 vi.mock('@/lib/firebaseClient', () => ({
   getFirebaseAuth: vi.fn(),
   getFirestoreDb: vi.fn(),
 }));
 
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(),
-  doc: vi.fn(() => ({})),
-  getDocs: vi.fn(() => Promise.resolve({ docs: [] })),
-  getDoc: vi.fn(),
-  deleteDoc: vi.fn(),
-  setDoc: vi.fn(),
-  updateDoc: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
-  orderBy: vi.fn(),
-  limit: vi.fn(),
-  onSnapshot: vi.fn(),
-  Timestamp: { now: () => new Date(), fromDate: () => new Date() },
+// Mock Firebase utils
+vi.mock('@/lib/firebase', () => ({
+  ensureAuthentication: vi.fn(),
 }));
 
+// Mock Firebase auth
 vi.mock('firebase/auth', () => ({
-  GoogleAuthProvider: class {
-    static credentialFromResult() {
-      return null;
-    }
-  },
-  signInWithPopup: vi.fn(),
-  signInWithRedirect: vi.fn(),
-  linkWithCredential: vi.fn(),
-  linkWithRedirect: vi.fn(),
-  signOut: vi.fn(),
   onAuthStateChanged: vi.fn(),
-  getRedirectResult: vi.fn(() => Promise.resolve(null)),
-  signInAnonymously: vi.fn(),
 }));
 
-vi.mock('@/lib/cache-utils', () => ({
-  SessionsCache: { remove: vi.fn(), set: vi.fn() },
-}));
-
-vi.mock('@/lib/offline-storage', () => ({
-  offlineStorage: {
-    clear: vi.fn(),
-    getSessions: vi.fn().mockResolvedValue([]),
-    setSessions: vi.fn(),
-    mergeSessions: vi.fn(),
-    getLastSyncedTimestamp: vi.fn(),
-    setLastSyncedTimestamp: vi.fn(),
-    markAsUnsynced: vi.fn(),
-    markAsSynced: vi.fn(),
-    incrementSyncRetries: vi.fn(),
-  },
-}));
-
-const toastMock = vi.fn();
-vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: toastMock }),
-}));
-
-import FirebaseAuth from './firebase-auth';
-import * as firebaseUtils from '@/lib/firebase';
-
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-  sessionStorage.clear();
-});
-
-function renderWithClient(ui: React.ReactElement) {
-  const queryClient = new QueryClient();
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 }
 
-describe('FirebaseAuth sign-out', () => {
-  it('preserves local data and resets currentUserId', async () => {
-    const mockAuth: any = { currentUser: { uid: 'user123' } };
-    const firebaseClient = await import('@/lib/firebaseClient');
-    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
-    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+function renderWithClient(ui: React.ReactElement) {
+  return render(ui, { wrapper: createWrapper() });
+}
 
-    const authModule = await import('firebase/auth');
-    let authChange: any;
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
-      authChange = cb;
-      cb(mockAuth.currentUser);
+describe('FirebaseAuth', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows loading state initially', () => {
+    const firebaseClient = require('@/lib/firebaseClient');
+    firebaseClient.getFirebaseAuth.mockResolvedValue({ currentUser: null });
+    firebaseClient.getFirestoreDb.mockResolvedValue({});
+
+    const authModule = require('firebase/auth');
+    authModule.onAuthStateChanged.mockImplementation((_auth: any, cb: any) => {
+      // Don't call callback immediately to simulate loading
       return () => {};
     });
-    (authModule.signOut as any).mockImplementation(async () => {
-      mockAuth.currentUser = null;
-      authChange(null);
-    });
-
-    await firebaseUtils.refreshAuthState();
-    expect(firebaseUtils.getCurrentUserId()).toBe('user123');
-
-    const cacheModule = await import('@/lib/cache-utils');
-    const offlineModule = await import('@/lib/offline-storage');
-    vi.spyOn(firebaseUtils, 'stopSessionSync').mockImplementation(() => {});
 
     renderWithClient(<FirebaseAuth />);
-    const signOutButton = await screen.findByRole('button', { name: /disable cloud sync/i });
-    fireEvent.click(signOutButton);
+    expect(screen.getByText('Initializing backup system...')).toBeInTheDocument();
+  });
 
+  it('shows backup active when user is authenticated', async () => {
+    const mockUser = { uid: 'anonymous123', isAnonymous: true };
+    const mockAuth = { currentUser: mockUser };
+    
+    const firebaseClient = require('@/lib/firebaseClient');
+    firebaseClient.getFirebaseAuth.mockResolvedValue(mockAuth);
+    firebaseClient.getFirestoreDb.mockResolvedValue({});
+
+    const authModule = require('firebase/auth');
+    authModule.onAuthStateChanged.mockImplementation((_auth: any, cb: any) => {
+      cb(mockUser);
+      return () => {};
+    });
+
+    const firebaseUtils = require('@/lib/firebase');
+    firebaseUtils.ensureAuthentication.mockResolvedValue();
+
+    renderWithClient(<FirebaseAuth />);
+    
     await waitFor(() => {
-      expect(firebaseUtils.getCurrentUserId()).toBeNull();
-      expect(cacheModule.SessionsCache.remove).not.toHaveBeenCalled();
-      expect(offlineModule.offlineStorage.clear).not.toHaveBeenCalled();
-      expect(firebaseUtils.stopSessionSync).toHaveBeenCalled();
+      expect(screen.getByText('Cloud Backup Active')).toBeInTheDocument();
     });
+    
+    expect(screen.getByText('Your training data is automatically backed up to the cloud for this device.')).toBeInTheDocument();
   });
-});
 
-describe('FirebaseAuth sign-in', () => {
-  it('shows success toast when verification succeeds', async () => {
-    const mockAuth: any = { currentUser: null };
-    const firebaseClient = await import('@/lib/firebaseClient');
-    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
-    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
+  it('shows local storage only when no user is authenticated', async () => {
+    const mockAuth = { currentUser: null };
+    
+    const firebaseClient = require('@/lib/firebaseClient');
+    firebaseClient.getFirebaseAuth.mockResolvedValue(mockAuth);
+    firebaseClient.getFirestoreDb.mockResolvedValue({});
 
-    const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
-      cb(mockAuth.currentUser);
+    const authModule = require('firebase/auth');
+    authModule.onAuthStateChanged.mockImplementation((_auth: any, cb: any) => {
+      cb(null);
       return () => {};
     });
 
-    vi.spyOn(firebaseUtils, 'startAuthFlow').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
-    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
+    const firebaseUtils = require('@/lib/firebase');
+    firebaseUtils.ensureAuthentication.mockResolvedValue();
 
     renderWithClient(<FirebaseAuth />);
-    const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
-    fireEvent.click(signInButton);
-
-    await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
-    expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Local Storage Only')).toBeInTheDocument();
+    });
+    
+    expect(screen.getByText('Backup system is initializing...')).toBeInTheDocument();
   });
 
-  it('shows descriptive toast when verification fails', async () => {
-    const mockAuth: any = { currentUser: null };
-    const firebaseClient = await import('@/lib/firebaseClient');
-    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
-    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
-
-    const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
-      cb(mockAuth.currentUser);
-      return () => {};
-    });
-
-    vi.spyOn(firebaseUtils, 'startAuthFlow').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(false);
-    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
+  it('handles Firebase initialization errors gracefully', async () => {
+    const firebaseClient = require('@/lib/firebaseClient');
+    firebaseClient.getFirebaseAuth.mockRejectedValue(new Error('Firebase init failed'));
 
     renderWithClient(<FirebaseAuth />);
-    const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
-    fireEvent.click(signInButton);
-
-    await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
-    expect(firebaseUtils.startSessionSync).not.toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Verification Failed' }),
-    );
-  });
-
-  it('falls back to redirect when popup is blocked', async () => {
-    const mockAuth: any = { currentUser: null };
-    const firebaseClient = await import('@/lib/firebaseClient');
-    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
-    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
-
-    const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
-      cb(mockAuth.currentUser);
-      return () => {};
+    
+    await waitFor(() => {
+      expect(screen.getByText('Local Storage Only')).toBeInTheDocument();
     });
-
-    const popupError = { code: 'auth/popup-blocked' } as any;
-    const startAuthFlowSpy = vi
-      .spyOn(firebaseUtils, 'startAuthFlow')
-      .mockRejectedValueOnce(popupError)
-      .mockResolvedValueOnce();
-    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
-    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
-
-    renderWithClient(<FirebaseAuth />);
-    const signInButton = await screen.findByRole('button', { name: /enable cloud sync/i });
-    fireEvent.click(signInButton);
-
-    await waitFor(() => expect(startAuthFlowSpy).toHaveBeenCalledTimes(2));
-    expect(startAuthFlowSpy.mock.calls[1][0]).toBe(true);
-    expect(sessionStorage.getItem('redirectAuth')).toBe('true');
-    expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
-  });
-});
-
-describe('FirebaseAuth redirect handling', () => {
-  it('handles redirect result and shows success toast', async () => {
-    const mockAuth: any = { currentUser: { uid: 'user123' } };
-    const firebaseClient = await import('@/lib/firebaseClient');
-    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
-    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
-
-    const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
-      cb(mockAuth.currentUser);
-      return () => {};
-    });
-    (authModule.getRedirectResult as any).mockResolvedValue({});
-
-    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(true);
-    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
-
-    renderWithClient(<FirebaseAuth />);
-
-    await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
-    expect(firebaseUtils.startSessionSync).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Connected' }));
-  });
-
-  it('shows failure toast when verification fails after redirect', async () => {
-    const mockAuth: any = { currentUser: { uid: 'user123' } };
-    const firebaseClient = await import('@/lib/firebaseClient');
-    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
-    (firebaseClient.getFirestoreDb as any).mockResolvedValue({});
-
-    const authModule = await import('firebase/auth');
-    (authModule.onAuthStateChanged as any).mockImplementation((_auth: any, cb: any) => {
-      cb(mockAuth.currentUser);
-      return () => {};
-    });
-    (authModule.getRedirectResult as any).mockResolvedValue(null);
-    sessionStorage.setItem('redirectAuth', 'true');
-
-    vi.spyOn(firebaseUtils, 'refreshAuthState').mockResolvedValue();
-    vi.spyOn(firebaseUtils, 'verifyDataPresence').mockResolvedValue(false);
-    vi.spyOn(firebaseUtils, 'startSessionSync').mockResolvedValue();
-
-    renderWithClient(<FirebaseAuth />);
-
-    await waitFor(() => expect(firebaseUtils.verifyDataPresence).toHaveBeenCalled());
-    expect(firebaseUtils.startSessionSync).not.toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Verification Failed' }),
-    );
   });
 });

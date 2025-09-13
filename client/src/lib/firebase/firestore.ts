@@ -15,7 +15,6 @@ import {
   query,
   where,
   orderBy,
-  onSnapshot,
   Timestamp,
   collection,
   auth,
@@ -334,8 +333,6 @@ export async function createSession(
     await offlineStorage.addSession(newSession);
     await offlineStorage.clearStatistics();
 
-    // Mark as unsynced for background sync (we'll add this method later)
-    await offlineStorage.markAsUnsynced(sessionId, 'create');
 
     // Update caches immediately
     SessionsCache.remove();
@@ -348,8 +345,6 @@ export async function createSession(
     throw new Error('Failed to save session offline');
   }
 
-  // 2. Queue for Firebase sync (non-blocking)
-  queueMicrotask(() => syncSessionToFirebase(sessionId, newSession));
 
   // Refresh pending review queries so UI reflects latest data
   queryClient.invalidateQueries({ queryKey: ['pending-review'] });
@@ -373,8 +368,6 @@ export async function updateSession(
       throw new Error('Session not found locally');
     }
 
-    // Mark as unsynced for background sync (we'll add this method later)
-    await offlineStorage.markAsUnsynced(id, 'update', updateData);
 
     // Clear caches
     SessionsCache.remove();
@@ -383,8 +376,6 @@ export async function updateSession(
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue for Firebase sync (non-blocking)
-    queueMicrotask(() => syncUpdateToFirebase(id, updateData));
 
     // Refresh pending review queries so UI reflects latest data
     queryClient.invalidateQueries({ queryKey: ['pending-review'] });
@@ -402,8 +393,6 @@ export async function deleteSession(id: number): Promise<boolean> {
     await offlineStorage.deleteSession(id);
     await offlineStorage.clearStatistics();
 
-    // Mark as unsynced for background sync (we'll add this method later)
-    await offlineStorage.markAsUnsynced(id, 'delete');
 
     // Clear caches
     SessionsCache.remove();
@@ -412,8 +401,6 @@ export async function deleteSession(id: number): Promise<boolean> {
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue for Firebase sync (non-blocking)
-    queueMicrotask(() => syncDeleteToFirebase(id));
 
     return true;
   } catch (error) {
@@ -551,132 +538,7 @@ async function updateStatisticsInBackground(): Promise<void> {
   }
 }
 
-// Background sync functions
-async function syncSessionToFirebase(sessionId: number, session: TrainingSession): Promise<void> {
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
 
-    const sessionData = {
-      ...session,
-      date: Timestamp.fromDate(session.date),
-    };
-
-    const docRef = doc(sessionsRef, sessionId.toString());
-    await setDoc(docRef, sessionData);
-
-    // Mark as synced on success (we'll add this method later)
-    await offlineStorage.markAsSynced(sessionId);
-
-    console.log(`Session ${sessionId} synced to Firebase successfully`);
-  } catch (error) {
-    console.error('Failed to sync session to Firebase:', sessionId, error);
-    // Keep marked as unsynced for retry (we'll add this method later)
-    await offlineStorage.incrementSyncRetries(sessionId);
-  }
-}
-
-async function syncUpdateToFirebase(
-  id: number,
-  updateData: Partial<InsertTrainingSession>,
-): Promise<void> {
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
-    const docRef = doc(sessionsRef, id.toString());
-
-    const updatePayload = {
-      ...updateData,
-      ...(updateData.needsReview === undefined ? { needsReview: false } : {}),
-      updatedAt: Timestamp.fromDate(new Date()),
-    };
-
-    await setDoc(docRef, updatePayload, { merge: true });
-    await offlineStorage.markAsSynced(id);
-
-    console.log(`Session ${id} update synced to Firebase`);
-  } catch (error) {
-    console.error('Failed to sync update to Firebase:', id, error);
-    await offlineStorage.incrementSyncRetries(id);
-  }
-}
-
-async function syncDeleteToFirebase(id: number): Promise<void> {
-  try {
-    await waitForAuth();
-    const sessionsRef = await getSessionsCollection();
-    const docRef = doc(sessionsRef, id.toString());
-    await deleteDoc(docRef);
-    await offlineStorage.markAsSynced(id);
-
-    console.log(`Session ${id} deletion synced to Firebase`);
-  } catch (error) {
-    console.error('Failed to sync deletion to Firebase:', id, error);
-    await offlineStorage.incrementSyncRetries(id);
-  }
-}
-
-// Real-time listener for sessions
-export async function subscribeToSessions(callback: (sessions: TrainingSession[]) => void) {
-  try {
-    const currentUserId = getCurrentUserId();
-    if (!currentUserId) {
-      // Wait for auth and then subscribe
-      const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          unsubscribeAuth();
-          subscribeToSessions(callback);
-        }
-      });
-      return () => unsubscribeAuth();
-    }
-    const sessionsRef = collection(db, 'users', currentUserId, 'trainingSessions');
-    const q = query(sessionsRef, orderBy('date', 'desc'));
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const sessions = snapshot.docs.map((doc) => ({
-          id: parseInt(doc.id),
-          ...doc.data(),
-          date: doc.data().date.toDate(),
-        })) as TrainingSession[];
-
-        callback(sessions);
-      },
-      (error) => {
-        console.error('Error listening to sessions:', error);
-        callback([]);
-      },
-    );
-  } catch (error) {
-    console.error('Error setting up sessions listener:', error);
-    callback([]);
-  }
-}
-
-let unsubscribeSessionSync: (() => void) | null = null;
-
-export async function startSessionSync(onUpdate?: () => void): Promise<void> {
-  if (unsubscribeSessionSync) return;
-  try {
-    const unsub = await subscribeToSessions(async (sessions) => {
-      SessionsCache.set(sessions);
-      await offlineStorage.setSessions(sessions);
-      onUpdate?.();
-    });
-    unsubscribeSessionSync = unsub || null;
-  } catch (error) {
-    console.error('Error starting session sync:', error);
-  }
-}
-
-export function stopSessionSync(): void {
-  if (unsubscribeSessionSync) {
-    unsubscribeSessionSync();
-    unsubscribeSessionSync = null;
-  }
-}
 
 // Daily Goals Firebase Functions
 export async function getDailyGoalSettings(): Promise<DailyGoalSettings | null> {

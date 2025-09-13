@@ -106,6 +106,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           isRetrying={this.state.isRetrying}
           retryCount={this.state.retryCount}
           isNetworkError={this.isNetworkError(this.state.error!)}
+          _isNetworkError={this.isNetworkError(this.state.error!)}
           isOffline={this.isOffline()}
         />
       );
@@ -128,6 +129,7 @@ function DefaultErrorFallback({
   isRetrying: boolean;
   retryCount: number;
   isNetworkError: boolean;
+  _isNetworkError: boolean;
   isOffline: boolean;
 }) {
   const maxRetries = 3;
