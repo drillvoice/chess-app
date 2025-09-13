@@ -15,5 +15,16 @@
       "src": "/(.*)",
       "dest": "server/index.ts"
     }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
   ]
 }

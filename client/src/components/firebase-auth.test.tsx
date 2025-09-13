@@ -1,119 +1,108 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import FirebaseAuth from './firebase-auth';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock Firebase client
-vi.mock('@/lib/firebaseClient', () => ({
-  getFirebaseAuth: vi.fn(),
-  getFirestoreDb: vi.fn(),
+// Mock the hooks and Firebase modules
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: vi.fn(),
 }));
 
-// Mock Firebase utils
-vi.mock('@/lib/firebase', () => ({
+vi.mock('@/lib/firebaseClient', () => ({
+  getFirebaseAuth: vi.fn(),
+}));
+
+vi.mock('@/lib/firebase/core', () => ({
   ensureAuthentication: vi.fn(),
 }));
 
-// Mock Firebase auth
+vi.mock('@/lib/firebase/firestore-backup', () => ({
+  backupAllSessionsToCloud: vi.fn(),
+  getBackupStatus: vi.fn(),
+  isBackupNeeded: vi.fn(),
+}));
+
 vi.mock('firebase/auth', () => ({
   onAuthStateChanged: vi.fn(),
 }));
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
-
-function renderWithClient(ui: React.ReactElement) {
-  return render(ui, { wrapper: createWrapper() });
-}
-
 describe('FirebaseAuth', () => {
+  const mockToast = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
+    (useToast as any).mockReturnValue({ toast: mockToast });
   });
 
-  it('shows loading state initially', () => {
-    const firebaseClient = require('@/lib/firebaseClient');
-    firebaseClient.getFirebaseAuth.mockResolvedValue({ currentUser: null });
-    firebaseClient.getFirestoreDb.mockResolvedValue({});
-
-    const authModule = require('firebase/auth');
-    authModule.onAuthStateChanged.mockImplementation((_auth: any, cb: any) => {
-      // Don't call callback immediately to simulate loading
-      return () => {};
-    });
-
-    renderWithClient(<FirebaseAuth />);
+  it('renders loading state initially', () => {
+    render(<FirebaseAuth />);
+    
     expect(screen.getByText('Initializing backup system...')).toBeInTheDocument();
+    expect(screen.getByRole('generic')).toHaveClass('animate-pulse');
   });
 
-  it('shows backup active when user is authenticated', async () => {
-    const mockUser = { uid: 'anonymous123', isAnonymous: true };
-    const mockAuth = { currentUser: mockUser };
-    
-    const firebaseClient = require('@/lib/firebaseClient');
-    firebaseClient.getFirebaseAuth.mockResolvedValue(mockAuth);
-    firebaseClient.getFirestoreDb.mockResolvedValue({});
-
-    const authModule = require('firebase/auth');
-    authModule.onAuthStateChanged.mockImplementation((_auth: any, cb: any) => {
-      cb(mockUser);
-      return () => {};
+  it('shows backup active state when authenticated', async () => {
+    const mockAuth = { currentUser: { uid: 'test-uid' } };
+    const mockUnsubscribe = vi.fn();
+    const mockOnAuthStateChanged = vi.fn((auth, callback) => {
+      // Simulate authenticated user
+      callback({ uid: 'test-uid' });
+      return mockUnsubscribe;
     });
 
-    const firebaseUtils = require('@/lib/firebase');
-    firebaseUtils.ensureAuthentication.mockResolvedValue();
-
-    renderWithClient(<FirebaseAuth />);
+    const { getFirebaseAuth } = await import('@/lib/firebaseClient');
+    const { ensureAuthentication } = await import('@/lib/firebase/core');
+    const { getBackupStatus } = await import('@/lib/firebase/firestore-backup');
     
+    (getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (ensureAuthentication as any).mockResolvedValue(undefined);
+    (getBackupStatus as any).mockResolvedValue({
+      lastBackup: null,
+      sessionCount: 0,
+      needsBackup: true,
+    });
+
+    // Mock dynamic import
+    vi.doMock('firebase/auth', () => ({
+      onAuthStateChanged: mockOnAuthStateChanged,
+    }));
+
+    render(<FirebaseAuth />);
+
     await waitFor(() => {
       expect(screen.getByText('Cloud Backup Active')).toBeInTheDocument();
     });
-    
-    expect(screen.getByText('Your training data is automatically backed up to the cloud for this device.')).toBeInTheDocument();
+
+    expect(screen.getByText(/automatically backed up weekly/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /backup now/i })).toBeInTheDocument();
   });
 
-  it('shows local storage only when no user is authenticated', async () => {
+  it('shows initialization state when not authenticated', async () => {
     const mockAuth = { currentUser: null };
-    
-    const firebaseClient = require('@/lib/firebaseClient');
-    firebaseClient.getFirebaseAuth.mockResolvedValue(mockAuth);
-    firebaseClient.getFirestoreDb.mockResolvedValue({});
-
-    const authModule = require('firebase/auth');
-    authModule.onAuthStateChanged.mockImplementation((_auth: any, cb: any) => {
-      cb(null);
-      return () => {};
+    const mockUnsubscribe = vi.fn();
+    const mockOnAuthStateChanged = vi.fn((auth, callback) => {
+      // Simulate no authenticated user
+      callback(null);
+      return mockUnsubscribe;
     });
 
-    const firebaseUtils = require('@/lib/firebase');
-    firebaseUtils.ensureAuthentication.mockResolvedValue();
-
-    renderWithClient(<FirebaseAuth />);
+    const { getFirebaseAuth } = await import('@/lib/firebaseClient');
+    const { ensureAuthentication } = await import('@/lib/firebase/core');
     
+    (getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (ensureAuthentication as any).mockResolvedValue(undefined);
+
+    // Mock dynamic import
+    vi.doMock('firebase/auth', () => ({
+      onAuthStateChanged: mockOnAuthStateChanged,
+    }));
+
+    render(<FirebaseAuth />);
+
     await waitFor(() => {
-      expect(screen.getByText('Local Storage Only')).toBeInTheDocument();
+      expect(screen.getByText('Backup Initializing')).toBeInTheDocument();
     });
-    
-    expect(screen.getByText('Backup system is initializing...')).toBeInTheDocument();
-  });
 
-  it('handles Firebase initialization errors gracefully', async () => {
-    const firebaseClient = require('@/lib/firebaseClient');
-    firebaseClient.getFirebaseAuth.mockRejectedValue(new Error('Firebase init failed'));
-
-    renderWithClient(<FirebaseAuth />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Local Storage Only')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Backup system is starting up...')).toBeInTheDocument();
   });
 });

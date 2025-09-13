@@ -236,7 +236,6 @@ export default function Home() {
             <Puzzle className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Log tactics</div>
-              <div className="text-sm opacity-90">Practice & Score</div>
             </div>
           </div>
         </Button>
@@ -249,7 +248,6 @@ export default function Home() {
             <Crown className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Log game</div>
-              <div className="text-sm opacity-90">Win/Loss & Notes</div>
             </div>
           </div>
         </Button>
@@ -274,7 +272,6 @@ export default function Home() {
             <Target className="h-8 w-8" />
             <div className="text-left">
               <div className="text-lg">Set weekly goal</div>
-              <div className="text-sm opacity-90">Plan your week</div>
             </div>
           </div>
         </Button>
@@ -309,12 +306,10 @@ export default function Home() {
         <TacticsModal open={tacticsModalOpen} onOpenChange={setTacticsModalOpen} />
         <GameModal
           open={gameModalOpen}
-          onOpenChange={(open: boolean) => {
-            setGameModalOpen(open);
-            if (!open) setEditingSession(undefined);
-          }}
+          onOpenChange={setGameModalOpen}
           editingSession={editingSession}
           isEditMode={!!editingSession}
+          onClearEditingSession={() => setEditingSession(undefined)}
         />
         <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />

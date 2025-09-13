@@ -1,47 +1,27 @@
 import express, { type Request, Response, NextFunction, json, urlencoded } from 'express';
 import { registerRoutes } from './routes';
-import { setupVite, serveStatic, log } from './vite';
+import { setupVite, serveStatic } from './vite';
+import { fromZodError } from 'zod-validation-error';
+import { requestLogger, logger } from './logger';
 
 const app = express();
 app.use(json());
 app.use(urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    if (path.startsWith('/api')) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + '…';
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
+app.use(requestLogger);
 
 (async () => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || 'Internal Server Error';
+    let status = err.status || err.statusCode || 500;
+    let message = err.message || 'Internal Server Error';
+
+    if (err.name === 'ZodError') {
+      const validationError = fromZodError(err);
+      status = 400;
+      message = validationError.message;
+    }
 
     res.status(status).json({ message });
     throw err;
@@ -56,10 +36,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Serve the app on the port defined by the PORT environment variable.
+  // Defaults to 5000 to match the public firewall configuration.
+  const port = Number(process.env.PORT) || 5000;
   server.listen(
     {
       port,
@@ -67,7 +46,7 @@ app.use((req, res, next) => {
       reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      logger.info(`serving on port ${port}`, 'server');
     },
   );
 })();

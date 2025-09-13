@@ -31,8 +31,8 @@ class CapacitorStorage {
       console.log(
         `CapacitorStorage initialized: native=${this.useNative}, platform=${info.platform}`,
       );
-    } catch (error) {
-      console.warn('Failed to initialize Capacitor storage, using fallback:', error);
+    } catch (_error) {
+      console.warn('Failed to initialize Capacitor storage, using fallback:', _error);
       if (options.fallbackToIndexedDB) {
         const { offlineStorage } = await import('./offline-storage');
         this.fallbackStorage = offlineStorage;
@@ -198,7 +198,7 @@ class CapacitorStorage {
         platform: info.platform,
         available: this.useNative || !!this.fallbackStorage,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         type: 'unknown',
         platform: 'unknown',

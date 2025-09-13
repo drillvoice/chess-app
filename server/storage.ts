@@ -126,7 +126,7 @@ export class MemStorage implements IStorage {
       }
 
       this.currentId = maxId + 1;
-    } catch (error) {
+    } catch (_error) {
       throw new Error('Invalid data format');
     }
   }

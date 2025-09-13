@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { offlineStorage } from './offline-storage';
 
@@ -50,5 +50,26 @@ describe('offlineStorage', () => {
     await offlineStorage.setLastSyncedTimestamp(ts);
     const stored = await offlineStorage.getLastSyncedTimestamp();
     expect(stored).toBe(ts);
+  });
+
+  it('returns null for missing sessions and failed updates', async () => {
+    expect(await offlineStorage.getSession(123)).toBeNull();
+    const result = await offlineStorage.updateSession(999, { type: 'tactics' } as any);
+    expect(result).toBeNull();
+  });
+});
+
+describe('offlineStorage initialization', () => {
+  it('logs a warning if database initialization fails', async () => {
+    vi.resetModules();
+    const warn = vi.fn();
+    vi.doMock('./logger', () => ({ logger: { warn } }));
+    vi.doMock('./storage/db', () => {
+      const rejected = Promise.reject(new Error('fail'));
+      rejected.catch(() => {});
+      return { dbPromise: rejected };
+    });
+    await import('./offline-storage');
+    expect(warn).toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { clearAppCache } from './lib/utils';
 
 // Debug monitoring in development
 if (process.env.NODE_ENV === 'development') {
@@ -136,6 +137,26 @@ async function warmCache() {
   }
 }
 
+// Check app version and refresh if changed
+async function checkAppVersion() {
+  try {
+    const response = await fetch('/version.json', { cache: 'no-store' });
+    const data = await response.json();
+    const currentVersion = data.version;
+    const savedVersion = localStorage.getItem('app-version');
+
+    if (savedVersion && savedVersion !== currentVersion) {
+      await clearAppCache();
+      localStorage.setItem('app-version', currentVersion);
+      location.reload();
+    } else {
+      localStorage.setItem('app-version', currentVersion);
+    }
+  } catch (error) {
+    console.error('Failed to check app version:', error);
+  }
+}
+
 // Enhanced service worker registration
 async function initializeServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) {
@@ -147,6 +168,8 @@ async function initializeServiceWorker(): Promise<void> {
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',
     });
+
+    registration.update();
 
     console.log('SW registered: ', registration);
 
@@ -196,8 +219,9 @@ window.addEventListener('load', async () => {
 
   // Initialize service worker with messaging and cache warming
   await initializeServiceWorker();
+  await checkAppVersion();
 
-  // Dispatch persistence status
+  // Dispatch persistence status if storage isn't persistent
   if (!isPersistent && 'storage' in navigator) {
     window.dispatchEvent(
       new CustomEvent('storage-persistence-status', {

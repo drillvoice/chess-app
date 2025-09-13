@@ -59,8 +59,13 @@ export async function ensureFirebase() {
   }
 
   if (!authListenerInitialized) {
+    if (!onAuthStateChanged) throw new Error('Firebase auth not initialized');
     onAuthStateChanged(auth, async (user) => {
       currentUserId = user ? user.uid : null;
+
+      if (user && !user.isAnonymous) {
+        localStorage.setItem('hasRealLogin', 'true');
+      }
 
       if (currentUserId) {
         await ensureUserDoc();
@@ -102,12 +107,12 @@ async function ensureAnonymousAuth(): Promise<void> {
 export async function waitForAuth(timeoutMs = 30000): Promise<void> {
   console.log('🔐 waitForAuth called with timeout:', timeoutMs);
   await ensureFirebase();
-  
+
   if (currentUserId) {
     console.log('✅ User already authenticated:', currentUserId);
     return;
   }
-  
+
   if (auth.currentUser) {
     currentUserId = auth.currentUser.uid;
     console.log('✅ Current user found:', currentUserId);
@@ -134,6 +139,7 @@ export async function waitForAuth(timeoutMs = 30000): Promise<void> {
 
   // If anonymous auth didn't work, wait for any auth state change
   console.log('⏳ Waiting for auth state change...');
+  if (!onAuthStateChanged) throw new Error('Firebase auth not initialized');
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -171,28 +177,13 @@ async function ensureUserDoc(): Promise<void> {
   }
 }
 
-export async function refreshAuthState(): Promise<void> {
-  await ensureFirebase();
-  const user = auth.currentUser;
-  currentUserId = user ? user.uid : null;
-  if (currentUserId) {
-    await ensureUserDoc();
-  }
-}
 
 export function getCurrentUserId(): string | null {
   return currentUserId;
 }
 
-// Public function to ensure anonymous authentication for apps that need Firebase access
 export async function ensureAuthentication(): Promise<void> {
   await ensureFirebase();
-  await new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, () => {
-      unsub();
-      resolve(undefined);
-    });
-  });
   if (!auth.currentUser) {
     await ensureAnonymousAuth();
   }

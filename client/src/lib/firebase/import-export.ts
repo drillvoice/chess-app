@@ -4,15 +4,11 @@ import { getAllSessions, createSession } from './firestore';
 export async function verifyDataPresence(): Promise<boolean> {
   try {
     const cached = await offlineStorage.getSessions();
-    // Fetch fresh data via dynamic import so tests can mock the function.
-    // Using a runtime import ensures the spy applied in tests intercepts the
-    // call, avoiding unintended network/mock behavior.
-    const { fetchSessionsFromFirebase } = await import('./firestore');
-    await fetchSessionsFromFirebase();
-    console.log('Migration verification: cached', cached?.length || 0, 'live read successful');
-    return true;
+    console.log('Data verification: cached', cached?.length || 0, 'sessions available locally');
+    // With backup-only approach, we only verify local data exists
+    return (cached?.length || 0) > 0;
   } catch (error) {
-    console.error('Migration verification failed:', error);
+    console.error('Data verification failed:', error);
     return false;
   }
 }

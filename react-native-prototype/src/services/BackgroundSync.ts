@@ -187,7 +187,7 @@ class BackgroundSyncService {
         lastSyncTime: lastSync ? parseInt(lastSync) : undefined,
         isOnline: true, // Would check actual network status
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         pendingCount: 0,
         isOnline: false,

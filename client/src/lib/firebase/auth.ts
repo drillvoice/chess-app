@@ -1,1 +1,1 @@
-export { refreshAuthState, getCurrentUserId, ensureAuthentication } from './core';
+export { getCurrentUserId, ensureAuthentication } from './core';

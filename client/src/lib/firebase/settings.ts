@@ -69,7 +69,7 @@ export interface UserSettings {
 // Retrieve user settings, preferring cached offline data when available
 export async function getUserSettings(): Promise<UserSettings> {
   console.log('📱 getUserSettings called');
-  
+
   // Try cached data first for instant loading
   try {
     const cached = await offlineStorage.getSettings();
@@ -102,11 +102,10 @@ export async function getUserSettings(): Promise<UserSettings> {
     return settings;
   } catch (error) {
     console.error('❌ Error getting user settings from Firestore:', error);
-    
-    // Return empty settings if Firestore fails
-    const emptySettings: UserSettings = {};
-    console.log('📱 Returning empty settings due to Firestore error');
-    return emptySettings;
+    throw new SettingsError(
+      'Failed to load settings from cloud storage',
+      error instanceof Error ? error : undefined,
+    );
   }
 }
 
@@ -131,8 +130,8 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
     await offlineStorage.setSettings(mergedSettings);
     console.log('✅ Successfully saved to offline storage');
   } catch (error) {
-    console.error('❌ Failed to save to offline storage:', error);
-    throw new SettingsError('Failed to save settings locally', error instanceof Error ? error : undefined);
+    console.warn('❌ Failed to save to offline storage:', error);
+    // Continue even if offline caching fails
   }
 
   // Try to save to Firestore (but don't fail if it doesn't work)
@@ -160,8 +159,11 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
     await setDoc(settingsRef, settings, { merge: true });
     console.log('✅ Successfully saved to Firestore');
   } catch (error) {
-    console.warn('⚠️ Failed to save to Firestore, but settings saved locally:', error);
-    // Don't throw - the offline save already succeeded
+    console.error('⚠️ Failed to save to Firestore:', error);
+    throw new SettingsError(
+      'Failed to save to cloud storage',
+      error instanceof Error ? error : undefined,
+    );
   }
 }
 

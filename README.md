@@ -5,7 +5,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 ## Features
 
 - **Training Session Logging**: Track tactics, games, and study sessions
-- **Cloud Sync**: Firebase Firestore integration for cross-device synchronization with automatic redirect fallback when popups are blocked
+- **Cloud Sync**: Firebase Firestore integration for cross-device synchronization with automatic redirect fallback when popups are blocked. See [cloud-sync docs](docs/cloud-sync.md) for storage permissions and troubleshooting tips.
 - **Offline Support**: Works offline with IndexedDB storage
 - **Progressive Web App**: Installable on mobile devices
 - **Statistics Dashboard**: Track your progress over time
@@ -23,7 +23,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 
 ## Environment & Secrets
 
-Local development uses a `.env.local` file that is not committed to version control. Follow these steps to set up your environment:
+Local development uses a `.env.local` file that is not committed to version control. The server listens on the port specified by the `PORT` environment variable (defaults to `5000`). Follow these steps to set up your environment:
 
 1. **Create `.env.local`**
 
