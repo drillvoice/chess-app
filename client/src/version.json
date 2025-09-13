@@ -1,7 +1,12 @@
 {
-  "version": "0.3.9a",
-  "lastUpdated": "7 September 2025",
+  "version": "0.3.9b",
+  "lastUpdated": "13 September 2025",
   "changelog": [
+    {
+      "version": "0.3.9b",
+      "date": "13 September 2025",
+      "changes": ["Improve comment retention for lichess synced games"]
+    },
     {
       "version": "0.3.9a",
       "date": "7 September 2025",
