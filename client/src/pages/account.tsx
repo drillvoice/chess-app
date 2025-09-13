@@ -1,5 +1,6 @@
 import { Suspense, useState } from 'react';
 import { DataManagementContent } from '@/components/data-management';
+import EnhancedDataManagement from '@/components/enhanced-data-management';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -111,8 +112,17 @@ ${diagnostics.errors.map((error) => `  - ${error}`).join('\n')}
           </AccordionContent>
         </AccordionItem>
 
+        <AccordionItem value="enhanced-data-management">
+          <AccordionTrigger>Enhanced Data Management</AccordionTrigger>
+          <AccordionContent>
+            <Suspense fallback={<div>Loading enhanced data management...</div>}>
+              <EnhancedDataManagement />
+            </Suspense>
+          </AccordionContent>
+        </AccordionItem>
+
         <AccordionItem value="data-management">
-          <AccordionTrigger>Data management</AccordionTrigger>
+          <AccordionTrigger>Basic Data Management</AccordionTrigger>
           <AccordionContent>
             <Suspense fallback={<div>Loading account data...</div>}>
               <DataManagementContent />
