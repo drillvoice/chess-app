@@ -112,20 +112,20 @@ ${diagnostics.errors.map((error) => `  - ${error}`).join('\n')}
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="enhanced-data-management">
-          <AccordionTrigger>Enhanced Data Management</AccordionTrigger>
-          <AccordionContent>
-            <Suspense fallback={<div>Loading enhanced data management...</div>}>
-              <EnhancedDataManagement />
-            </Suspense>
-          </AccordionContent>
-        </AccordionItem>
-
         <AccordionItem value="data-management">
           <AccordionTrigger>Basic Data Management</AccordionTrigger>
           <AccordionContent>
             <Suspense fallback={<div>Loading account data...</div>}>
               <DataManagementContent />
+            </Suspense>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="enhanced-data-management">
+          <AccordionTrigger>Enhanced Data Management</AccordionTrigger>
+          <AccordionContent>
+            <Suspense fallback={<div>Loading enhanced data management...</div>}>
+              <EnhancedDataManagement />
             </Suspense>
           </AccordionContent>
         </AccordionItem>

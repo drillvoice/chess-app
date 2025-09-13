@@ -4,6 +4,7 @@ import { Puzzle, Crown, Book, Target, Archive } from 'lucide-react';
 import { TacticsModal, GameModal, StudyModal, GoalModal } from '@/components/lazy-components';
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from '@/components/install-prompt';
+import CloudBackupReminder from '@/components/cloud-backup-reminder';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -112,6 +113,7 @@ export default function Home() {
   return (
     <div className="space-y-4 md:space-y-6">
       <InstallPrompt />
+      <CloudBackupReminder />
 
       <div className="py-4 text-center">
         <h2 className="mb-2 text-2xl font-bold text-gray-800">Log your training</h2>
