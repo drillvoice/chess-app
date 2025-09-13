@@ -107,6 +107,15 @@
         }
       }
 
+      /* PWA standalone mode - always edge-to-edge */
+      @media (display-mode: standalone) {
+        .app-container {
+          max-width: 100%;
+          margin: 0;
+          box-shadow: none;
+        }
+      }
+
       /* Critical navigation styles */
       .nav-container {
         background-color: #1e40af;
