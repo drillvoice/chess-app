@@ -59,18 +59,17 @@ export interface ImportProgress {
  * Advanced import manager with validation and conflict resolution
  */
 export class ImportManager {
-  
   /**
    * Preview import data without making changes
    */
   async previewImport(data: string): Promise<ImportPreview> {
     const validation = await this.validateImportData(data);
     const parsedData = this.parseImportData(data, validation.dataFormat);
-    
+
     const existingSessions = await offlineStorage.getSessions();
-    const existingIds = new Set(existingSessions.map(s => s.id));
+    const existingIds = new Set(existingSessions.map((s) => s.id));
     const existingByDate = new Map(
-      existingSessions.map(s => [`${s.type}-${s.date.getTime()}`, s])
+      existingSessions.map((s) => [`${s.type}-${s.date.getTime()}`, s]),
     );
 
     let newSessions = 0;
@@ -89,13 +88,13 @@ export class ImportManager {
         // Check for ID conflicts
         if (existingIds.has(session.id)) {
           duplicateSessions++;
-          const existing = existingSessions.find(s => s.id === session.id)!;
+          const existing = existingSessions.find((s) => s.id === session.id)!;
           conflicts.push({
             type: 'duplicate_session',
             existingId: session.id,
             importingData: session,
             existingData: existing,
-            recommendedAction: this.recommendConflictResolution(session, existing)
+            recommendedAction: this.recommendConflictResolution(session, existing),
           });
           continue;
         }
@@ -109,7 +108,7 @@ export class ImportManager {
             existingId: existing.id,
             importingData: session,
             existingData: existing,
-            recommendedAction: this.recommendConflictResolution(session, existing)
+            recommendedAction: this.recommendConflictResolution(session, existing),
           });
           continue;
         }
@@ -126,7 +125,7 @@ export class ImportManager {
       hasSettings: !!parsedData.settings,
       hasDailyGoals: !!parsedData.dailyGoals,
       conflicts,
-      validation
+      validation,
     };
   }
 
@@ -134,21 +133,21 @@ export class ImportManager {
    * Import data with full validation and conflict resolution
    */
   async importData(
-    data: string, 
+    data: string,
     options: ImportOptions,
-    onProgress?: (progress: ImportProgress) => void
+    onProgress?: (progress: ImportProgress) => void,
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: false,
       imported: { sessions: 0, settings: 0, dailyGoals: 0 },
       skipped: 0,
-      errors: []
+      errors: [],
     };
 
     try {
       // Phase 1: Validation
       onProgress?.({ phase: 'validating', processed: 0, total: 100 });
-      
+
       const validation = await this.validateImportData(data);
       if (!validation.valid && options.validateSchema) {
         result.errors = validation.errors;
@@ -156,7 +155,7 @@ export class ImportManager {
       }
 
       const parsedData = this.parseImportData(data, validation.dataFormat);
-      
+
       // Phase 2: Create backup if requested
       if (options.createBackup && !options.dryRun) {
         onProgress?.({ phase: 'backing_up', processed: 10, total: 100 });
@@ -166,21 +165,21 @@ export class ImportManager {
       // Phase 3: Import training sessions
       if (parsedData.trainingSessions) {
         onProgress?.({ phase: 'importing_sessions', processed: 20, total: 100 });
-        
+
         const sessionResult = await this.importTrainingSessions(
           parsedData.trainingSessions,
           options,
           (processed, total) => {
             const progress = 20 + (processed / total) * 60;
-            onProgress?.({ 
-              phase: 'importing_sessions', 
-              processed: progress, 
+            onProgress?.({
+              phase: 'importing_sessions',
+              processed: progress,
               total: 100,
-              currentItem: `Session ${processed}/${total}`
+              currentItem: `Session ${processed}/${total}`,
             });
-          }
+          },
         );
-        
+
         result.imported.sessions = sessionResult.imported;
         result.skipped += sessionResult.skipped;
         result.errors.push(...sessionResult.errors);
@@ -188,7 +187,7 @@ export class ImportManager {
 
       // Phase 4: Import settings and daily goals
       onProgress?.({ phase: 'importing_settings', processed: 85, total: 100 });
-      
+
       if (parsedData.dailyGoals && !options.dryRun) {
         try {
           await setDailyGoalSettings(parsedData.dailyGoals);
@@ -209,9 +208,8 @@ export class ImportManager {
 
       onProgress?.({ phase: 'complete', processed: 100, total: 100 });
       result.success = result.errors.length === 0;
-      
-      return result;
 
+      return result;
     } catch (error) {
       result.errors.push(`Import failed: ${error}`);
       return result;
@@ -234,7 +232,7 @@ export class ImportManager {
         valid: false,
         errors: ['Invalid JSON format'],
         warnings: [],
-        dataFormat: 'unknown'
+        dataFormat: 'unknown',
       };
     }
 
@@ -249,7 +247,7 @@ export class ImportManager {
 
     // Validate backup format
     if (dataFormat === 'backup') {
-      if (!await this.validateBackupChecksum(parsedData)) {
+      if (!(await this.validateBackupChecksum(parsedData))) {
         errors.push('Backup data integrity check failed');
       }
     }
@@ -265,7 +263,7 @@ export class ImportManager {
           warnings.push(`Invalid session data: ${session.id || 'unknown ID'}`);
         }
       }
-      
+
       if (validSessions === 0 && sessions.length > 0) {
         errors.push('No valid training sessions found');
       }
@@ -282,7 +280,7 @@ export class ImportManager {
       valid: errors.length === 0,
       errors,
       warnings,
-      dataFormat
+      dataFormat,
     };
   }
 
@@ -291,16 +289,16 @@ export class ImportManager {
    */
   private parseImportData(data: string, format: ValidationResult['dataFormat']): ExportData {
     const parsed = JSON.parse(data);
-    
+
     switch (format) {
       case 'backup':
         return {
           trainingSessions: parsed.trainingSessions,
           dailyGoals: parsed.dailyGoals,
           settings: parsed.settings,
-          metadata: parsed.metadata
+          metadata: parsed.metadata,
         };
-        
+
       case 'legacy':
         return {
           trainingSessions: parsed,
@@ -308,10 +306,10 @@ export class ImportManager {
             exportedAt: new Date().toISOString(),
             version: '1.0.0',
             sessionCount: parsed.length,
-            exportOptions: {}
-          }
+            exportOptions: {},
+          },
         };
-        
+
       case 'json':
       default:
         return parsed;
@@ -324,11 +322,11 @@ export class ImportManager {
   private async importTrainingSessions(
     sessions: TrainingSession[],
     options: ImportOptions,
-    onProgress?: (processed: number, total: number) => void
+    onProgress?: (processed: number, total: number) => void,
   ): Promise<{ imported: number; skipped: number; errors: string[] }> {
     const existingSessions = await offlineStorage.getSessions();
-    const existingIds = new Set(existingSessions.map(s => s.id));
-    
+    const existingIds = new Set(existingSessions.map((s) => s.id));
+
     let imported = 0;
     let skipped = 0;
     const errors: string[] = [];
@@ -349,7 +347,7 @@ export class ImportManager {
           case 'skip':
             skipped++;
             continue;
-            
+
           case 'overwrite':
             if (!options.dryRun) {
               try {
@@ -361,11 +359,14 @@ export class ImportManager {
               }
             }
             break;
-            
+
           case 'merge':
             if (!options.dryRun) {
               try {
-                await this.mergeSession(session, existingSessions.find(s => s.id === session.id)!);
+                await this.mergeSession(
+                  session,
+                  existingSessions.find((s) => s.id === session.id)!,
+                );
                 imported++;
               } catch (error) {
                 errors.push(`Failed to merge session ${session.id}: ${error}`);
@@ -379,26 +380,29 @@ export class ImportManager {
       // Import new session
       if (!options.dryRun) {
         try {
-          await createSession({
-            type: session.type,
-            date: new Date(session.date),
-            duration: session.duration,
-            pointsGained: session.pointsGained,
-            finalScore: session.finalScore,
-            tacticsNotes: session.tacticsNotes,
-            gameResult: session.gameResult,
-            gameType: session.gameType,
-            gameComments: session.gameComments,
-            playerColor: session.playerColor,
-            platform: session.platform,
-            timeControl: session.timeControl,
-            opponentUsername: session.opponentUsername,
-            needsReview: session.needsReview,
-            studyType: session.studyType,
-            studyTags: session.studyTags,
-            studyNotes: session.studyNotes
-          }, session.id);
-          
+          await createSession(
+            {
+              type: session.type,
+              date: new Date(session.date),
+              duration: session.duration,
+              pointsGained: session.pointsGained,
+              finalScore: session.finalScore,
+              tacticsNotes: session.tacticsNotes,
+              gameResult: session.gameResult,
+              gameType: session.gameType,
+              gameComments: session.gameComments,
+              playerColor: session.playerColor,
+              platform: session.platform,
+              timeControl: session.timeControl,
+              opponentUsername: session.opponentUsername,
+              needsReview: session.needsReview,
+              studyType: session.studyType,
+              studyTags: session.studyTags,
+              studyNotes: session.studyNotes,
+            },
+            session.id,
+          );
+
           imported++;
           existingIds.add(session.id);
         } catch (error) {
@@ -430,9 +434,7 @@ export class ImportManager {
    */
   private isValidDailyGoals(dailyGoals: any): boolean {
     return (
-      dailyGoals &&
-      typeof dailyGoals.targetMinutes === 'number' &&
-      dailyGoals.targetMinutes >= 0
+      dailyGoals && typeof dailyGoals.targetMinutes === 'number' && dailyGoals.targetMinutes >= 0
     );
   }
 
@@ -440,16 +442,16 @@ export class ImportManager {
    * Recommend conflict resolution strategy
    */
   private recommendConflictResolution(
-    importing: TrainingSession, 
-    existing: TrainingSession
+    importing: TrainingSession,
+    existing: TrainingSession,
   ): 'skip' | 'overwrite' | 'merge' {
     // If importing data has more information, recommend overwrite
     const importingFields = this.countNonEmptyFields(importing);
     const existingFields = this.countNonEmptyFields(existing);
-    
+
     if (importingFields > existingFields) return 'overwrite';
     if (existingFields > importingFields) return 'skip';
-    
+
     // If same amount of data, recommend merge
     return 'merge';
   }
@@ -460,18 +462,31 @@ export class ImportManager {
   private countNonEmptyFields(session: TrainingSession): number {
     let count = 0;
     const fields = [
-      'duration', 'pointsGained', 'finalScore', 'tacticsNotes',
-      'gameResult', 'gameType', 'gameComments', 'playerColor',
-      'platform', 'timeControl', 'opponentUsername', 'studyType',
-      'studyTags', 'studyNotes'
+      'duration',
+      'pointsGained',
+      'finalScore',
+      'tacticsNotes',
+      'gameResult',
+      'gameType',
+      'gameComments',
+      'playerColor',
+      'platform',
+      'timeControl',
+      'opponentUsername',
+      'studyType',
+      'studyTags',
+      'studyNotes',
     ];
-    
+
     for (const field of fields) {
-      if (session[field as keyof TrainingSession] != null && session[field as keyof TrainingSession] !== '') {
+      if (
+        session[field as keyof TrainingSession] != null &&
+        session[field as keyof TrainingSession] !== ''
+      ) {
         count++;
       }
     }
-    
+
     return count;
   }
 
@@ -480,21 +495,21 @@ export class ImportManager {
    */
   private async createPreImportBackup(): Promise<string> {
     const { exportManager } = await import('../export/export-manager');
-    
+
     const backupResult = await exportManager.exportData({
       includeTrainingSessions: true,
       includeDailyGoals: true,
       includeSettings: true,
       includeMetadata: true,
-      format: 'backup'
+      format: 'backup',
     });
-    
+
     // Store backup locally
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupKey = `pre-import-backup-${timestamp}`;
-    
+
     localStorage.setItem(backupKey, backupResult.data as string);
-    
+
     return backupKey;
   }
 
@@ -504,25 +519,28 @@ export class ImportManager {
   private async updateExistingSession(session: TrainingSession): Promise<void> {
     // Implementation would update the session in offline storage
     // For now, we'll use the existing createSession with overwrite
-    await createSession({
-      type: session.type,
-      date: new Date(session.date),
-      duration: session.duration,
-      pointsGained: session.pointsGained,
-      finalScore: session.finalScore,
-      tacticsNotes: session.tacticsNotes,
-      gameResult: session.gameResult,
-      gameType: session.gameType,
-      gameComments: session.gameComments,
-      playerColor: session.playerColor,
-      platform: session.platform,
-      timeControl: session.timeControl,
-      opponentUsername: session.opponentUsername,
-      needsReview: session.needsReview,
-      studyType: session.studyType,
-      studyTags: session.studyTags,
-      studyNotes: session.studyNotes
-    }, session.id);
+    await createSession(
+      {
+        type: session.type,
+        date: new Date(session.date),
+        duration: session.duration,
+        pointsGained: session.pointsGained,
+        finalScore: session.finalScore,
+        tacticsNotes: session.tacticsNotes,
+        gameResult: session.gameResult,
+        gameType: session.gameType,
+        gameComments: session.gameComments,
+        playerColor: session.playerColor,
+        platform: session.platform,
+        timeControl: session.timeControl,
+        opponentUsername: session.opponentUsername,
+        needsReview: session.needsReview,
+        studyType: session.studyType,
+        studyTags: session.studyTags,
+        studyNotes: session.studyNotes,
+      },
+      session.id,
+    );
   }
 
   /**
@@ -530,22 +548,32 @@ export class ImportManager {
    */
   private async mergeSession(importing: TrainingSession, existing: TrainingSession): Promise<void> {
     const merged: any = { ...existing };
-    
+
     // Merge non-empty fields from importing session
     const mergeableFields = [
-      'duration', 'pointsGained', 'finalScore', 'tacticsNotes',
-      'gameResult', 'gameType', 'gameComments', 'playerColor',
-      'platform', 'timeControl', 'opponentUsername', 'studyType',
-      'studyTags', 'studyNotes'
+      'duration',
+      'pointsGained',
+      'finalScore',
+      'tacticsNotes',
+      'gameResult',
+      'gameType',
+      'gameComments',
+      'playerColor',
+      'platform',
+      'timeControl',
+      'opponentUsername',
+      'studyType',
+      'studyTags',
+      'studyNotes',
     ];
-    
+
     for (const field of mergeableFields) {
       const importValue = importing[field as keyof TrainingSession];
       if (importValue != null && importValue !== '') {
         merged[field] = importValue;
       }
     }
-    
+
     await this.updateExistingSession(merged);
   }
 
@@ -554,16 +582,16 @@ export class ImportManager {
    */
   private async validateBackupChecksum(backupData: any): Promise<boolean> {
     if (!backupData.backup?.checksum) return false;
-    
+
     const dataToValidate = JSON.stringify({
       trainingSessions: backupData.trainingSessions,
       dailyGoals: backupData.dailyGoals,
-      settings: backupData.settings
+      settings: backupData.settings,
     });
-    
+
     const { exportManager } = await import('../export/export-manager');
     const expectedChecksum = await (exportManager as any).calculateChecksum(dataToValidate);
-    
+
     return expectedChecksum === backupData.backup.checksum;
   }
 }

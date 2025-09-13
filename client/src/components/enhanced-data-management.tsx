@@ -4,27 +4,42 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Download, 
-  Upload, 
-  Shield, 
-  CheckCircle, 
-  AlertTriangle, 
-  XCircle, 
+import {
+  Download,
+  Upload,
+  Shield,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
   Clock,
   Database,
   Settings,
-  Calendar
+  Calendar,
 } from 'lucide-react';
 
 import { exportManager, ExportOptions } from '@/lib/export/export-manager';
-import { importManager, ImportOptions, ImportPreview, ImportProgress } from '@/lib/import/import-manager';
-import { backupVerificationManager, BackupHealth, RestorePoint } from '@/lib/backup/backup-verification';
+import {
+  importManager,
+  ImportOptions,
+  ImportPreview,
+  ImportProgress,
+} from '@/lib/import/import-manager';
+import {
+  backupVerificationManager,
+  BackupHealth,
+  RestorePoint,
+} from '@/lib/backup/backup-verification';
 
 export default function EnhancedDataManagement() {
   // Export state
@@ -34,7 +49,7 @@ export default function EnhancedDataManagement() {
     includeSettings: false,
     includeMetadata: true,
     format: 'json',
-    compressed: false
+    compressed: false,
   });
   const [exporting, setExporting] = useState(false);
 
@@ -46,7 +61,7 @@ export default function EnhancedDataManagement() {
     conflictResolution: 'skip',
     validateSchema: true,
     createBackup: true,
-    dryRun: false
+    dryRun: false,
   });
 
   // Backup verification state
@@ -64,8 +79,8 @@ export default function EnhancedDataManagement() {
       const result = await exportManager.exportData(exportOptions);
 
       // Create download
-      const blob = new Blob([result.data as string], { 
-        type: exportOptions.format === 'json' ? 'application/json' : 'text/csv' 
+      const blob = new Blob([result.data as string], {
+        type: exportOptions.format === 'json' ? 'application/json' : 'text/csv',
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -126,10 +141,8 @@ export default function EnhancedDataManagement() {
       const file = fileInputRef.current.files[0];
       const content = await file.text();
 
-      const result = await importManager.importData(
-        content,
-        importOptions,
-        (progress) => setImportProgress(progress)
+      const result = await importManager.importData(content, importOptions, (progress) =>
+        setImportProgress(progress),
       );
 
       if (result.success) {
@@ -191,14 +204,14 @@ export default function EnhancedDataManagement() {
           includeTrainingSessions: true,
           includeDailyGoals: true,
           includeSettings: false,
-          createBackup: true
+          createBackup: true,
         },
         (progress) => {
           toast({
             title: `Restore Progress: ${Math.round(progress.percent)}%`,
             description: progress.phase,
           });
-        }
+        },
       );
 
       if (result.success) {
@@ -264,8 +277,11 @@ export default function EnhancedDataManagement() {
                       <Checkbox
                         id="export-sessions"
                         checked={exportOptions.includeTrainingSessions}
-                        onCheckedChange={(checked) => 
-                          setExportOptions(prev => ({ ...prev, includeTrainingSessions: !!checked }))
+                        onCheckedChange={(checked) =>
+                          setExportOptions((prev) => ({
+                            ...prev,
+                            includeTrainingSessions: !!checked,
+                          }))
                         }
                       />
                       <Label htmlFor="export-sessions">Training Sessions</Label>
@@ -274,8 +290,8 @@ export default function EnhancedDataManagement() {
                       <Checkbox
                         id="export-goals"
                         checked={exportOptions.includeDailyGoals}
-                        onCheckedChange={(checked) => 
-                          setExportOptions(prev => ({ ...prev, includeDailyGoals: !!checked }))
+                        onCheckedChange={(checked) =>
+                          setExportOptions((prev) => ({ ...prev, includeDailyGoals: !!checked }))
                         }
                       />
                       <Label htmlFor="export-goals">Daily Goals</Label>
@@ -284,8 +300,8 @@ export default function EnhancedDataManagement() {
                       <Checkbox
                         id="export-settings"
                         checked={exportOptions.includeSettings}
-                        onCheckedChange={(checked) => 
-                          setExportOptions(prev => ({ ...prev, includeSettings: !!checked }))
+                        onCheckedChange={(checked) =>
+                          setExportOptions((prev) => ({ ...prev, includeSettings: !!checked }))
                         }
                       />
                       <Label htmlFor="export-settings">Settings & Preferences</Label>
@@ -294,8 +310,8 @@ export default function EnhancedDataManagement() {
                       <Checkbox
                         id="export-metadata"
                         checked={exportOptions.includeMetadata}
-                        onCheckedChange={(checked) => 
-                          setExportOptions(prev => ({ ...prev, includeMetadata: !!checked }))
+                        onCheckedChange={(checked) =>
+                          setExportOptions((prev) => ({ ...prev, includeMetadata: !!checked }))
                         }
                       />
                       <Label htmlFor="export-metadata">Backup Metadata</Label>
@@ -307,8 +323,8 @@ export default function EnhancedDataManagement() {
                   <Label>Export Format</Label>
                   <Select
                     value={exportOptions.format}
-                    onValueChange={(value: 'json' | 'csv' | 'backup') => 
-                      setExportOptions(prev => ({ ...prev, format: value }))
+                    onValueChange={(value: 'json' | 'csv' | 'backup') =>
+                      setExportOptions((prev) => ({ ...prev, format: value }))
                     }
                   >
                     <SelectTrigger>
@@ -326,8 +342,8 @@ export default function EnhancedDataManagement() {
                       <Checkbox
                         id="compress"
                         checked={exportOptions.compressed}
-                        onCheckedChange={(checked) => 
-                          setExportOptions(prev => ({ ...prev, compressed: !!checked }))
+                        onCheckedChange={(checked) =>
+                          setExportOptions((prev) => ({ ...prev, compressed: !!checked }))
                         }
                       />
                       <Label htmlFor="compress">Compress Export</Label>
@@ -336,11 +352,7 @@ export default function EnhancedDataManagement() {
                 </div>
               </div>
 
-              <Button
-                onClick={handleExport}
-                disabled={exporting}
-                className="w-full"
-              >
+              <Button onClick={handleExport} disabled={exporting} className="w-full">
                 {exporting ? 'Exporting...' : 'Export Data'}
               </Button>
             </CardContent>
@@ -375,8 +387,8 @@ export default function EnhancedDataManagement() {
                   <Label htmlFor="conflict-resolution">Conflict Resolution</Label>
                   <Select
                     value={importOptions.conflictResolution}
-                    onValueChange={(value: ImportOptions['conflictResolution']) => 
-                      setImportOptions(prev => ({ ...prev, conflictResolution: value }))
+                    onValueChange={(value: ImportOptions['conflictResolution']) =>
+                      setImportOptions((prev) => ({ ...prev, conflictResolution: value }))
                     }
                   >
                     <SelectTrigger>
@@ -395,8 +407,8 @@ export default function EnhancedDataManagement() {
                     <Checkbox
                       id="validate-schema"
                       checked={importOptions.validateSchema}
-                      onCheckedChange={(checked) => 
-                        setImportOptions(prev => ({ ...prev, validateSchema: !!checked }))
+                      onCheckedChange={(checked) =>
+                        setImportOptions((prev) => ({ ...prev, validateSchema: !!checked }))
                       }
                     />
                     <Label htmlFor="validate-schema">Validate Data Schema</Label>
@@ -405,8 +417,8 @@ export default function EnhancedDataManagement() {
                     <Checkbox
                       id="create-backup"
                       checked={importOptions.createBackup}
-                      onCheckedChange={(checked) => 
-                        setImportOptions(prev => ({ ...prev, createBackup: !!checked }))
+                      onCheckedChange={(checked) =>
+                        setImportOptions((prev) => ({ ...prev, createBackup: !!checked }))
                       }
                     />
                     <Label htmlFor="create-backup">Create Backup First</Label>
@@ -415,8 +427,8 @@ export default function EnhancedDataManagement() {
                     <Checkbox
                       id="dry-run"
                       checked={importOptions.dryRun}
-                      onCheckedChange={(checked) => 
-                        setImportOptions(prev => ({ ...prev, dryRun: !!checked }))
+                      onCheckedChange={(checked) =>
+                        setImportOptions((prev) => ({ ...prev, dryRun: !!checked }))
                       }
                     />
                     <Label htmlFor="dry-run">Dry Run (Preview Only)</Label>
@@ -426,15 +438,15 @@ export default function EnhancedDataManagement() {
 
               {/* Import Preview */}
               {importPreview && (
-                <div className="border rounded-lg p-4 space-y-3">
-                  <h4 className="font-medium flex items-center space-x-2">
+                <div className="space-y-3 rounded-lg border p-4">
+                  <h4 className="flex items-center space-x-2 font-medium">
                     <Database className="h-4 w-4" />
                     <span>Import Preview</span>
                     <Badge variant={importPreview.validation.valid ? 'default' : 'destructive'}>
                       {importPreview.validation.valid ? 'Valid' : 'Invalid'}
                     </Badge>
                   </h4>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>Total Sessions: {importPreview.totalSessions}</div>
                     <div>New Sessions: {importPreview.newSessions}</div>
@@ -482,7 +494,9 @@ export default function EnhancedDataManagement() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>{importProgress.phase}</span>
-                    <span>{Math.round(importProgress.processed)}/{importProgress.total}</span>
+                    <span>
+                      {Math.round(importProgress.processed)}/{importProgress.total}
+                    </span>
                   </div>
                   <Progress value={(importProgress.processed / importProgress.total) * 100} />
                 </div>
@@ -509,18 +523,14 @@ export default function EnhancedDataManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={handleBackupVerification}
-                disabled={verifying}
-                className="w-full"
-              >
+              <Button onClick={handleBackupVerification} disabled={verifying} className="w-full">
                 {verifying ? 'Verifying...' : 'Verify Backup Integrity'}
               </Button>
 
               {/* Backup Health */}
               {backupHealth && (
-                <div className="border rounded-lg p-4 space-y-3">
-                  <h4 className="font-medium flex items-center space-x-2">
+                <div className="space-y-3 rounded-lg border p-4">
+                  <h4 className="flex items-center space-x-2 font-medium">
                     {(() => {
                       const Icon = getHealthIcon(backupHealth.overallHealth);
                       return <Icon className="h-4 w-4" />;
@@ -530,7 +540,7 @@ export default function EnhancedDataManagement() {
                       {backupHealth.overallHealth}%
                     </Badge>
                   </h4>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>Data Integrity: {backupHealth.dataIntegrity}%</div>
                     <div>Completeness: {backupHealth.completeness}%</div>
@@ -545,7 +555,7 @@ export default function EnhancedDataManagement() {
                 <div className="space-y-3">
                   <Label>Available Restore Points</Label>
                   {restorePoints.map((point) => (
-                    <div key={point.id} className="border rounded-lg p-3 space-y-2">
+                    <div key={point.id} className="space-y-2 rounded-lg border p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <Clock className="h-4 w-4" />
@@ -562,13 +572,13 @@ export default function EnhancedDataManagement() {
                           {restoring ? 'Restoring...' : 'Restore'}
                         </Button>
                       </div>
-                      
-                      <div className="text-sm text-muted-foreground grid grid-cols-3 gap-2">
+
+                      <div className="grid grid-cols-3 gap-2 text-sm text-muted-foreground">
                         <div>Sessions: {point.sessionCount}</div>
                         <div>Settings: {point.hasSettings ? '✓' : '✗'}</div>
                         <div>Goals: {point.hasDailyGoals ? '✓' : '✗'}</div>
                       </div>
-                      
+
                       <div className="text-xs text-muted-foreground">
                         {point.timestamp.toLocaleString()}
                       </div>

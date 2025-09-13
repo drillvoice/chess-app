@@ -29,9 +29,9 @@ export async function exportData(): Promise<string> {
     includeDailyGoals: false,
     includeSettings: false,
     includeMetadata: false,
-    format: 'json'
+    format: 'json',
   });
-  
+
   return result.data as string;
 }
 
@@ -44,11 +44,13 @@ export async function importData(
   onProgress?: (processed: number, total: number) => void,
 ): Promise<{ imported: number; skipped: number }> {
   // Convert legacy progress callback to new format
-  const progressCallback = onProgress ? (progress: any) => {
-    if (progress.phase === 'importing_sessions') {
-      onProgress(progress.processed, progress.total);
-    }
-  } : undefined;
+  const progressCallback = onProgress
+    ? (progress: any) => {
+        if (progress.phase === 'importing_sessions') {
+          onProgress(progress.processed, progress.total);
+        }
+      }
+    : undefined;
 
   const result = await importManager.importData(
     data,
@@ -56,20 +58,20 @@ export async function importData(
       conflictResolution: 'skip',
       validateSchema: true,
       createBackup: false,
-      dryRun: false
+      dryRun: false,
     },
-    progressCallback
+    progressCallback,
   );
 
   if (!result.success && result.errors.length > 0) {
     throw new AggregateError(
-      result.errors.map(e => new Error(e)),
-      `Failed to import ${result.errors.length} sessions`
+      result.errors.map((e) => new Error(e)),
+      `Failed to import ${result.errors.length} sessions`,
     );
   }
 
-  return { 
-    imported: result.imported.sessions, 
-    skipped: result.skipped 
+  return {
+    imported: result.imported.sessions,
+    skipped: result.skipped,
   };
 }

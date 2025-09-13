@@ -48,17 +48,19 @@ function DataManagementContent() {
         <div className="space-y-3">
           <FirebaseAuth />
           <p className="text-sm text-gray-600">
-            Your data is automatically backed up to Firebase Cloud weekly when you're online.
-            Manual backups can be triggered anytime from the backup status above.
+            Your data is automatically backed up to Firebase Cloud weekly when you're online. Manual
+            backups can be triggered anytime from the backup status above.
           </p>
         </div>
       </div>
 
       {/* Enhanced Data Management */}
       <div>
-        <Label className="mb-3 block text-sm font-medium text-gray-700">Advanced Data Management</Label>
-        <div className="border rounded-lg p-4">
-          <p className="text-sm text-gray-600 mb-4">
+        <Label className="mb-3 block text-sm font-medium text-gray-700">
+          Advanced Data Management
+        </Label>
+        <div className="rounded-lg border p-4">
+          <p className="mb-4 text-sm text-gray-600">
             Enhanced export/import with multiple formats, validation, and backup verification.
           </p>
           <div className="space-y-2">
@@ -77,9 +79,9 @@ function DataManagementContent() {
           Remove all locally stored training data from this device. Cloud backups will remain
           unaffected and can be restored later.
         </p>
-        <Button 
-          onClick={handleClearLocalData} 
-          className="w-full" 
+        <Button
+          onClick={handleClearLocalData}
+          className="w-full"
           variant="destructive"
           disabled={clearingData}
         >
@@ -89,9 +91,9 @@ function DataManagementContent() {
 
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> The enhanced data management system above provides comprehensive 
-          backup and restore capabilities. Your data is now safer with automatic weekly backups 
-          and advanced import/export options.
+          <strong>Note:</strong> The enhanced data management system above provides comprehensive
+          backup and restore capabilities. Your data is now safer with automatic weekly backups and
+          advanced import/export options.
         </p>
       </div>
     </div>

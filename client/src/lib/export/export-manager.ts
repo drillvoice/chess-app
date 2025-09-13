@@ -39,7 +39,6 @@ export interface ExportResult {
  * Supports multiple formats and flexible data selection
  */
 export class ExportManager {
-  
   /**
    * Export all selected data based on options
    */
@@ -49,29 +48,27 @@ export class ExportManager {
         exportedAt: new Date().toISOString(),
         version: '2.0.0',
         sessionCount: 0,
-        exportOptions: options
-      }
+        exportOptions: options,
+      },
     };
 
     // Export training sessions
     if (options.includeTrainingSessions) {
       let sessions = await getAllSessions();
-      
+
       // Apply date range filter
       if (options.dateRange) {
-        sessions = sessions.filter(session => 
-          session.date >= options.dateRange!.start && 
-          session.date <= options.dateRange!.end
+        sessions = sessions.filter(
+          (session) =>
+            session.date >= options.dateRange!.start && session.date <= options.dateRange!.end,
         );
       }
-      
+
       // Apply session type filter
       if (options.sessionTypes && options.sessionTypes.length > 0) {
-        sessions = sessions.filter(session => 
-          options.sessionTypes!.includes(session.type)
-        );
+        sessions = sessions.filter((session) => options.sessionTypes!.includes(session.type));
       }
-      
+
       exportData.trainingSessions = sessions;
       exportData.metadata.sessionCount = sessions.length;
     }
@@ -106,12 +103,12 @@ export class ExportManager {
         const lastBackup = await offlineStorage.getLastBackupTimestamp();
         const lastSync = await offlineStorage.getLastSyncedTimestamp();
         const cacheAge = await offlineStorage.getCacheAge('sessions');
-        
+
         exportData.metadata = {
           ...exportData.metadata,
           lastBackupTimestamp: lastBackup || undefined,
           lastSyncTimestamp: lastSync || undefined,
-          cacheAge: cacheAge
+          cacheAge: cacheAge,
         } as any;
       } catch (error) {
         console.warn('Failed to export metadata:', error);
@@ -120,7 +117,9 @@ export class ExportManager {
 
     // Generate filename
     const timestamp = new Date().toISOString().split('T')[0];
-    const sessionInfo = exportData.trainingSessions ? `-${exportData.trainingSessions.length}sessions` : '';
+    const sessionInfo = exportData.trainingSessions
+      ? `-${exportData.trainingSessions.length}sessions`
+      : '';
     const filename = `chess-training${sessionInfo}-${timestamp}.${options.format}`;
 
     // Format data according to requested format
@@ -129,24 +128,24 @@ export class ExportManager {
         return {
           data: JSON.stringify(exportData, null, 2),
           filename,
-          metadata: exportData.metadata
+          metadata: exportData.metadata,
         };
-        
+
       case 'csv':
         return {
           data: this.convertToCSV(exportData),
           filename: filename.replace('.csv', '-sessions.csv'),
-          metadata: exportData.metadata
+          metadata: exportData.metadata,
         };
-        
+
       case 'backup':
         const backupData = await this.createBackupFormat(exportData);
         return {
           data: options.compressed ? await this.compressData(backupData) : backupData,
           filename: filename.replace('.backup', '.backup.json'),
-          metadata: exportData.metadata
+          metadata: exportData.metadata,
         };
-        
+
       default:
         throw new Error(`Unsupported export format: ${options.format}`);
     }
@@ -163,13 +162,26 @@ export class ExportManager {
 
     // CSV headers
     const headers = [
-      'ID', 'Type', 'Date', 'Duration (min)', 'Points Gained', 'Final Score',
-      'Game Result', 'Game Type', 'Player Color', 'Platform', 'Time Control',
-      'Opponent', 'Needs Review', 'Study Type', 'Study Tags', 'Notes'
+      'ID',
+      'Type',
+      'Date',
+      'Duration (min)',
+      'Points Gained',
+      'Final Score',
+      'Game Result',
+      'Game Type',
+      'Player Color',
+      'Platform',
+      'Time Control',
+      'Opponent',
+      'Needs Review',
+      'Study Type',
+      'Study Tags',
+      'Notes',
     ];
 
     // Convert sessions to CSV rows
-    const rows = sessions.map(session => [
+    const rows = sessions.map((session) => [
       session.id,
       session.type,
       session.date.toISOString(),
@@ -185,12 +197,15 @@ export class ExportManager {
       session.needsReview || false,
       session.studyType || '',
       session.studyTags || '',
-      (session.tacticsNotes || session.gameComments || session.studyNotes || '').replace(/"/g, '""')
+      (session.tacticsNotes || session.gameComments || session.studyNotes || '').replace(
+        /"/g,
+        '""',
+      ),
     ]);
 
     // Combine headers and rows
     const csvContent = [headers, ...rows]
-      .map(row => row.map(field => `"${field}"`).join(','))
+      .map((row) => row.map((field) => `"${field}"`).join(','))
       .join('\n');
 
     return csvContent;
@@ -209,18 +224,18 @@ export class ExportManager {
         validation: {
           sessionCount: exportData.trainingSessions?.length || 0,
           hasSettings: !!exportData.settings,
-          hasDailyGoals: !!exportData.dailyGoals
-        }
-      }
+          hasDailyGoals: !!exportData.dailyGoals,
+        },
+      },
     };
 
     // Calculate checksum for validation
     const dataString = JSON.stringify({
       trainingSessions: exportData.trainingSessions,
       dailyGoals: exportData.dailyGoals,
-      settings: exportData.settings
+      settings: exportData.settings,
     });
-    
+
     backupFormat.backup.checksum = await this.calculateChecksum(dataString);
 
     return JSON.stringify(backupFormat, null, 2);
@@ -234,7 +249,7 @@ export class ExportManager {
     const dataBuffer = encoder.encode(data);
     const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   /**
@@ -244,14 +259,14 @@ export class ExportManager {
     const stream = new CompressionStream('gzip');
     const writer = stream.writable.getWriter();
     const reader = stream.readable.getReader();
-    
+
     const encoder = new TextEncoder();
     writer.write(encoder.encode(data));
     writer.close();
 
     const chunks: Uint8Array[] = [];
     let done = false;
-    
+
     while (!done) {
       const { value, done: readerDone } = await reader.read();
       done = readerDone;
@@ -275,7 +290,7 @@ export class ExportManager {
         if (!session.id || !session.type || !session.date) {
           errors.push(`Invalid session: missing required fields (id: ${session.id})`);
         }
-        
+
         if (session.date && isNaN(new Date(session.date).getTime())) {
           errors.push(`Invalid session date: ${session.date} (id: ${session.id})`);
         }
@@ -285,13 +300,22 @@ export class ExportManager {
     // Validate daily goals
     if (exportData.dailyGoals) {
       const goals = exportData.dailyGoals;
-      if (goals.tacticsMinutes !== undefined && (typeof goals.tacticsMinutes !== 'number' || goals.tacticsMinutes < 0)) {
+      if (
+        goals.tacticsMinutes !== undefined &&
+        (typeof goals.tacticsMinutes !== 'number' || goals.tacticsMinutes < 0)
+      ) {
         errors.push('Invalid daily goals: tacticsMinutes must be a positive number');
       }
-      if (goals.gamesCount !== undefined && (typeof goals.gamesCount !== 'number' || goals.gamesCount < 0)) {
+      if (
+        goals.gamesCount !== undefined &&
+        (typeof goals.gamesCount !== 'number' || goals.gamesCount < 0)
+      ) {
         errors.push('Invalid daily goals: gamesCount must be a positive number');
       }
-      if (goals.studyMinutes !== undefined && (typeof goals.studyMinutes !== 'number' || goals.studyMinutes < 0)) {
+      if (
+        goals.studyMinutes !== undefined &&
+        (typeof goals.studyMinutes !== 'number' || goals.studyMinutes < 0)
+      ) {
         errors.push('Invalid daily goals: studyMinutes must be a positive number');
       }
     }
@@ -303,7 +327,7 @@ export class ExportManager {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 }

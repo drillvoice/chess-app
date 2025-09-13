@@ -1,5 +1,10 @@
 import { offlineStorage } from '../offline-storage';
-import { getAllSessions, getDailyGoalSettings, createSession, setDailyGoalSettings } from '../firebase/firestore';
+import {
+  getAllSessions,
+  getDailyGoalSettings,
+  createSession,
+  setDailyGoalSettings,
+} from '../firebase/firestore';
 import { waitForAuth, getSessionsCollection, getDailyGoalsCollection } from '../firebase/core';
 import { getDocs, query, orderBy, Timestamp } from '../firebase/core';
 import { TrainingSession, DailyGoalSettings } from '@shared/schema';
@@ -43,7 +48,6 @@ export interface RestorePoint {
  * Backup verification and restoration system
  */
 export class BackupVerificationManager {
-
   /**
    * Perform comprehensive backup verification
    */
@@ -69,7 +73,7 @@ export class BackupVerificationManager {
           severity: 'critical',
           description: `No cloud backup found but ${localCount} local sessions exist`,
           affectedItems: ['all_sessions'],
-          suggestedFix: 'Run manual backup immediately'
+          suggestedFix: 'Run manual backup immediately',
         });
         recommendations.push('Create immediate backup to prevent data loss');
       } else if (Math.abs(localCount - cloudCount) > localCount * 0.1) {
@@ -79,7 +83,7 @@ export class BackupVerificationManager {
           severity: diff > 0 ? 'medium' : 'high',
           description: `Session count mismatch: ${localCount} local vs ${cloudCount} cloud`,
           affectedItems: [`${Math.abs(diff)}_sessions`],
-          suggestedFix: diff > 0 ? 'Run manual backup' : 'Check for data corruption'
+          suggestedFix: diff > 0 ? 'Run manual backup' : 'Check for data corruption',
         });
       }
 
@@ -90,22 +94,23 @@ export class BackupVerificationManager {
       // Check backup freshness
       const lastBackup = await offlineStorage.getLastBackupTimestamp();
       const backupAge = lastBackup ? (Date.now() - lastBackup) / (1000 * 60 * 60) : Infinity;
-      
-      if (backupAge > 24 * 7) { // More than a week
+
+      if (backupAge > 24 * 7) {
+        // More than a week
         issues.push({
           type: 'sync_drift',
           severity: backupAge > 24 * 30 ? 'high' : 'medium',
           description: `Backup is ${Math.round(backupAge / 24)} days old`,
           affectedItems: ['backup_timestamp'],
-          suggestedFix: 'Run manual backup to update cloud data'
+          suggestedFix: 'Run manual backup to update cloud data',
         });
         recommendations.push('Regular backups recommended weekly');
       }
 
       // Determine overall status
       let status: BackupVerificationResult['status'] = 'healthy';
-      const criticalIssues = issues.filter(i => i.severity === 'critical');
-      const highIssues = issues.filter(i => i.severity === 'high');
+      const criticalIssues = issues.filter((i) => i.severity === 'critical');
+      const highIssues = issues.filter((i) => i.severity === 'high');
 
       if (criticalIssues.length > 0) {
         status = 'corrupted';
@@ -121,23 +126,24 @@ export class BackupVerificationManager {
         localSessionCount: localCount,
         cloudSessionCount: cloudCount,
         lastVerification: new Date(),
-        recommendations
+        recommendations,
       };
-
     } catch (error) {
       return {
         status: 'corrupted',
-        issues: [{
-          type: 'cloud_corruption',
-          severity: 'critical',
-          description: `Backup verification failed: ${error}`,
-          affectedItems: ['verification_process'],
-          suggestedFix: 'Check internet connection and Firebase permissions'
-        }],
+        issues: [
+          {
+            type: 'cloud_corruption',
+            severity: 'critical',
+            description: `Backup verification failed: ${error}`,
+            affectedItems: ['verification_process'],
+            suggestedFix: 'Check internet connection and Firebase permissions',
+          },
+        ],
         localSessionCount: 0,
         cloudSessionCount: 0,
         lastVerification: new Date(),
-        recommendations: ['Check network connection and try again']
+        recommendations: ['Check network connection and try again'],
       };
     }
   }
@@ -147,42 +153,42 @@ export class BackupVerificationManager {
    */
   async calculateBackupHealth(): Promise<BackupHealth> {
     const verification = await this.verifyBackupIntegrity();
-    
+
     // Data integrity score (0-100)
-    const criticalCount = verification.issues.filter(i => i.severity === 'critical').length;
-    const highCount = verification.issues.filter(i => i.severity === 'high').length;
-    const mediumCount = verification.issues.filter(i => i.severity === 'medium').length;
-    
-    const dataIntegrity = Math.max(0, 100 - (criticalCount * 40) - (highCount * 20) - (mediumCount * 10));
+    const criticalCount = verification.issues.filter((i) => i.severity === 'critical').length;
+    const highCount = verification.issues.filter((i) => i.severity === 'high').length;
+    const mediumCount = verification.issues.filter((i) => i.severity === 'medium').length;
+
+    const dataIntegrity = Math.max(0, 100 - criticalCount * 40 - highCount * 20 - mediumCount * 10);
 
     // Completeness score
-    const completeness = verification.localSessionCount > 0 && verification.cloudSessionCount > 0
-      ? Math.min(100, (verification.cloudSessionCount / verification.localSessionCount) * 100)
-      : verification.localSessionCount === 0 ? 100 : 0;
+    const completeness =
+      verification.localSessionCount > 0 && verification.cloudSessionCount > 0
+        ? Math.min(100, (verification.cloudSessionCount / verification.localSessionCount) * 100)
+        : verification.localSessionCount === 0
+          ? 100
+          : 0;
 
     // Consistency score
     const countDiff = Math.abs(verification.localSessionCount - verification.cloudSessionCount);
-    const consistency = verification.localSessionCount > 0
-      ? Math.max(0, 100 - (countDiff / verification.localSessionCount) * 100)
-      : 100;
+    const consistency =
+      verification.localSessionCount > 0
+        ? Math.max(0, 100 - (countDiff / verification.localSessionCount) * 100)
+        : 100;
 
     // Backup age
     const lastBackup = await offlineStorage.getLastBackupTimestamp();
     const backupAge = lastBackup ? (Date.now() - lastBackup) / (1000 * 60 * 60) : Infinity;
 
     // Overall health (weighted average)
-    const overallHealth = Math.round(
-      (dataIntegrity * 0.4) + 
-      (completeness * 0.3) + 
-      (consistency * 0.3)
-    );
+    const overallHealth = Math.round(dataIntegrity * 0.4 + completeness * 0.3 + consistency * 0.3);
 
     return {
       overallHealth,
       dataIntegrity: Math.round(dataIntegrity),
       completeness: Math.round(completeness),
       consistency: Math.round(consistency),
-      lastBackupAge: Math.round(backupAge)
+      lastBackupAge: Math.round(backupAge),
     };
   }
 
@@ -204,7 +210,7 @@ export class BackupVerificationManager {
           hasSettings: !!cloudData.dailyGoals,
           hasDailyGoals: !!cloudData.dailyGoals,
           source: 'cloud_backup',
-          description: 'Latest cloud backup'
+          description: 'Latest cloud backup',
         });
       }
 
@@ -216,7 +222,7 @@ export class BackupVerificationManager {
           if (backupData) {
             const parsed = JSON.parse(backupData);
             const timestamp = this.extractTimestampFromKey(backupKey);
-            
+
             restorePoints.push({
               id: backupKey,
               timestamp,
@@ -224,7 +230,7 @@ export class BackupVerificationManager {
               hasSettings: !!parsed.settings,
               hasDailyGoals: !!parsed.dailyGoals,
               source: 'local_backup',
-              description: `Local backup from ${timestamp.toLocaleDateString()}`
+              description: `Local backup from ${timestamp.toLocaleDateString()}`,
             });
           }
         } catch (error) {
@@ -236,7 +242,6 @@ export class BackupVerificationManager {
       restorePoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
       return restorePoints;
-
     } catch (error) {
       console.error('Failed to get restore points:', error);
       return [];
@@ -254,7 +259,7 @@ export class BackupVerificationManager {
       includeSettings: boolean;
       createBackup: boolean;
     },
-    onProgress?: (progress: { phase: string; percent: number }) => void
+    onProgress?: (progress: { phase: string; percent: number }) => void,
   ): Promise<{ success: boolean; restored: any; errors: string[] }> {
     const errors: string[] = [];
 
@@ -268,11 +273,11 @@ export class BackupVerificationManager {
       // Get restore data
       onProgress?.({ phase: 'Fetching restore data', percent: 20 });
       const restoreData = await this.getRestoreData(restorePointId);
-      
+
       const restored = {
         sessions: 0,
         dailyGoals: 0,
-        settings: 0
+        settings: 0,
       };
 
       // Clear current data
@@ -282,36 +287,41 @@ export class BackupVerificationManager {
       // Restore training sessions
       if (options.includeTrainingSessions && restoreData.trainingSessions) {
         onProgress?.({ phase: 'Restoring training sessions', percent: 40 });
-        
+
         for (let i = 0; i < restoreData.trainingSessions.length; i++) {
           const session = restoreData.trainingSessions[i];
           try {
-            await createSession({
-              type: session.type,
-              date: new Date(session.date),
-              duration: session.duration,
-              pointsGained: session.pointsGained,
-              finalScore: session.finalScore,
-              tacticsNotes: session.tacticsNotes,
-              gameResult: session.gameResult,
-              gameType: session.gameType,
-              gameComments: session.gameComments,
-              playerColor: session.playerColor,
-              platform: session.platform,
-              timeControl: session.timeControl,
-              opponentUsername: session.opponentUsername,
-              needsReview: session.needsReview,
-              studyType: session.studyType,
-              studyTags: session.studyTags,
-              studyNotes: session.studyNotes
-            }, session.id);
-            
+            await createSession(
+              {
+                type: session.type,
+                date: new Date(session.date),
+                duration: session.duration,
+                pointsGained: session.pointsGained,
+                finalScore: session.finalScore,
+                tacticsNotes: session.tacticsNotes,
+                gameResult: session.gameResult,
+                gameType: session.gameType,
+                gameComments: session.gameComments,
+                playerColor: session.playerColor,
+                platform: session.platform,
+                timeControl: session.timeControl,
+                opponentUsername: session.opponentUsername,
+                needsReview: session.needsReview,
+                studyType: session.studyType,
+                studyTags: session.studyTags,
+                studyNotes: session.studyNotes,
+              },
+              session.id,
+            );
+
             restored.sessions++;
-            
+
             // Update progress
             const progress = 40 + ((i + 1) / restoreData.trainingSessions.length) * 40;
-            onProgress?.({ phase: `Restoring session ${i + 1}/${restoreData.trainingSessions.length}`, percent: progress });
-            
+            onProgress?.({
+              phase: `Restoring session ${i + 1}/${restoreData.trainingSessions.length}`,
+              percent: progress,
+            });
           } catch (error) {
             errors.push(`Failed to restore session ${session.id}: ${error}`);
           }
@@ -345,15 +355,14 @@ export class BackupVerificationManager {
       return {
         success: errors.length === 0,
         restored,
-        errors
+        errors,
       };
-
     } catch (error) {
       errors.push(`Restore failed: ${error}`);
       return {
         success: false,
         restored: { sessions: 0, dailyGoals: 0, settings: 0 },
-        errors
+        errors,
       };
     }
   }
@@ -361,9 +370,12 @@ export class BackupVerificationManager {
   /**
    * Fetch cloud backup data
    */
-  private async fetchCloudBackupData(): Promise<{ sessions: TrainingSession[]; dailyGoals?: DailyGoalSettings }> {
+  private async fetchCloudBackupData(): Promise<{
+    sessions: TrainingSession[];
+    dailyGoals?: DailyGoalSettings;
+  }> {
     await waitForAuth();
-    
+
     const sessions: TrainingSession[] = [];
     let dailyGoals: DailyGoalSettings | undefined;
 
@@ -372,13 +384,13 @@ export class BackupVerificationManager {
       const sessionsRef = await getSessionsCollection();
       const sessionQuery = query(sessionsRef, orderBy('date', 'desc'));
       const sessionSnapshot = await getDocs(sessionQuery);
-      
-      sessionSnapshot.forEach(doc => {
+
+      sessionSnapshot.forEach((doc) => {
         const data = doc.data();
         sessions.push({
           ...data,
           id: parseInt(doc.id),
-          date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
+          date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
         } as TrainingSession);
       });
 
@@ -392,7 +404,6 @@ export class BackupVerificationManager {
       } catch (error) {
         console.warn('Failed to fetch daily goals from cloud:', error);
       }
-
     } catch (error) {
       console.error('Failed to fetch cloud backup data:', error);
       throw error;
@@ -405,24 +416,24 @@ export class BackupVerificationManager {
    * Verify data integrity between local and cloud
    */
   private async verifyDataIntegrity(
-    localSessions: TrainingSession[], 
-    cloudSessions: TrainingSession[]
+    localSessions: TrainingSession[],
+    cloudSessions: TrainingSession[],
   ): Promise<BackupIssue[]> {
     const issues: BackupIssue[] = [];
-    
+
     // Create maps for efficient lookup
-    const localMap = new Map(localSessions.map(s => [s.id, s]));
-    const cloudMap = new Map(cloudSessions.map(s => [s.id, s]));
+    const localMap = new Map(localSessions.map((s) => [s.id, s]));
+    const cloudMap = new Map(cloudSessions.map((s) => [s.id, s]));
 
     // Check for sessions that exist locally but not in cloud
-    const missingFromCloud = localSessions.filter(s => !cloudMap.has(s.id));
+    const missingFromCloud = localSessions.filter((s) => !cloudMap.has(s.id));
     if (missingFromCloud.length > 0) {
       issues.push({
         type: 'missing_sessions',
         severity: 'medium',
         description: `${missingFromCloud.length} sessions missing from cloud backup`,
-        affectedItems: missingFromCloud.map(s => `session_${s.id}`),
-        suggestedFix: 'Run manual backup to sync missing sessions'
+        affectedItems: missingFromCloud.map((s) => `session_${s.id}`),
+        suggestedFix: 'Run manual backup to sync missing sessions',
       });
     }
 
@@ -440,8 +451,8 @@ export class BackupVerificationManager {
         type: 'data_mismatch',
         severity: 'low',
         description: `${inconsistentSessions.length} sessions have data inconsistencies`,
-        affectedItems: inconsistentSessions.map(id => `session_${id}`),
-        suggestedFix: 'Manual backup will resolve data inconsistencies'
+        affectedItems: inconsistentSessions.map((id) => `session_${id}`),
+        suggestedFix: 'Manual backup will resolve data inconsistencies',
       });
     }
 
@@ -453,8 +464,8 @@ export class BackupVerificationManager {
    */
   private hasSignificantDifferences(local: TrainingSession, cloud: TrainingSession): boolean {
     const significantFields = ['type', 'duration', 'pointsGained', 'finalScore', 'gameResult'];
-    
-    return significantFields.some(field => {
+
+    return significantFields.some((field) => {
       const localValue = local[field as keyof TrainingSession];
       const cloudValue = cloud[field as keyof TrainingSession];
       return localValue !== cloudValue;
@@ -481,7 +492,9 @@ export class BackupVerificationManager {
   private extractTimestampFromKey(key: string): Date {
     const timestampMatch = key.match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})/);
     if (timestampMatch) {
-      return new Date(timestampMatch[1].replace(/-/g, ':').replace(/T(\d{2}):(\d{2}):(\d{2})/, 'T$1:$2:$3'));
+      return new Date(
+        timestampMatch[1].replace(/-/g, ':').replace(/T(\d{2}):(\d{2}):(\d{2})/, 'T$1:$2:$3'),
+      );
     }
     return new Date(); // Fallback to current date
   }
@@ -506,20 +519,20 @@ export class BackupVerificationManager {
    */
   private async createRestoreBackup(): Promise<string> {
     const { exportManager } = await import('../export/export-manager');
-    
+
     const backupResult = await exportManager.exportData({
       includeTrainingSessions: true,
       includeDailyGoals: true,
       includeSettings: true,
       includeMetadata: true,
-      format: 'backup'
+      format: 'backup',
     });
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupKey = `restore-backup-${timestamp}`;
-    
+
     localStorage.setItem(backupKey, backupResult.data as string);
-    
+
     return backupKey;
   }
 
