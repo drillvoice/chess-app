@@ -60,10 +60,7 @@ export default function GameModal({
         isEditMode && editingSession
           ? (editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined)
           : undefined,
-      gameComments:
-        isEditMode && editingSession
-          ? editingSession.gameComments || ''
-          : '',
+      gameComments: isEditMode && editingSession ? editingSession.gameComments || '' : '',
       playerColor:
         isEditMode && editingSession
           ? (editingSession.playerColor as 'white' | 'black' | undefined)

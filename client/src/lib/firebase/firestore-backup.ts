@@ -16,10 +16,10 @@ import {
 export async function backupAllSessionsToCloud(): Promise<void> {
   try {
     console.log('🔄 Starting full backup to cloud...');
-    
+
     await waitForAuth();
     const sessions = await offlineStorage.getSessions();
-    
+
     if (!sessions || sessions.length === 0) {
       console.log('✅ No sessions to backup');
       return;
@@ -27,7 +27,7 @@ export async function backupAllSessionsToCloud(): Promise<void> {
 
     const sessionsRef = await getSessionsCollection();
     let successCount = 0;
-    
+
     // Backup sessions individually to avoid batch limits
     for (const session of sessions) {
       try {
@@ -44,10 +44,10 @@ export async function backupAllSessionsToCloud(): Promise<void> {
         console.warn(`Failed to backup session ${session.id}:`, error);
       }
     }
-    
+
     // Store backup timestamp locally
     await offlineStorage.setLastBackupTimestamp(Date.now());
-    
+
     console.log(`✅ Backed up ${successCount}/${sessions.length} sessions to cloud`);
   } catch (error) {
     console.error('❌ Cloud backup failed:', error);
@@ -81,9 +81,9 @@ export async function isBackupNeeded(): Promise<boolean> {
   try {
     const lastBackup = await offlineStorage.getLastBackupTimestamp();
     if (!lastBackup) return true;
-    
+
     const weekInMs = 7 * 24 * 60 * 60 * 1000;
-    return (Date.now() - lastBackup) > weekInMs;
+    return Date.now() - lastBackup > weekInMs;
   } catch (error) {
     console.error('Error checking backup status:', error);
     return true; // Default to needing backup
@@ -95,7 +95,7 @@ export async function getBackupStatus() {
   try {
     const lastBackup = await offlineStorage.getLastBackupTimestamp();
     const sessions = await offlineStorage.getSessions();
-    
+
     return {
       lastBackup: lastBackup ? new Date(lastBackup) : null,
       sessionCount: sessions?.length || 0,

@@ -79,9 +79,7 @@ export async function getSessionsByDateRange(
 ): Promise<TrainingSession[]> {
   try {
     const allSessions = await getAllSessions();
-    return allSessions.filter(
-      (session) => session.date >= startDate && session.date <= endDate,
-    );
+    return allSessions.filter((session) => session.date >= startDate && session.date <= endDate);
   } catch (error) {
     console.error('Error getting sessions by date range:', error);
     return [];
@@ -135,10 +133,10 @@ export async function createSession(
     WeeklyGoalCache.remove();
 
     queueMicrotask(() => updateStatisticsInBackground());
-    
+
     // Queue backup operation (non-blocking)
     queueMicrotask(() => {
-      backupAllSessionsToCloud().catch(error => {
+      backupAllSessionsToCloud().catch((error) => {
         console.warn('Background backup failed:', error);
         // Don't throw - backup failure shouldn't affect user experience
       });
@@ -179,7 +177,7 @@ export async function updateSession(
 
     // Queue backup operation (non-blocking)
     queueMicrotask(() => {
-      backupAllSessionsToCloud().catch(error => {
+      backupAllSessionsToCloud().catch((error) => {
         console.warn('Background backup after update failed:', error);
       });
     });
@@ -209,7 +207,7 @@ export async function deleteSession(id: number): Promise<boolean> {
 
     // Queue backup operation (non-blocking)
     queueMicrotask(() => {
-      backupAllSessionsToCloud().catch(error => {
+      backupAllSessionsToCloud().catch((error) => {
         console.warn('Background backup after delete failed:', error);
       });
     });
@@ -274,9 +272,7 @@ async function calculateStatistics() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const tacticsRating =
-    tacticsSessionsWithScores.length > 0
-      ? tacticsSessionsWithScores[0].finalScore || 0
-      : 0;
+    tacticsSessionsWithScores.length > 0 ? tacticsSessionsWithScores[0].finalScore || 0 : 0;
 
   // Calculate win rate
   const gameSessions = sessions.filter((session) => session.type === 'game');
@@ -369,7 +365,7 @@ export async function setDailyGoalSettings(settings: DailyGoalSettings): Promise
 
     // Queue Firebase backup (non-blocking)
     queueMicrotask(() => {
-      backupDailyGoalsToCloud(settings).catch(error => {
+      backupDailyGoalsToCloud(settings).catch((error) => {
         console.warn('Daily goals backup failed:', error);
       });
     });

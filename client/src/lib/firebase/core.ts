@@ -48,10 +48,7 @@ export async function ensureFirebase() {
   }
   if (!onAuthStateChanged) {
     const authModule = await import('firebase/auth');
-    ({
-      onAuthStateChanged,
-      signInAnonymously,
-    } = authModule);
+    ({ onAuthStateChanged, signInAnonymously } = authModule);
   }
 
   if (!authListenerInitialized) {
@@ -95,7 +92,7 @@ async function ensureAnonymousAuth(): Promise<void> {
 
 export async function waitForAuth(): Promise<void> {
   await ensureFirebase();
-  
+
   if (currentUserId) {
     return;
   }
@@ -109,7 +106,7 @@ export async function waitForAuth(): Promise<void> {
 
   await ensureAnonymousAuth();
   await new Promise((resolve) => setTimeout(resolve, 500));
-  
+
   const user = auth.currentUser;
   if (user) {
     currentUserId = user.uid;

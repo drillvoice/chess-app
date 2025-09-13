@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Database, DatabaseBackup, Upload, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { backupAllSessionsToCloud, getBackupStatus, isBackupNeeded } from '@/lib/firebase/firestore-backup';
+import {
+  backupAllSessionsToCloud,
+  getBackupStatus,
+  isBackupNeeded,
+} from '@/lib/firebase/firestore-backup';
 
 interface BackupStatus {
   lastBackup: Date | null;
@@ -33,7 +37,7 @@ export default function FirebaseAuth() {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           setIsBackupActive(!!user);
           setLoading(false);
-          
+
           if (user) {
             console.log('Anonymous backup authentication active');
             // Load backup status
@@ -65,11 +69,11 @@ export default function FirebaseAuth() {
     try {
       setIsBackingUp(true);
       await backupAllSessionsToCloud();
-      
+
       // Refresh backup status
       const status = await getBackupStatus();
       setBackupStatus(status);
-      
+
       toast({
         title: 'Backup Complete',
         description: `${status.sessionCount} sessions backed up to cloud storage.`,
@@ -135,7 +139,9 @@ export default function FirebaseAuth() {
   }
 
   return (
-    <Card className={isBackupActive ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}>
+    <Card
+      className={isBackupActive ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}
+    >
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center space-x-2 text-sm">
           {isBackupActive ? (
@@ -158,7 +164,7 @@ export default function FirebaseAuth() {
             <p className="text-xs text-gray-500">
               Your training sessions are automatically backed up weekly to secure cloud storage.
             </p>
-            
+
             <div className="flex gap-2">
               <Button
                 onClick={handleManualBackup}
@@ -170,7 +176,7 @@ export default function FirebaseAuth() {
                 <Upload className={`mr-2 h-3 w-3 ${isBackingUp ? 'animate-pulse' : ''}`} />
                 {isBackingUp ? 'Backing up...' : 'Backup Now'}
               </Button>
-              
+
               {backupStatus?.needsBackup && (
                 <div className="flex items-center text-xs text-amber-600">
                   <Calendar className="mr-1 h-3 w-3" />
@@ -181,9 +187,7 @@ export default function FirebaseAuth() {
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">
-              Backup system is starting up...
-            </p>
+            <p className="text-sm text-gray-600">Backup system is starting up...</p>
           </div>
         )}
       </CardContent>
