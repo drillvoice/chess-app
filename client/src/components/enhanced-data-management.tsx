@@ -84,6 +84,36 @@ export default function EnhancedDataManagement() {
         : new Blob([result.data as string], {
             type: exportOptions.format === 'json' ? 'application/json' : 'text/csv',
           });
+
+      // Try Web Share API first (mobile native sharing)
+      if (navigator.share && navigator.canShare) {
+        try {
+          // Create File object for sharing
+          const file = new File([blob], result.filename, {
+            type: blob.type || 'application/octet-stream'
+          });
+
+          // Check if we can share files
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: 'Chess Training Backup',
+              text: `Backup of ${result.metadata.sessionCount} training sessions`,
+              files: [file]
+            });
+
+            toast({
+              title: 'Export Complete',
+              description: `Successfully exported ${result.metadata.sessionCount} sessions`,
+            });
+            return;
+          }
+        } catch (shareError) {
+          console.log('Share API failed, falling back to download:', shareError);
+          // Fall through to download method
+        }
+      }
+
+      // Fallback to traditional download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -355,8 +385,12 @@ export default function EnhancedDataManagement() {
               </div>
 
               <Button onClick={handleExport} disabled={exporting} className="w-full">
-                {exporting ? 'Exporting...' : 'Export Data'}
+                {exporting ? 'Exporting...' : 'Export & Share Data'}
               </Button>
+              
+              <p className="text-xs text-gray-500 text-center">
+                On mobile: Share directly to Google Drive, email, or other apps
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
