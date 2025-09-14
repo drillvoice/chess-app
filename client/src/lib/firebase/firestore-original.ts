@@ -781,6 +781,7 @@ async function fetchDailyGoalsFromFirebase(): Promise<DailyGoalSettings | null> 
       gamesCount: data.gamesCount,
       studyMinutes: data.studyMinutes,
       isCustomized: data.isCustomized || false,
+      autoTracking: data.autoTracking || false,
       lastModified: data.lastModified?.toDate(),
     };
 

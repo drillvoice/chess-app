@@ -141,6 +141,7 @@ export const dailyGoalSettingsSchema = z.object({
   gamesCount: z.number().min(0).max(99).optional(),
   studyMinutes: z.number().min(0).max(99).optional(),
   isCustomized: z.boolean().default(false),
+  autoTracking: z.boolean().default(false),
   lastModified: z.date().optional(),
 });
 

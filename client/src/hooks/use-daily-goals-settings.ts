@@ -15,6 +15,7 @@ export interface DailyGoalsFormData {
   tacticsMinutes: number;
   gamesCount: number;
   studyMinutes: number;
+  autoTracking: boolean;
 }
 
 export interface DailyGoalsValidation {
@@ -53,6 +54,7 @@ const DEFAULT_FORM_DATA: DailyGoalsFormData = {
   tacticsMinutes: 0,
   gamesCount: 0,
   studyMinutes: 0,
+  autoTracking: false,
 };
 
 export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
@@ -81,6 +83,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
+        autoTracking: settings.autoTracking || false,
       });
     }
   }, [settings]);
@@ -113,6 +116,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
+        autoTracking: settings.autoTracking || false,
       });
     } else {
       setFormDataState(DEFAULT_FORM_DATA);
@@ -164,6 +168,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       gamesCount: formData.gamesCount || undefined,
       studyMinutes: formData.studyMinutes || undefined,
       isCustomized: true,
+      autoTracking: formData.autoTracking,
       lastModified: new Date(),
     };
 
@@ -176,6 +181,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       gamesCount: formData.gamesCount || undefined,
       studyMinutes: formData.studyMinutes || undefined,
       isCustomized: true,
+      autoTracking: formData.autoTracking,
       lastModified: new Date(),
     };
 
@@ -185,6 +191,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
   const disableCustomGoals = useCallback(async () => {
     const newSettings: DailyGoalSettings = {
       isCustomized: false,
+      autoTracking: false,
       lastModified: new Date(),
     };
 

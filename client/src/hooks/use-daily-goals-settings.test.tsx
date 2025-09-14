@@ -81,6 +81,7 @@ describe('useDailyGoalsSettings', () => {
         gamesCount: 2,
         studyMinutes: 15,
         isCustomized: true,
+        autoTracking: false,
         lastModified: new Date(),
       };
       mockGetDailyGoalSettings.mockResolvedValue(mockSettings);
@@ -131,6 +132,7 @@ describe('useDailyGoalsSettings', () => {
         gamesCount: 2,
         studyMinutes: 15,
         isCustomized: true,
+        autoTracking: false,
       };
       mockGetDailyGoalSettings.mockResolvedValue(mockSettings);
 
@@ -234,6 +236,7 @@ describe('useDailyGoalsSettings', () => {
         gamesCount: 2,
         studyMinutes: 15,
         isCustomized: true,
+        autoTracking: false,
         lastModified: expect.any(Date),
       });
 

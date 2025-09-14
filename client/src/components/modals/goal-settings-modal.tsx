@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Settings } from 'lucide-react';
 
 import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
@@ -61,6 +62,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     tacticsMinutes: '',
     gamesCount: '',
     studyMinutes: '',
+    autoTracking: false,
   });
 
   // Local validation state
@@ -77,6 +79,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         tacticsMinutes: (formData.tacticsMinutes || 0).toString(),
         gamesCount: (formData.gamesCount || 0).toString(),
         studyMinutes: (formData.studyMinutes || 0).toString(),
+        autoTracking: formData.autoTracking || false,
       });
 
       // Reset validation
@@ -113,6 +116,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     }
   };
 
+  // Handle auto-tracking toggle
+  const handleAutoTrackingChange = (checked: boolean) => {
+    setLocalFormData((prev) => ({ ...prev, autoTracking: checked }));
+    setFormData({ autoTracking: checked });
+  };
+
   // Check if form is valid
   const isFormValid = useMemo(() => {
     return (
@@ -140,7 +149,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto" style={{ transform: 'translateY(-10vh)' }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -209,11 +218,31 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
             <p className="-mt-2 text-sm text-red-500">{localValidation.studyMinutes.error}</p>
           )}
 
+          {/* Auto-tracking Toggle */}
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="auto-tracking"
+                checked={localFormData.autoTracking}
+                onCheckedChange={handleAutoTrackingChange}
+              />
+              <Label htmlFor="auto-tracking" className="flex-1">
+                <div className="font-medium">Auto-track daily goals</div>
+                <div className="text-sm text-muted-foreground">
+                  Automatically mark goals as complete when sessions are logged
+                </div>
+              </Label>
+            </div>
+          </div>
+
           {/* Help Text */}
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>• Set goals to 0 to disable that goal type</p>
             <p>• Maximum value for any goal is 99</p>
             <p>• Goals persist across days until changed</p>
+            {localFormData.autoTracking && (
+              <p>• Auto-tracking will show progress and mark goals complete automatically</p>
+            )}
           </div>
 
           {/* Action Buttons */}

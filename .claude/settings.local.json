@@ -5,7 +5,9 @@
       "Bash(npm start)",
       "Bash(set NODE_ENV=development)",
       "Bash(tsx:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []

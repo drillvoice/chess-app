@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { SessionAnalyzer, DailyGoalProgress, ProgressFormatter } from '@/lib/daily-goals-progress';
+import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
 
 interface DailyChecklist {
   tactics: boolean;
@@ -18,6 +20,10 @@ const STORAGE_KEY = 'dailyChecklist';
 export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
   const { autoCompleteFromSessions = false, onGoalComplete } = options;
 
+  // Get settings to determine auto-tracking mode
+  const { settings } = useDailyGoalsSettings();
+  const isAutoTrackingEnabled = settings?.autoTracking || false;
+
   const [checklist, setChecklist] = useState<DailyChecklist>({
     tactics: false,
     study: false,
@@ -25,26 +31,30 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
     date: new Date().toDateString(),
   });
 
-  // Fetch today's sessions for auto-completion
-  const { data: todaySessions } = useQuery({
-    queryKey: ['today-sessions'],
+  // Fetch all sessions for progress calculation
+  const { data: allSessions = [] } = useQuery({
+    queryKey: ['all-sessions'],
     queryFn: async () => {
-      if (!autoCompleteFromSessions) return [];
+      if (!autoCompleteFromSessions && !isAutoTrackingEnabled) return [];
 
       const { getAllSessions } = await import('@/lib/firebase');
-      const allSessions = await getAllSessions();
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      return allSessions.filter((session) => {
-        const sessionDate = new Date(session.date);
-        sessionDate.setHours(0, 0, 0, 0);
-        return sessionDate.getTime() === today.getTime();
-      });
+      return await getAllSessions();
     },
-    enabled: autoCompleteFromSessions,
+    enabled: autoCompleteFromSessions || isAutoTrackingEnabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Calculate progress when auto-tracking is enabled
+  const progress: DailyGoalProgress | null = useMemo(() => {
+    if (!isAutoTrackingEnabled || !settings) return null;
+    return SessionAnalyzer.calculateProgress(allSessions, settings);
+  }, [isAutoTrackingEnabled, allSessions, settings]);
+
+  // Get today's sessions for backward compatibility
+  const todaySessions = useMemo(() => {
+    if (!allSessions.length) return [];
+    return SessionAnalyzer.getTodaysSessions(allSessions);
+  }, [allSessions]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -85,34 +95,59 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
     loadChecklist();
   }, []);
 
-  // Auto-complete goals based on today's sessions
+  // Auto-complete goals based on today's sessions or progress
   useEffect(() => {
-    if (!autoCompleteFromSessions || !todaySessions) return;
+    if (isAutoTrackingEnabled && progress) {
+      // Use progress-based completion for auto-tracking mode
+      setChecklist((prev) => {
+        const updated = { ...prev };
+        let changed = false;
 
-    const hasTactics = todaySessions.some((s) => s.type === 'tactics');
-    const hasStudy = todaySessions.some((s) => s.type === 'study');
-    const hasGame = todaySessions.some((s) => s.type === 'game');
+        if (progress.tactics.isComplete && !prev.tactics) {
+          updated.tactics = true;
+          changed = true;
+          onGoalComplete?.('tactics');
+        }
+        if (progress.study.isComplete && !prev.study) {
+          updated.study = true;
+          changed = true;
+          onGoalComplete?.('study');
+        }
+        if (progress.game.isComplete && !prev.game) {
+          updated.game = true;
+          changed = true;
+          onGoalComplete?.('game');
+        }
 
-    setChecklist((prev) => {
-      const updated = { ...prev };
-      let changed = false;
+        return changed ? updated : prev;
+      });
+    } else if (autoCompleteFromSessions && todaySessions.length > 0) {
+      // Use basic session detection for manual mode
+      const hasTactics = todaySessions.some((s) => s.type === 'tactics');
+      const hasStudy = todaySessions.some((s) => s.type === 'study');
+      const hasGame = todaySessions.some((s) => s.type === 'game');
 
-      if (hasTactics && !prev.tactics) {
-        updated.tactics = true;
-        changed = true;
-      }
-      if (hasStudy && !prev.study) {
-        updated.study = true;
-        changed = true;
-      }
-      if (hasGame && !prev.game) {
-        updated.game = true;
-        changed = true;
-      }
+      setChecklist((prev) => {
+        const updated = { ...prev };
+        let changed = false;
 
-      return changed ? updated : prev;
-    });
-  }, [todaySessions, autoCompleteFromSessions]);
+        if (hasTactics && !prev.tactics) {
+          updated.tactics = true;
+          changed = true;
+        }
+        if (hasStudy && !prev.study) {
+          updated.study = true;
+          changed = true;
+        }
+        if (hasGame && !prev.game) {
+          updated.game = true;
+          changed = true;
+        }
+
+        return changed ? updated : prev;
+      });
+    }
+  }, [todaySessions, autoCompleteFromSessions, isAutoTrackingEnabled, progress, onGoalComplete]);
 
   // Save to localStorage when checklist changes
   useEffect(() => {
@@ -158,5 +193,14 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
     completedCount,
     allComplete,
     todaySessions,
+    // New progress data for auto-tracking
+    progress,
+    isAutoTrackingEnabled,
+    // Utility functions for components
+    formatters: {
+      formatProgress: ProgressFormatter.formatProgress,
+      getCompletionPercentage: ProgressFormatter.getCompletionPercentage,
+      getGoalLabel: ProgressFormatter.getGoalLabel,
+    },
   };
 }

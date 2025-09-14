@@ -120,6 +120,7 @@ describe('Daily Goals Data Layer', () => {
           gamesCount: 0,
           studyMinutes: 0,
           isCustomized: true,
+          autoTracking: false,
         };
         expect(hasActiveGoals(settings)).toBe(true);
       });
@@ -130,6 +131,7 @@ describe('Daily Goals Data Layer', () => {
           gamesCount: 0,
           studyMinutes: 0,
           isCustomized: true,
+          autoTracking: false,
         };
         expect(hasActiveGoals(settings)).toBe(false);
       });
