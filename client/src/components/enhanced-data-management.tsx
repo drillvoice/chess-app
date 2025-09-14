@@ -68,7 +68,7 @@ export default function EnhancedDataManagement() {
   const handleExport = async () => {
     try {
       setExporting(true);
-      
+
       // Simple export: everything in JSON format
       const exportOptions: ExportOptions = {
         includeTrainingSessions: true,
@@ -78,7 +78,7 @@ export default function EnhancedDataManagement() {
         format: 'json',
         compressed: false,
       };
-      
+
       const result = await exportManager.exportData(exportOptions);
 
       // Create blob (always JSON string for simplified export)
@@ -86,7 +86,37 @@ export default function EnhancedDataManagement() {
         type: 'application/json',
       });
 
-      // Try Web Share API first (mobile native sharing)
+      // Try File System Access API for better file saving experience
+      if ('showSaveFilePicker' in window) {
+        try {
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: result.filename,
+            types: [{
+              description: 'JSON files',
+              accept: {
+                'application/json': ['.json'],
+              },
+            }],
+          });
+
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+
+          toast({
+            title: 'Export Complete',
+            description: `Successfully exported ${result.metadata.sessionCount} sessions to chosen location`,
+          });
+          return;
+        } catch (saveError) {
+          // User cancelled or other error, continue to other methods
+          if ((saveError as Error).name !== 'AbortError') {
+            console.log('File System Access API failed:', saveError);
+          }
+        }
+      }
+
+      // Try Web Share API (mobile native sharing)
       if (navigator.share && navigator.canShare) {
         try {
           const file = new File([blob], result.filename, {
@@ -102,7 +132,7 @@ export default function EnhancedDataManagement() {
 
             toast({
               title: 'Export Complete',
-              description: `Successfully exported ${result.metadata.sessionCount} sessions`,
+              description: `Successfully shared ${result.metadata.sessionCount} sessions`,
             });
             return;
           }
@@ -123,7 +153,7 @@ export default function EnhancedDataManagement() {
 
       toast({
         title: 'Export Complete',
-        description: `Successfully exported ${result.metadata.sessionCount} sessions`,
+        description: `Successfully downloaded ${result.metadata.sessionCount} sessions`,
       });
     } catch (error) {
       toast({
@@ -311,11 +341,11 @@ export default function EnhancedDataManagement() {
               </div>
 
               <Button onClick={handleExport} disabled={exporting} className="w-full">
-                {exporting ? 'Exporting...' : 'Export & Share Data'}
+                {exporting ? 'Exporting...' : 'Export & Save Data'}
               </Button>
-              
+
               <p className="text-xs text-gray-500 text-center">
-                On mobile: Share directly to Google Drive, email, or other apps
+                Choose where to save: Local storage, Google Drive, or share to other apps
               </p>
             </CardContent>
           </Card>
