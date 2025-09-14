@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useDailyGoals } from '@/hooks/use-daily-goals';
 import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
 import { GoalSettingsModal } from '@/components/modals/goal-settings-modal';
+import { GoalProgressDisplay } from '@/components/ui/goal-progress';
 
 interface DailyGoalsProps {
   // Future props for integration with training sessions
@@ -20,7 +21,7 @@ export default function DailyGoalsMVP({
 }: DailyGoalsProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  const { checklist, toggleItem, completedCount, allComplete } = useDailyGoals({
+  const { checklist, toggleItem, completedCount, allComplete, progress, isAutoTrackingEnabled } = useDailyGoals({
     autoCompleteFromSessions,
     onGoalComplete,
   });
@@ -152,6 +153,11 @@ export default function DailyGoalsMVP({
               <div className="text-sm text-gray-600">
                 {completedCount}/{activeGoals.length}
               </div>
+              {isAutoTrackingEnabled && (
+                <div className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                  Auto-tracking
+                </div>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -176,36 +182,61 @@ export default function DailyGoalsMVP({
               const IconComponent = config.icon;
               const isCompleted = checklist[goalType];
 
-              return (
-                <div
-                  key={goalType}
-                  className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
-                  onClick={() => toggleItem(goalType)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      toggleItem(goalType);
-                    }
-                  }}
-                  aria-label={`${isCompleted ? 'Uncheck' : 'Check'} ${config.label}`}
-                >
-                  {isCompleted ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-gray-400" />
-                  )}
-                  <IconComponent className={`h-4 w-4 ${config.color}`} />
-                  <span
-                    className={`flex-1 ${
-                      isCompleted ? 'text-green-700 line-through' : 'text-gray-700'
-                    }`}
+              // Render differently based on auto-tracking mode
+              if (isAutoTrackingEnabled && progress && progress[goalType]) {
+                // Auto-tracking mode: Show progress bar
+                return (
+                  <div
+                    key={goalType}
+                    className="flex items-center space-x-3 rounded-lg p-2"
                   >
-                    {config.label}
-                  </span>
-                </div>
-              );
+                    {progress[goalType].isComplete ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-gray-400" />
+                    )}
+                    <IconComponent className={`h-4 w-4 ${config.color}`} />
+                    <GoalProgressDisplay
+                      progress={progress[goalType]}
+                      goalType={goalType}
+                      label={config.label}
+                      isManualMode={false}
+                    />
+                  </div>
+                );
+              } else {
+                // Manual mode: Show traditional checkboxes
+                return (
+                  <div
+                    key={goalType}
+                    className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
+                    onClick={() => toggleItem(goalType)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleItem(goalType);
+                      }
+                    }}
+                    aria-label={`${isCompleted ? 'Uncheck' : 'Check'} ${config.label}`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-gray-400" />
+                    )}
+                    <IconComponent className={`h-4 w-4 ${config.color}`} />
+                    <span
+                      className={`flex-1 ${
+                        isCompleted ? 'text-green-700 line-through' : 'text-gray-700'
+                      }`}
+                    >
+                      {config.label}
+                    </span>
+                  </div>
+                );
+              }
             })}
           </div>
 
