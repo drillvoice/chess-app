@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, Suspense } from 'react';
-import { Puzzle, Crown, Book, Target, Archive } from 'lucide-react';
+import { useState, Suspense, useEffect } from 'react';
+import { Puzzle, Crown, Book, Target, Archive, X } from 'lucide-react';
 import { TacticsModal, GameModal, StudyModal, GoalModal } from '@/components/lazy-components';
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from '@/components/install-prompt';
@@ -27,6 +27,7 @@ export default function Home() {
   const [studyModalOpen, setStudyModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
+  const [weeklyGoalPromptDismissed, setWeeklyGoalPromptDismissed] = useState(false);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
     queryKey: ['statistics'],
@@ -109,6 +110,19 @@ export default function Home() {
   const isGoalOld = goalProperties?.goalWeekStart
     ? new Date().getTime() - goalProperties.goalWeekStart.getTime() > 7 * 24 * 60 * 60 * 1000
     : false;
+
+  // Load dismissal state from localStorage on mount
+  useEffect(() => {
+    const dismissed = localStorage.getItem('weeklyGoalPromptDismissed');
+    if (dismissed === 'true') {
+      setWeeklyGoalPromptDismissed(true);
+    }
+  }, []);
+
+  const handleDismissWeeklyGoalPrompt = () => {
+    setWeeklyGoalPromptDismissed(true);
+    localStorage.setItem('weeklyGoalPromptDismissed', 'true');
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -202,11 +216,18 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <Card className="border-dashed border-purple-200 bg-purple-50">
+      ) : !weeklyGoalPromptDismissed ? (
+        <Card className="border-dashed border-purple-200 bg-purple-50 relative">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-3">
-              <Target className="h-5 w-5 text-purple-600" />
+            <button
+              onClick={handleDismissWeeklyGoalPrompt}
+              className="absolute top-2 right-2 p-1 rounded-full hover:bg-purple-100 transition-colors"
+              aria-label="Dismiss weekly goal prompt"
+            >
+              <X className="h-4 w-4 text-purple-600" />
+            </button>
+            <div className="flex items-start space-x-3">
+              <Target className="mt-0.5 h-5 w-5 text-purple-600" />
               <div className="flex-1">
                 <h3 className="mb-1 font-semibold text-gray-800">
                   Set a weekly goal to focus your training
@@ -214,18 +235,28 @@ export default function Home() {
                 <p className="text-sm text-gray-600">
                   Having a specific goal helps you stay motivated and track progress
                 </p>
+                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={() => setGoalModalOpen(true)}
+                    size="sm"
+                    className="bg-purple-600 text-white hover:bg-purple-700"
+                  >
+                    Set Weekly Goal
+                  </Button>
+                  <Button
+                    onClick={handleDismissWeeklyGoalPrompt}
+                    size="sm"
+                    variant="ghost"
+                    className="text-purple-600 hover:bg-purple-100"
+                  >
+                    Maybe later
+                  </Button>
+                </div>
               </div>
-              <Button
-                onClick={() => setGoalModalOpen(true)}
-                size="sm"
-                className="bg-purple-600 text-white hover:bg-purple-700"
-              >
-                Set Weekly Goal
-              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       <DailyGoalsMVP />
 
