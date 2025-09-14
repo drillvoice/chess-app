@@ -1,7 +1,16 @@
 {
-  "version": "0.4.0",
+  "version": "0.4.0a",
   "lastUpdated": "14 September 2025",
   "changelog": [
+    {
+      "version": "0.4.0a",
+      "date": "14 September 2025",
+      "changes": [
+        "Add save to google drive to backup",
+        "Tidy up interface wrt backup",
+        "Simplify import options"
+      ]
+    },
     {
       "version": "0.4.0",
       "date": "14 September 2025",
