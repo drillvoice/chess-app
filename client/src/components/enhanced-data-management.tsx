@@ -42,15 +42,7 @@ import {
 } from '@/lib/backup/backup-verification';
 
 export default function EnhancedDataManagement() {
-  // Export state
-  const [exportOptions, setExportOptions] = useState<ExportOptions>({
-    includeTrainingSessions: true,
-    includeDailyGoals: true,
-    includeSettings: false,
-    includeMetadata: true,
-    format: 'json',
-    compressed: false,
-  });
+  // Simplified export state - always export everything as JSON
   const [exporting, setExporting] = useState(false);
 
   // Import state
@@ -76,28 +68,35 @@ export default function EnhancedDataManagement() {
   const handleExport = async () => {
     try {
       setExporting(true);
+      
+      // Simple export: everything in JSON format
+      const exportOptions: ExportOptions = {
+        includeTrainingSessions: true,
+        includeDailyGoals: true,
+        includeSettings: true,
+        includeMetadata: true,
+        format: 'json',
+        compressed: false,
+      };
+      
       const result = await exportManager.exportData(exportOptions);
 
-      // Create download - handle both string and Blob data
-      const blob = result.data instanceof Blob 
-        ? result.data 
-        : new Blob([result.data as string], {
-            type: exportOptions.format === 'json' ? 'application/json' : 'text/csv',
-          });
+      // Create blob (always JSON string for simplified export)
+      const blob = new Blob([result.data as string], {
+        type: 'application/json',
+      });
 
       // Try Web Share API first (mobile native sharing)
       if (navigator.share && navigator.canShare) {
         try {
-          // Create File object for sharing
           const file = new File([blob], result.filename, {
-            type: blob.type || 'application/octet-stream'
+            type: 'application/json'
           });
 
-          // Check if we can share files
           if (navigator.canShare({ files: [file] })) {
             await navigator.share({
-              title: 'Chess Training Backup',
-              text: `Backup of ${result.metadata.sessionCount} training sessions`,
+              title: 'Chess Training Data Export',
+              text: `Complete backup of ${result.metadata.sessionCount} training sessions`,
               files: [file]
             });
 
@@ -109,7 +108,6 @@ export default function EnhancedDataManagement() {
           }
         } catch (shareError) {
           console.log('Share API failed, falling back to download:', shareError);
-          // Fall through to download method
         }
       }
 
@@ -300,87 +298,15 @@ export default function EnhancedDataManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Export Options */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <Label>Data to Export</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="export-sessions"
-                        checked={exportOptions.includeTrainingSessions}
-                        onCheckedChange={(checked) =>
-                          setExportOptions((prev) => ({
-                            ...prev,
-                            includeTrainingSessions: !!checked,
-                          }))
-                        }
-                      />
-                      <Label htmlFor="export-sessions">Training Sessions</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="export-goals"
-                        checked={exportOptions.includeDailyGoals}
-                        onCheckedChange={(checked) =>
-                          setExportOptions((prev) => ({ ...prev, includeDailyGoals: !!checked }))
-                        }
-                      />
-                      <Label htmlFor="export-goals">Daily Goals</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="export-settings"
-                        checked={exportOptions.includeSettings}
-                        onCheckedChange={(checked) =>
-                          setExportOptions((prev) => ({ ...prev, includeSettings: !!checked }))
-                        }
-                      />
-                      <Label htmlFor="export-settings">Settings & Preferences</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="export-metadata"
-                        checked={exportOptions.includeMetadata}
-                        onCheckedChange={(checked) =>
-                          setExportOptions((prev) => ({ ...prev, includeMetadata: !!checked }))
-                        }
-                      />
-                      <Label htmlFor="export-metadata">Backup Metadata</Label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label>Export Format</Label>
-                  <Select
-                    value={exportOptions.format}
-                    onValueChange={(value: 'json' | 'csv' | 'backup') =>
-                      setExportOptions((prev) => ({ ...prev, format: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="json">JSON (Standard)</SelectItem>
-                      <SelectItem value="csv">CSV (Sessions Only)</SelectItem>
-                      <SelectItem value="backup">Backup Format (Recommended)</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {exportOptions.format === 'backup' && (
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="compress"
-                        checked={exportOptions.compressed}
-                        onCheckedChange={(checked) =>
-                          setExportOptions((prev) => ({ ...prev, compressed: !!checked }))
-                        }
-                      />
-                      <Label htmlFor="compress">Compress Export</Label>
-                    </div>
-                  )}
+              <div className="text-center space-y-3">
+                <p className="text-sm text-gray-600">
+                  Export all your training data (sessions, goals, settings) in JSON format.
+                </p>
+                <div className="space-y-1 text-sm text-gray-500">
+                  <div>✓ Training Sessions & Games</div>
+                  <div>✓ Daily Goals & Progress</div>
+                  <div>✓ Settings & Preferences</div>
+                  <div>✓ Backup Metadata</div>
                 </div>
               </div>
 
@@ -405,16 +331,37 @@ export default function EnhancedDataManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* File Upload */}
-              <div>
-                <Label htmlFor="import-file">Select Import File</Label>
-                <Input
-                  id="import-file"
-                  type="file"
-                  accept=".json,.csv"
-                  onChange={handleImportPreview}
-                  ref={fileInputRef}
-                />
+              {/* Import Source Options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="border border-gray-200">
+                  <CardContent className="p-4 text-center space-y-3">
+                    <Upload className="h-8 w-8 mx-auto text-blue-600" />
+                    <h4 className="font-medium">Import from Device</h4>
+                    <p className="text-sm text-gray-600">Choose a backup file from your device storage</p>
+                    <Input
+                      type="file"
+                      accept=".json,.csv"
+                      onChange={handleImportPreview}
+                      ref={fileInputRef}
+                      className="cursor-pointer"
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="border border-green-200">
+                  <CardContent className="p-4 text-center space-y-3">
+                    <Database className="h-8 w-8 mx-auto text-green-600" />
+                    <h4 className="font-medium">Import from Google Drive</h4>
+                    <p className="text-sm text-gray-600">Select a backup file from Google Drive or cloud storage</p>
+                    <Input
+                      type="file"
+                      accept=".json,.csv"
+                      onChange={handleImportPreview}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-green-600">Uses your device's native file picker</p>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Import Options */}
