@@ -1,7 +1,14 @@
 {
-  "version": "0.4.0a",
+  "version": "0.4.1",
   "lastUpdated": "14 September 2025",
   "changelog": [
+    {
+      "version": "0.4.1",
+      "date": "14 September 2025",
+      "changes": [
+        "Begin adding daily goal autotracking"
+      ]
+    },
     {
       "version": "0.4.0a",
       "date": "14 September 2025",
