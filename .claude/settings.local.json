@@ -8,7 +8,10 @@
       "Bash(node:*)",
       "Bash(npx tsc:*)",
       "Bash(npx tsx:*)",
-      "Read(//c/Users/drill/OneDrive/Desktop/**)"
+      "Read(//c/Users/drill/OneDrive/Desktop/**)",
+      "WebSearch",
+      "WebFetch(domain:lichess.org)",
+      "Bash(npm run test:*)"
     ],
     "deny": [],
     "ask": []

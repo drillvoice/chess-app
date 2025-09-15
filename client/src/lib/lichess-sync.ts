@@ -75,8 +75,11 @@ export function startLichessSync(username: string) {
         color === 'white' ? game.players?.black?.user?.name : game.players?.white?.user?.name;
 
       let result: 'win' | 'loss' | 'draw';
-      if (game.status === 'draw') result = 'draw';
-      else result = game.winner === color ? 'win' : 'loss';
+      if (!game.winner) {
+        result = 'draw';
+      } else {
+        result = game.winner === color ? 'win' : 'loss';
+      }
 
       const duration = Math.round((game.lastMoveAt - game.createdAt) / 60000);
 
