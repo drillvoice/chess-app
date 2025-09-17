@@ -53,28 +53,33 @@ export class SessionAnalyzer {
   }
 
   /**
-   * Calculate total minutes spent on tactics today
+   * Aggregate daily training session metrics in a single pass
    */
-  static calculateTacticsMinutes(todaysSessions: TrainingSession[]): number {
-    return todaysSessions
-      .filter((session) => session.type === 'tactics')
-      .reduce((total, session) => total + (session.duration || 0), 0);
-  }
+  static summarizeSessions(todaysSessions: TrainingSession[]): {
+    tacticsMinutes: number;
+    studyMinutes: number;
+    gamesCount: number;
+  } {
+    return todaysSessions.reduce(
+      (totals, session) => {
+        switch (session.type) {
+          case 'tactics':
+            totals.tacticsMinutes += session.duration || 0;
+            break;
+          case 'study':
+            totals.studyMinutes += session.duration || 0;
+            break;
+          case 'game':
+            totals.gamesCount += 1;
+            break;
+          default:
+            break;
+        }
 
-  /**
-   * Calculate total minutes spent on study today
-   */
-  static calculateStudyMinutes(todaysSessions: TrainingSession[]): number {
-    return todaysSessions
-      .filter((session) => session.type === 'study')
-      .reduce((total, session) => total + (session.duration || 0), 0);
-  }
-
-  /**
-   * Calculate total games played today
-   */
-  static calculateGamesCount(todaysSessions: TrainingSession[]): number {
-    return todaysSessions.filter((session) => session.type === 'game').length;
+        return totals;
+      },
+      { tacticsMinutes: 0, studyMinutes: 0, gamesCount: 0 },
+    );
   }
 
   /**
@@ -86,9 +91,7 @@ export class SessionAnalyzer {
   ): DailyGoalProgress {
     const todaysSessions = this.getTodaysSessions(allSessions);
 
-    const tacticsMinutes = this.calculateTacticsMinutes(todaysSessions);
-    const studyMinutes = this.calculateStudyMinutes(todaysSessions);
-    const gamesCount = this.calculateGamesCount(todaysSessions);
+    const { tacticsMinutes, studyMinutes, gamesCount } = this.summarizeSessions(todaysSessions);
 
     // Default targets if no settings
     const tacticsTarget = settings?.tacticsMinutes || 0;
