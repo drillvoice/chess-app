@@ -52,7 +52,7 @@ const getActivityColor = (type: string): string => {
 };
 
 const WeeklyActivityChart: React.FC<WeeklyActivityChartProps> = ({ sessions }) => {
-  const getDayData = (): DayData[] => {
+  const { weekData, maxDuration } = React.useMemo(() => {
     const now = new Date();
     const startOfWeek = new Date(now);
     const day = now.getDay();
@@ -61,25 +61,29 @@ const WeeklyActivityChart: React.FC<WeeklyActivityChartProps> = ({ sessions }) =
     startOfWeek.setHours(0, 0, 0, 0);
 
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const weekData: DayData[] = [];
+    const sessionsByDay = Array.from({ length: 7 }, () => [] as TrainingSession[]);
+    const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
-    for (let i = 0; i < 7; i++) {
-      const currentDay = new Date(startOfWeek);
-      currentDay.setDate(startOfWeek.getDate() + i);
+    sessions.forEach((session) => {
+      const sessionDate = new Date(session.date);
+      const sessionStartOfDay = new Date(sessionDate);
+      sessionStartOfDay.setHours(0, 0, 0, 0);
 
-      const dayEnd = new Date(currentDay);
-      dayEnd.setHours(23, 59, 59, 999);
+      const dayIndex = Math.floor(
+        (sessionStartOfDay.getTime() - startOfWeek.getTime()) / millisecondsPerDay,
+      );
 
-      // Get sessions for this day, sorted by time
-      const daySessions = sessions
-        .filter((session) => {
-          const sessionDate = new Date(session.date);
-          return sessionDate >= currentDay && sessionDate <= dayEnd;
-        })
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      if (dayIndex >= 0 && dayIndex < 7) {
+        sessionsByDay[dayIndex].push(session);
+      }
+    });
 
-      // Convert sessions to activity blocks
-      const blocks: ActivityBlock[] = daySessions.map((session) => {
+    const weekData: DayData[] = sessionsByDay.map((daySessions, index) => {
+      const sortedSessions = [...daySessions].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      );
+
+      const blocks: ActivityBlock[] = sortedSessions.map((session) => {
         let duration = 0;
 
         if (session.type === 'game') {
@@ -99,18 +103,17 @@ const WeeklyActivityChart: React.FC<WeeklyActivityChartProps> = ({ sessions }) =
 
       const totalDuration = blocks.reduce((sum, block) => sum + block.duration, 0);
 
-      weekData.push({
-        day: dayNames[i],
+      return {
+        day: dayNames[index],
         blocks,
         totalDuration,
-      });
-    }
+      };
+    });
 
-    return weekData;
-  };
+    const maxDuration = Math.max(...weekData.map((d) => d.totalDuration), 1);
 
-  const weekData = getDayData();
-  const maxDuration = Math.max(...weekData.map((d) => d.totalDuration), 1);
+    return { weekData, maxDuration };
+  }, [sessions]);
 
   return (
     <div className="space-y-4">
