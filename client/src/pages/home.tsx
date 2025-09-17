@@ -217,11 +217,11 @@ export default function Home() {
           </CardContent>
         </Card>
       ) : !weeklyGoalPromptDismissed ? (
-        <Card className="border-dashed border-purple-200 bg-purple-50 relative">
+        <Card className="relative border-dashed border-purple-200 bg-purple-50">
           <CardContent className="p-4">
             <button
               onClick={handleDismissWeeklyGoalPrompt}
-              className="absolute top-2 right-2 p-1 rounded-full hover:bg-purple-100 transition-colors"
+              className="absolute right-2 top-2 rounded-full p-1 transition-colors hover:bg-purple-100"
               aria-label="Dismiss weekly goal prompt"
             >
               <X className="h-4 w-4 text-purple-600" />
@@ -235,7 +235,7 @@ export default function Home() {
                 <p className="text-sm text-gray-600">
                   Having a specific goal helps you stay motivated and track progress
                 </p>
-                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Button
                     onClick={() => setGoalModalOpen(true)}
                     size="sm"

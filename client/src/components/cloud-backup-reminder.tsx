@@ -13,7 +13,7 @@ export default function CloudBackupReminder() {
     const checkVisibility = () => {
       const dismissed = localStorage.getItem('cloud-backup-reminder-dismissed');
       const reminderFirstShown = localStorage.getItem('cloud-backup-reminder-first-shown');
-      
+
       // If already dismissed, don't show
       if (dismissed === 'true') {
         return false;
@@ -21,7 +21,8 @@ export default function CloudBackupReminder() {
 
       // Check if user already has cloud backup enabled
       // We can check for existing Firebase auth state or sync activity
-      const hasCloudSync = localStorage.getItem('firebase-user') || localStorage.getItem('cloud-sync-active');
+      const hasCloudSync =
+        localStorage.getItem('firebase-user') || localStorage.getItem('cloud-sync-active');
       if (hasCloudSync) {
         return false;
       }
@@ -63,22 +64,23 @@ export default function CloudBackupReminder() {
         >
           <X className="h-4 w-4" />
         </Button>
-        
+
         <div className="flex items-start space-x-3 pr-8">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
             <Shield className="h-4 w-4 text-green-600" />
           </div>
-          
+
           <div className="flex-1 space-y-2">
             <div className="flex items-center space-x-2">
               <Cloud className="h-4 w-4 text-green-600" />
               <h3 className="font-medium text-green-800">Protect Your Training Data</h3>
             </div>
-            
+
             <p className="text-sm text-green-700">
-              Enable cloud backup to keep your training sessions safe. Weekly automatic backups ensure you never lose your progress.
+              Enable cloud backup to keep your training sessions safe. Weekly automatic backups
+              ensure you never lose your progress.
             </p>
-            
+
             <div className="flex space-x-2">
               <Button
                 size="sm"

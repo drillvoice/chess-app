@@ -21,10 +21,11 @@ export default function DailyGoalsMVP({
 }: DailyGoalsProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  const { checklist, toggleItem, completedCount, allComplete, progress, isAutoTrackingEnabled } = useDailyGoals({
-    autoCompleteFromSessions,
-    onGoalComplete,
-  });
+  const { checklist, toggleItem, completedCount, allComplete, progress, isAutoTrackingEnabled } =
+    useDailyGoals({
+      autoCompleteFromSessions,
+      onGoalComplete,
+    });
 
   const { settings, isCustomized } = useDailyGoalsSettings();
 
@@ -154,7 +155,7 @@ export default function DailyGoalsMVP({
                 {completedCount}/{activeGoals.length}
               </div>
               {isAutoTrackingEnabled && (
-                <div className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                <div className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
                   Auto-tracking
                 </div>
               )}
@@ -186,10 +187,7 @@ export default function DailyGoalsMVP({
               if (isAutoTrackingEnabled && progress && progress[goalType]) {
                 // Auto-tracking mode: Show progress bar
                 return (
-                  <div
-                    key={goalType}
-                    className="flex items-center space-x-3 rounded-lg p-2"
-                  >
+                  <div key={goalType} className="flex items-center space-x-3 rounded-lg p-2">
                     {progress[goalType].isComplete ? (
                       <CheckCircle className="h-5 w-5 text-green-600" />
                     ) : (
