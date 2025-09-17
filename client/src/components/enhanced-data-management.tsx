@@ -91,12 +91,14 @@ export default function EnhancedDataManagement() {
         try {
           const fileHandle = await (window as any).showSaveFilePicker({
             suggestedName: result.filename,
-            types: [{
-              description: 'JSON files',
-              accept: {
-                'application/json': ['.json'],
+            types: [
+              {
+                description: 'JSON files',
+                accept: {
+                  'application/json': ['.json'],
+                },
               },
-            }],
+            ],
           });
 
           const writable = await fileHandle.createWritable();
@@ -120,14 +122,14 @@ export default function EnhancedDataManagement() {
       if (navigator.share && navigator.canShare) {
         try {
           const file = new File([blob], result.filename, {
-            type: 'application/json'
+            type: 'application/json',
           });
 
           if (navigator.canShare({ files: [file] })) {
             await navigator.share({
               title: 'Chess Training Data Export',
               text: `Complete backup of ${result.metadata.sessionCount} training sessions`,
-              files: [file]
+              files: [file],
             });
 
             toast({
@@ -328,7 +330,7 @@ export default function EnhancedDataManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-center space-y-3">
+              <div className="space-y-3 text-center">
                 <p className="text-sm text-gray-600">
                   Export all your training data (sessions, goals, settings) in JSON format.
                 </p>
@@ -344,7 +346,7 @@ export default function EnhancedDataManagement() {
                 {exporting ? 'Exporting...' : 'Export & Save Data'}
               </Button>
 
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-center text-xs text-gray-500">
                 Choose where to save: Local storage, Google Drive, or share to other apps
               </p>
             </CardContent>
@@ -362,12 +364,14 @@ export default function EnhancedDataManagement() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Import Source Options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Card className="border border-gray-200">
-                  <CardContent className="p-4 text-center space-y-3">
-                    <Upload className="h-8 w-8 mx-auto text-blue-600" />
+                  <CardContent className="space-y-3 p-4 text-center">
+                    <Upload className="mx-auto h-8 w-8 text-blue-600" />
                     <h4 className="font-medium">Import from Device</h4>
-                    <p className="text-sm text-gray-600">Choose a backup file from your device storage</p>
+                    <p className="text-sm text-gray-600">
+                      Choose a backup file from your device storage
+                    </p>
                     <Input
                       type="file"
                       accept=".json,.csv"
@@ -379,10 +383,12 @@ export default function EnhancedDataManagement() {
                 </Card>
 
                 <Card className="border border-green-200">
-                  <CardContent className="p-4 text-center space-y-3">
-                    <Database className="h-8 w-8 mx-auto text-green-600" />
+                  <CardContent className="space-y-3 p-4 text-center">
+                    <Database className="mx-auto h-8 w-8 text-green-600" />
                     <h4 className="font-medium">Import from Google Drive</h4>
-                    <p className="text-sm text-gray-600">Select a backup file from Google Drive or cloud storage</p>
+                    <p className="text-sm text-gray-600">
+                      Select a backup file from Google Drive or cloud storage
+                    </p>
                     <Input
                       type="file"
                       accept=".json,.csv"

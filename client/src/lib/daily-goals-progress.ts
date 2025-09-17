@@ -44,7 +44,7 @@ export class SessionAnalyzer {
   static getTodaysSessions(allSessions: TrainingSession[]): TrainingSession[] {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return allSessions.filter((session) => {
       const sessionDate = new Date(session.date);
       sessionDate.setHours(0, 0, 0, 0);
@@ -57,7 +57,7 @@ export class SessionAnalyzer {
    */
   static calculateTacticsMinutes(todaysSessions: TrainingSession[]): number {
     return todaysSessions
-      .filter(session => session.type === 'tactics')
+      .filter((session) => session.type === 'tactics')
       .reduce((total, session) => total + (session.duration || 0), 0);
   }
 
@@ -66,7 +66,7 @@ export class SessionAnalyzer {
    */
   static calculateStudyMinutes(todaysSessions: TrainingSession[]): number {
     return todaysSessions
-      .filter(session => session.type === 'study')
+      .filter((session) => session.type === 'study')
       .reduce((total, session) => total + (session.duration || 0), 0);
   }
 
@@ -74,25 +74,25 @@ export class SessionAnalyzer {
    * Calculate total games played today
    */
   static calculateGamesCount(todaysSessions: TrainingSession[]): number {
-    return todaysSessions.filter(session => session.type === 'game').length;
+    return todaysSessions.filter((session) => session.type === 'game').length;
   }
 
   /**
    * Calculate complete progress from sessions and settings
    */
   static calculateProgress(
-    allSessions: TrainingSession[], 
-    settings: DailyGoalSettings | null
+    allSessions: TrainingSession[],
+    settings: DailyGoalSettings | null,
   ): DailyGoalProgress {
     const todaysSessions = this.getTodaysSessions(allSessions);
-    
+
     const tacticsMinutes = this.calculateTacticsMinutes(todaysSessions);
     const studyMinutes = this.calculateStudyMinutes(todaysSessions);
     const gamesCount = this.calculateGamesCount(todaysSessions);
 
     // Default targets if no settings
     const tacticsTarget = settings?.tacticsMinutes || 0;
-    const studyTarget = settings?.studyMinutes || 0; 
+    const studyTarget = settings?.studyMinutes || 0;
     const gamesTarget = settings?.gamesCount || 0;
 
     return {
@@ -127,7 +127,7 @@ export class ProgressFormatter {
    */
   static formatProgress(progress: DailyGoalProgress[keyof DailyGoalProgress]): string {
     if (progress.target === 0) return 'No goal set';
-    
+
     const unit = progress.unit === 'minutes' ? 'min' : progress.unit === 'count' ? 'games' : '';
     return `${progress.completed}/${progress.target} ${unit}`;
   }
@@ -146,10 +146,10 @@ export class ProgressFormatter {
   static getGoalLabel(
     goalType: keyof DailyGoalProgress,
     progress: DailyGoalProgress[keyof DailyGoalProgress],
-    showProgress: boolean = true
+    showProgress: boolean = true,
   ): string {
     if (progress.target === 0) return '';
-    
+
     const baseLabels = {
       tactics: `Practice tactics for ${progress.target} minutes`,
       study: `Study for ${progress.target} minutes`,
@@ -157,7 +157,7 @@ export class ProgressFormatter {
     };
 
     if (!showProgress) return baseLabels[goalType];
-    
+
     const progressText = this.formatProgress(progress);
     return `${baseLabels[goalType]} (${progressText})`;
   }

@@ -149,7 +149,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="mobile-modal sm:max-w-md overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto mx-auto !fixed !top-2 sm:!top-1/2 !left-1/2 !-translate-x-1/2 !translate-y-0 sm:!-translate-y-1/2 max-h-[calc(100vh-1rem)] sm:max-h-[85vh]">
+      <DialogContent className="mobile-modal !fixed !left-1/2 !top-2 mx-auto max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] !-translate-x-1/2 !translate-y-0 overflow-y-auto sm:!top-1/2 sm:max-h-[85vh] sm:w-auto sm:max-w-md sm:!-translate-y-1/2">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -219,7 +219,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
           )}
 
           {/* Auto-tracking Toggle */}
-          <div className="border-t pt-4 space-y-3">
+          <div className="space-y-3 border-t pt-4">
             <div className="flex items-center space-x-3">
               <Checkbox
                 id="auto-tracking"
