@@ -55,9 +55,11 @@ export class SessionAnalyzer {
   /**
    * Aggregate daily training session metrics in a single pass
    */
-  static summarizeSessions(
-    todaysSessions: TrainingSession[],
-  ): { tacticsMinutes: number; studyMinutes: number; gamesCount: number } {
+  static summarizeSessions(todaysSessions: TrainingSession[]): {
+    tacticsMinutes: number;
+    studyMinutes: number;
+    gamesCount: number;
+  } {
     return todaysSessions.reduce(
       (totals, session) => {
         switch (session.type) {
@@ -89,9 +91,7 @@ export class SessionAnalyzer {
   ): DailyGoalProgress {
     const todaysSessions = this.getTodaysSessions(allSessions);
 
-    const { tacticsMinutes, studyMinutes, gamesCount } = this.summarizeSessions(
-      todaysSessions,
-    );
+    const { tacticsMinutes, studyMinutes, gamesCount } = this.summarizeSessions(todaysSessions);
 
     // Default targets if no settings
     const tacticsTarget = settings?.tacticsMinutes || 0;
