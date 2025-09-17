@@ -253,39 +253,56 @@ async function calculateStatistics() {
   const sessions = await getAllSessions();
 
   const totalSessions = sessions.length;
-  const totalHours = sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / 60;
-
-  // Get today's sessions
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todaySessions = sessions.filter((session) => {
+
+  let totalDuration = 0;
+  let todaySessionsCount = 0;
+  let todayTotalTime = 0;
+  let latestTacticsScore = 0;
+  let latestTacticsTimestamp = -Infinity;
+  let gameSessionsCount = 0;
+  let wins = 0;
+
+  for (const session of sessions) {
+    const duration = session.duration || 0;
+    totalDuration += duration;
+
     const sessionDate = new Date(session.date);
-    sessionDate.setHours(0, 0, 0, 0);
-    return sessionDate.getTime() === today.getTime();
-  });
+    const sessionTimestamp = sessionDate.getTime();
+    const sessionDateMidnight = new Date(sessionDate);
+    sessionDateMidnight.setHours(0, 0, 0, 0);
 
-  const todayTotalTime = todaySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+    if (sessionDateMidnight.getTime() === today.getTime()) {
+      todaySessionsCount += 1;
+      todayTotalTime += duration;
+    }
 
-  // Calculate tactics rating (most recent final score)
-  const tacticsSessionsWithScores = sessions
-    .filter((session) => session.type === 'tactics' && session.finalScore)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (session.type === 'tactics' && session.finalScore) {
+      if (sessionTimestamp > latestTacticsTimestamp) {
+        latestTacticsTimestamp = sessionTimestamp;
+        latestTacticsScore = session.finalScore || 0;
+      }
+    }
 
-  const tacticsRating =
-    tacticsSessionsWithScores.length > 0 ? tacticsSessionsWithScores[0].finalScore || 0 : 0;
+    if (session.type === 'game') {
+      gameSessionsCount += 1;
+      if (session.gameResult === 'win') {
+        wins += 1;
+      }
+    }
+  }
 
-  // Calculate win rate
-  const gameSessions = sessions.filter((session) => session.type === 'game');
-  const wins = gameSessions.filter((session) => session.gameResult === 'win').length;
-  const winRate = gameSessions.length > 0 ? Math.round((wins / gameSessions.length) * 100) : 0;
+  const totalHours = Math.round((totalDuration / 60) * 10) / 10;
+  const winRate = gameSessionsCount > 0 ? Math.round((wins / gameSessionsCount) * 100) : 0;
 
   const stats = {
-    totalHours: Math.round(totalHours * 10) / 10,
+    totalHours,
     totalSessions,
-    tacticsRating,
+    tacticsRating: latestTacticsScore,
     winRate,
     todayTotalTime,
-    todaySessions: todaySessions.length,
+    todaySessions: todaySessionsCount,
   };
 
   // Cache the results in both storages
