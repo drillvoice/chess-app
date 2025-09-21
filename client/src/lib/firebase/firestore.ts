@@ -4,6 +4,8 @@ import { offlineStorage } from '../offline-storage';
 import { queryClient } from '../queryClient';
 import { safeDatabaseOperation } from '../query-timeout';
 import { migrateStudySessions, getMigrationStats } from '../migration';
+import { sessionEvents } from '../session-events';
+import '../session-event-bridge';
 import { backupAllSessionsToCloud, backupDailyGoalsToCloud } from './firestore-backup';
 
 // Simplified Firebase integration - LOCAL FIRST with optional cloud backup
@@ -24,6 +26,7 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
             const migratedSessions = migrateStudySessions(cachedSessions);
             // Save migrated sessions back to cache
             await offlineStorage.setSessions(migratedSessions);
+            sessionEvents.emit('sessionsReplaced', migratedSessions);
             console.log(`Migrated ${migrationStats.needsMigration} study sessions`);
             return migratedSessions;
           }
@@ -148,6 +151,7 @@ export async function createSession(
 
   // Refresh pending review queries so UI reflects latest data
   queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+  sessionEvents.emit('sessionAdded', newSession);
 
   return newSession;
 }
@@ -184,6 +188,7 @@ export async function updateSession(
 
     // Refresh pending review queries so UI reflects latest data
     queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+    sessionEvents.emit('sessionUpdated', updatedSession);
 
     return updatedSession;
   } catch (error) {
@@ -211,6 +216,9 @@ export async function deleteSession(id: number): Promise<boolean> {
         console.warn('Background backup after delete failed:', error);
       });
     });
+
+    queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+    sessionEvents.emit('sessionDeleted', { id });
 
     return true;
   } catch (error) {

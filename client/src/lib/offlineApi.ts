@@ -1,4 +1,6 @@
 import { offlineStorage } from './offline-storage';
+import { sessionEvents } from './session-events';
+import './session-event-bridge';
 import type { TrainingSession } from '@shared/schema';
 
 // Offline API that mimics the server API but uses IndexedDB via offlineStorage
@@ -18,6 +20,7 @@ export const offlineApi = {
 
   async createTrainingSession(session: TrainingSession): Promise<TrainingSession> {
     await offlineStorage.addSession(session);
+    sessionEvents.emit('sessionAdded', session);
     return session;
   },
 
@@ -25,6 +28,8 @@ export const offlineApi = {
     const sessions = await offlineStorage.getSessions();
     const updated = sessions.filter((session) => session.id !== id);
     await offlineStorage.setSessions(updated);
+    sessionEvents.emit('sessionsReplaced', updated);
+    sessionEvents.emit('sessionDeleted', { id });
     return true;
   },
 
@@ -51,9 +56,12 @@ export const offlineApi = {
   async importData(data: string): Promise<void> {
     const parsed = JSON.parse(data);
     if (parsed.sessions) {
-      await offlineStorage.setSessions(
-        parsed.sessions.map((s: any) => ({ ...s, date: new Date(s.date) })),
-      );
+      const normalizedSessions = parsed.sessions.map((s: any) => ({
+        ...s,
+        date: new Date(s.date),
+      }));
+      await offlineStorage.setSessions(normalizedSessions);
+      sessionEvents.emit('sessionsReplaced', normalizedSessions);
     }
     if (parsed.statistics) {
       await offlineStorage.setStatistics(parsed.statistics);

@@ -1,7 +1,12 @@
 {
-  "version": "0.4.2",
-  "lastUpdated": "17 September 2025",
+  "version": "0.4.3",
+  "lastUpdated": "21 September 2025",
   "changelog": [
+    {
+      "version": "0.4.3",
+      "date": "21 September 2025",
+      "changes": ["Fix auto-tracked daily goals to refresh instantly after session updates"]
+    },
     {
       "version": "0.4.2",
       "date": "17 September 2025",
