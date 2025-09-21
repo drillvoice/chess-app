@@ -8,9 +8,7 @@ export type SessionEventMap = {
 };
 
 type SessionEventName = keyof SessionEventMap;
-type SessionEventListener<K extends SessionEventName> = (
-  payload: SessionEventMap[K],
-) => void;
+type SessionEventListener<K extends SessionEventName> = (payload: SessionEventMap[K]) => void;
 
 type AnySessionListener = SessionEventListener<SessionEventName>;
 
