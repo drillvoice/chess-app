@@ -126,7 +126,7 @@ export default function GameModal({
         const optimisticSession: TrainingSession = {
           id: editingSession.id,
           type: 'game',
-          date: newSession.date,
+          date: newSession.date || editingSession.date,
           duration: editingSession.duration, // Preserve existing duration
           pointsGained: null,
           finalScore: null,
@@ -153,7 +153,7 @@ export default function GameModal({
 
         return { previousSessions, previousStats };
       } else {
-        const tempId = Date.now();
+        const tempId = -Date.now(); // Use negative ID to distinguish from real sessions
         const optimisticSession: TrainingSession = {
           id: tempId,
           type: 'game',
@@ -176,17 +176,26 @@ export default function GameModal({
           goalDescription: null,
           goalWeekStart: null,
           needsReview: false,
-        };
+          // Add a flag to identify this as a pending session
+          _pending: true,
+        } as any;
 
         queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) => [
           optimisticSession,
           ...old,
         ]);
 
-        return { previousSessions, previousStats };
+        return { previousSessions, previousStats, tempId };
       }
     },
-    onSuccess: () => {
+    onSuccess: (result, variables, context) => {
+      // Remove temporary session if it exists
+      if (context?.tempId) {
+        queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) =>
+          old.filter((session) => session.id !== context.tempId)
+        );
+      }
+
       // Show success notification
       toast({
         title: 'Success',
@@ -195,7 +204,7 @@ export default function GameModal({
           : 'Game session logged successfully!',
       });
 
-      // Refresh data in background
+      // Refresh data to show the real session
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.invalidateQueries({ queryKey: ['statistics'] });
       queryClient.invalidateQueries({ queryKey: ['weekly-goal'] });
@@ -204,6 +213,13 @@ export default function GameModal({
       onClearEditingSession?.();
     },
     onError: (error: any, _newSession, context) => {
+      // Remove temporary session if it exists
+      if (context?.tempId) {
+        queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) =>
+          old.filter((session) => session.id !== context.tempId)
+        );
+      }
+
       // Check if it's a timeout error but session might have been saved
       if (error.message?.includes('timeout')) {
         toast({
@@ -211,6 +227,8 @@ export default function GameModal({
           description: 'Session may have been saved. Please check your activity to confirm.',
           variant: 'destructive',
         });
+        // Refresh data to check if the session was actually saved
+        queryClient.invalidateQueries({ queryKey: ['sessions'] });
       } else {
         if (context?.previousSessions) {
           queryClient.setQueryData(['sessions'], context.previousSessions);

@@ -1,7 +1,14 @@
 {
-  "version": "0.4.3",
-  "lastUpdated": "21 September 2025",
+  "version": "0.4.4",
+  "lastUpdated": "26 September 2025",
   "changelog": [
+    {
+      "version": "0.4.4",
+      "date": "26 September 2025",
+      "changes": [
+        "Fix duplicate entry issue when logging sessions - now shows single entry immediately with proper pending state"
+      ]
+    },
     {
       "version": "0.4.3",
       "date": "21 September 2025",

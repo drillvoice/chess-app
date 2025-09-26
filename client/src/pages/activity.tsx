@@ -302,50 +302,62 @@ export default function Activity() {
   };
 
   // Session card component to avoid duplication
-  const SessionCard = ({ session }: { session: TrainingSession }) => (
-    <Card key={session.id} className="border-gray-200 shadow-sm">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div
-              className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-full',
-                getSessionBgColor(session.type),
-              )}
-            >
-              {getSessionIcon(session.type)}
-            </div>
-            <div>
-              <div className="font-semibold text-gray-800">{getSessionTitle(session)}</div>
-              <div className="text-sm text-gray-600">{getSessionSubtitle(session)}</div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="text-right">
-              <div className={cn('text-sm font-medium', getSessionValueColor(session))}>
-                {getSessionValue(session)}
-              </div>
-              <div className="text-xs text-gray-500">{formatDate(session.date)}</div>
-            </div>
-            <div className="flex space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
-                onClick={() => setEditingSession(session)}
+  const SessionCard = ({ session }: { session: TrainingSession }) => {
+    const isPending = (session as any)._pending;
+
+    return (
+      <Card key={session.id} className={cn("shadow-sm", isPending ? "border-blue-200 bg-blue-50/50" : "border-gray-200")}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-full',
+                  isPending ? 'bg-blue-100' : getSessionBgColor(session.type),
+                )}
               >
-                <Edit3 className="h-3 w-3" />
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+                {isPending ? (
+                  <Clock className="h-5 w-5 text-blue-600 animate-pulse" />
+                ) : (
+                  getSessionIcon(session.type)
+                )}
+              </div>
+              <div>
+                <div className={cn("font-semibold", isPending ? "text-blue-700" : "text-gray-800")}>
+                  {isPending ? 'Saving...' : getSessionTitle(session)}
+                </div>
+                <div className={cn("text-sm", isPending ? "text-blue-600" : "text-gray-600")}>
+                  {isPending ? `${session.duration} min study session` : getSessionSubtitle(session)}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="text-right">
+                <div className={cn('text-sm font-medium', isPending ? 'text-blue-600' : getSessionValueColor(session))}>
+                  {isPending ? '⏳' : getSessionValue(session)}
+                </div>
+                <div className="text-xs text-gray-500">{formatDate(session.date)}</div>
+              </div>
+              {!isPending && (
+                <div className="flex space-x-1">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                    className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
+                    onClick={() => setEditingSession(session)}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Edit3 className="h-3 w-3" />
                   </Button>
-                </AlertDialogTrigger>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Session</AlertDialogTitle>
@@ -365,12 +377,14 @@ export default function Activity() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (statsLoading || sessionsLoading) {
     return (
