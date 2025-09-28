@@ -41,29 +41,38 @@ export function startLichessSync(username: string) {
   console.log('Starting Lichess sync for:', username);
   currentUsername = username;
   const key = `lichess-last-game-${username.toLowerCase()}`;
-  let lastTimestamp = parseInt(localStorage.getItem(key) || '0', 10);
+  const storedTimestamp = Number.parseInt(localStorage.getItem(key) ?? '', 10);
+  let lastTimestamp = Number.isFinite(storedTimestamp) ? storedTimestamp : 0;
   let timer: ReturnType<typeof setInterval> | undefined;
 
   const poll = async () => {
     try {
-      const url =
-        `https://lichess.org/api/games/user/${encodeURIComponent(username)}?since=${lastTimestamp}` +
-        `&max=1&clocks=false&moves=false&opening=false&format=json`;
+      const params = new URLSearchParams({ username });
+      if (Number.isFinite(lastTimestamp) && lastTimestamp > 0) {
+        params.set('since', Math.trunc(lastTimestamp).toString());
+      }
 
-      const res = await fetch(url, { headers: { Accept: 'application/x-ndjson' } });
-      if (!res.ok) return;
+      const res = await fetch(`/api/lichess/latest?${params.toString()}`);
+      if (!res.ok) {
+        console.error('Lichess proxy request failed:', res.status, await res.text());
+        return;
+      }
 
-      const text = await res.text();
-      const lines = text
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean);
-      if (lines.length === 0) return;
+      const { game } = (await res.json()) as { game: any | null };
+      if (!game) return;
 
-      const game = JSON.parse(lines[lines.length - 1]);
-      if (game.lastMoveAt <= lastTimestamp) return;
+      const lastMoveAt = Number(game.lastMoveAt);
+      if (!Number.isFinite(lastMoveAt) || lastMoveAt <= lastTimestamp) {
+        return;
+      }
 
-      lastTimestamp = game.lastMoveAt;
+      const createdAt = Number(game.createdAt ?? lastMoveAt);
+      if (!Number.isFinite(createdAt)) {
+        console.warn('Skipping Lichess game with invalid creation timestamp');
+        return;
+      }
+
+      lastTimestamp = lastMoveAt;
       localStorage.setItem(key, String(lastTimestamp));
 
       const userLower = username.toLowerCase();
@@ -81,7 +90,7 @@ export function startLichessSync(username: string) {
         result = game.winner === color ? 'win' : 'loss';
       }
 
-      const duration = Math.round((game.lastMoveAt - game.createdAt) / 60000);
+      const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
 
       let timeControl = '';
       if (game.clock) {

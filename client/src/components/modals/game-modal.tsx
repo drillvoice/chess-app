@@ -192,7 +192,7 @@ export default function GameModal({
       // Remove temporary session if it exists
       if (context?.tempId) {
         queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) =>
-          old.filter((session) => session.id !== context.tempId)
+          old.filter((session) => session.id !== context.tempId),
         );
       }
 
@@ -216,7 +216,7 @@ export default function GameModal({
       // Remove temporary session if it exists
       if (context?.tempId) {
         queryClient.setQueryData<TrainingSession[]>(['sessions'], (old = []) =>
-          old.filter((session) => session.id !== context.tempId)
+          old.filter((session) => session.id !== context.tempId),
         );
       }
 
