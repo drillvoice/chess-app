@@ -306,7 +306,10 @@ export default function Activity() {
     const isPending = (session as any)._pending;
 
     return (
-      <Card key={session.id} className={cn("shadow-sm", isPending ? "border-blue-200 bg-blue-50/50" : "border-gray-200")}>
+      <Card
+        key={session.id}
+        className={cn('shadow-sm', isPending ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200')}
+      >
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -317,23 +320,30 @@ export default function Activity() {
                 )}
               >
                 {isPending ? (
-                  <Clock className="h-5 w-5 text-blue-600 animate-pulse" />
+                  <Clock className="h-5 w-5 animate-pulse text-blue-600" />
                 ) : (
                   getSessionIcon(session.type)
                 )}
               </div>
               <div>
-                <div className={cn("font-semibold", isPending ? "text-blue-700" : "text-gray-800")}>
+                <div className={cn('font-semibold', isPending ? 'text-blue-700' : 'text-gray-800')}>
                   {isPending ? 'Saving...' : getSessionTitle(session)}
                 </div>
-                <div className={cn("text-sm", isPending ? "text-blue-600" : "text-gray-600")}>
-                  {isPending ? `${session.duration} min study session` : getSessionSubtitle(session)}
+                <div className={cn('text-sm', isPending ? 'text-blue-600' : 'text-gray-600')}>
+                  {isPending
+                    ? `${session.duration} min study session`
+                    : getSessionSubtitle(session)}
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <div className="text-right">
-                <div className={cn('text-sm font-medium', isPending ? 'text-blue-600' : getSessionValueColor(session))}>
+                <div
+                  className={cn(
+                    'text-sm font-medium',
+                    isPending ? 'text-blue-600' : getSessionValueColor(session),
+                  )}
+                >
                   {isPending ? '⏳' : getSessionValue(session)}
                 </div>
                 <div className="text-xs text-gray-500">{formatDate(session.date)}</div>
@@ -358,25 +368,25 @@ export default function Activity() {
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this {session.type} session? This action
-                      cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => deleteSessionMutation.mutate(session.id)}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this {session.type} session? This action
+                          cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteSessionMutation.mutate(session.id)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               )}
             </div>
