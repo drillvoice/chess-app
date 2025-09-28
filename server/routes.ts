@@ -13,6 +13,10 @@ import { asyncHandler } from './asyncHandler';
 import { fromZodError } from 'zod-validation-error';
 import { z, ZodError, type ZodTypeAny } from 'zod';
 
+interface LichessLatestResponse {
+  game: unknown | null;
+}
+
 /**
  * Helper to register a static file route with predefined headers.
  */
@@ -77,6 +81,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     asyncHandler(async (_req, res) => {
       const sessions = await storage.getAllTrainingSessions();
       res.json(sessions);
+    }),
+  );
+
+  app.get(
+    '/api/lichess/latest',
+    asyncHandler(async (req, res) => {
+      const { username, since } = req.query;
+
+      if (typeof username !== 'string' || username.trim() === '') {
+        res.status(400).json({ message: 'Lichess username is required' });
+        return;
+      }
+
+      let sinceTimestamp: number | undefined;
+      if (typeof since === 'string' && since.length > 0) {
+        const parsed = Number.parseInt(since, 10);
+        if (Number.isNaN(parsed) || parsed < 0) {
+          res.status(400).json({ message: 'Invalid since parameter' });
+          return;
+        }
+        sinceTimestamp = parsed;
+      }
+
+      const params = new URLSearchParams({
+        max: '1',
+        clocks: 'false',
+        moves: 'false',
+        opening: 'false',
+        format: 'json',
+      });
+
+      if (sinceTimestamp !== undefined) {
+        params.set('since', sinceTimestamp.toString());
+      }
+
+      const lichessUrl = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?${params.toString()}`;
+
+      const lichessResponse = await fetch(lichessUrl, {
+        headers: {
+          Accept: 'application/x-ndjson',
+          'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
+        },
+      });
+
+      if (lichessResponse.status === 404) {
+        res.status(404).json({ message: 'Lichess user not found' });
+        return;
+      }
+
+      if (!lichessResponse.ok) {
+        res
+          .status(502)
+          .json({ message: `Failed to fetch data from Lichess (status ${lichessResponse.status})` });
+        return;
+      }
+
+      const rawText = await lichessResponse.text();
+      const lines = rawText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      res.setHeader('Cache-Control', 'no-store');
+
+      if (lines.length === 0) {
+        res.json({ game: null } satisfies LichessLatestResponse);
+        return;
+      }
+
+      const latestLine = lines[lines.length - 1];
+      let game: unknown;
+
+      try {
+        game = JSON.parse(latestLine);
+      } catch (error) {
+        res.status(502).json({ message: 'Received malformed data from Lichess' });
+        return;
+      }
+
+      res.json({ game } satisfies LichessLatestResponse);
     }),
   );
 
