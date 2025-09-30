@@ -131,11 +131,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!lichessResponse.ok) {
-        res
-          .status(502)
-          .json({
-            message: `Failed to fetch data from Lichess (status ${lichessResponse.status})`,
-          });
+        res.status(502).json({
+          message: `Failed to fetch data from Lichess (status ${lichessResponse.status})`,
+        });
         return;
       }
 
