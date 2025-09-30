@@ -1,23 +1,53 @@
-export { ensureAuthentication } from './core';
+import { ensureFirebase, auth, db, doc, setDoc, Timestamp, clearCurrentUserId } from './core';
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  linkWithCredential,
+} from 'firebase/auth';
 
-// Stub functions for backward compatibility
+export { ensureAuthentication, getCurrentUserId } from './core';
+
 export async function refreshAuthState(): Promise<void> {
-  console.log('refreshAuthState called - no-op in backup-only mode');
+  await ensureFirebase();
+  const user = auth.currentUser;
+  if (!user) {
+    clearCurrentUserId();
+    return;
+  }
+
+  await setDoc(doc(db, 'users', user.uid), { createdAt: Timestamp.now() }, { merge: true });
 }
 
-export async function getCurrentUserId(): Promise<string | null> {
-  console.log('getCurrentUserId called - returning null in backup-only mode');
-  return null;
+export async function startAuthFlow(useRedirect = false): Promise<void> {
+  await ensureFirebase();
+
+  const provider = new GoogleAuthProvider();
+  const previousUser = auth.currentUser;
+
+  if (useRedirect) {
+    await signInWithRedirect(auth, provider);
+    return;
+  }
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+
+    if (previousUser?.isAnonymous && credential) {
+      await linkWithCredential(previousUser, credential);
+    }
+
+    localStorage.setItem('hasRealLogin', 'true');
+  } catch (error) {
+    throw error;
+  }
 }
 
-export async function startAuthFlow(): Promise<void> {
-  console.log('startAuthFlow called - no-op in backup-only mode');
+export function stopSessionSync(): void {
+  // Firestore listeners are managed elsewhere; provided for API compatibility.
 }
 
-export async function stopSessionSync(): Promise<void> {
-  console.log('stopSessionSync called - no-op in backup-only mode');
-}
-
-export async function startSessionSync(): Promise<void> {
-  console.log('startSessionSync called - no-op in backup-only mode');
+export function startSessionSync(): void {
+  // Firestore listeners are managed elsewhere; provided for API compatibility.
 }

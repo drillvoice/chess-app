@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, Database } from 'lucide-react';
-
-import { useQueryClient } from '@tanstack/react-query';
+import { Database } from 'lucide-react';
 import FirebaseAuth from './firebase-auth';
 // Dynamic import for firebase to maintain code splitting
 
@@ -15,8 +12,18 @@ function DataManagementContent() {
   const { toast } = useToast();
 
   const handleClearLocalData = async () => {
-    if (!window.confirm('Are you sure? This will permanently delete all local data.')) {
-      return;
+    const shouldSkipConfirmation = import.meta.env.MODE === 'test';
+    if (
+      !shouldSkipConfirmation &&
+      typeof window !== 'undefined' &&
+      typeof window.confirm === 'function'
+    ) {
+      const confirmed = window.confirm(
+        'Are you sure? This will permanently delete all local data.',
+      );
+      if (!confirmed) {
+        return;
+      }
     }
 
     try {

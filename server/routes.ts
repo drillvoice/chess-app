@@ -155,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         game = JSON.parse(latestLine);
-      } catch (error) {
+      } catch (_error) {
         res.status(502).json({ message: 'Received malformed data from Lichess' });
         return;
       }
