@@ -1,6 +1,6 @@
 import { offlineStorage } from '../offline-storage';
 import { createSession, setDailyGoalSettings } from '../firebase/firestore';
-import { TrainingSession, DailyGoalSettings } from '@shared/schema';
+import { TrainingSession } from '@shared/schema';
 import { ExportData } from '../export/export-manager';
 
 export interface ImportOptions {
@@ -79,8 +79,10 @@ export class ImportManager {
 
     if (parsedData.trainingSessions) {
       for (const session of parsedData.trainingSessions) {
+        const normalizedDate = this.normalizeDateValue(session.date);
+
         // Check for validation errors
-        if (!this.isValidSession(session)) {
+        if (!this.isValidSession(session, normalizedDate)) {
           invalidSessions++;
           continue;
         }
@@ -100,7 +102,7 @@ export class ImportManager {
         }
 
         // Check for date-based conflicts (same type and date)
-        const dateKey = `${session.type}-${new Date(session.date).getTime()}`;
+        const dateKey = `${session.type}-${normalizedDate!.getTime()}`;
         if (existingByDate.has(dateKey)) {
           const existing = existingByDate.get(dateKey)!;
           conflicts.push({
@@ -227,7 +229,7 @@ export class ImportManager {
 
     try {
       parsedData = JSON.parse(data);
-    } catch (error) {
+    } catch (_error) {
       return {
         valid: false,
         errors: ['Invalid JSON format'],
@@ -257,7 +259,8 @@ export class ImportManager {
     if (sessions && Array.isArray(sessions)) {
       let validSessions = 0;
       for (const session of sessions) {
-        if (this.isValidSession(session)) {
+        const normalizedDate = this.normalizeDateValue(session?.date);
+        if (this.isValidSession(session, normalizedDate)) {
           validSessions++;
         } else {
           warnings.push(`Invalid session data: ${session.id || 'unknown ID'}`);
@@ -333,9 +336,10 @@ export class ImportManager {
 
     for (let i = 0; i < sessions.length; i++) {
       const session = sessions[i];
+      const normalizedDate = this.normalizeDateValue(session.date);
       onProgress?.(i + 1, sessions.length);
 
-      if (!this.isValidSession(session)) {
+      if (!this.isValidSession(session, normalizedDate)) {
         errors.push(`Skipped invalid session: ${session.id}`);
         skipped++;
         continue;
@@ -380,10 +384,16 @@ export class ImportManager {
       // Import new session
       if (!options.dryRun) {
         try {
+          if (!normalizedDate) {
+            errors.push(`Failed to import session ${session.id}: Invalid date`);
+            skipped++;
+            continue;
+          }
+
           await createSession(
             {
               type: session.type,
-              date: new Date(session.date),
+              date: normalizedDate,
               duration: session.duration,
               pointsGained: session.pointsGained,
               finalScore: session.finalScore,
@@ -419,14 +429,54 @@ export class ImportManager {
   /**
    * Validate individual session data
    */
-  private isValidSession(session: any): boolean {
+  private isValidSession(session: any, normalizedDate?: Date | null): boolean {
+    const dateToCheck = normalizedDate ?? this.normalizeDateValue(session?.date);
+
     return (
       session &&
       typeof session.id === 'number' &&
       typeof session.type === 'string' &&
-      session.date &&
-      !isNaN(new Date(session.date).getTime())
+      !!dateToCheck
     );
+  }
+
+  private normalizeDateValue(value: any): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value;
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      const parsed = new Date(value);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (typeof value === 'object') {
+      const maybeTimestamp = value as {
+        seconds?: number;
+        nanoseconds?: number;
+        _seconds?: number;
+        _nanoseconds?: number;
+        toDate?: () => Date;
+      };
+
+      if (typeof maybeTimestamp.toDate === 'function') {
+        const parsed = maybeTimestamp.toDate();
+        return isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      const seconds = maybeTimestamp.seconds ?? maybeTimestamp._seconds;
+      const nanos = maybeTimestamp.nanoseconds ?? maybeTimestamp._nanoseconds ?? 0;
+
+      if (typeof seconds === 'number') {
+        return new Date(seconds * 1000 + nanos / 1e6);
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -519,10 +569,11 @@ export class ImportManager {
   private async updateExistingSession(session: TrainingSession): Promise<void> {
     // Implementation would update the session in offline storage
     // For now, we'll use the existing createSession with overwrite
+    const normalizedDate = this.normalizeDateValue(session.date);
     await createSession(
       {
         type: session.type,
-        date: new Date(session.date),
+        date: normalizedDate ?? new Date(),
         duration: session.duration,
         pointsGained: session.pointsGained,
         finalScore: session.finalScore,

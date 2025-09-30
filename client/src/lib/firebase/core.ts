@@ -139,9 +139,30 @@ export function getCurrentUserId(): string | null {
   return currentUserId;
 }
 
+export function clearCurrentUserId(): void {
+  currentUserId = null;
+}
+
 export async function ensureAuthentication(): Promise<void> {
   await ensureFirebase();
-  if (!auth.currentUser) {
-    await ensureAnonymousAuth();
+
+  if (typeof (auth as any).authStateReady === 'function') {
+    try {
+      await (auth as any).authStateReady();
+    } catch (error) {
+      console.warn('authStateReady failed:', error);
+    }
   }
+
+  if (auth.currentUser) {
+    return;
+  }
+
+  const hasRealLogin = typeof window !== 'undefined' && localStorage.getItem('hasRealLogin') === 'true';
+  if (hasRealLogin) {
+    window.dispatchEvent(new CustomEvent('auth:reauth-required'));
+    return;
+  }
+
+  await ensureAnonymousAuth();
 }

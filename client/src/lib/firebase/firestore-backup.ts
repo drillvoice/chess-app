@@ -1,4 +1,4 @@
-import { TrainingSession, DailyGoalSettings } from '@shared/schema';
+import { DailyGoalSettings } from '@shared/schema';
 import { offlineStorage } from '../offline-storage';
 import {
   waitForAuth,
@@ -18,7 +18,10 @@ export async function backupAllSessionsToCloud(): Promise<void> {
     console.log('🔄 Starting full backup to cloud...');
 
     await waitForAuth();
-    const sessions = await offlineStorage.getSessions();
+    const sessions =
+      typeof offlineStorage.getSessions === 'function'
+        ? await offlineStorage.getSessions()
+        : [];
 
     if (!sessions || sessions.length === 0) {
       console.log('✅ No sessions to backup');
@@ -79,6 +82,11 @@ export async function backupDailyGoalsToCloud(settings: DailyGoalSettings): Prom
 // Check if backup is needed (weekly automatic backup)
 export async function isBackupNeeded(): Promise<boolean> {
   try {
+    if (typeof offlineStorage.getLastBackupTimestamp !== 'function') {
+      console.warn('Offline storage missing getLastBackupTimestamp, assuming backup needed');
+      return true;
+    }
+
     const lastBackup = await offlineStorage.getLastBackupTimestamp();
     if (!lastBackup) return true;
 
@@ -93,7 +101,10 @@ export async function isBackupNeeded(): Promise<boolean> {
 // Simple backup status for UI
 export async function getBackupStatus() {
   try {
-    const lastBackup = await offlineStorage.getLastBackupTimestamp();
+    const lastBackup =
+      typeof offlineStorage.getLastBackupTimestamp === 'function'
+        ? await offlineStorage.getLastBackupTimestamp()
+        : null;
     const sessions = await offlineStorage.getSessions();
 
     return {

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import type { DailyGoalProgress } from '@/lib/daily-goals-progress';
 
@@ -76,7 +75,6 @@ export function GoalProgressDisplay({
   isManualMode = false,
 }: GoalProgressDisplayProps) {
   const isComplete = progress.isComplete;
-  const percentage = Math.min(100, Math.round((progress.completed / progress.target) * 100));
 
   // In manual mode, show simple completion status
   if (isManualMode) {

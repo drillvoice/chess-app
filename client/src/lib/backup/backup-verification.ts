@@ -5,8 +5,15 @@ import {
   createSession,
   setDailyGoalSettings,
 } from '../firebase/firestore';
-import { waitForAuth, getSessionsCollection, getDailyGoalsCollection } from '../firebase/core';
-import { getDocs, query, orderBy, Timestamp } from '../firebase/core';
+import {
+  waitForAuth,
+  getSessionsCollection,
+  getDailyGoalsCollection,
+  getDocs,
+  query,
+  orderBy,
+  Timestamp,
+} from '../firebase/core';
 import { TrainingSession, DailyGoalSettings } from '@shared/schema';
 
 export interface BackupVerificationResult {
@@ -84,6 +91,26 @@ export class BackupVerificationManager {
           description: `Session count mismatch: ${localCount} local vs ${cloudCount} cloud`,
           affectedItems: [`${Math.abs(diff)}_sessions`],
           suggestedFix: diff > 0 ? 'Run manual backup' : 'Check for data corruption',
+        });
+      }
+
+      // Compare daily goal settings availability
+      const cloudDailyGoals = cloudData.dailyGoals;
+      if (localDailyGoals && !cloudDailyGoals) {
+        issues.push({
+          type: 'data_mismatch',
+          severity: 'medium',
+          description: 'Local daily goals are missing from the cloud backup',
+          affectedItems: ['daily_goals'],
+          suggestedFix: 'Run manual backup to sync daily goals',
+        });
+      } else if (!localDailyGoals && cloudDailyGoals) {
+        issues.push({
+          type: 'data_mismatch',
+          severity: 'low',
+          description: 'Cloud backup has daily goals that are missing locally',
+          affectedItems: ['daily_goals'],
+          suggestedFix: 'Restore from cloud backup to retrieve daily goals',
         });
       }
 
@@ -434,6 +461,18 @@ export class BackupVerificationManager {
         description: `${missingFromCloud.length} sessions missing from cloud backup`,
         affectedItems: missingFromCloud.map((s) => `session_${s.id}`),
         suggestedFix: 'Run manual backup to sync missing sessions',
+      });
+    }
+
+    // Check for sessions that exist in cloud but not locally
+    const missingLocally = cloudSessions.filter((s) => !localMap.has(s.id));
+    if (missingLocally.length > 0) {
+      issues.push({
+        type: 'data_mismatch',
+        severity: 'low',
+        description: `${missingLocally.length} cloud sessions are missing locally`,
+        affectedItems: missingLocally.map((s) => `session_${s.id}`),
+        suggestedFix: 'Restore from backup to recover missing sessions locally',
       });
     }
 

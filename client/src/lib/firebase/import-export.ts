@@ -1,5 +1,4 @@
 import { offlineStorage } from '../offline-storage';
-import { getAllSessions } from './firestore';
 import { exportManager } from '../export/export-manager';
 import { importManager } from '../import/import-manager';
 

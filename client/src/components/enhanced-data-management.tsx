@@ -24,8 +24,6 @@ import {
   XCircle,
   Clock,
   Database,
-  Settings,
-  Calendar,
 } from 'lucide-react';
 
 import { exportManager, ExportOptions } from '@/lib/export/export-manager';
@@ -184,7 +182,7 @@ export default function EnhancedDataManagement() {
           variant: 'destructive',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Preview Failed',
         description: 'Could not preview import file',
@@ -245,7 +243,7 @@ export default function EnhancedDataManagement() {
         title: 'Backup Verification Complete',
         description: `Backup health: ${health.overallHealth}%`,
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Verification Failed',
         description: 'Could not verify backup integrity',

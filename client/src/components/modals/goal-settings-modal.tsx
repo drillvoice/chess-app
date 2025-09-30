@@ -54,8 +54,16 @@ function validateGoalInput(
 }
 
 export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
-  const { formData, setFormData, resetForm, saveSettings, isSaving, isLoading } =
-    useDailyGoalsSettings();
+  const {
+    formData,
+    setFormData,
+    resetForm,
+    saveSettings,
+    isSaving,
+    isLoading,
+    autoTrackingEnabled,
+    setAutoTrackingEnabled,
+  } = useDailyGoalsSettings();
 
   // Local form state
   const [localFormData, setLocalFormData] = useState({
@@ -79,7 +87,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         tacticsMinutes: (formData.tacticsMinutes || 0).toString(),
         gamesCount: (formData.gamesCount || 0).toString(),
         studyMinutes: (formData.studyMinutes || 0).toString(),
-        autoTracking: formData.autoTracking || false,
+        autoTracking: autoTrackingEnabled,
       });
 
       // Reset validation
@@ -89,7 +97,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         studyMinutes: { isValid: true, error: undefined },
       });
     }
-  }, [isOpen, isLoading, formData]);
+  }, [isOpen, isLoading, formData, autoTrackingEnabled]);
 
   // Handle input changes
   const handleInputChange = (
@@ -119,7 +127,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
   // Handle auto-tracking toggle
   const handleAutoTrackingChange = (checked: boolean) => {
     setLocalFormData((prev) => ({ ...prev, autoTracking: checked }));
-    setFormData({ autoTracking: checked });
+    setAutoTrackingEnabled(checked);
   };
 
   // Check if form is valid

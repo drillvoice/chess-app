@@ -15,7 +15,6 @@ export interface DailyGoalsFormData {
   tacticsMinutes: number;
   gamesCount: number;
   studyMinutes: number;
-  autoTracking: boolean;
 }
 
 export interface DailyGoalsValidation {
@@ -48,13 +47,14 @@ export interface UseDailyGoalsSettingsReturn {
   enableCustomGoals: () => Promise<void>;
   disableCustomGoals: () => Promise<void>;
   isSaving: boolean;
+  autoTrackingEnabled: boolean;
+  setAutoTrackingEnabled: (enabled: boolean) => void;
 }
 
 const DEFAULT_FORM_DATA: DailyGoalsFormData = {
   tacticsMinutes: 0,
   gamesCount: 0,
   studyMinutes: 0,
-  autoTracking: false,
 };
 
 export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
@@ -63,6 +63,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 
   // Form state
   const [formData, setFormDataState] = useState<DailyGoalsFormData>(DEFAULT_FORM_DATA);
+  const [autoTrackingEnabled, setAutoTrackingEnabled] = useState(false);
 
   // Query for current settings
   const {
@@ -83,8 +84,11 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
-        autoTracking: settings.autoTracking || false,
       });
+      setAutoTrackingEnabled(settings.autoTracking ?? false);
+    } else {
+      setFormDataState(DEFAULT_FORM_DATA);
+      setAutoTrackingEnabled(false);
     }
   }, [settings]);
 
@@ -116,10 +120,11 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
-        autoTracking: settings.autoTracking || false,
       });
+      setAutoTrackingEnabled(settings.autoTracking ?? false);
     } else {
       setFormDataState(DEFAULT_FORM_DATA);
+      setAutoTrackingEnabled(false);
     }
   }, [settings]);
 
@@ -168,12 +173,12 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       gamesCount: formData.gamesCount || undefined,
       studyMinutes: formData.studyMinutes || undefined,
       isCustomized: true,
-      autoTracking: formData.autoTracking,
+      autoTracking: autoTrackingEnabled,
       lastModified: new Date(),
     };
 
     await saveMutation.mutateAsync(newSettings);
-  }, [formData, validation, saveMutation, toast]);
+  }, [formData, validation, saveMutation, toast, autoTrackingEnabled]);
 
   const enableCustomGoals = useCallback(async () => {
     const newSettings: DailyGoalSettings = {
@@ -181,7 +186,6 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       gamesCount: formData.gamesCount || undefined,
       studyMinutes: formData.studyMinutes || undefined,
       isCustomized: true,
-      autoTracking: formData.autoTracking,
       lastModified: new Date(),
     };
 
@@ -191,11 +195,11 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
   const disableCustomGoals = useCallback(async () => {
     const newSettings: DailyGoalSettings = {
       isCustomized: false,
-      autoTracking: false,
       lastModified: new Date(),
     };
 
     await saveMutation.mutateAsync(newSettings);
+    setAutoTrackingEnabled(false);
   }, [saveMutation]);
 
   return {
@@ -221,6 +225,8 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     enableCustomGoals,
     disableCustomGoals,
     isSaving: saveMutation.isPending,
+    autoTrackingEnabled,
+    setAutoTrackingEnabled,
   };
 }
 
