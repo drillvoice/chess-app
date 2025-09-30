@@ -13,8 +13,14 @@ function DataManagementContent() {
 
   const handleClearLocalData = async () => {
     const shouldSkipConfirmation = import.meta.env.MODE === 'test';
-    if (!shouldSkipConfirmation && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      const confirmed = window.confirm('Are you sure? This will permanently delete all local data.');
+    if (
+      !shouldSkipConfirmation &&
+      typeof window !== 'undefined' &&
+      typeof window.confirm === 'function'
+    ) {
+      const confirmed = window.confirm(
+        'Are you sure? This will permanently delete all local data.',
+      );
       if (!confirmed) {
         return;
       }

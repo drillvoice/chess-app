@@ -169,7 +169,10 @@ export default function FirebaseAuth() {
       setIsBackupRunning(true);
       await backupAllSessionsToCloud();
       await loadBackupStatus();
-      toast({ title: 'Backup Complete', description: 'Training sessions stored safely in the cloud.' });
+      toast({
+        title: 'Backup Complete',
+        description: 'Training sessions stored safely in the cloud.',
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Cloud backup failed.';
       toast({ title: 'Backup Failed', description: message, variant: 'destructive' });
@@ -259,7 +262,11 @@ export default function FirebaseAuth() {
     <Card className={currentUser ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
-          {currentUser ? <Cloud className="h-4 w-4 text-green-600" /> : <CloudOff className="h-4 w-4 text-gray-500" />}
+          {currentUser ? (
+            <Cloud className="h-4 w-4 text-green-600" />
+          ) : (
+            <CloudOff className="h-4 w-4 text-gray-500" />
+          )}
           <span>{currentUser ? 'Cloud sync enabled' : 'Cloud sync disabled'}</span>
         </CardTitle>
         {statusMessage && <p className="text-xs text-gray-500">{statusMessage}</p>}
@@ -273,7 +280,8 @@ export default function FirebaseAuth() {
         ) : currentUser ? (
           <>
             <p className="text-xs text-gray-600">
-              Your sessions will automatically sync whenever you go online. You can run a manual backup at any time.
+              Your sessions will automatically sync whenever you go online. You can run a manual
+              backup at any time.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleDisable} variant="secondary" disabled={isProcessing}>

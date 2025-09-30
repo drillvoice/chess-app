@@ -33,7 +33,8 @@ function createFallbackQueryClient(): QueryClientType {
   return fallback as QueryClientType;
 }
 
-const isTestEnv = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.MODE === 'test');
+const isTestEnv =
+  typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.MODE === 'test');
 
 async function createRealQueryClient(): Promise<QueryClientType> {
   const module = await import('@tanstack/react-query');

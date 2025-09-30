@@ -433,10 +433,7 @@ export class ImportManager {
     const dateToCheck = normalizedDate ?? this.normalizeDateValue(session?.date);
 
     return (
-      session &&
-      typeof session.id === 'number' &&
-      typeof session.type === 'string' &&
-      !!dateToCheck
+      session && typeof session.id === 'number' && typeof session.type === 'string' && !!dateToCheck
     );
   }
 

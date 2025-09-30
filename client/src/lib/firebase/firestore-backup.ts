@@ -19,9 +19,7 @@ export async function backupAllSessionsToCloud(): Promise<void> {
 
     await waitForAuth();
     const sessions =
-      typeof offlineStorage.getSessions === 'function'
-        ? await offlineStorage.getSessions()
-        : [];
+      typeof offlineStorage.getSessions === 'function' ? await offlineStorage.getSessions() : [];
 
     if (!sessions || sessions.length === 0) {
       console.log('✅ No sessions to backup');

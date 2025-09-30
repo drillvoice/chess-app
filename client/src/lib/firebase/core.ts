@@ -158,7 +158,8 @@ export async function ensureAuthentication(): Promise<void> {
     return;
   }
 
-  const hasRealLogin = typeof window !== 'undefined' && localStorage.getItem('hasRealLogin') === 'true';
+  const hasRealLogin =
+    typeof window !== 'undefined' && localStorage.getItem('hasRealLogin') === 'true';
   if (hasRealLogin) {
     window.dispatchEvent(new CustomEvent('auth:reauth-required'));
     return;

@@ -1,12 +1,4 @@
-import {
-  ensureFirebase,
-  auth,
-  db,
-  doc,
-  setDoc,
-  Timestamp,
-  clearCurrentUserId,
-} from './core';
+import { ensureFirebase, auth, db, doc, setDoc, Timestamp, clearCurrentUserId } from './core';
 import {
   GoogleAuthProvider,
   signInWithPopup,
