@@ -1,4 +1,4 @@
-import type { QueryClient as QueryClientType } from '@tanstack/react-query';
+import { QueryClient, type QueryClient as QueryClientType } from '@tanstack/react-query';
 
 function createFallbackQueryClient(): QueryClientType {
   const store = new Map<string, unknown>();
@@ -36,15 +36,12 @@ function createFallbackQueryClient(): QueryClientType {
 const isTestEnv =
   typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.MODE === 'test');
 
-async function createRealQueryClient(): Promise<QueryClientType> {
-  const module = await import('@tanstack/react-query');
-  const QueryClientCtor = module.QueryClient;
-
-  if (typeof QueryClientCtor !== 'function') {
+function createRealQueryClient(): QueryClientType {
+  if (typeof QueryClient !== 'function') {
     return createFallbackQueryClient();
   }
 
-  return new QueryClientCtor({
+  return new QueryClient({
     defaultOptions: {
       queries: {
         refetchInterval: false,
@@ -65,4 +62,4 @@ async function createRealQueryClient(): Promise<QueryClientType> {
 
 export const queryClient: QueryClientType = isTestEnv
   ? createFallbackQueryClient()
-  : await createRealQueryClient();
+  : createRealQueryClient();

@@ -33,6 +33,8 @@ vi.mock('../offline-storage', () => ({
     markAsSynced: vi.fn(),
     incrementSyncRetries: vi.fn(),
     setLastSyncAttempt: vi.fn(),
+    getLastBackupTimestamp: vi.fn().mockResolvedValue(undefined),
+    setLastBackupTimestamp: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
