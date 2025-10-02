@@ -13,19 +13,29 @@ vi.mock('./queryClient', () => ({
   },
 }));
 
-import { startLichessSync } from './lichess-sync';
+import { mapLichessTimeControl, startLichessSync } from './lichess-sync';
 import { createSession } from './firebase';
 
 const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('startLichessSync', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
     invalidateQueriesMock.mockClear();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleLogSpy.mockRestore();
     vi.restoreAllMocks();
     delete (globalThis as any).fetch;
   });
@@ -152,5 +162,16 @@ describe('startLichessSync', () => {
     expect(invalidateQueriesMock).not.toHaveBeenCalled();
 
     stopSync?.();
+  });
+});
+
+describe('mapLichessTimeControl', () => {
+  it.each([
+    { expected: 'bullet', initial: 1, increment: 1 },
+    { expected: 'blitz', initial: 3, increment: 2 },
+    { expected: 'rapid', initial: 10, increment: 5 },
+    { expected: 'classical', initial: 30, increment: 0 },
+  ])('categorises $initial+$increment games as $expected', ({ expected, initial, increment }) => {
+    expect(mapLichessTimeControl(initial, increment)).toBe(expected);
   });
 });
