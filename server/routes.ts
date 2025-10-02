@@ -14,7 +14,7 @@ import { fromZodError } from 'zod-validation-error';
 import { z, ZodError, type ZodTypeAny } from 'zod';
 
 interface LichessLatestResponse {
-  game: unknown | null;
+  games: unknown[];
 }
 
 /**
@@ -105,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const params = new URLSearchParams({
-        max: '1',
+        max: '50',
         clocks: 'false',
         moves: 'false',
         opening: 'false',
@@ -146,21 +146,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Cache-Control', 'no-store');
 
       if (lines.length === 0) {
-        res.json({ game: null } satisfies LichessLatestResponse);
+        res.json({ games: [] } satisfies LichessLatestResponse);
         return;
       }
 
-      const latestLine = lines[lines.length - 1];
-      let game: unknown;
-
-      try {
-        game = JSON.parse(latestLine);
-      } catch (_error) {
-        res.status(502).json({ message: 'Received malformed data from Lichess' });
-        return;
+      const parsedGames: unknown[] = [];
+      for (const line of lines) {
+        try {
+          parsedGames.push(JSON.parse(line));
+        } catch (_error) {
+          res.status(502).json({ message: 'Received malformed data from Lichess' });
+          return;
+        }
       }
 
-      res.json({ game } satisfies LichessLatestResponse);
+      const gamesWithTimestamps = parsedGames
+        .map((game) => {
+          const record = game as Record<string, unknown> | undefined;
+          const lastMove = Number(record?.lastMoveAt);
+          const created = Number(record?.createdAt);
+          const timestamp = Number.isFinite(lastMove)
+            ? lastMove
+            : Number.isFinite(created)
+              ? created
+              : null;
+
+          return { game, timestamp };
+        })
+        .filter((entry): entry is { game: unknown; timestamp: number } => entry.timestamp !== null)
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map((entry) => entry.game);
+
+      res.json({ games: gamesWithTimestamps } satisfies LichessLatestResponse);
     }),
   );
 

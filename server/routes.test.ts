@@ -119,12 +119,13 @@ describe('API routes', () => {
       expect(res.body).toMatchObject({ message: expect.stringContaining('username') });
     });
 
-    it('returns the most recent game when data is available', async () => {
-      const gamePayload = { lastMoveAt: 2000, createdAt: 1000, id: 'game1' };
+    it('returns games ordered from oldest to newest', async () => {
+      const latestPayload = { lastMoveAt: 3000, createdAt: 1500, id: 'game2' };
+      const earlierPayload = { lastMoveAt: 2000, createdAt: 1000, id: 'game1' };
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        text: async () => `${JSON.stringify(gamePayload)}\n`,
+        text: async () => `${JSON.stringify(latestPayload)}\n${JSON.stringify(earlierPayload)}\n`,
       });
 
       const res = await request(app).get('/api/lichess/latest').query({ username: 'Alice' });
@@ -136,7 +137,7 @@ describe('API routes', () => {
           headers: expect.objectContaining({ Accept: 'application/x-ndjson' }),
         }),
       );
-      expect(res.body).toEqual({ game: gamePayload });
+      expect(res.body).toEqual({ games: [earlierPayload, latestPayload] });
     });
 
     it('returns null when Lichess has no games', async () => {
@@ -148,7 +149,7 @@ describe('API routes', () => {
 
       const res = await request(app).get('/api/lichess/latest').query({ username: 'Bob' });
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ game: null });
+      expect(res.body).toEqual({ games: [] });
     });
 
     it('bubbles up upstream errors', async () => {
