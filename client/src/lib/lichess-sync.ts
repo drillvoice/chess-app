@@ -49,7 +49,11 @@ export function startLichessSync(username: string) {
     try {
       const params = new URLSearchParams({ username });
       if (Number.isFinite(lastTimestamp) && lastTimestamp > 0) {
-        params.set('since', Math.trunc(lastTimestamp).toString());
+        // Request games strictly after the last processed timestamp. The Lichess API
+        // treats the `since` parameter as inclusive, so without bumping the value we
+        // would repeatedly receive the same last game and never see newer ones when
+        // `max=1` is used on the proxy endpoint.
+        params.set('since', Math.trunc(lastTimestamp + 1).toString());
       }
 
       const res = await fetch(`/api/lichess/latest?${params.toString()}`);
