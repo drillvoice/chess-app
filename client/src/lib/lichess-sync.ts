@@ -90,9 +90,7 @@ export function startLichessSync(username: string) {
           game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
 
         const opponentUsername =
-          color === 'white'
-            ? game?.players?.black?.user?.name
-            : game?.players?.white?.user?.name;
+          color === 'white' ? game?.players?.black?.user?.name : game?.players?.white?.user?.name;
 
         let result: 'win' | 'loss' | 'draw';
         if (!game?.winner) {
