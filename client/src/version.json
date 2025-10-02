@@ -1,7 +1,16 @@
 {
-  "version": "0.4.4",
-  "lastUpdated": "26 September 2025",
+  "version": "0.4.5",
+  "lastUpdated": "2 October 2025",
   "changelog": [
+    {
+      "version": "0.4.5",
+      "date": "2 October 2025",
+      "changes": [
+        "Proxy Lichess sync through the backend and adjust timestamp handling so newly played games appear without duplicates",
+        "Revamp cloud backup flow with automatic verification, manual backup controls, and clearer status messaging",
+        "Add backup health checks, offline-friendly query client fallback, and refresh dependencies"
+      ]
+    },
     {
       "version": "0.4.4",
       "date": "26 September 2025",
