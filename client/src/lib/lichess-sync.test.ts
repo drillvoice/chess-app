@@ -1,27 +1,41 @@
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 
+const createSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const invalidateQueriesMock = vi.hoisted(() => vi.fn());
+
 vi.mock('./firebase', () => ({
-  createSession: vi.fn().mockResolvedValue(undefined),
+  createSession: createSessionMock,
 }));
 
 vi.mock('./queryClient', () => ({
   queryClient: {
-    invalidateQueries: vi.fn(),
+    invalidateQueries: invalidateQueriesMock,
   },
 }));
 
-import { startLichessSync } from './lichess-sync';
+import { mapLichessTimeControl, startLichessSync } from './lichess-sync';
 import { createSession } from './firebase';
 
 const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('startLichessSync', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    invalidateQueriesMock.mockClear();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleLogSpy.mockRestore();
     vi.restoreAllMocks();
     delete (globalThis as any).fetch;
   });
@@ -30,17 +44,19 @@ describe('startLichessSync', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        game: {
-          id: 'game1',
-          lastMoveAt: 2000,
-          createdAt: 1000,
-          players: {
-            white: { user: { name: 'TestUser' } },
-            black: { user: { name: 'Opponent' } },
+        games: [
+          {
+            id: 'game1',
+            lastMoveAt: 2000,
+            createdAt: 1000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
           },
-          winner: 'white',
-          clock: { initial: 600, increment: 0 },
-        },
+        ],
       }),
     });
     (globalThis as any).fetch = fetchMock;
@@ -64,6 +80,98 @@ describe('startLichessSync', () => {
       }),
     );
 
+    expect(invalidateQueriesMock).toHaveBeenCalledTimes(3);
+
     stopSync?.();
+  });
+
+  it('imports multiple games in order and updates timestamp after each save', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        games: [
+          {
+            id: 'game2',
+            lastMoveAt: 4000,
+            createdAt: 2000,
+            players: {
+              white: { user: { name: 'Opponent' } },
+              black: { user: { name: 'TestUser' } },
+            },
+            winner: 'black',
+            clock: { initial: 900, increment: 0 },
+          },
+          {
+            id: 'game1',
+            lastMoveAt: 3000,
+            createdAt: 1500,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
+          },
+        ],
+      }),
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(createSession).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem('lichess-last-game-testuser')).toBe('4000');
+    expect(invalidateQueriesMock).toHaveBeenCalledTimes(3);
+
+    stopSync?.();
+  });
+
+  it('does not advance the stored timestamp when createSession fails', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        games: [
+          {
+            id: 'game1',
+            lastMoveAt: 2000,
+            createdAt: 1000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
+          },
+        ],
+      }),
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '1500');
+    vi.mocked(createSession).mockRejectedValueOnce(new Error('failed'));
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(localStorage.getItem('lichess-last-game-testuser')).toBe('1500');
+    expect(invalidateQueriesMock).not.toHaveBeenCalled();
+
+    stopSync?.();
+  });
+});
+
+describe('mapLichessTimeControl', () => {
+  it.each([
+    { expected: 'bullet', initial: 1, increment: 1 },
+    { expected: 'blitz', initial: 3, increment: 2 },
+    { expected: 'rapid', initial: 10, increment: 5 },
+    { expected: 'classical', initial: 30, increment: 0 },
+  ])('categorises $initial+$increment games as $expected', ({ expected, initial, increment }) => {
+    expect(mapLichessTimeControl(initial, increment)).toBe(expected);
   });
 });

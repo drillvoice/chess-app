@@ -62,65 +62,81 @@ export function startLichessSync(username: string) {
         return;
       }
 
-      const { game } = (await res.json()) as { game: any | null };
-      if (!game) return;
-
-      const lastMoveAt = Number(game.lastMoveAt);
-      if (!Number.isFinite(lastMoveAt) || lastMoveAt <= lastTimestamp) {
+      const payload = (await res.json()) as { games?: any[] };
+      if (!Array.isArray(payload.games) || payload.games.length === 0) {
         return;
       }
 
-      const createdAt = Number(game.createdAt ?? lastMoveAt);
-      if (!Number.isFinite(createdAt)) {
-        console.warn('Skipping Lichess game with invalid creation timestamp');
-        return;
-      }
-
-      lastTimestamp = lastMoveAt;
-      localStorage.setItem(key, String(lastTimestamp));
+      const sortedGames = payload.games
+        .slice()
+        .sort((a, b) => Number(a?.lastMoveAt ?? 0) - Number(b?.lastMoveAt ?? 0));
 
       const userLower = username.toLowerCase();
-      const color =
-        game.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
+      let importedAny = false;
 
-      // Extract opponent username
-      const opponentUsername =
-        color === 'white' ? game.players?.black?.user?.name : game.players?.white?.user?.name;
+      for (const game of sortedGames) {
+        const lastMoveAt = Number(game?.lastMoveAt);
+        if (!Number.isFinite(lastMoveAt) || lastMoveAt <= lastTimestamp) {
+          continue;
+        }
 
-      let result: 'win' | 'loss' | 'draw';
-      if (!game.winner) {
-        result = 'draw';
-      } else {
-        result = game.winner === color ? 'win' : 'loss';
+        const createdAt = Number(game?.createdAt ?? lastMoveAt);
+        if (!Number.isFinite(createdAt)) {
+          console.warn('Skipping Lichess game with invalid creation timestamp');
+          continue;
+        }
+
+        const color =
+          game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
+
+        const opponentUsername =
+          color === 'white' ? game?.players?.black?.user?.name : game?.players?.white?.user?.name;
+
+        let result: 'win' | 'loss' | 'draw';
+        if (!game?.winner) {
+          result = 'draw';
+        } else {
+          result = game.winner === color ? 'win' : 'loss';
+        }
+
+        const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
+
+        let timeControl = '';
+        if (game?.clock) {
+          const initial = Math.round((game.clock.initial || 0) / 60);
+          const increment = game.clock.increment || 0;
+          timeControl = mapLichessTimeControl(initial, increment);
+        }
+
+        const session: InsertTrainingSession = {
+          type: 'game',
+          platform: 'lichess',
+          duration,
+          playerColor: color,
+          gameResult: result,
+          timeControl,
+          opponentUsername,
+          needsReview: true,
+          gameComments: '',
+        };
+
+        try {
+          await createSession(session);
+        } catch (err) {
+          console.error('Failed to save Lichess game session:', err);
+          break;
+        }
+
+        lastTimestamp = lastMoveAt;
+        localStorage.setItem(key, String(lastTimestamp));
+        importedAny = true;
       }
 
-      const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
-
-      let timeControl = '';
-      if (game.clock) {
-        const initial = Math.round((game.clock.initial || 0) / 60);
-        const increment = game.clock.increment || 0;
-        timeControl = mapLichessTimeControl(initial, increment);
+      if (importedAny) {
+        queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+        queryClient.invalidateQueries({ queryKey: ['statistics'] });
+        queryClient.invalidateQueries({ queryKey: ['sessions'] });
       }
-
-      const session: InsertTrainingSession = {
-        type: 'game',
-        platform: 'lichess',
-        duration,
-        playerColor: color,
-        gameResult: result,
-        timeControl,
-        opponentUsername,
-        needsReview: true,
-        gameComments: '', // Leave comments empty for user to fill
-      };
-
-      await createSession(session);
-
-      // Invalidate relevant queries to update UI immediately
-      queryClient.invalidateQueries({ queryKey: ['pending-review'] });
-      queryClient.invalidateQueries({ queryKey: ['statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
     } catch (err) {
       console.error('Lichess sync error:', err);
     }
