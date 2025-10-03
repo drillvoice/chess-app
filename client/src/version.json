@@ -1,7 +1,19 @@
 {
-  "version": "0.4.4",
-  "lastUpdated": "26 September 2025",
+  "version": "0.4.5",
+  "lastUpdated": "3 October 2025",
   "changelog": [
+    {
+      "version": "0.4.5",
+      "date": "3 October 2025",
+      "changes": [
+        "Add real-time Lichess sync status display with active/inactive indicators",
+        "Add manual 'Sync Now' button for immediate game import",
+        "Fix race condition in sync initialization with retry logic",
+        "Add comprehensive error handling with toast notifications",
+        "Fix UI stuck in 'Syncing...' state when no new games available",
+        "Add debug tools for troubleshooting sync issues"
+      ]
+    },
     {
       "version": "0.4.4",
       "date": "26 September 2025",
