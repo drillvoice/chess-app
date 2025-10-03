@@ -136,6 +136,11 @@ export function startLichessSync(username: string) {
 
       const payload = (await res.json()) as { games?: any[] };
       if (!Array.isArray(payload.games) || payload.games.length === 0) {
+        // No new games - reset syncing state and update last sync time
+        syncStatus.isSyncing = false;
+        syncStatus.lastSyncTime = new Date();
+        syncStatus.lastError = null;
+        notifyStatusChange();
         return;
       }
 
