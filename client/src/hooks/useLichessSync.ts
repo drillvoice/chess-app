@@ -57,10 +57,7 @@ export function useLichessSync() {
               if (!mounted) return;
 
               if (settings.lichessUsername) {
-                console.log(
-                  '✅ Starting Lichess sync for username:',
-                  settings.lichessUsername,
-                );
+                console.log('✅ Starting Lichess sync for username:', settings.lichessUsername);
                 stopSync = startLichessSync(settings.lichessUsername);
               } else {
                 console.log('ℹ️ No Lichess username found in settings. Sync not started.');
