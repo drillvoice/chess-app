@@ -14,6 +14,10 @@ vi.mock('@/lib/firebase', () => ({
 
 vi.mock('@/lib/lichess-sync', () => ({
   restartLichessSync: vi.fn(),
+  subscribeSyncStatus: vi.fn(() => vi.fn()),
+  subscribeErrors: vi.fn(() => vi.fn()),
+  triggerManualSync: vi.fn().mockResolvedValue({ success: true, gamesImported: 0 }),
+  resetSyncTimestamp: vi.fn(),
 }));
 
 import { LichessSettingsContent } from './lichess-settings';
