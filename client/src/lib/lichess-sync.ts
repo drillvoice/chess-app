@@ -112,7 +112,9 @@ export function startLichessSync(username: string) {
 
   const poll = async () => {
     try {
-      console.log(`🔄 [Lichess Sync Poll] Starting poll for ${username}, lastTimestamp: ${lastTimestamp}`);
+      console.log(
+        `🔄 [Lichess Sync Poll] Starting poll for ${username}, lastTimestamp: ${lastTimestamp}`,
+      );
       syncStatus.isSyncing = true;
       syncStatus.lastError = null;
       notifyStatusChange();
@@ -123,7 +125,9 @@ export function startLichessSync(username: string) {
         // would repeatedly receive the same last game and never see newer ones when
         // `max=1` is used on the proxy endpoint.
         params.set('since', Math.trunc(lastTimestamp + 1).toString());
-        console.log(`🔄 [Lichess Sync Poll] Requesting games since: ${Math.trunc(lastTimestamp + 1)}`);
+        console.log(
+          `🔄 [Lichess Sync Poll] Requesting games since: ${Math.trunc(lastTimestamp + 1)}`,
+        );
       } else {
         console.log(`🔄 [Lichess Sync Poll] No timestamp, fetching all recent games`);
       }
@@ -168,7 +172,9 @@ export function startLichessSync(username: string) {
       for (const game of sortedGames) {
         const lastMoveAt = Number(game?.lastMoveAt);
         if (!Number.isFinite(lastMoveAt) || lastMoveAt <= lastTimestamp) {
-          console.log(`⏭️ [Lichess Sync Poll] Skipping game (already processed): lastMoveAt=${lastMoveAt}`);
+          console.log(
+            `⏭️ [Lichess Sync Poll] Skipping game (already processed): lastMoveAt=${lastMoveAt}`,
+          );
           continue;
         }
 
@@ -178,7 +184,9 @@ export function startLichessSync(username: string) {
           continue;
         }
 
-        console.log(`📥 [Lichess Sync Poll] Importing game: id=${game?.id}, lastMoveAt=${lastMoveAt}`);
+        console.log(
+          `📥 [Lichess Sync Poll] Importing game: id=${game?.id}, lastMoveAt=${lastMoveAt}`,
+        );
 
         const color =
           game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';

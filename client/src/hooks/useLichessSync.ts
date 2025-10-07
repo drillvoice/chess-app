@@ -43,13 +43,21 @@ export function useLichessSync() {
 
         const { getFirebaseAuth } = await import('@/lib/firebaseClient');
         const auth = await getFirebaseAuth();
-        console.log('🔄 [Lichess Sync] Firebase auth loaded, current user:', auth.currentUser?.uid || 'none');
+        console.log(
+          '🔄 [Lichess Sync] Firebase auth loaded, current user:',
+          auth.currentUser?.uid || 'none',
+        );
 
         const { onAuthStateChanged } = await import('firebase/auth');
         const { startLichessSync } = await import('@/lib/lichess-sync');
 
         unsub = onAuthStateChanged(auth, async (user) => {
-          console.log('🔄 [Lichess Sync] Auth state changed, user:', user?.uid || 'none', 'mounted:', mounted);
+          console.log(
+            '🔄 [Lichess Sync] Auth state changed, user:',
+            user?.uid || 'none',
+            'mounted:',
+            mounted,
+          );
           if (!mounted) return;
 
           // Stop any existing sync
@@ -71,9 +79,15 @@ export function useLichessSync() {
               }
 
               if (settings.lichessUsername) {
-                console.log('✅ [Lichess Sync] Starting sync for username:', settings.lichessUsername);
+                console.log(
+                  '✅ [Lichess Sync] Starting sync for username:',
+                  settings.lichessUsername,
+                );
                 stopSync = startLichessSync(settings.lichessUsername);
-                console.log('✅ [Lichess Sync] Sync started successfully, stopSync function:', !!stopSync);
+                console.log(
+                  '✅ [Lichess Sync] Sync started successfully, stopSync function:',
+                  !!stopSync,
+                );
               } else {
                 console.log('ℹ️ [Lichess Sync] No username configured in settings');
               }
