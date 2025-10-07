@@ -85,11 +85,11 @@ let currentUsername: string | null = null;
 export function startLichessSync(username: string) {
   // Stop any existing sync first
   if (currentSyncFunction) {
-    console.log('Stopping existing Lichess sync for:', currentUsername);
+    console.log(`🛑 [Lichess Sync] Stopping existing sync for: ${currentUsername}`);
     currentSyncFunction();
   }
 
-  console.log('Starting Lichess sync for:', username);
+  console.log(`✅ [Lichess Sync] Starting sync for: ${username}`);
   currentUsername = username;
 
   // Update sync status
@@ -102,14 +102,19 @@ export function startLichessSync(username: string) {
     gamesImported: syncStatus.gamesImported,
   };
   notifyStatusChange();
+  console.log(`📊 [Lichess Sync] Initial status:`, syncStatus);
 
   const key = `lichess-last-game-${username.toLowerCase()}`;
   const storedTimestamp = Number.parseInt(localStorage.getItem(key) ?? '', 10);
   let lastTimestamp = Number.isFinite(storedTimestamp) ? storedTimestamp : 0;
+  console.log(`📝 [Lichess Sync] localStorage key: ${key}, stored timestamp: ${lastTimestamp}`);
   let timer: ReturnType<typeof setInterval> | undefined;
 
   const poll = async () => {
     try {
+      console.log(
+        `🔄 [Lichess Sync Poll] Starting poll for ${username}, lastTimestamp: ${lastTimestamp}`,
+      );
       syncStatus.isSyncing = true;
       syncStatus.lastError = null;
       notifyStatusChange();
@@ -120,12 +125,21 @@ export function startLichessSync(username: string) {
         // would repeatedly receive the same last game and never see newer ones when
         // `max=1` is used on the proxy endpoint.
         params.set('since', Math.trunc(lastTimestamp + 1).toString());
+        console.log(
+          `🔄 [Lichess Sync Poll] Requesting games since: ${Math.trunc(lastTimestamp + 1)}`,
+        );
+      } else {
+        console.log(`🔄 [Lichess Sync Poll] No timestamp, fetching all recent games`);
       }
 
-      const res = await fetch(`/api/lichess/latest?${params.toString()}`);
+      const apiUrl = `/api/lichess/latest?${params.toString()}`;
+      console.log(`🔄 [Lichess Sync Poll] Fetching: ${apiUrl}`);
+      const res = await fetch(apiUrl);
+      console.log(`🔄 [Lichess Sync Poll] Response status: ${res.status}`);
+
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('Lichess proxy request failed:', res.status, errorText);
+        console.error('❌ [Lichess Sync Poll] API request failed:', res.status, errorText);
         const errorMessage = `Failed to fetch games from Lichess (${res.status})`;
         syncStatus.lastError = errorMessage;
         notifyError(errorMessage);
@@ -135,8 +149,11 @@ export function startLichessSync(username: string) {
       }
 
       const payload = (await res.json()) as { games?: any[] };
+      console.log(`✅ [Lichess Sync Poll] Received ${payload.games?.length || 0} games`);
+
       if (!Array.isArray(payload.games) || payload.games.length === 0) {
         // No new games - reset syncing state and update last sync time
+        console.log(`✅ [Lichess Sync Poll] No new games, sync complete`);
         syncStatus.isSyncing = false;
         syncStatus.lastSyncTime = new Date();
         syncStatus.lastError = null;
@@ -148,20 +165,28 @@ export function startLichessSync(username: string) {
         .slice()
         .sort((a, b) => Number(a?.lastMoveAt ?? 0) - Number(b?.lastMoveAt ?? 0));
 
+      console.log(`🔄 [Lichess Sync Poll] Processing ${sortedGames.length} games`);
       const userLower = username.toLowerCase();
       let importedAny = false;
 
       for (const game of sortedGames) {
         const lastMoveAt = Number(game?.lastMoveAt);
         if (!Number.isFinite(lastMoveAt) || lastMoveAt <= lastTimestamp) {
+          console.log(
+            `⏭️ [Lichess Sync Poll] Skipping game (already processed): lastMoveAt=${lastMoveAt}`,
+          );
           continue;
         }
 
         const createdAt = Number(game?.createdAt ?? lastMoveAt);
         if (!Number.isFinite(createdAt)) {
-          console.warn('Skipping Lichess game with invalid creation timestamp');
+          console.warn('⚠️ [Lichess Sync Poll] Skipping game with invalid creation timestamp');
           continue;
         }
+
+        console.log(
+          `📥 [Lichess Sync Poll] Importing game: id=${game?.id}, lastMoveAt=${lastMoveAt}`,
+        );
 
         const color =
           game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
@@ -198,18 +223,23 @@ export function startLichessSync(username: string) {
         };
 
         try {
+          console.log(`💾 [Lichess Sync Poll] Saving session to Firebase...`);
           await createSession(session);
+          console.log(`✅ [Lichess Sync Poll] Session saved successfully`);
         } catch (err) {
-          console.error('Failed to save Lichess game session:', err);
+          console.error('❌ [Lichess Sync Poll] Failed to save session:', err);
+          console.error('❌ [Lichess Sync Poll] Session data:', session);
           break;
         }
 
         lastTimestamp = lastMoveAt;
         localStorage.setItem(key, String(lastTimestamp));
+        console.log(`📝 [Lichess Sync Poll] Updated timestamp to: ${lastTimestamp}`);
         importedAny = true;
       }
 
       if (importedAny) {
+        console.log(`✅ [Lichess Sync Poll] Imported games, invalidating queries`);
         queryClient.invalidateQueries({ queryKey: ['pending-review'] });
         queryClient.invalidateQueries({ queryKey: ['statistics'] });
         queryClient.invalidateQueries({ queryKey: ['sessions'] });
@@ -221,8 +251,14 @@ export function startLichessSync(username: string) {
       syncStatus.lastSyncTime = new Date();
       syncStatus.lastError = null;
       notifyStatusChange();
+      console.log(`✅ [Lichess Sync Poll] Poll complete, next poll in ${POLL_INTERVAL / 1000}s`);
     } catch (err) {
-      console.error('Lichess sync error:', err);
+      console.error('❌ [Lichess Sync Poll] Poll error:', err);
+      console.error('❌ [Lichess Sync Poll] Error details:', {
+        name: err instanceof Error ? err.name : 'unknown',
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       const errorMessage = err instanceof Error ? err.message : 'Unknown sync error';
       syncStatus.isSyncing = false;
       syncStatus.lastError = errorMessage;
@@ -231,13 +267,17 @@ export function startLichessSync(username: string) {
     }
   };
 
+  console.log(`🚀 [Lichess Sync] Triggering initial poll...`);
   poll();
+  console.log(`⏰ [Lichess Sync] Setting up interval timer (${POLL_INTERVAL / 1000}s)`);
   timer = setInterval(poll, POLL_INTERVAL);
 
   const stopFunction = () => {
+    console.log(`🛑 [Lichess Sync] Stop function called for: ${username}`);
     if (timer) {
       clearInterval(timer);
       timer = undefined;
+      console.log(`⏰ [Lichess Sync] Timer cleared`);
     }
     if (currentSyncFunction === stopFunction) {
       currentSyncFunction = null;
@@ -255,7 +295,7 @@ export function startLichessSync(username: string) {
     };
     notifyStatusChange();
 
-    console.log('Lichess sync stopped for:', username);
+    console.log(`✅ [Lichess Sync] Sync stopped for: ${username}`);
   };
 
   currentSyncFunction = stopFunction;
