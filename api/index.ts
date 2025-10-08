@@ -1,7 +1,8 @@
 // Vercel serverless function entry point
 // NOTE: This is a PROXY-ONLY serverless function for the Lichess API.
 // All data storage happens client-side (IndexedDB), not on the backend.
-import express, { type Request, Response, NextFunction } from 'express';
+import express from 'express';
+import fs from 'fs';
 import path from 'path';
 
 const app = express();
@@ -136,10 +137,33 @@ app.get('/api/lichess/latest', async (req, res) => {
 
 // SPA fallback - for any non-API, non-static route, serve index.html
 // This is needed for client-side routing (e.g., /account, /activity)
+function resolveSpaIndexPath(): string | undefined {
+  const candidates = [
+    path.join(process.cwd(), 'dist', 'public', 'index.html'),
+    path.join(process.cwd(), 'public', 'index.html'),
+    path.join(process.cwd(), 'client', 'index.html'),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
 app.get('*', (_req, res) => {
   // In Vercel, static files are served from the outputDirectory (dist/public)
   // This fallback handles SPA routes that don't match files
-  res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+  const indexPath = resolveSpaIndexPath();
+
+  if (!indexPath) {
+    res.status(500).send('SPA index file not found');
+    return;
+  }
+
+  res.sendFile(indexPath);
 });
 
 export default app;

@@ -2,6 +2,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import app from './index';
+import fs from 'fs';
+import path from 'path';
+import type { Response } from 'express';
 
 describe('Vercel API serverless function', () => {
   const originalFetch = globalThis.fetch;
@@ -207,6 +210,43 @@ describe('Vercel API serverless function', () => {
       const res = await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
 
       expect(res.headers['cache-control']).toBe('no-store');
+    });
+  });
+
+  describe('SPA fallback', () => {
+    it('serves the built index.html when available', async () => {
+      const distIndexPath = path.join(process.cwd(), 'dist', 'public', 'index.html');
+      const sendFileSpy = vi
+        .spyOn(app.response, 'sendFile')
+        .mockImplementation(function mockSendFile(this: Response, filePath: string) {
+          this.status(200).send(`sent ${filePath}`);
+          return this;
+        });
+      const existsSpy = vi
+        .spyOn(fs, 'existsSync')
+        .mockImplementation((filePath: fs.PathLike) => filePath === distIndexPath);
+
+      const res = await request(app).get('/non-existent-route');
+
+      expect(res.status).toBe(200);
+      expect(res.text).toContain(distIndexPath);
+
+      sendFileSpy.mockRestore();
+      existsSpy.mockRestore();
+    });
+
+    it('returns 500 when no index file is present', async () => {
+      const sendFileSpy = vi.spyOn(app.response, 'sendFile');
+      const existsSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+      const res = await request(app).get('/another-route');
+
+      expect(res.status).toBe(500);
+      expect(res.text).toContain('SPA index file not found');
+      expect(sendFileSpy).not.toHaveBeenCalled();
+
+      sendFileSpy.mockRestore();
+      existsSpy.mockRestore();
     });
   });
 });
