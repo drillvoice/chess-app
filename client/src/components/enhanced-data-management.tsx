@@ -512,7 +512,9 @@ export default function EnhancedDataManagement() {
                   <div className="flex justify-between text-sm">
                     <span>{importProgress.phase}</span>
                     <span>
-                      {Math.round(importProgress.processed)}/{importProgress.total}
+                      {importProgress.actualProcessed !== undefined && importProgress.actualTotal
+                        ? `${importProgress.actualProcessed}/${importProgress.actualTotal} sessions`
+                        : `${Math.round(importProgress.processed)}%`}
                     </span>
                   </div>
                   <Progress value={(importProgress.processed / importProgress.total) * 100} />

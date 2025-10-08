@@ -53,6 +53,9 @@ export interface ImportProgress {
   processed: number;
   total: number;
   currentItem?: string;
+  // Actual counts for user display (not percentages)
+  actualProcessed?: number;
+  actualTotal?: number;
 }
 
 /**
@@ -166,7 +169,13 @@ export class ImportManager {
 
       // Phase 3: Import training sessions
       if (parsedData.trainingSessions) {
-        onProgress?.({ phase: 'importing_sessions', processed: 20, total: 100 });
+        onProgress?.({
+          phase: 'importing_sessions',
+          processed: 20,
+          total: 100,
+          actualProcessed: 0,
+          actualTotal: parsedData.trainingSessions.length,
+        });
 
         const sessionResult = await this.importTrainingSessions(
           parsedData.trainingSessions,
@@ -178,6 +187,8 @@ export class ImportManager {
               processed: progress,
               total: 100,
               currentItem: `Session ${processed}/${total}`,
+              actualProcessed: processed,
+              actualTotal: total,
             });
           },
         );
@@ -187,7 +198,7 @@ export class ImportManager {
         result.errors.push(...sessionResult.errors);
       }
 
-      // Phase 4: Import settings and daily goals
+      // Phase 4: Import settings, daily goals, and statistics
       onProgress?.({ phase: 'importing_settings', processed: 85, total: 100 });
 
       if (parsedData.dailyGoals && !options.dryRun) {
@@ -205,6 +216,16 @@ export class ImportManager {
           result.imported.settings = 1;
         } catch (error) {
           result.errors.push(`Failed to import settings: ${error}`);
+        }
+      }
+
+      // Import statistics if present (avoids recalculation)
+      if ((parsedData as any).statistics && !options.dryRun) {
+        try {
+          await offlineStorage.setStatistics((parsedData as any).statistics);
+          console.log('Restored statistics from backup');
+        } catch (error) {
+          console.warn('Failed to import statistics (will be recalculated):', error);
         }
       }
 
@@ -635,6 +656,7 @@ export class ImportManager {
       trainingSessions: backupData.trainingSessions,
       dailyGoals: backupData.dailyGoals,
       settings: backupData.settings,
+      statistics: backupData.statistics,
     });
 
     const { exportManager } = await import('../export/export-manager');

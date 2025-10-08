@@ -9,11 +9,25 @@ const QUEUE = 'sync_queue';
 export async function getSessions(): Promise<TrainingSession[]> {
   return withStores([SESSIONS] as const, 'readonly', async ({ sessions }) => {
     const all = await sessions.getAll();
-    const mapped = all.map((s: any) => ({
-      ...s,
-      date: new Date(s.date),
-      needsReview: Boolean(s.needsReview),
-    }));
+    const mapped = all.map((s: any) => {
+      // Parse studyTags JSON string back to array
+      let studyTags = s.studyTags;
+      if (typeof studyTags === 'string') {
+        try {
+          studyTags = JSON.parse(studyTags);
+        } catch (error) {
+          console.warn(`Failed to parse studyTags for session ${s.id}:`, error);
+          studyTags = undefined;
+        }
+      }
+
+      return {
+        ...s,
+        date: new Date(s.date),
+        needsReview: Boolean(s.needsReview),
+        studyTags,
+      };
+    });
     mapped.sort((a, b) => b.date.getTime() - a.date.getTime());
     return mapped;
   });
@@ -61,11 +75,24 @@ export async function updateSession(
     };
     await sessions.put(updated);
     await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+
+    // Parse studyTags JSON string back to array when returning
+    let studyTags = updated.studyTags;
+    if (typeof studyTags === 'string') {
+      try {
+        studyTags = JSON.parse(studyTags);
+      } catch (error) {
+        console.warn(`Failed to parse studyTags for session ${id}:`, error);
+        studyTags = undefined;
+      }
+    }
+
     return {
       ...updated,
       date: new Date(updated.date),
       updatedAt: new Date(updated.updatedAt),
       needsReview: Boolean(updated.needsReview),
+      studyTags,
     } as any;
   });
 }
@@ -74,10 +101,23 @@ export async function getSession(id: number): Promise<TrainingSession | null> {
   return withStores([SESSIONS] as const, 'readonly', async ({ sessions }) => {
     const result = await sessions.get(id);
     if (!result) return null;
+
+    // Parse studyTags JSON string back to array
+    let studyTags = result.studyTags;
+    if (typeof studyTags === 'string') {
+      try {
+        studyTags = JSON.parse(studyTags);
+      } catch (error) {
+        console.warn(`Failed to parse studyTags for session ${id}:`, error);
+        studyTags = undefined;
+      }
+    }
+
     return {
       ...result,
       date: new Date(result.date),
       needsReview: Boolean(result.needsReview),
+      studyTags,
     } as any;
   });
 }

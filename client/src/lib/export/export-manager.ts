@@ -20,6 +20,7 @@ export interface ExportData {
   trainingSessions?: TrainingSession[];
   dailyGoals?: DailyGoalSettings;
   settings?: any;
+  statistics?: any;
   metadata: {
     exportedAt: string;
     version: string;
@@ -112,6 +113,18 @@ export class ExportManager {
         } as any;
       } catch (error) {
         console.warn('Failed to export metadata:', error);
+      }
+    }
+
+    // Export statistics (cached calculated stats)
+    if (options.includeMetadata) {
+      try {
+        const statistics = await offlineStorage.getStatistics();
+        if (statistics) {
+          exportData.statistics = statistics;
+        }
+      } catch (error) {
+        console.warn('Failed to export statistics:', error);
       }
     }
 
@@ -225,6 +238,7 @@ export class ExportManager {
           sessionCount: exportData.trainingSessions?.length || 0,
           hasSettings: !!exportData.settings,
           hasDailyGoals: !!exportData.dailyGoals,
+          hasStatistics: !!exportData.statistics,
         },
       },
     };
@@ -234,6 +248,7 @@ export class ExportManager {
       trainingSessions: exportData.trainingSessions,
       dailyGoals: exportData.dailyGoals,
       settings: exportData.settings,
+      statistics: exportData.statistics,
     });
 
     backupFormat.backup.checksum = await this.calculateChecksum(dataString);
