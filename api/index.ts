@@ -43,12 +43,16 @@ function createSessionRoute<T extends ZodTypeAny>(
 app.get(
   '/api/lichess/latest',
   asyncHandler(async (req, res) => {
+    console.log('[Lichess Endpoint] Called with query:', req.query);
     const { username, since } = req.query;
 
     if (typeof username !== 'string' || username.trim() === '') {
+      console.log('[Lichess Endpoint] Missing username');
       res.status(400).json({ message: 'Lichess username is required' });
       return;
     }
+
+    console.log('[Lichess Endpoint] Processing request for username:', username, 'since:', since);
 
     let sinceTimestamp: number | undefined;
     if (typeof since === 'string' && since.length > 0) {
@@ -74,12 +78,24 @@ app.get(
 
     const lichessUrl = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?${params.toString()}`;
 
-    const lichessResponse = await fetch(lichessUrl, {
-      headers: {
-        Accept: 'application/x-ndjson',
-        'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
-      },
-    });
+    console.log('[Lichess API] Fetching:', lichessUrl);
+
+    let lichessResponse;
+    try {
+      lichessResponse = await fetch(lichessUrl, {
+        headers: {
+          Accept: 'application/x-ndjson',
+          'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
+        },
+      });
+      console.log('[Lichess API] Response status:', lichessResponse.status);
+    } catch (fetchError) {
+      console.error('[Lichess API] Fetch failed:', fetchError);
+      res.status(500).json({
+        message: `Failed to connect to Lichess API: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`,
+      });
+      return;
+    }
 
     if (lichessResponse.status === 404) {
       res.status(404).json({ message: 'Lichess user not found' });
@@ -87,6 +103,8 @@ app.get(
     }
 
     if (!lichessResponse.ok) {
+      const errorBody = await lichessResponse.text().catch(() => 'Unable to read error body');
+      console.error('[Lichess API] Non-OK response:', lichessResponse.status, errorBody);
       res.status(502).json({
         message: `Failed to fetch data from Lichess (status ${lichessResponse.status})`,
       });
