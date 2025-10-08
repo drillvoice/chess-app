@@ -142,12 +142,59 @@ function isStaticAsset(request) {
 
 function isCacheStale(response, maxAge) {
   if (!response) return true;
-  
+
   const dateHeader = response.headers.get('date');
   if (!dateHeader) return false;
-  
+
   const responseTime = new Date(dateHeader).getTime();
   return Date.now() - responseTime > maxAge;
+}
+
+async function fetchWithRetries(request, options = {}) {
+  const {
+    retries = 0,
+    retryDelay = 0,
+    backoffFactor = 2
+  } = options;
+
+  let attempt = 0;
+  let lastError;
+  let lastResponse;
+  let delay = retryDelay;
+
+  while (attempt <= retries) {
+    try {
+      const response = await fetch(attempt === 0 ? request : request.clone());
+
+      if (!response.ok) {
+        lastError = new Error(`Non-OK response: ${response.status}`);
+        lastResponse = response;
+      } else {
+        return response;
+      }
+
+      // Fall through to retry if allowed
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt === retries) {
+      break;
+    }
+
+    if (delay > 0) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= backoffFactor;
+    }
+
+    attempt += 1;
+  }
+
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  throw lastError || new Error('Request failed');
 }
 
 // API request handler with intelligent caching
@@ -219,21 +266,33 @@ async function handleApiRequest(request, url) {
 // Static asset handler with network-first for JS, cache-first for others
 async function handleStaticAsset(request) {
   const cache = await caches.open(STATIC_CACHE);
-  const isJavaScript = request.url.endsWith('.js') || request.destination === 'script';
+  const isJavaScript = request.url.endsWith('.js') ||
+                       request.url.endsWith('.mjs') ||
+                       request.destination === 'script';
 
   // Use network-first for JavaScript files to avoid stale chunks from Vite builds
   if (isJavaScript) {
     try {
-      const networkResponse = await fetch(request);
-      if (networkResponse.ok) {
+      const networkResponse = await fetchWithRetries(request, { retries: 2, retryDelay: 200 });
+
+      if (networkResponse && networkResponse.ok) {
         cache.put(request, networkResponse.clone());
+        return networkResponse;
       }
+
+      // If we received a non-OK response (e.g. 404 during propagation), try cache fallback
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        console.warn('SW: Falling back to cached JS after non-OK response:', request.url, networkResponse.status);
+        return cachedResponse;
+      }
+
       return networkResponse;
     } catch (error) {
       // Fallback to cache if network fails (offline support)
       const cachedResponse = await cache.match(request);
       if (cachedResponse) {
-        console.log('SW: Serving cached JS (offline):', request.url);
+        console.warn('SW: Serving cached JS after network failure:', request.url, error);
         return cachedResponse;
       }
       throw error;
