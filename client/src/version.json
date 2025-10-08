@@ -1,7 +1,17 @@
 {
-  "version": "0.4.5",
-  "lastUpdated": "3 October 2025",
+  "version": "0.4.6",
+  "lastUpdated": "8 October 2025",
   "changelog": [
+    {
+      "version": "0.4.6",
+      "date": "8 October 2025",
+      "changes": [
+        "Migrate to Vercel deployment for backend API support",
+        "Fix Lichess sync to only import future games (not retrospective)",
+        "Fix game timestamps to use actual play time instead of sync time",
+        "Improve Lichess sync diagnostics and error logging"
+      ]
+    },
     {
       "version": "0.4.5",
       "date": "3 October 2025",
