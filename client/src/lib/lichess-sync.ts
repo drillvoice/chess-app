@@ -108,9 +108,8 @@ export function startLichessSync(username: string) {
   const storedTimestamp = Number.parseInt(localStorage.getItem(key) ?? '', 10);
 
   // If no timestamp exists (first time), use current time to only sync future games
-  let lastTimestamp = Number.isFinite(storedTimestamp) && storedTimestamp > 0
-    ? storedTimestamp
-    : Date.now();
+  let lastTimestamp =
+    Number.isFinite(storedTimestamp) && storedTimestamp > 0 ? storedTimestamp : Date.now();
 
   // Save the initial timestamp if this is the first time
   if (!Number.isFinite(storedTimestamp) || storedTimestamp === 0) {
