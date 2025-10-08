@@ -129,11 +129,16 @@ app.get('/api/lichess/latest', async (req, res) => {
   }
 });
 
-// Serve static files for non-API routes
-app.use(express.static('public'));
+// For non-API routes, let Vercel handle static files
+// The vercel.json rewrites configuration sends all requests here,
+// but Vercel's static file serving happens before the serverless function,
+// so this handler only receives requests that don't match static files.
 
-// SPA fallback - serve index.html for all other routes
+// SPA fallback - for any non-API, non-static route, serve index.html
+// This is needed for client-side routing (e.g., /account, /activity)
 app.get('*', (_req, res) => {
+  // In Vercel, static files are served from the outputDirectory (dist/public)
+  // This fallback handles SPA routes that don't match files
   res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
 
