@@ -106,7 +106,17 @@ export function startLichessSync(username: string) {
 
   const key = `lichess-last-game-${username.toLowerCase()}`;
   const storedTimestamp = Number.parseInt(localStorage.getItem(key) ?? '', 10);
-  let lastTimestamp = Number.isFinite(storedTimestamp) ? storedTimestamp : 0;
+
+  // If no timestamp exists (first time), use current time to only sync future games
+  let lastTimestamp =
+    Number.isFinite(storedTimestamp) && storedTimestamp > 0 ? storedTimestamp : Date.now();
+
+  // Save the initial timestamp if this is the first time
+  if (!Number.isFinite(storedTimestamp) || storedTimestamp === 0) {
+    localStorage.setItem(key, String(lastTimestamp));
+    console.log(`📝 [Lichess Sync] First time setup - starting from now: ${lastTimestamp}`);
+  }
+
   console.log(`📝 [Lichess Sync] localStorage key: ${key}, stored timestamp: ${lastTimestamp}`);
   let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -210,6 +220,9 @@ export function startLichessSync(username: string) {
           timeControl = mapLichessTimeControl(initial, increment);
         }
 
+        // Use the game's end time (lastMoveAt) as the session date, not the current sync time
+        const gameEndDate = new Date(lastMoveAt);
+
         const session: InsertTrainingSession = {
           type: 'game',
           platform: 'lichess',
@@ -220,6 +233,7 @@ export function startLichessSync(username: string) {
           opponentUsername,
           needsReview: true,
           gameComments: '',
+          date: gameEndDate,
         };
 
         try {
@@ -388,6 +402,9 @@ export async function triggerManualSync(): Promise<{
         timeControl = mapLichessTimeControl(initial, increment);
       }
 
+      // Use the game's end time (lastMoveAt) as the session date, not the current sync time
+      const gameEndDate = new Date(lastMoveAt);
+
       const session: InsertTrainingSession = {
         type: 'game',
         platform: 'lichess',
@@ -398,6 +415,7 @@ export async function triggerManualSync(): Promise<{
         opponentUsername,
         needsReview: true,
         gameComments: '',
+        date: gameEndDate,
       };
 
       try {
