@@ -117,6 +117,9 @@ describe('startLichessSync', () => {
     });
     (globalThis as any).fetch = fetchMock;
 
+    // Set initial timestamp so test games aren't filtered out
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
     const stopSync = startLichessSync('TestUser');
 
     await flushPromises();
@@ -160,6 +163,87 @@ describe('startLichessSync', () => {
 
     expect(localStorage.getItem('lichess-last-game-testuser')).toBe('1500');
     expect(invalidateQueriesMock).not.toHaveBeenCalled();
+
+    stopSync?.();
+  });
+
+  it('handles API errors gracefully', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => 'Server error',
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(createSession).not.toHaveBeenCalled();
+    expect(invalidateQueriesMock).not.toHaveBeenCalled();
+
+    stopSync?.();
+  });
+
+  it('handles network errors gracefully', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('Network failed'));
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(createSession).not.toHaveBeenCalled();
+    expect(invalidateQueriesMock).not.toHaveBeenCalled();
+
+    stopSync?.();
+  });
+
+  it('skips games with invalid timestamps', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        games: [
+          {
+            id: 'game1',
+            lastMoveAt: 2000,
+            createdAt: 1000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
+          },
+          {
+            id: 'game2',
+            // missing timestamps
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+          },
+        ],
+      }),
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    // Should only import the valid game
+    expect(createSession).toHaveBeenCalledTimes(1);
 
     stopSync?.();
   });

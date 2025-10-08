@@ -128,11 +128,11 @@ describe('API routes', () => {
         text: async () => `${JSON.stringify(latestPayload)}\n${JSON.stringify(earlierPayload)}\n`,
       });
 
-      const res = await request(app).get('/api/lichess/latest').query({ username: 'Alice' });
+      const res = await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
 
       expect(res.status).toBe(200);
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('Alice'),
+        expect.stringContaining('softtalk'),
         expect.objectContaining({
           headers: expect.objectContaining({ Accept: 'application/x-ndjson' }),
         }),
@@ -147,7 +147,7 @@ describe('API routes', () => {
         text: async () => '\n',
       });
 
-      const res = await request(app).get('/api/lichess/latest').query({ username: 'Bob' });
+      const res = await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ games: [] });
     });
@@ -159,7 +159,7 @@ describe('API routes', () => {
         text: async () => 'error',
       });
 
-      const res = await request(app).get('/api/lichess/latest').query({ username: 'Carol' });
+      const res = await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
       expect(res.status).toBe(502);
       expect(res.body.message).toContain('Failed to fetch');
     });
@@ -167,7 +167,7 @@ describe('API routes', () => {
     it('validates the since parameter', async () => {
       const res = await request(app)
         .get('/api/lichess/latest')
-        .query({ username: 'Dave', since: 'not-a-number' });
+        .query({ username: 'softtalk', since: 'not-a-number' });
       expect(res.status).toBe(400);
       expect(res.body.message).toContain('since');
     });

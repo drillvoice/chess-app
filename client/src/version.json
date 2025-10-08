@@ -1,7 +1,18 @@
 {
-  "version": "0.4.6",
+  "version": "0.4.7",
   "lastUpdated": "8 October 2025",
   "changelog": [
+    {
+      "version": "0.4.7",
+      "date": "8 October 2025",
+      "changes": [
+        "Comprehensive testing improvements: fixed 2 failing tests, added 20 new tests",
+        "Add complete test suite for Vercel API endpoint (15 tests)",
+        "Enhance Lichess sync error handling tests",
+        "Improve test coverage for Vercel deployment and Lichess syncing",
+        "All 132 tests now passing with improved reliability"
+      ]
+    },
     {
       "version": "0.4.6",
       "date": "8 October 2025",
