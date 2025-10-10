@@ -189,7 +189,7 @@ describe('GameModal opponent name tracking', () => {
     expect((newOpponentInput as HTMLInputElement).value).toBe('');
   });
 
-  it('provides autocomplete suggestions for opponent names', async () => {
+  it('provides autocomplete suggestions for OTB opponent names only', async () => {
     renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
 
     // Select OTB platform
@@ -202,14 +202,15 @@ describe('GameModal opponent name tracking', () => {
     const datalist = document.getElementById('opponent-names');
     expect(datalist).toBeTruthy();
 
-    // Check that the datalist contains the mocked opponent names
+    // Check that the datalist contains only OTB opponent names
     const options = datalist?.querySelectorAll('option');
-    expect(options).toHaveLength(3); // John Smith, Jane Doe, lichessPlayer
+    expect(options).toHaveLength(2); // John Smith, Jane Doe (not lichessPlayer)
 
     const optionValues = Array.from(options || []).map((opt) => opt.value);
     expect(optionValues).toContain('John Smith');
     expect(optionValues).toContain('Jane Doe');
-    expect(optionValues).toContain('lichessPlayer');
+    // lichessPlayer should NOT be included because they're from Lichess, not OTB
+    expect(optionValues).not.toContain('lichessPlayer');
   });
 
   it('allows optional opponent name for OTB games', async () => {
