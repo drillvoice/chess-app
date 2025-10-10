@@ -96,9 +96,7 @@ export default function GameModal({
     const names = allSessions
       .filter(
         (session) =>
-          session.type === 'game' &&
-          session.platform === 'otb' &&
-          session.opponentUsername,
+          session.type === 'game' && session.platform === 'otb' && session.opponentUsername,
       )
       .map((session) => session.opponentUsername as string);
 
