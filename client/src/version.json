@@ -1,7 +1,18 @@
 {
-  "version": "0.4.7",
-  "lastUpdated": "8 October 2025",
+  "version": "0.4.8",
+  "lastUpdated": "10 October 2025",
   "changelog": [
+    {
+      "version": "0.4.8",
+      "date": "10 October 2025",
+      "changes": [
+        "Add opponent name tracking for over-the-board games",
+        "Add autocomplete for opponent names based on previous games",
+        "Opponent names now display in activity feed as 'Game v [Opponent Name]'",
+        "Backup/import automatically includes opponent names",
+        "Improve game modal UI with conditional opponent name field"
+      ]
+    },
     {
       "version": "0.4.7",
       "date": "8 October 2025",

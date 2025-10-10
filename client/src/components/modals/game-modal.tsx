@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -37,6 +38,7 @@ export default function GameModal({
   const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(
     null,
   );
+  const [opponentName, setOpponentName] = useState<string>('');
   const initialDate = editingSession?.date ? new Date(editingSession.date) : new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
   const [dateInput, setDateInput] = useState<string>(format(initialDate, 'yyyy-MM-dd'));
@@ -73,8 +75,34 @@ export default function GameModal({
         isEditMode && editingSession
           ? (editingSession.timeControl as 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined)
           : undefined,
+      opponentUsername:
+        isEditMode && editingSession ? editingSession.opponentUsername || '' : '',
     },
   });
+
+  // Fetch all sessions to extract opponent names for autocomplete
+  const { data: allSessions } = useQuery<TrainingSession[]>({
+    queryKey: ['sessions'],
+    queryFn: async () => {
+      const { getAllSessions } = await import('@/lib/firebase');
+      return await getAllSessions();
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Memoize the list of unique opponent names from OTB games
+  const opponentNames = useMemo(() => {
+    if (!allSessions) return [];
+
+    const names = allSessions
+      .filter((session) => session.type === 'game' && session.opponentUsername)
+      .map((session) => session.opponentUsername as string);
+
+    // Return unique names sorted alphabetically
+    return Array.from(new Set(names)).sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase())
+    );
+  }, [allSessions]);
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
@@ -84,12 +112,12 @@ export default function GameModal({
         const updateData = {
           ...data,
           needsReview: false,
-          // Preserve existing fields that aren't being edited
-          opponentUsername: editingSession.opponentUsername,
           duration: editingSession.duration,
           // Only update platform/timeControl if they were actually changed
           platform: data.platform ?? editingSession.platform,
           timeControl: data.timeControl ?? editingSession.timeControl,
+          // Update opponentUsername from form data
+          opponentUsername: data.opponentUsername || editingSession.opponentUsername,
         };
         return await updateSession(editingSession.id, updateData);
       }
@@ -103,6 +131,7 @@ export default function GameModal({
       setSelectedColor(null);
       setSelectedTimeControl(null);
       setSelectedPlatform(null);
+      setOpponentName('');
       const now = new Date();
       setSelectedDate(now);
       setDateInput(format(now, 'yyyy-MM-dd'));
@@ -137,7 +166,7 @@ export default function GameModal({
           playerColor: newSession.playerColor,
           platform: newSession.platform ?? editingSession.platform, // Preserve existing platform if not changed
           timeControl: newSession.timeControl ?? editingSession.timeControl, // Preserve existing timeControl if not changed
-          opponentUsername: editingSession.opponentUsername, // Preserve existing opponentUsername
+          opponentUsername: newSession.opponentUsername || editingSession.opponentUsername || null,
           studyType: null,
           studyTags: null,
           studyNotes: null,
@@ -168,7 +197,7 @@ export default function GameModal({
           playerColor: newSession.playerColor,
           platform: newSession.platform ?? null,
           timeControl: newSession.timeControl ?? null,
-          opponentUsername: null,
+          opponentUsername: newSession.opponentUsername || null,
           studyType: null,
           studyTags: null,
           studyNotes: null,
@@ -252,12 +281,14 @@ export default function GameModal({
       const playerColor = editingSession.playerColor as 'white' | 'black' | null;
       const timeControl = editingSession.timeControl;
       const platform = editingSession.platform;
+      const opponentUsername = editingSession.opponentUsername || '';
 
       // Set visual state
       setSelectedResult(gameResult);
       setSelectedColor(playerColor);
       setSelectedTimeControl(timeControl);
       setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
+      setOpponentName(opponentUsername);
       const editDate = new Date(editingSession.date);
       setSelectedDate(editDate);
       setDateInput(format(editDate, 'yyyy-MM-dd'));
@@ -278,6 +309,10 @@ export default function GameModal({
       // Load existing comments for any game being edited
       if (editingSession.gameComments) {
         setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
+      }
+      // Load existing opponent name
+      if (opponentUsername) {
+        setValue('opponentUsername', opponentUsername, { shouldValidate: true });
       }
     } else {
       const now = new Date();
@@ -333,9 +368,19 @@ export default function GameModal({
       // Deselect if clicking the same platform
       setSelectedPlatform(null);
       setValue('platform', undefined, { shouldValidate: true });
+      // Clear opponent name when deselecting OTB
+      if (platform === 'otb') {
+        setOpponentName('');
+        setValue('opponentUsername', '', { shouldValidate: true });
+      }
     } else {
       setSelectedPlatform(platform);
       setValue('platform', platform, { shouldValidate: true });
+      // Clear opponent name when switching away from OTB
+      if (selectedPlatform === 'otb' && platform !== 'otb') {
+        setOpponentName('');
+        setValue('opponentUsername', '', { shouldValidate: true });
+      }
     }
     trigger('platform');
   };
@@ -351,11 +396,13 @@ export default function GameModal({
           playerColor: undefined,
           platform: undefined,
           timeControl: undefined,
+          opponentUsername: '',
         });
         setSelectedResult(null);
         setSelectedColor(null);
         setSelectedTimeControl(null);
         setSelectedPlatform(null);
+        setOpponentName('');
       }
       if (!mutation.isPending) {
         onClearEditingSession?.();
@@ -496,6 +543,41 @@ export default function GameModal({
             </div>
 
             <div>
+              <Label className="mb-2 block text-sm font-medium text-gray-700">Time control</Label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'bullet', label: 'Bullet', icon: '•' },
+                  { value: 'blitz', label: 'Blitz', icon: Zap },
+                  { value: 'rapid', label: 'Rapid', icon: Hourglass },
+                  { value: 'classical', label: 'Classical', icon: Clock3 },
+                ].map((tc) => (
+                  <Button
+                    key={tc.value}
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'flex h-auto items-center justify-center space-x-1 px-3 py-2',
+                      selectedTimeControl === tc.value
+                        ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                    )}
+                    onClick={() => handleTimeControlSelect(tc.value)}
+                  >
+                    {typeof tc.icon === 'string' ? (
+                      <span className="text-sm font-bold">{tc.icon}</span>
+                    ) : (
+                      <tc.icon className="h-3 w-3" />
+                    )}
+                    <span className="text-sm">{tc.label}</span>
+                  </Button>
+                ))}
+              </div>
+              {errors.timeControl && (
+                <p className="mt-1 text-sm text-red-600">{errors.timeControl.message}</p>
+              )}
+            </div>
+
+            <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Platform</Label>
               <div className="grid grid-cols-3 gap-3">
                 <Button
@@ -543,40 +625,35 @@ export default function GameModal({
               )}
             </div>
 
-            <div>
-              <Label className="mb-2 block text-sm font-medium text-gray-700">Time control</Label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'bullet', label: 'Bullet', icon: '•' },
-                  { value: 'blitz', label: 'Blitz', icon: Zap },
-                  { value: 'rapid', label: 'Rapid', icon: Hourglass },
-                  { value: 'classical', label: 'Classical', icon: Clock3 },
-                ].map((tc) => (
-                  <Button
-                    key={tc.value}
-                    type="button"
-                    variant="outline"
-                    className={cn(
-                      'flex h-auto items-center justify-center space-x-1 px-3 py-2',
-                      selectedTimeControl === tc.value
-                        ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
-                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-                    )}
-                    onClick={() => handleTimeControlSelect(tc.value)}
-                  >
-                    {typeof tc.icon === 'string' ? (
-                      <span className="text-sm font-bold">{tc.icon}</span>
-                    ) : (
-                      <tc.icon className="h-3 w-3" />
-                    )}
-                    <span className="text-sm">{tc.label}</span>
-                  </Button>
-                ))}
+            {/* Opponent name field - only shown for OTB games */}
+            {selectedPlatform === 'otb' && (
+              <div>
+                <Label htmlFor="opponentName" className="text-sm font-medium text-gray-700">
+                  Opponent name (optional)
+                </Label>
+                <Input
+                  id="opponentName"
+                  type="text"
+                  list="opponent-names"
+                  placeholder="Enter opponent name..."
+                  className="mt-1"
+                  value={opponentName}
+                  {...register('opponentUsername')}
+                  onChange={(e) => {
+                    setOpponentName(e.target.value);
+                    setValue('opponentUsername', e.target.value, { shouldValidate: true });
+                  }}
+                />
+                <datalist id="opponent-names">
+                  {opponentNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                {errors.opponentUsername && (
+                  <p className="mt-1 text-sm text-red-600">{errors.opponentUsername.message}</p>
+                )}
               </div>
-              {errors.timeControl && (
-                <p className="mt-1 text-sm text-red-600">{errors.timeControl.message}</p>
-              )}
-            </div>
+            )}
 
             <div>
               <Label htmlFor="gameComments" className="text-sm font-medium text-gray-700">
