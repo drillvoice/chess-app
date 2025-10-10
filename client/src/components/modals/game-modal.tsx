@@ -89,12 +89,15 @@ export default function GameModal({
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Memoize the list of unique opponent names from OTB games
+  // Memoize the list of unique opponent names from OTB games only
   const opponentNames = useMemo(() => {
     if (!allSessions) return [];
 
     const names = allSessions
-      .filter((session) => session.type === 'game' && session.opponentUsername)
+      .filter(
+        (session) =>
+          session.type === 'game' && session.platform === 'otb' && session.opponentUsername,
+      )
       .map((session) => session.opponentUsername as string);
 
     // Return unique names sorted alphabetically
