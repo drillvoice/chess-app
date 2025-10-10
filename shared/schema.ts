@@ -90,6 +90,7 @@ export const gameSessionSchema = insertTrainingSessionSchema
     }),
     platform: z.enum(['lichess', 'chess.com', 'otb']).optional(),
     timeControl: z.enum(['bullet', 'blitz', 'rapid', 'classical']).optional(),
+    opponentUsername: z.string().max(50, 'Opponent name cannot exceed 50 characters').optional(),
   })
   .omit(buildOmit(tacticsFields, studyFields, goalFields, ['gameType', 'duration'] as const));
 

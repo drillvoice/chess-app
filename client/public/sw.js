@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chess-training-v4';
+const CACHE_NAME = 'chess-training-v5';
 const RUNTIME_CACHE = 'chess-training-runtime';
 const API_CACHE = 'chess-training-api';
 const STATIC_CACHE = 'chess-training-static';
@@ -216,14 +216,36 @@ async function handleApiRequest(request, url) {
   }
 }
 
-// Static asset handler with cache-first strategy
+// Static asset handler with network-first for JS, cache-first for others
 async function handleStaticAsset(request) {
   const cache = await caches.open(STATIC_CACHE);
+  const isJavaScript = request.url.endsWith('.js') || request.destination === 'script';
+
+  // Use network-first for JavaScript files to avoid stale chunks from Vite builds
+  if (isJavaScript) {
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    } catch (error) {
+      // Fallback to cache if network fails (offline support)
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        console.log('SW: Serving cached JS (offline):', request.url);
+        return cachedResponse;
+      }
+      throw error;
+    }
+  }
+
+  // Use cache-first for non-JS assets (images, CSS, fonts)
   const cachedResponse = await cache.match(request);
-  
+
   if (cachedResponse) {
     // Optionally update cache in background for non-versioned assets
-    if (!request.url.includes('?v=') && !request.url.includes('.chunk.')) {
+    if (!request.url.includes('?v=')) {
       fetch(request).then(response => {
         if (response.ok) {
           cache.put(request, response.clone());
@@ -232,7 +254,7 @@ async function handleStaticAsset(request) {
     }
     return cachedResponse;
   }
-  
+
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
