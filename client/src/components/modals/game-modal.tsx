@@ -75,8 +75,7 @@ export default function GameModal({
         isEditMode && editingSession
           ? (editingSession.timeControl as 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined)
           : undefined,
-      opponentUsername:
-        isEditMode && editingSession ? editingSession.opponentUsername || '' : '',
+      opponentUsername: isEditMode && editingSession ? editingSession.opponentUsername || '' : '',
     },
   });
 
@@ -100,7 +99,7 @@ export default function GameModal({
 
     // Return unique names sorted alphabetically
     return Array.from(new Set(names)).sort((a, b) =>
-      a.toLowerCase().localeCompare(b.toLowerCase())
+      a.toLowerCase().localeCompare(b.toLowerCase()),
     );
   }, [allSessions]);
 

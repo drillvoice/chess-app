@@ -39,34 +39,37 @@ function renderWithClient(ui: React.ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
-      mutations: { retry: false }
+      mutations: { retry: false },
     },
   });
 
   // Pre-populate the cache with mock sessions for autocomplete
-  queryClient.setQueryData(['sessions'], [
-    {
-      id: 1,
-      type: 'game',
-      platform: 'otb',
-      opponentUsername: 'John Smith',
-      date: new Date('2024-10-01'),
-    },
-    {
-      id: 2,
-      type: 'game',
-      platform: 'otb',
-      opponentUsername: 'Jane Doe',
-      date: new Date('2024-10-02'),
-    },
-    {
-      id: 3,
-      type: 'game',
-      platform: 'lichess',
-      opponentUsername: 'lichessPlayer',
-      date: new Date('2024-10-03'),
-    },
-  ]);
+  queryClient.setQueryData(
+    ['sessions'],
+    [
+      {
+        id: 1,
+        type: 'game',
+        platform: 'otb',
+        opponentUsername: 'John Smith',
+        date: new Date('2024-10-01'),
+      },
+      {
+        id: 2,
+        type: 'game',
+        platform: 'otb',
+        opponentUsername: 'Jane Doe',
+        date: new Date('2024-10-02'),
+      },
+      {
+        id: 3,
+        type: 'game',
+        platform: 'lichess',
+        opponentUsername: 'lichessPlayer',
+        date: new Date('2024-10-03'),
+      },
+    ],
+  );
 
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
