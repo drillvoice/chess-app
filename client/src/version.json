@@ -1,7 +1,17 @@
 {
-  "version": "0.4.8",
+  "version": "0.4.9",
   "lastUpdated": "10 October 2025",
   "changelog": [
+    {
+      "version": "0.4.9",
+      "date": "10 October 2025",
+      "changes": [
+        "Improve toast notifications: reduce auto-dismiss time from ~16 minutes to 3 seconds",
+        "Make toast close button (X) always visible instead of only on hover",
+        "Change swipe gesture from horizontal to vertical (swipe up to dismiss)",
+        "Overall improvement to toast dismissal UX - faster and easier to remove"
+      ]
+    },
     {
       "version": "0.4.8",
       "date": "10 October 2025",
