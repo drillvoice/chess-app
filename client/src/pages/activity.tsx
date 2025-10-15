@@ -335,7 +335,7 @@ export default function Activity() {
                   ) : (
                     <>
                       {getSessionSubtitle(session)}
-                      {session.type === 'tactics' && (
+                      {session.type === 'tactics' &&
                         (() => {
                           const attempted = session.puzzlesAttempted as any;
                           const correct = session.puzzlesCorrect as any;
@@ -347,8 +347,7 @@ export default function Activity() {
                             return <span>{` • ${left}/${right}`}</span>;
                           }
                           return null;
-                        })()
-                      )}
+                        })()}
                     </>
                   )}
                 </div>

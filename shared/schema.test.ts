@@ -63,10 +63,20 @@ describe('session schema validation', () => {
     expect(tacticsSessionSchema.parse(onlyCorrect)).toMatchObject(onlyCorrect);
 
     // Both present with correct <= attempted (valid)
-    const bothValid = { type: 'tactics', duration: 5, puzzlesAttempted: 8, puzzlesCorrect: 4 } as any;
+    const bothValid = {
+      type: 'tactics',
+      duration: 5,
+      puzzlesAttempted: 8,
+      puzzlesCorrect: 4,
+    } as any;
     expect(tacticsSessionSchema.parse(bothValid)).toMatchObject(bothValid);
     // Equal should be valid
-    const equalValid = { type: 'tactics', duration: 5, puzzlesAttempted: 8, puzzlesCorrect: 8 } as any;
+    const equalValid = {
+      type: 'tactics',
+      duration: 5,
+      puzzlesAttempted: 8,
+      puzzlesCorrect: 8,
+    } as any;
     expect(tacticsSessionValidationSchema.parse(equalValid)).toMatchObject(equalValid);
 
     // Invalid: correct > attempted
