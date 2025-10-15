@@ -263,6 +263,7 @@ async function calculateStatistics() {
   const totalSessions = sessions.length;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const now = Date.now();
 
   let totalDuration = 0;
   let todaySessionsCount = 0;
@@ -280,8 +281,9 @@ async function calculateStatistics() {
     const sessionTimestamp = sessionDate.getTime();
     const sessionDateMidnight = new Date(sessionDate);
     sessionDateMidnight.setHours(0, 0, 0, 0);
+    const isFutureSession = sessionTimestamp > now;
 
-    if (sessionDateMidnight.getTime() === today.getTime()) {
+    if (!isFutureSession && sessionDateMidnight.getTime() === today.getTime()) {
       todaySessionsCount += 1;
       todayTotalTime += duration;
     }

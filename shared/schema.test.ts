@@ -4,6 +4,9 @@ import {
   gameSessionSchema,
   studySessionSchema,
   goalSessionSchema,
+  insertTrainingSessionSchema,
+  userStudyPreferencesSchema,
+  dailyGoalSettingsSchema,
   gameFields,
   studyFields,
   goalFields,
@@ -70,5 +73,45 @@ describe('session schema validation', () => {
     const valid = { type: 'goal', goalTitle: 'Win' } as any;
     expect(goalSessionSchema.parse(valid)).toMatchObject(valid);
     expect(() => goalSessionSchema.parse({ type: 'goal' } as any)).toThrow();
+  });
+});
+
+describe('date preprocessing', () => {
+  const isoString = '2025-01-01T00:00:00.000Z';
+
+  it('accepts ISO strings for goal session week start', () => {
+    const parsed = goalSessionSchema.parse({
+      type: 'goal',
+      goalTitle: 'Win more games',
+      goalWeekStart: isoString,
+    } as any);
+    expect(parsed.goalWeekStart).toBeInstanceOf(Date);
+    expect(parsed.goalWeekStart?.toISOString()).toBe(isoString);
+  });
+
+  it('accepts ISO strings for base training session date', () => {
+    const parsed = insertTrainingSessionSchema.parse({
+      type: 'goal',
+      date: isoString,
+    } as any);
+    expect(parsed.date).toBeInstanceOf(Date);
+    expect(parsed.date?.toISOString()).toBe(isoString);
+  });
+
+  it('accepts ISO strings for user study preferences lastModified', () => {
+    const parsed = userStudyPreferencesSchema.parse({
+      customTags: ['reading'],
+      lastModified: isoString,
+    });
+    expect(parsed.lastModified).toBeInstanceOf(Date);
+    expect(parsed.lastModified?.toISOString()).toBe(isoString);
+  });
+
+  it('accepts ISO strings for daily goal settings lastModified', () => {
+    const parsed = dailyGoalSettingsSchema.parse({
+      lastModified: isoString,
+    });
+    expect(parsed.lastModified).toBeInstanceOf(Date);
+    expect(parsed.lastModified?.toISOString()).toBe(isoString);
   });
 });

@@ -3,13 +3,22 @@ import { useEffect } from 'react';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
+const isDebugLoggingEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_LICHESS_SYNC_DEBUG === 'true';
+
+const debugLog = (...args: Parameters<typeof console.log>) => {
+  if (isDebugLoggingEnabled) {
+    console.log(...args);
+  }
+};
+
 async function loadSettingsWithRetry(retries = 0): Promise<{ lichessUsername?: string }> {
-  console.log(`🔄 [Settings Loader] Attempt ${retries + 1}/${MAX_RETRIES}`);
+  debugLog(`🔄 [Settings Loader] Attempt ${retries + 1}/${MAX_RETRIES}`);
   try {
     const { getUserSettings } = await import('@/lib/firebase');
-    console.log(`🔄 [Settings Loader] getUserSettings imported successfully`);
+    debugLog(`🔄 [Settings Loader] getUserSettings imported successfully`);
     const settings = await getUserSettings();
-    console.log(`✅ [Settings Loader] Settings loaded:`, settings);
+    debugLog(`✅ [Settings Loader] Settings loaded:`, settings);
     return settings;
   } catch (error) {
     console.error(`❌ [Settings Loader] Failed (attempt ${retries + 1}/${MAX_RETRIES}):`, error);
@@ -20,7 +29,7 @@ async function loadSettingsWithRetry(retries = 0): Promise<{ lichessUsername?: s
     });
 
     if (retries < MAX_RETRIES - 1) {
-      console.log(`⏳ [Settings Loader] Retrying in ${RETRY_DELAY}ms...`);
+      debugLog(`⏳ [Settings Loader] Retrying in ${RETRY_DELAY}ms...`);
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
       return loadSettingsWithRetry(retries + 1);
     }
@@ -39,57 +48,43 @@ export function useLichessSync() {
 
     const init = async () => {
       try {
-        console.log('🔄 [Lichess Sync] Initializing...');
+        debugLog('🔄 [Lichess Sync] Initializing...');
 
         const { getFirebaseAuth } = await import('@/lib/firebaseClient');
         const auth = await getFirebaseAuth();
-        console.log(
-          '🔄 [Lichess Sync] Firebase auth loaded, current user:',
-          auth.currentUser?.uid || 'none',
-        );
+        debugLog('🔄 [Lichess Sync] Firebase auth loaded, current user:', auth.currentUser?.uid || 'none');
 
         const { onAuthStateChanged } = await import('firebase/auth');
         const { startLichessSync } = await import('@/lib/lichess-sync');
 
         unsub = onAuthStateChanged(auth, async (user) => {
-          console.log(
-            '🔄 [Lichess Sync] Auth state changed, user:',
-            user?.uid || 'none',
-            'mounted:',
-            mounted,
-          );
+          debugLog('🔄 [Lichess Sync] Auth state changed, user:', user?.uid || 'none', 'mounted:', mounted);
           if (!mounted) return;
 
           // Stop any existing sync
           if (stopSync) {
-            console.log('🛑 [Lichess Sync] Stopping existing sync');
+            debugLog('🛑 [Lichess Sync] Stopping existing sync');
             stopSync();
             stopSync = undefined;
           }
 
           if (user) {
-            console.log('👤 [Lichess Sync] User authenticated, loading settings...');
+            debugLog('👤 [Lichess Sync] User authenticated, loading settings...');
             try {
               const settings = await loadSettingsWithRetry();
-              console.log('✅ [Lichess Sync] Settings loaded:', settings);
+              debugLog('✅ [Lichess Sync] Settings loaded:', settings);
 
               if (!mounted) {
-                console.log('⚠️ [Lichess Sync] Component unmounted, aborting');
+                debugLog('⚠️ [Lichess Sync] Component unmounted, aborting');
                 return;
               }
 
               if (settings.lichessUsername) {
-                console.log(
-                  '✅ [Lichess Sync] Starting sync for username:',
-                  settings.lichessUsername,
-                );
+                debugLog('✅ [Lichess Sync] Starting sync for username:', settings.lichessUsername);
                 stopSync = startLichessSync(settings.lichessUsername);
-                console.log(
-                  '✅ [Lichess Sync] Sync started successfully, stopSync function:',
-                  !!stopSync,
-                );
+                debugLog('✅ [Lichess Sync] Sync started successfully, stopSync function:', !!stopSync);
               } else {
-                console.log('ℹ️ [Lichess Sync] No username configured in settings');
+                debugLog('ℹ️ [Lichess Sync] No username configured in settings');
               }
             } catch (err) {
               if (!mounted) return;
@@ -101,7 +96,7 @@ export function useLichessSync() {
               });
             }
           } else {
-            console.log('🚫 [Lichess Sync] No user authenticated, sync not started');
+            debugLog('🚫 [Lichess Sync] No user authenticated, sync not started');
           }
         });
       } catch (err) {
@@ -118,14 +113,14 @@ export function useLichessSync() {
     init();
 
     return () => {
-      console.log('🧹 [Lichess Sync] Cleanup called');
+      debugLog('🧹 [Lichess Sync] Cleanup called');
       mounted = false;
       if (unsub) {
-        console.log('🧹 [Lichess Sync] Unsubscribing from auth');
+        debugLog('🧹 [Lichess Sync] Unsubscribing from auth');
         unsub();
       }
       if (stopSync) {
-        console.log('🧹 [Lichess Sync] Stopping sync');
+        debugLog('🧹 [Lichess Sync] Stopping sync');
         stopSync();
       }
     };
