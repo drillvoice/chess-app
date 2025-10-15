@@ -10,7 +10,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 // Dynamic import for firebase to maintain code splitting
-import { tacticsSessionSchema, type TacticsSession, type TrainingSession } from '@shared/schema';
+import {
+  tacticsSessionValidationSchema,
+  type TacticsSession,
+  type TrainingSession,
+} from '@shared/schema';
 
 interface TacticsModalProps {
   open: boolean;
@@ -36,7 +40,7 @@ export default function TacticsModal({
     reset,
     setValue,
   } = useForm<TacticsSession>({
-    resolver: zodResolver(tacticsSessionSchema),
+    resolver: zodResolver(tacticsSessionValidationSchema),
     defaultValues:
       isEditMode && editingSession
         ? {
@@ -45,6 +49,8 @@ export default function TacticsModal({
             pointsGained: editingSession.pointsGained ?? undefined,
             finalScore: editingSession.finalScore ?? undefined,
             tacticsNotes: editingSession.tacticsNotes || '',
+            puzzlesAttempted: editingSession.puzzlesAttempted ?? undefined,
+            puzzlesCorrect: editingSession.puzzlesCorrect ?? undefined,
           }
         : {
             type: 'tactics',
@@ -52,6 +58,8 @@ export default function TacticsModal({
             pointsGained: undefined,
             finalScore: undefined,
             tacticsNotes: '',
+            puzzlesAttempted: undefined,
+            puzzlesCorrect: undefined,
           },
   });
 
@@ -86,6 +94,8 @@ export default function TacticsModal({
           pointsGained: newSession.pointsGained ?? null,
           finalScore: newSession.finalScore ?? null,
           tacticsNotes: newSession.tacticsNotes || null,
+          puzzlesAttempted: newSession.puzzlesAttempted ?? null,
+          puzzlesCorrect: newSession.puzzlesCorrect ?? null,
           // Required fields that are null for tactics sessions
           gameResult: null,
           gameType: null,
@@ -258,6 +268,40 @@ export default function TacticsModal({
                 />
                 {errors.finalScore && (
                   <p className="mt-1 text-sm text-red-600">{errors.finalScore.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Puzzles Attempted and Puzzles Correct */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="puzzlesAttempted" className="text-sm font-medium text-gray-700">
+                  Puzzles attempted
+                </Label>
+                <Input
+                  id="puzzlesAttempted"
+                  type="number"
+                  className="mt-1"
+                  {...register('puzzlesAttempted', { valueAsNumber: true })}
+                  onFocus={(e) => e.target.select()}
+                />
+                {errors.puzzlesAttempted && (
+                  <p className="mt-1 text-sm text-red-600">{errors.puzzlesAttempted.message}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="puzzlesCorrect" className="text-sm font-medium text-gray-700">
+                  Puzzles correct
+                </Label>
+                <Input
+                  id="puzzlesCorrect"
+                  type="number"
+                  className="mt-1"
+                  {...register('puzzlesCorrect', { valueAsNumber: true })}
+                  onFocus={(e) => e.target.select()}
+                />
+                {errors.puzzlesCorrect && (
+                  <p className="mt-1 text-sm text-red-600">{errors.puzzlesCorrect.message}</p>
                 )}
               </div>
             </div>

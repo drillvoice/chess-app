@@ -330,9 +330,27 @@ export default function Activity() {
                   {isPending ? 'Saving...' : getSessionTitle(session)}
                 </div>
                 <div className={cn('text-sm', isPending ? 'text-blue-600' : 'text-gray-600')}>
-                  {isPending
-                    ? `${session.duration} min study session`
-                    : getSessionSubtitle(session)}
+                  {isPending ? (
+                    `${session.duration} min study session`
+                  ) : (
+                    <>
+                      {getSessionSubtitle(session)}
+                      {session.type === 'tactics' && (
+                        (() => {
+                          const attempted = session.puzzlesAttempted as any;
+                          const correct = session.puzzlesCorrect as any;
+                          const hasAttempted = attempted !== undefined && attempted !== null;
+                          const hasCorrect = correct !== undefined && correct !== null;
+                          if (hasAttempted || hasCorrect) {
+                            const left = hasCorrect ? String(correct) : '-';
+                            const right = hasAttempted ? String(attempted) : '-';
+                            return <span>{` • ${left}/${right}`}</span>;
+                          }
+                          return null;
+                        })()
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
