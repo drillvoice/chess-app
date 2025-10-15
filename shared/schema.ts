@@ -2,6 +2,22 @@ import { pgTable, text, serial, integer, boolean, timestamp } from 'drizzle-orm/
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
+const isoDateOptional = z.preprocess((val) => {
+  if (val === undefined || val === null || val === '') {
+    return undefined;
+  }
+  if (val instanceof Date) {
+    return val;
+  }
+  if (typeof val === 'string') {
+    const parsed = new Date(val);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return val;
+}, z.date().optional());
+
 const buildOmit = <T extends ReadonlyArray<ReadonlyArray<string>>>(
   ...groups: T
 ): { [K in T[number][number]]: true } => {
@@ -60,6 +76,7 @@ export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTa
   })
   .extend({
     needsReview: z.boolean().optional(),
+    date: isoDateOptional,
   });
 
 export const tacticsSessionSchema = insertTrainingSessionSchema
@@ -123,7 +140,7 @@ export const goalSessionSchema = insertTrainingSessionSchema
     type: z.literal('goal'),
     goalTitle: z.string().min(1, 'Goal title is required'),
     goalDescription: z.string().optional(),
-    goalWeekStart: z.date().optional(),
+    goalWeekStart: isoDateOptional,
   })
   .omit(buildOmit(tacticsFields, gameFields, studyFields, ['duration'] as const));
 
@@ -133,7 +150,7 @@ export const userStudyPreferencesSchema = z.object({
     .array(studyTagSchema)
     .max(10, 'Cannot have more than 10 custom tags')
     .default(['reading', 'videos', 'coaching']), // Default tags
-  lastModified: z.date().optional(),
+  lastModified: isoDateOptional,
 });
 
 // Daily Goals Schema
@@ -143,7 +160,7 @@ export const dailyGoalSettingsSchema = z.object({
   studyMinutes: z.number().min(0).max(99).optional(),
   isCustomized: z.boolean().default(false),
   autoTracking: z.boolean().default(false),
-  lastModified: z.date().optional(),
+  lastModified: isoDateOptional,
 });
 
 export type InsertTrainingSession = z.infer<typeof insertTrainingSessionSchema>;
