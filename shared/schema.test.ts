@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   tacticsSessionSchema,
+  tacticsSessionValidationSchema,
   gameSessionSchema,
   studySessionSchema,
   goalSessionSchema,
@@ -50,6 +51,43 @@ describe('session schema validation', () => {
     const valid = { type: 'tactics', duration: 5 } as any;
     expect(tacticsSessionSchema.parse(valid)).toMatchObject(valid);
     expect(() => tacticsSessionSchema.parse({ type: 'tactics' } as any)).toThrow();
+  });
+
+  it('validates optional puzzles ratio fields', () => {
+    // Only attempted
+    const onlyAttempted = { type: 'tactics', duration: 5, puzzlesAttempted: 10 } as any;
+    expect(tacticsSessionSchema.parse(onlyAttempted)).toMatchObject(onlyAttempted);
+
+    // Only correct
+    const onlyCorrect = { type: 'tactics', duration: 5, puzzlesCorrect: 4 } as any;
+    expect(tacticsSessionSchema.parse(onlyCorrect)).toMatchObject(onlyCorrect);
+
+    // Both present with correct <= attempted (valid)
+    const bothValid = {
+      type: 'tactics',
+      duration: 5,
+      puzzlesAttempted: 8,
+      puzzlesCorrect: 4,
+    } as any;
+    expect(tacticsSessionSchema.parse(bothValid)).toMatchObject(bothValid);
+    // Equal should be valid
+    const equalValid = {
+      type: 'tactics',
+      duration: 5,
+      puzzlesAttempted: 8,
+      puzzlesCorrect: 8,
+    } as any;
+    expect(tacticsSessionValidationSchema.parse(equalValid)).toMatchObject(equalValid);
+
+    // Invalid: correct > attempted
+    expect(() =>
+      tacticsSessionValidationSchema.parse({
+        type: 'tactics',
+        duration: 5,
+        puzzlesAttempted: 5,
+        puzzlesCorrect: 6,
+      } as any),
+    ).toThrow();
   });
 
   it('validates game sessions', () => {

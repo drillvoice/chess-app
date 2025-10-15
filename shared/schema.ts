@@ -30,7 +30,13 @@ const buildOmit = <T extends ReadonlyArray<ReadonlyArray<string>>>(
   return acc as { [K in T[number][number]]: true };
 };
 
-export const tacticsFields = ['pointsGained', 'finalScore', 'tacticsNotes'] as const;
+export const tacticsFields = [
+  'pointsGained',
+  'finalScore',
+  'tacticsNotes',
+  'puzzlesAttempted',
+  'puzzlesCorrect',
+] as const;
 export const gameFields = [
   'gameResult',
   'gameType',
@@ -51,6 +57,8 @@ export const trainingSessionsTable = pgTable('training_sessions', {
   pointsGained: integer('points_gained'),
   finalScore: integer('final_score'),
   tacticsNotes: text('tactics_notes'),
+  puzzlesAttempted: integer('puzzles_attempted'),
+  puzzlesCorrect: integer('puzzles_correct'),
   // Game specific fields
   gameResult: text('game_result'), // 'win', 'loss', 'draw'
   gameType: text('game_type'), // 'blitz', 'rapid', 'classical', 'bullet'
@@ -92,8 +100,39 @@ export const tacticsSessionSchema = insertTrainingSessionSchema
       z.number().min(0, 'Final score must be positive').optional(),
     ),
     tacticsNotes: z.string().optional(),
+    puzzlesAttempted: z.preprocess(
+      (val) => (val === '' || val === null || Number.isNaN(val) ? undefined : val),
+      z
+        .number()
+        .int('Puzzles attempted must be a whole number')
+        .min(0, 'Puzzles attempted cannot be negative')
+        .optional(),
+    ),
+    puzzlesCorrect: z.preprocess(
+      (val) => (val === '' || val === null || Number.isNaN(val) ? undefined : val),
+      z
+        .number()
+        .int('Puzzles correct must be a whole number')
+        .min(0, 'Puzzles correct cannot be negative')
+        .optional(),
+    ),
   })
   .omit(buildOmit(gameFields, studyFields, goalFields));
+
+// Separate schema with cross-field validation for UI form usage
+export const tacticsSessionValidationSchema = tacticsSessionSchema.superRefine((data, ctx) => {
+  const attempted = (data as any).puzzlesAttempted as number | undefined;
+  const correct = (data as any).puzzlesCorrect as number | undefined;
+  if (typeof attempted === 'number' && typeof correct === 'number') {
+    if (!(correct <= attempted)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Puzzles correct must be less than or equal to puzzles attempted',
+        path: ['puzzlesCorrect'],
+      });
+    }
+  }
+});
 
 export const gameSessionSchema = insertTrainingSessionSchema
   .extend({
