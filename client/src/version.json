@@ -1,7 +1,15 @@
 {
-  "version": "0.4.10",
-  "lastUpdated": "11 October 2025",
+  "version": "0.4.11",
+  "lastUpdated": "16 October 2025",
   "changelog": [
+    {
+      "version": "0.4.11",
+      "date": "16 October 2025",
+      "changes": [
+        "Show puzzles correct before puzzles attempted in tactics modal",
+        "Display tactics duration options on a single row with five buttons"
+      ]
+    },
     {
       "version": "0.4.10",
       "date": "11 October 2025",

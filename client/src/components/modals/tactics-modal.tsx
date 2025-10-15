@@ -214,8 +214,8 @@ export default function TacticsModal({
             {/* Duration buttons */}
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Duration</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {[5, 10, 15, 20, 25, 30].map((duration) => (
+              <div className="grid grid-cols-5 gap-2">
+                {[5, 10, 15, 20, 30].map((duration) => (
                   <Button
                     key={duration}
                     type="button"
@@ -272,23 +272,8 @@ export default function TacticsModal({
               </div>
             </div>
 
-            {/* Puzzles Attempted and Puzzles Correct */}
+            {/* Puzzles Correct and Puzzles Attempted */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="puzzlesAttempted" className="text-sm font-medium text-gray-700">
-                  Puzzles attempted
-                </Label>
-                <Input
-                  id="puzzlesAttempted"
-                  type="number"
-                  className="mt-1"
-                  {...register('puzzlesAttempted', { valueAsNumber: true })}
-                  onFocus={(e) => e.target.select()}
-                />
-                {errors.puzzlesAttempted && (
-                  <p className="mt-1 text-sm text-red-600">{errors.puzzlesAttempted.message}</p>
-                )}
-              </div>
               <div>
                 <Label htmlFor="puzzlesCorrect" className="text-sm font-medium text-gray-700">
                   Puzzles correct
@@ -302,6 +287,21 @@ export default function TacticsModal({
                 />
                 {errors.puzzlesCorrect && (
                   <p className="mt-1 text-sm text-red-600">{errors.puzzlesCorrect.message}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="puzzlesAttempted" className="text-sm font-medium text-gray-700">
+                  Puzzles attempted
+                </Label>
+                <Input
+                  id="puzzlesAttempted"
+                  type="number"
+                  className="mt-1"
+                  {...register('puzzlesAttempted', { valueAsNumber: true })}
+                  onFocus={(e) => e.target.select()}
+                />
+                {errors.puzzlesAttempted && (
+                  <p className="mt-1 text-sm text-red-600">{errors.puzzlesAttempted.message}</p>
                 )}
               </div>
             </div>
