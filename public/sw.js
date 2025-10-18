@@ -304,13 +304,32 @@ async function handleNavigationRequest(request) {
     if (networkResponse.ok) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
+      return networkResponse;
     }
+
+    console.warn(
+      `SW: Navigation request ${request.url} returned ${networkResponse.status}, attempting cache fallback.`
+    );
+
+    const cachedResponse = await caches.match(request) || await caches.match('/');
+    if (cachedResponse) {
+      console.log(`SW: Serving cached navigation response for ${request.url}.`);
+      return cachedResponse;
+    }
+
+    console.warn(`SW: No cached navigation response available for ${request.url}, returning network response.`);
     return networkResponse;
   } catch (error) {
     // Fallback to cached version or app shell
-    const cachedResponse = await caches.match(request) || 
-                          await caches.match('/');
-    return cachedResponse || new Response('Offline', { status: 503 });
+    console.warn('SW: Network error during navigation request, attempting cache fallback:', error);
+    const cachedResponse = await caches.match(request) || await caches.match('/');
+    if (cachedResponse) {
+      console.log(`SW: Serving cached navigation response after error for ${request.url}.`);
+      return cachedResponse;
+    }
+
+    console.warn(`SW: No cached navigation response available after error for ${request.url}. Returning offline response.`);
+    return new Response('Offline', { status: 503 });
   }
 }
 
