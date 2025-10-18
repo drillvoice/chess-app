@@ -1,7 +1,15 @@
 {
-  "version": "0.4.11",
-  "lastUpdated": "16 October 2025",
+  "version": "0.4.12",
+  "lastUpdated": "19 October 2025",
   "changelog": [
+    {
+      "version": "0.4.12",
+      "date": "19 October 2025",
+      "changes": [
+        "Improve service worker navigation handling to fall back to cached shell when network responses fail",
+        "Add logging to trace cache fallbacks for navigation requests"
+      ]
+    },
     {
       "version": "0.4.11",
       "date": "16 October 2025",
