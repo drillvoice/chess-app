@@ -116,9 +116,7 @@ export default function GameModal({
       return [];
     }
 
-    return opponentNames.filter((name) =>
-      name.toLowerCase().includes(query),
-    );
+    return opponentNames.filter((name) => name.toLowerCase().includes(query));
   }, [opponentName, opponentNames]);
 
   const mutation = useMutation({
@@ -385,9 +383,7 @@ export default function GameModal({
   };
 
   const shouldShowOpponentSuggestions =
-    selectedPlatform === 'otb' &&
-    isOpponentInputFocused &&
-    filteredOpponentNames.length > 0;
+    selectedPlatform === 'otb' && isOpponentInputFocused && filteredOpponentNames.length > 0;
 
   const handleOpponentSuggestionSelect = (name: string) => {
     setOpponentName(name);
