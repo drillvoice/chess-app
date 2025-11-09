@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { format } from 'date-fns';
@@ -189,7 +189,7 @@ describe('GameModal opponent name tracking', () => {
     expect((newOpponentInput as HTMLInputElement).value).toBe('');
   });
 
-  it('provides autocomplete suggestions for OTB opponent names only', async () => {
+  it('shows opponent suggestions only after typing and only for OTB names', async () => {
     renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
 
     // Select OTB platform
@@ -198,19 +198,38 @@ describe('GameModal opponent name tracking', () => {
     // Wait for opponent name field to appear
     const opponentInput = await screen.findByLabelText(/opponent name/i);
 
-    // Check that the datalist exists with previous opponent names
-    const datalist = document.getElementById('opponent-names');
-    expect(datalist).toBeTruthy();
+    // Should not show suggestions until a user types
+    expect(document.getElementById('opponent-name-suggestions')).toBeNull();
 
-    // Check that the datalist contains only OTB opponent names
-    const options = datalist?.querySelectorAll('option');
-    expect(options).toHaveLength(2); // John Smith, Jane Doe (not lichessPlayer)
+    // Type a partial name to trigger suggestions
+    fireEvent.focus(opponentInput);
+    fireEvent.change(opponentInput, { target: { value: 'J' } });
 
-    const optionValues = Array.from(options || []).map((opt) => opt.value);
-    expect(optionValues).toContain('John Smith');
-    expect(optionValues).toContain('Jane Doe');
-    // lichessPlayer should NOT be included because they're from Lichess, not OTB
+    await waitFor(() => {
+      expect(document.getElementById('opponent-name-suggestions')).toBeTruthy();
+    });
+    const listbox = document.getElementById('opponent-name-suggestions') as HTMLElement;
+    const options = within(listbox).getAllByRole('option', { hidden: true });
+    const optionValues = options.map((option) => option.textContent?.trim());
+
+    expect(optionValues).toHaveLength(2); // John Smith, Jane Doe (not lichessPlayer)
+    expect(optionValues).toEqual(expect.arrayContaining(['John Smith', 'Jane Doe']));
     expect(optionValues).not.toContain('lichessPlayer');
+  });
+
+  it('renders a chip when selecting an opponent suggestion', async () => {
+    renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Over the Board' }));
+
+    const opponentInput = await screen.findByLabelText(/opponent name/i);
+    fireEvent.focus(opponentInput);
+    fireEvent.change(opponentInput, { target: { value: 'John Smith' } });
+    fireEvent.blur(opponentInput);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('opponent-name-chip').textContent).toContain('John Smith');
+    });
   });
 
   it('allows optional opponent name for OTB games', async () => {

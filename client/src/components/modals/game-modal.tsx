@@ -39,6 +39,8 @@ export default function GameModal({
     null,
   );
   const [opponentName, setOpponentName] = useState<string>('');
+  const [isOpponentInputFocused, setIsOpponentInputFocused] = useState(false);
+  const [selectedOpponentFromSuggestions, setSelectedOpponentFromSuggestions] = useState(false);
   const initialDate = editingSession?.date ? new Date(editingSession.date) : new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
   const [dateInput, setDateInput] = useState<string>(format(initialDate, 'yyyy-MM-dd'));
@@ -79,6 +81,8 @@ export default function GameModal({
     },
   });
 
+  const opponentUsernameField = register('opponentUsername');
+
   // Fetch all sessions to extract opponent names for autocomplete
   const { data: allSessions } = useQuery<TrainingSession[]>({
     queryKey: ['sessions'],
@@ -105,6 +109,15 @@ export default function GameModal({
       a.toLowerCase().localeCompare(b.toLowerCase()),
     );
   }, [allSessions]);
+
+  const filteredOpponentNames = useMemo(() => {
+    const query = opponentName.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+
+    return opponentNames.filter((name) => name.toLowerCase().includes(query));
+  }, [opponentName, opponentNames]);
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
@@ -134,6 +147,8 @@ export default function GameModal({
       setSelectedTimeControl(null);
       setSelectedPlatform(null);
       setOpponentName('');
+      setSelectedOpponentFromSuggestions(false);
+      setIsOpponentInputFocused(false);
       const now = new Date();
       setSelectedDate(now);
       setDateInput(format(now, 'yyyy-MM-dd'));
@@ -291,6 +306,8 @@ export default function GameModal({
       setSelectedTimeControl(timeControl);
       setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
       setOpponentName(opponentUsername);
+      setSelectedOpponentFromSuggestions(false);
+      setIsOpponentInputFocused(false);
       const editDate = new Date(editingSession.date);
       setSelectedDate(editDate);
       setDateInput(format(editDate, 'yyyy-MM-dd'));
@@ -365,6 +382,16 @@ export default function GameModal({
     trigger('timeControl');
   };
 
+  const shouldShowOpponentSuggestions =
+    selectedPlatform === 'otb' && isOpponentInputFocused && filteredOpponentNames.length > 0;
+
+  const handleOpponentSuggestionSelect = (name: string) => {
+    setOpponentName(name);
+    setSelectedOpponentFromSuggestions(true);
+    setValue('opponentUsername', name, { shouldValidate: true });
+    setIsOpponentInputFocused(false);
+  };
+
   const handlePlatformSelect = (platform: 'lichess' | 'chess.com' | 'otb') => {
     if (selectedPlatform === platform) {
       // Deselect if clicking the same platform
@@ -373,6 +400,8 @@ export default function GameModal({
       // Clear opponent name when deselecting OTB
       if (platform === 'otb') {
         setOpponentName('');
+        setSelectedOpponentFromSuggestions(false);
+        setIsOpponentInputFocused(false);
         setValue('opponentUsername', '', { shouldValidate: true });
       }
     } else {
@@ -381,6 +410,8 @@ export default function GameModal({
       // Clear opponent name when switching away from OTB
       if (selectedPlatform === 'otb' && platform !== 'otb') {
         setOpponentName('');
+        setSelectedOpponentFromSuggestions(false);
+        setIsOpponentInputFocused(false);
         setValue('opponentUsername', '', { shouldValidate: true });
       }
     }
@@ -405,6 +436,8 @@ export default function GameModal({
         setSelectedTimeControl(null);
         setSelectedPlatform(null);
         setOpponentName('');
+        setSelectedOpponentFromSuggestions(false);
+        setIsOpponentInputFocused(false);
       }
       if (!mutation.isPending) {
         onClearEditingSession?.();
@@ -633,24 +666,81 @@ export default function GameModal({
                 <Label htmlFor="opponentName" className="text-sm font-medium text-gray-700">
                   Opponent name (optional)
                 </Label>
-                <Input
-                  id="opponentName"
-                  type="text"
-                  list="opponent-names"
-                  placeholder="Enter opponent name..."
-                  className="mt-1"
-                  value={opponentName}
-                  {...register('opponentUsername')}
-                  onChange={(e) => {
-                    setOpponentName(e.target.value);
-                    setValue('opponentUsername', e.target.value, { shouldValidate: true });
-                  }}
-                />
-                <datalist id="opponent-names">
-                  {opponentNames.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
+                <div className="relative mt-1">
+                  <Input
+                    id="opponentName"
+                    type="text"
+                    autoComplete="off"
+                    placeholder="Enter opponent name..."
+                    className={cn(
+                      selectedOpponentFromSuggestions
+                        ? 'border-emerald-500 ring-2 ring-emerald-200'
+                        : '',
+                    )}
+                    value={opponentName}
+                    aria-autocomplete="list"
+                    aria-controls={
+                      shouldShowOpponentSuggestions ? 'opponent-name-suggestions' : undefined
+                    }
+                    aria-expanded={shouldShowOpponentSuggestions}
+                    {...opponentUsernameField}
+                    onFocus={() => {
+                      setIsOpponentInputFocused(true);
+                    }}
+                    onBlur={(event) => {
+                      opponentUsernameField.onBlur(event);
+                      window.setTimeout(() => {
+                        setIsOpponentInputFocused(false);
+                        const trimmedName = opponentName.trim();
+                        if (
+                          trimmedName &&
+                          opponentNames.some(
+                            (name) => name.toLowerCase() === trimmedName.toLowerCase(),
+                          )
+                        ) {
+                          setSelectedOpponentFromSuggestions(true);
+                        }
+                      }, 100);
+                    }}
+                    onChange={(e) => {
+                      opponentUsernameField.onChange(e);
+                      setOpponentName(e.target.value);
+                      setSelectedOpponentFromSuggestions(false);
+                      setValue('opponentUsername', e.target.value, { shouldValidate: true });
+                    }}
+                  />
+                  {shouldShowOpponentSuggestions && (
+                    <ul
+                      id="opponent-name-suggestions"
+                      role="listbox"
+                      aria-label="Opponent suggestions"
+                      className="absolute left-0 right-0 top-full z-50 mt-2 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                    >
+                      {filteredOpponentNames.map((name) => (
+                        <li key={name} role="option" aria-selected="false">
+                          <button
+                            type="button"
+                            className="flex w-full cursor-pointer items-center justify-start px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              handleOpponentSuggestionSelect(name);
+                            }}
+                          >
+                            {name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                {selectedOpponentFromSuggestions && opponentName.trim() && (
+                  <div
+                    className="mt-2 inline-flex items-center rounded-full border border-emerald-500 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
+                    data-testid="opponent-name-chip"
+                  >
+                    {opponentName.trim()}
+                  </div>
+                )}
                 {errors.opponentUsername && (
                   <p className="mt-1 text-sm text-red-600">{errors.opponentUsername.message}</p>
                 )}
