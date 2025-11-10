@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -39,6 +38,9 @@ export default function GameModal({
     null,
   );
   const [opponentName, setOpponentName] = useState<string>('');
+  const [isOpponentInputFocused, setIsOpponentInputFocused] = useState(false);
+  const [selectedOpponentFromSuggestions, setSelectedOpponentFromSuggestions] = useState(false);
+  const opponentInputRef = useRef<HTMLInputElement | null>(null);
   const initialDate = editingSession?.date ? new Date(editingSession.date) : new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
   const [dateInput, setDateInput] = useState<string>(format(initialDate, 'yyyy-MM-dd'));
@@ -79,6 +81,8 @@ export default function GameModal({
     },
   });
 
+  const opponentUsernameField = register('opponentUsername');
+
   // Fetch all sessions to extract opponent names for autocomplete
   const { data: allSessions } = useQuery<TrainingSession[]>({
     queryKey: ['sessions'],
@@ -105,6 +109,17 @@ export default function GameModal({
       a.toLowerCase().localeCompare(b.toLowerCase()),
     );
   }, [allSessions]);
+
+  const filteredOpponentNames = useMemo(() => {
+    const query = opponentName.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+
+    return opponentNames.filter((name) =>
+      name.toLowerCase().includes(query),
+    );
+  }, [opponentName, opponentNames]);
 
   const mutation = useMutation({
     mutationFn: async (data: GameSession) => {
@@ -134,6 +149,8 @@ export default function GameModal({
       setSelectedTimeControl(null);
       setSelectedPlatform(null);
       setOpponentName('');
+      setSelectedOpponentFromSuggestions(false);
+      setIsOpponentInputFocused(false);
       const now = new Date();
       setSelectedDate(now);
       setDateInput(format(now, 'yyyy-MM-dd'));
@@ -291,6 +308,8 @@ export default function GameModal({
       setSelectedTimeControl(timeControl);
       setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
       setOpponentName(opponentUsername);
+      setSelectedOpponentFromSuggestions(false);
+      setIsOpponentInputFocused(false);
       const editDate = new Date(editingSession.date);
       setSelectedDate(editDate);
       setDateInput(format(editDate, 'yyyy-MM-dd'));
@@ -365,6 +384,24 @@ export default function GameModal({
     trigger('timeControl');
   };
 
+  const shouldShowOpponentSuggestions =
+    selectedPlatform === 'otb' &&
+    isOpponentInputFocused &&
+    !selectedOpponentFromSuggestions &&
+    filteredOpponentNames.length > 0;
+
+  const handleOpponentSuggestionSelect = (name: string) => {
+    setOpponentName(name);
+    setSelectedOpponentFromSuggestions(true);
+    setValue('opponentUsername', name, { shouldValidate: true });
+  };
+
+  const clearOpponentSelection = () => {
+    setOpponentName('');
+    setSelectedOpponentFromSuggestions(false);
+    setValue('opponentUsername', '', { shouldValidate: true });
+  };
+
   const handlePlatformSelect = (platform: 'lichess' | 'chess.com' | 'otb') => {
     if (selectedPlatform === platform) {
       // Deselect if clicking the same platform
@@ -373,6 +410,8 @@ export default function GameModal({
       // Clear opponent name when deselecting OTB
       if (platform === 'otb') {
         setOpponentName('');
+        setSelectedOpponentFromSuggestions(false);
+        setIsOpponentInputFocused(false);
         setValue('opponentUsername', '', { shouldValidate: true });
       }
     } else {
@@ -381,6 +420,8 @@ export default function GameModal({
       // Clear opponent name when switching away from OTB
       if (selectedPlatform === 'otb' && platform !== 'otb') {
         setOpponentName('');
+        setSelectedOpponentFromSuggestions(false);
+        setIsOpponentInputFocused(false);
         setValue('opponentUsername', '', { shouldValidate: true });
       }
     }
@@ -405,6 +446,8 @@ export default function GameModal({
         setSelectedTimeControl(null);
         setSelectedPlatform(null);
         setOpponentName('');
+        setSelectedOpponentFromSuggestions(false);
+        setIsOpponentInputFocused(false);
       }
       if (!mutation.isPending) {
         onClearEditingSession?.();
@@ -633,24 +676,125 @@ export default function GameModal({
                 <Label htmlFor="opponentName" className="text-sm font-medium text-gray-700">
                   Opponent name (optional)
                 </Label>
-                <Input
-                  id="opponentName"
-                  type="text"
-                  list="opponent-names"
-                  placeholder="Enter opponent name..."
-                  className="mt-1"
-                  value={opponentName}
-                  {...register('opponentUsername')}
-                  onChange={(e) => {
-                    setOpponentName(e.target.value);
-                    setValue('opponentUsername', e.target.value, { shouldValidate: true });
-                  }}
-                />
-                <datalist id="opponent-names">
-                  {opponentNames.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
+                <div className="relative mt-1">
+                  <div
+                    className={cn(
+                      'flex min-h-10 w-full cursor-text items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 focus-within:ring-offset-2 focus-within:ring-offset-white',
+                      selectedOpponentFromSuggestions &&
+                        'border-emerald-500 ring-2 ring-emerald-200 ring-offset-2 ring-offset-white focus-within:border-emerald-500 focus-within:ring-emerald-300',
+                    )}
+                    onClick={() => {
+                      opponentInputRef.current?.focus();
+                    }}
+                    data-testid="opponent-name-input-container"
+                  >
+                    {selectedOpponentFromSuggestions && opponentName.trim() && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-500 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                        data-testid="opponent-name-chip"
+                      >
+                        {opponentName.trim()}
+                        <button
+                          type="button"
+                          aria-label="Clear selected opponent"
+                          className="rounded-full p-0.5 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            clearOpponentSelection();
+                            window.setTimeout(() => opponentInputRef.current?.focus(), 0);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    )}
+                    <input
+                      id="opponentName"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Enter opponent name..."
+                      className="flex-1 border-none bg-transparent p-0 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      aria-autocomplete="list"
+                      aria-controls={
+                        shouldShowOpponentSuggestions ? 'opponent-name-suggestions' : undefined
+                      }
+                      aria-expanded={shouldShowOpponentSuggestions}
+                      value={selectedOpponentFromSuggestions ? '' : opponentName}
+                      {...opponentUsernameField}
+                      ref={(element) => {
+                        opponentUsernameField.ref(element);
+                        opponentInputRef.current = element;
+                      }}
+                      onFocus={() => {
+                        setIsOpponentInputFocused(true);
+                      }}
+                      onBlur={(event) => {
+                        opponentUsernameField.onBlur(event);
+                        window.setTimeout(() => {
+                          setIsOpponentInputFocused(false);
+                          const trimmedName = opponentName.trim();
+                          if (
+                            trimmedName &&
+                            opponentNames.some(
+                              (name) => name.toLowerCase() === trimmedName.toLowerCase(),
+                            )
+                          ) {
+                            setSelectedOpponentFromSuggestions(true);
+                          }
+                        }, 100);
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          selectedOpponentFromSuggestions &&
+                          (event.key === 'Backspace' || event.key === 'Delete')
+                        ) {
+                          event.preventDefault();
+                          clearOpponentSelection();
+                          return;
+                        }
+
+                        if (
+                          selectedOpponentFromSuggestions &&
+                          event.key.length === 1 &&
+                          !event.ctrlKey &&
+                          !event.metaKey &&
+                          !event.altKey
+                        ) {
+                          clearOpponentSelection();
+                        }
+                      }}
+                      onChange={(e) => {
+                        opponentUsernameField.onChange(e);
+                        setOpponentName(e.target.value);
+                        setSelectedOpponentFromSuggestions(false);
+                        setValue('opponentUsername', e.target.value, { shouldValidate: true });
+                      }}
+                    />
+                  </div>
+                  {shouldShowOpponentSuggestions && (
+                    <ul
+                      id="opponent-name-suggestions"
+                      role="listbox"
+                      aria-label="Opponent suggestions"
+                      className="absolute left-0 right-0 top-full z-50 mt-2 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                    >
+                      {filteredOpponentNames.map((name) => (
+                        <li key={name} role="option" aria-selected="false">
+                          <button
+                            type="button"
+                            className="flex w-full cursor-pointer items-center justify-start px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              handleOpponentSuggestionSelect(name);
+                            }}
+                          >
+                            {name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 {errors.opponentUsername && (
                   <p className="mt-1 text-sm text-red-600">{errors.opponentUsername.message}</p>
                 )}
