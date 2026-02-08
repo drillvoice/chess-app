@@ -58,8 +58,8 @@ export default function Home() {
       return await getSessionsNeedingReview();
     },
     refetchOnWindowFocus: true,
-    refetchInterval: 60 * 1000, // Refetch every minute as backup
-    staleTime: 30 * 1000, // Consider data stale after 30 seconds
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
   });
 
   const queryClient = useQueryClient();

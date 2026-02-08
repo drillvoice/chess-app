@@ -105,7 +105,6 @@ export async function waitForAuth(): Promise<void> {
   }
 
   await ensureAnonymousAuth();
-  await new Promise((resolve) => setTimeout(resolve, 500));
 
   const user = auth.currentUser;
   if (user) {

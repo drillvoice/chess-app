@@ -47,7 +47,7 @@ export function useSyncStatus() {
         state,
       };
     },
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 }
 

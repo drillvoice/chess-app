@@ -1,4 +1,4 @@
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useMemo, memo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Puzzle, Crown, Book, Clock, Target, Trash2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,288 @@ import {
   GoalModal,
   WeeklyActivityChart,
 } from '@/components/lazy-components';
+
+// --- Helper functions (pure, outside component) ---
+
+function getSessionIcon(type: string) {
+  switch (type) {
+    case 'tactics':
+      return <Puzzle className="h-5 w-5 text-[#1E40AF]" />;
+    case 'game':
+      return <Crown className="h-5 w-5 text-[#059669]" />;
+    case 'study':
+      return <Book className="h-5 w-5 text-[#F59E0B]" />;
+    case 'goal':
+      return <Target className="h-5 w-5 text-purple-600" />;
+    default:
+      return <Clock className="h-5 w-5 text-gray-500" />;
+  }
+}
+
+function getSessionBgColor(type: string) {
+  switch (type) {
+    case 'tactics':
+      return 'bg-blue-100';
+    case 'game':
+      return 'bg-emerald-100';
+    case 'study':
+      return 'bg-amber-100';
+    case 'goal':
+      return 'bg-purple-100';
+    default:
+      return 'bg-gray-100';
+  }
+}
+
+function getSessionTitle(session: TrainingSession) {
+  switch (session.type) {
+    case 'tactics':
+      return 'Tactics Practice';
+    case 'game':
+      return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
+    case 'study':
+      return formatStudyDisplay(session);
+    case 'goal':
+      return session.goalTitle || 'Weekly Goal';
+    default:
+      return 'Training Session';
+  }
+}
+
+function getSessionSubtitle(session: TrainingSession) {
+  switch (session.type) {
+    case 'tactics':
+      return session.pointsGained != null
+        ? `${session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`
+        : `${session.duration} min`;
+    case 'game':
+      return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
+    case 'study':
+      return session.studyNotes
+        ? `${session.studyNotes} • ${session.duration} min`
+        : `${session.duration} min`;
+    case 'goal':
+      return session.goalDescription || 'Weekly focus area';
+    default:
+      return '';
+  }
+}
+
+function getSessionValue(session: TrainingSession) {
+  switch (session.type) {
+    case 'tactics':
+      return session.finalScore?.toString() || '';
+    case 'game':
+      return session.gameResult === 'win' ? 'W' : session.gameResult === 'draw' ? 'D' : 'L';
+    case 'study':
+      return '';
+    case 'goal':
+      return '🎯';
+    default:
+      return '';
+  }
+}
+
+function getSessionValueColor(session: TrainingSession) {
+  switch (session.type) {
+    case 'tactics':
+      return 'text-gray-800';
+    case 'game':
+      return session.gameResult === 'win'
+        ? 'text-green-600'
+        : session.gameResult === 'draw'
+          ? 'text-gray-600'
+          : 'text-red-600';
+    case 'study':
+      return 'text-gray-800';
+    case 'goal':
+      return 'text-purple-600';
+    default:
+      return 'text-gray-800';
+  }
+}
+
+function formatDate(date: string | Date) {
+  const d = new Date(date);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sessionDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffTime = today.getTime() - sessionDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays <= 7) return `${diffDays} days ago`;
+  return d.toLocaleDateString();
+}
+
+function groupSessionsByDate(sessions: TrainingSession[]) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const todaySessions: TrainingSession[] = [];
+  const yesterdaySessions: TrainingSession[] = [];
+  const last7DaysSessions: TrainingSession[] = [];
+  const last30DaysSessions: TrainingSession[] = [];
+  const earlierSessions: TrainingSession[] = [];
+
+  sessions.forEach((session) => {
+    const sessionDate = new Date(session.date);
+    const sessionDay = new Date(
+      sessionDate.getFullYear(),
+      sessionDate.getMonth(),
+      sessionDate.getDate(),
+    );
+    const diffTime = today.getTime() - sessionDay.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      todaySessions.push(session);
+    }
+    if (diffDays === 1) {
+      yesterdaySessions.push(session);
+    }
+    if (diffDays < 7) {
+      last7DaysSessions.push(session);
+    }
+    if (diffDays < 30) {
+      last30DaysSessions.push(session);
+    } else {
+      earlierSessions.push(session);
+    }
+  });
+
+  return {
+    todaySessions,
+    yesterdaySessions,
+    last7DaysSessions,
+    last30DaysSessions,
+    earlierSessions,
+  };
+}
+
+// --- Memoized SessionCard component ---
+
+const SessionCard = memo(function SessionCard({
+  session,
+  onEdit,
+  onDelete,
+}: {
+  session: TrainingSession;
+  onEdit: (session: TrainingSession) => void;
+  onDelete: (sessionId: number) => void;
+}) {
+  const isPending = (session as any)._pending;
+
+  return (
+    <Card
+      key={session.id}
+      className={cn('shadow-sm', isPending ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200')}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-full',
+                isPending ? 'bg-blue-100' : getSessionBgColor(session.type),
+              )}
+            >
+              {isPending ? (
+                <Clock className="h-5 w-5 animate-pulse text-blue-600" />
+              ) : (
+                getSessionIcon(session.type)
+              )}
+            </div>
+            <div>
+              <div className={cn('font-semibold', isPending ? 'text-blue-700' : 'text-gray-800')}>
+                {isPending ? 'Saving...' : getSessionTitle(session)}
+              </div>
+              <div className={cn('text-sm', isPending ? 'text-blue-600' : 'text-gray-600')}>
+                {isPending ? (
+                  `${session.duration} min study session`
+                ) : (
+                  <>
+                    {getSessionSubtitle(session)}
+                    {session.type === 'tactics' &&
+                      (() => {
+                        const attempted = session.puzzlesAttempted as any;
+                        const correct = session.puzzlesCorrect as any;
+                        const hasAttempted = attempted !== undefined && attempted !== null;
+                        const hasCorrect = correct !== undefined && correct !== null;
+                        if (hasAttempted || hasCorrect) {
+                          const left = hasCorrect ? String(correct) : '-';
+                          const right = hasAttempted ? String(attempted) : '-';
+                          return <span>{` • ${left}/${right}`}</span>;
+                        }
+                        return null;
+                      })()}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="text-right">
+              <div
+                className={cn(
+                  'text-sm font-medium',
+                  isPending ? 'text-blue-600' : getSessionValueColor(session),
+                )}
+              >
+                {isPending ? '⏳' : getSessionValue(session)}
+              </div>
+              <div className="text-xs text-gray-500">{formatDate(session.date)}</div>
+            </div>
+            {!isPending && (
+              <div className="flex space-x-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
+                  onClick={() => onEdit(session)}
+                >
+                  <Edit3 className="h-3 w-3" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this {session.type} session? This action
+                        cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(session.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
 
 interface Statistics {
   totalHours: number;
@@ -73,9 +355,9 @@ export default function Activity() {
       const { getStatistics } = await import('@/lib/firebase');
       return await getStatistics();
     },
-    staleTime: 60000, // Cache for 1 minute
-    refetchInterval: 60000,
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<TrainingSession[]>({
@@ -127,56 +409,10 @@ export default function Activity() {
     },
   });
 
-  const filteredSessions =
-    sessions?.filter((session) => filter === 'all' || session.type === filter) || [];
-
-  // Group sessions by date category
-  const groupSessionsByDate = (sessions: TrainingSession[]) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const todaySessions: TrainingSession[] = [];
-    const yesterdaySessions: TrainingSession[] = [];
-    const last7DaysSessions: TrainingSession[] = [];
-    const last30DaysSessions: TrainingSession[] = [];
-    const earlierSessions: TrainingSession[] = [];
-
-    sessions.forEach((session) => {
-      const sessionDate = new Date(session.date);
-      const sessionDay = new Date(
-        sessionDate.getFullYear(),
-        sessionDate.getMonth(),
-        sessionDate.getDate(),
-      );
-      const diffTime = today.getTime() - sessionDay.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        todaySessions.push(session);
-      }
-      if (diffDays === 1) {
-        yesterdaySessions.push(session);
-      }
-      if (diffDays < 7) {
-        last7DaysSessions.push(session);
-      }
-      if (diffDays < 30) {
-        last30DaysSessions.push(session);
-      } else {
-        earlierSessions.push(session);
-      }
-    });
-
-    return {
-      todaySessions,
-      yesterdaySessions,
-      last7DaysSessions,
-      last30DaysSessions,
-      earlierSessions,
-    };
-  };
+  const filteredSessions = useMemo(
+    () => sessions?.filter((session) => filter === 'all' || session.type === filter) || [],
+    [sessions, filter],
+  );
 
   const {
     todaySessions,
@@ -184,234 +420,17 @@ export default function Activity() {
     last7DaysSessions,
     last30DaysSessions,
     earlierSessions,
-  } = groupSessionsByDate(filteredSessions);
+  } = useMemo(() => groupSessionsByDate(filteredSessions), [filteredSessions]);
 
-  const formatDate = (date: string | Date) => {
-    const d = new Date(date);
-    const now = new Date();
+  const handleEdit = useCallback(
+    (session: TrainingSession) => setEditingSession(session),
+    [],
+  );
 
-    // Reset time to get accurate day comparison
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const sessionDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-    const diffTime = today.getTime() - sessionDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays} days ago`;
-    return d.toLocaleDateString();
-  };
-
-  const getSessionIcon = (type: string) => {
-    switch (type) {
-      case 'tactics':
-        return <Puzzle className="h-5 w-5 text-[#1E40AF]" />;
-      case 'game':
-        return <Crown className="h-5 w-5 text-[#059669]" />;
-      case 'study':
-        return <Book className="h-5 w-5 text-[#F59E0B]" />;
-      case 'goal':
-        return <Target className="h-5 w-5 text-purple-600" />;
-      default:
-        return <Clock className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
-  const getSessionBgColor = (type: string) => {
-    switch (type) {
-      case 'tactics':
-        return 'bg-blue-100';
-      case 'game':
-        return 'bg-emerald-100';
-      case 'study':
-        return 'bg-amber-100';
-      case 'goal':
-        return 'bg-purple-100';
-      default:
-        return 'bg-gray-100';
-    }
-  };
-
-  const getSessionTitle = (session: TrainingSession) => {
-    switch (session.type) {
-      case 'tactics':
-        return 'Tactics Practice';
-      case 'game':
-        return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
-      case 'study':
-        return formatStudyDisplay(session);
-      case 'goal':
-        return session.goalTitle || 'Weekly Goal';
-      default:
-        return 'Training Session';
-    }
-  };
-
-  const getSessionSubtitle = (session: TrainingSession) => {
-    switch (session.type) {
-      case 'tactics':
-        return session.pointsGained != null
-          ? `${session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`
-          : `${session.duration} min`;
-      case 'game':
-        return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
-      case 'study':
-        return session.studyNotes
-          ? `${session.studyNotes} • ${session.duration} min`
-          : `${session.duration} min`;
-      case 'goal':
-        return session.goalDescription || 'Weekly focus area';
-      default:
-        return '';
-    }
-  };
-
-  const getSessionValue = (session: TrainingSession) => {
-    switch (session.type) {
-      case 'tactics':
-        return session.finalScore?.toString() || '';
-      case 'game':
-        return session.gameResult === 'win' ? 'W' : session.gameResult === 'draw' ? 'D' : 'L';
-      case 'study':
-        return ''; // No value indicator for study sessions
-      case 'goal':
-        return '🎯';
-      default:
-        return '';
-    }
-  };
-
-  const getSessionValueColor = (session: TrainingSession) => {
-    switch (session.type) {
-      case 'tactics':
-        return 'text-gray-800';
-      case 'game':
-        return session.gameResult === 'win'
-          ? 'text-green-600'
-          : session.gameResult === 'draw'
-            ? 'text-gray-600'
-            : 'text-red-600';
-      case 'study':
-        return 'text-gray-800';
-      case 'goal':
-        return 'text-purple-600';
-      default:
-        return 'text-gray-800';
-    }
-  };
-
-  // Session card component to avoid duplication
-  const SessionCard = ({ session }: { session: TrainingSession }) => {
-    const isPending = (session as any)._pending;
-
-    return (
-      <Card
-        key={session.id}
-        className={cn('shadow-sm', isPending ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200')}
-      >
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div
-                className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-full',
-                  isPending ? 'bg-blue-100' : getSessionBgColor(session.type),
-                )}
-              >
-                {isPending ? (
-                  <Clock className="h-5 w-5 animate-pulse text-blue-600" />
-                ) : (
-                  getSessionIcon(session.type)
-                )}
-              </div>
-              <div>
-                <div className={cn('font-semibold', isPending ? 'text-blue-700' : 'text-gray-800')}>
-                  {isPending ? 'Saving...' : getSessionTitle(session)}
-                </div>
-                <div className={cn('text-sm', isPending ? 'text-blue-600' : 'text-gray-600')}>
-                  {isPending ? (
-                    `${session.duration} min study session`
-                  ) : (
-                    <>
-                      {getSessionSubtitle(session)}
-                      {session.type === 'tactics' &&
-                        (() => {
-                          const attempted = session.puzzlesAttempted as any;
-                          const correct = session.puzzlesCorrect as any;
-                          const hasAttempted = attempted !== undefined && attempted !== null;
-                          const hasCorrect = correct !== undefined && correct !== null;
-                          if (hasAttempted || hasCorrect) {
-                            const left = hasCorrect ? String(correct) : '-';
-                            const right = hasAttempted ? String(attempted) : '-';
-                            return <span>{` • ${left}/${right}`}</span>;
-                          }
-                          return null;
-                        })()}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="text-right">
-                <div
-                  className={cn(
-                    'text-sm font-medium',
-                    isPending ? 'text-blue-600' : getSessionValueColor(session),
-                  )}
-                >
-                  {isPending ? '⏳' : getSessionValue(session)}
-                </div>
-                <div className="text-xs text-gray-500">{formatDate(session.date)}</div>
-              </div>
-              {!isPending && (
-                <div className="flex space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
-                    onClick={() => setEditingSession(session)}
-                  >
-                    <Edit3 className="h-3 w-3" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this {session.type} session? This action
-                          cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteSessionMutation.mutate(session.id)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  const handleDelete = useCallback(
+    (sessionId: number) => deleteSessionMutation.mutate(sessionId),
+    [deleteSessionMutation],
+  );
 
   if (statsLoading || sessionsLoading) {
     return (
@@ -588,7 +607,7 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {todaySessions.map((session) => (
-                      <SessionCard key={session.id} session={session} />
+                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
                     ))}
                   </div>
                 </AccordionContent>
@@ -604,7 +623,7 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {yesterdaySessions.map((session) => (
-                      <SessionCard key={session.id} session={session} />
+                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
                     ))}
                   </div>
                 </AccordionContent>
@@ -620,7 +639,7 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {last7DaysSessions.map((session) => (
-                      <SessionCard key={session.id} session={session} />
+                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
                     ))}
                   </div>
                 </AccordionContent>
@@ -636,7 +655,7 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {last30DaysSessions.map((session) => (
-                      <SessionCard key={session.id} session={session} />
+                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
                     ))}
                   </div>
                 </AccordionContent>
@@ -652,7 +671,7 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {earlierSessions.map((session) => (
-                      <SessionCard key={session.id} session={session} />
+                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
                     ))}
                   </div>
                 </AccordionContent>

@@ -109,34 +109,6 @@ function setupServiceWorkerMessaging() {
   });
 }
 
-// Cache warming function
-async function warmCache() {
-  if (!navigator.onLine) {
-    console.log('Offline - skipping cache warming');
-    return;
-  }
-
-  try {
-    console.log('Warming cache with essential data...');
-
-    // Warm cache with critical endpoints
-    const warmingRequests = [
-      fetch('/api/statistics'),
-      fetch('/api/training-sessions/today'),
-      fetch('/api/weekly-goal'),
-      // Add other critical endpoints your app needs immediately
-    ];
-
-    // Don't await these - let them happen in background
-    Promise.allSettled(warmingRequests).then((results) => {
-      const successful = results.filter((r) => r.status === 'fulfilled').length;
-      console.log(`Cache warming completed: ${successful}/${results.length} requests successful`);
-    });
-  } catch (error) {
-    console.warn('Cache warming failed:', error);
-  }
-}
-
 // Check app version and refresh if changed
 async function checkAppVersion() {
   try {
@@ -176,12 +148,6 @@ async function initializeServiceWorker(): Promise<void> {
     // Set up messaging before the SW is active
     setupServiceWorkerMessaging();
 
-    // Wait for SW to be ready, then warm cache
-    await navigator.serviceWorker.ready;
-
-    // Warm cache after SW is ready
-    setTimeout(warmCache, 1000); // Small delay to let app initialize
-
     // Handle SW updates
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
@@ -214,12 +180,11 @@ async function initializeServiceWorker(): Promise<void> {
 
 // Initialize everything when the page loads
 window.addEventListener('load', async () => {
-  // Initialize persistent storage first
-  const isPersistent = await initializePersistentStorage();
-
-  // Initialize service worker with messaging and cache warming
-  await initializeServiceWorker();
-  await checkAppVersion();
+  const [isPersistent] = await Promise.all([
+    initializePersistentStorage(),
+    initializeServiceWorker(),
+    checkAppVersion(),
+  ]);
 
   // Dispatch persistence status if storage isn't persistent
   if (!isPersistent && 'storage' in navigator) {
