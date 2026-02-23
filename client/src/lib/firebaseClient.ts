@@ -30,12 +30,15 @@ export async function getFirebaseAuth(): Promise<Auth> {
   if (!authPromise) {
     authPromise = Promise.all([getFirebaseApp(), import('firebase/auth')]).then(
       ([app, authModule]) => {
-        const { getAuth, initializeAuth, indexedDBLocalPersistence } = authModule;
-        try {
-          return getAuth(app);
-        } catch {
-          return initializeAuth(app, { persistence: indexedDBLocalPersistence });
-        }
+        const { getAuth, indexedDBLocalPersistence, setPersistence } = authModule;
+        const auth = getAuth(app);
+
+        // Avoid initializeAuth() to prevent duplicate-auth initialization errors.
+        setPersistence(auth, indexedDBLocalPersistence).catch((err) => {
+          console.warn('Firebase auth persistence setup failed:', err);
+        });
+
+        return auth;
       },
     );
   }
