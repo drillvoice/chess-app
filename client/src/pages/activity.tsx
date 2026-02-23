@@ -146,11 +146,9 @@ function formatDate(date: string | Date) {
   return d.toLocaleDateString();
 }
 
-function groupSessionsByDate(sessions: TrainingSession[]) {
+export function groupSessionsByDate(sessions: TrainingSession[]) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
 
   const todaySessions: TrainingSession[] = [];
   const yesterdaySessions: TrainingSession[] = [];
@@ -170,14 +168,11 @@ function groupSessionsByDate(sessions: TrainingSession[]) {
 
     if (diffDays === 0) {
       todaySessions.push(session);
-    }
-    if (diffDays === 1) {
+    } else if (diffDays === 1) {
       yesterdaySessions.push(session);
-    }
-    if (diffDays < 7) {
+    } else if (diffDays < 7) {
       last7DaysSessions.push(session);
-    }
-    if (diffDays < 30) {
+    } else if (diffDays < 30) {
       last30DaysSessions.push(session);
     } else {
       earlierSessions.push(session);

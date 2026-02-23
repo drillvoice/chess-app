@@ -43,6 +43,16 @@ describe('API routes', () => {
     expect(badRes.status).toBe(400);
   });
 
+  it('preserves provided session dates', async () => {
+    const sessionDate = '2024-03-14T12:34:56.000Z';
+    const res = await request(app)
+      .post('/api/training-sessions/tactics')
+      .send({ type: 'tactics', duration: 20, date: sessionDate })
+      .expect(201);
+
+    expect(new Date(res.body.date).toISOString()).toBe(sessionDate);
+  });
+
   it('validates game sessions', async () => {
     const res = await request(app)
       .post('/api/training-sessions/game')

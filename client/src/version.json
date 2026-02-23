@@ -1,7 +1,18 @@
 {
-  "version": "2.0.2",
+  "version": "2.1.0",
   "lastUpdated": "23 February 2026",
   "changelog": [
+    {
+      "version": "2.1.0",
+      "date": "23 February 2026",
+      "changes": [
+        "Fix backup imports to restore cached statistics from backup files",
+        "Prevent overlapping Lichess sync polls and correct imported-games counting",
+        "Fix activity-history bucketing so each session appears in exactly one section",
+        "Preserve provided session dates in server-created training sessions",
+        "Add regression tests for import conflict handling, sync polling, and date grouping"
+      ]
+    },
     {
       "version": "2.0.2",
       "date": "23 February 2026",

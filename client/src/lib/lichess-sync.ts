@@ -126,8 +126,15 @@ export function startLichessSync(username: string) {
 
   debugLog(`📝 [Lichess Sync] localStorage key: ${key}, stored timestamp: ${lastTimestamp}`);
   let timer: ReturnType<typeof setInterval> | undefined;
+  let isPollInFlight = false;
 
   const poll = async () => {
+    if (isPollInFlight) {
+      debugLog(`⏭️ [Lichess Sync Poll] Skipping: previous poll still in flight`);
+      return;
+    }
+
+    isPollInFlight = true;
     try {
       debugLog(
         `🔄 [Lichess Sync Poll] Starting poll for ${username}, lastTimestamp: ${lastTimestamp}`,
@@ -184,7 +191,7 @@ export function startLichessSync(username: string) {
 
       debugLog(`🔄 [Lichess Sync Poll] Processing ${sortedGames.length} games`);
       const userLower = username.toLowerCase();
-      let importedAny = false;
+      let importedCount = 0;
 
       for (const game of sortedGames) {
         const lastMoveAt = Number(game?.lastMoveAt);
@@ -255,15 +262,15 @@ export function startLichessSync(username: string) {
         lastTimestamp = lastMoveAt;
         localStorage.setItem(key, String(lastTimestamp));
         debugLog(`📝 [Lichess Sync Poll] Updated timestamp to: ${lastTimestamp}`);
-        importedAny = true;
+        importedCount++;
       }
 
-      if (importedAny) {
+      if (importedCount > 0) {
         debugLog(`✅ [Lichess Sync Poll] Imported games, invalidating queries`);
         queryClient.invalidateQueries({ queryKey: ['pending-review'] });
         queryClient.invalidateQueries({ queryKey: ['statistics'] });
         queryClient.invalidateQueries({ queryKey: ['sessions'] });
-        syncStatus.gamesImported += sortedGames.length;
+        syncStatus.gamesImported += importedCount;
       }
 
       // Update sync status on success
@@ -279,6 +286,8 @@ export function startLichessSync(username: string) {
       syncStatus.lastError = errorMessage;
       notifyError(errorMessage);
       notifyStatusChange();
+    } finally {
+      isPollInFlight = false;
     }
   };
 

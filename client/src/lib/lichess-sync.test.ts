@@ -13,7 +13,7 @@ vi.mock('./queryClient', () => ({
   },
 }));
 
-import { mapLichessTimeControl, startLichessSync } from './lichess-sync';
+import { getSyncStatus, mapLichessTimeControl, startLichessSync } from './lichess-sync';
 import { createSession } from './firebase';
 
 const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
@@ -201,6 +201,82 @@ describe('startLichessSync', () => {
 
     expect(createSession).not.toHaveBeenCalled();
     expect(invalidateQueriesMock).not.toHaveBeenCalled();
+
+    stopSync?.();
+  });
+
+  it('does not start a new poll while a previous poll is in flight', async () => {
+    vi.useFakeTimers();
+    let resolveFetch: ((value: any) => void) | undefined;
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
+    const stopSync = startLichessSync('TestUser');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveFetch?.({
+      ok: true,
+      json: async () => ({ games: [] }),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    stopSync?.();
+    vi.useRealTimers();
+  });
+
+  it('increments gamesImported using successfully imported sessions only', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        games: [
+          {
+            id: 'old-game',
+            lastMoveAt: 2000,
+            createdAt: 1000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
+          },
+          {
+            id: 'new-game',
+            lastMoveAt: 3000,
+            createdAt: 2000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
+          },
+        ],
+      }),
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '2500');
+    const initialImported = getSyncStatus().gamesImported;
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(getSyncStatus().gamesImported - initialImported).toBe(1);
 
     stopSync?.();
   });

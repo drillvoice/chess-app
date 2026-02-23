@@ -320,6 +320,7 @@ export class ImportManager {
           trainingSessions: parsed.trainingSessions,
           dailyGoals: parsed.dailyGoals,
           settings: parsed.settings,
+          statistics: parsed.statistics,
           metadata: parsed.metadata,
         };
 
@@ -370,6 +371,12 @@ export class ImportManager {
       if (existingIds.has(session.id)) {
         switch (options.conflictResolution) {
           case 'skip':
+            skipped++;
+            continue;
+
+          case 'ask':
+            // Interactive conflict resolution is not wired into this flow yet.
+            // Default to safe behavior by skipping conflicting records.
             skipped++;
             continue;
 

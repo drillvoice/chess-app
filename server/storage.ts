@@ -61,10 +61,13 @@ export class MemStorage implements IStorage {
 
   async createTrainingSession(insertSession: InsertTrainingSession): Promise<TrainingSession> {
     const id = this.currentId++;
+    const providedDate = insertSession.date ? new Date(insertSession.date) : null;
+    const sessionDate =
+      providedDate && !Number.isNaN(providedDate.getTime()) ? providedDate : new Date();
     const session: TrainingSession = {
       ...insertSession,
       id,
-      date: new Date(),
+      date: sessionDate,
       duration: insertSession.duration ?? null,
       pointsGained: insertSession.pointsGained ?? null,
       finalScore: insertSession.finalScore ?? null,
