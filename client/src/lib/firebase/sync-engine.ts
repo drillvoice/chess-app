@@ -154,11 +154,12 @@ function serializeSessionForCloud(session: TrainingSession) {
 }
 
 function deserializeSessionFromCloud(payload: any): TrainingSession {
+  const parsedId = typeof payload?.id === 'number' ? payload.id : Number(payload?.id);
   const updatedAt = toDate(payload.updatedAt);
   const deletedAt = toDate(payload.deletedAt);
   return {
     ...payload,
-    id: Number(payload.id),
+    id: parsedId,
     date: toDate(payload.date) ?? new Date(),
     updatedAt: updatedAt ?? undefined,
     deletedAt: deletedAt ?? undefined,
@@ -169,7 +170,14 @@ function deserializeSessionFromCloud(payload: any): TrainingSession {
 async function fetchCloudSessions(uid: string): Promise<TrainingSession[]> {
   const sessionsRef = collection(db, 'users', uid, 'trainingSessions');
   const snapshot = await getDocs(query(sessionsRef));
-  return snapshot.docs.map((item) => deserializeSessionFromCloud(item.data()));
+  return snapshot.docs
+    .map((item) =>
+      deserializeSessionFromCloud({
+        ...item.data(),
+        id: item.data()?.id ?? item.id,
+      }),
+    )
+    .filter((session) => Number.isFinite(session.id));
 }
 
 async function fetchCloudSettings(uid: string): Promise<any> {
@@ -281,17 +289,18 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     ]);
 
   const { merged, collisionsResolved } = mergeSessionCollections(localSessions, cloudSessions);
+  const mergedValid = merged.filter((session) => Number.isFinite(session.id));
   publishStatus({
     phase: 'Merging local and cloud sessions',
     processed: 1,
-    total: Math.max(1, merged.length + 1),
-    ...progressMetrics(1, Math.max(1, merged.length + 1), migrationStart),
+    total: Math.max(1, mergedValid.length + 1),
+    ...progressMetrics(1, Math.max(1, mergedValid.length + 1), migrationStart),
   });
-  await offlineStorage.setSessions(merged);
+  await offlineStorage.setSessions(mergedValid);
 
   let uploadedCount = 0;
-  const uploadTotal = Math.max(1, merged.length);
-  for (const session of merged) {
+  const uploadTotal = Math.max(1, mergedValid.length);
+  for (const session of mergedValid) {
     const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
     await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
     uploadedCount += 1;
@@ -344,7 +353,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   const summary: MigrationSummary = {
     localCount: localSessions.length,
     cloudCount: cloudSessions.length,
-    mergedCount: merged.length,
+    mergedCount: mergedValid.length,
     uploadedCount,
     downloadedCount: cloudSessions.length,
     collisionsResolved,
@@ -382,7 +391,14 @@ export async function startRealtimeSync(): Promise<() => void> {
     query(sessionsRef),
     async (snapshot) => {
       const startedAt = Date.now();
-      const remoteSessions = snapshot.docs.map((entry) => deserializeSessionFromCloud(entry.data()));
+      const remoteSessions = snapshot.docs
+        .map((entry) =>
+          deserializeSessionFromCloud({
+            ...entry.data(),
+            id: entry.data()?.id ?? entry.id,
+          }),
+        )
+        .filter((session) => Number.isFinite(session.id));
       const activeSessions = remoteSessions.filter((session: any) => !session.deletedAt);
       publishStatus({
         state: 'syncing',
