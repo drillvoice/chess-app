@@ -114,4 +114,49 @@ describe('ImportManager backup imports', () => {
     expect(result.imported.sessions).toBe(0);
     expect(mockCreateSession).not.toHaveBeenCalled();
   });
+
+  it('imports new sessions with durable cloud write enabled', async () => {
+    const manager = new ImportManager();
+    const payload = JSON.stringify({
+      trainingSessions: [
+        {
+          id: 100,
+          type: 'study',
+          date: '2024-02-01T00:00:00.000Z',
+          duration: 20,
+        },
+      ],
+    });
+
+    const result = await manager.importData(payload, defaultOptions);
+
+    expect(result.success).toBe(true);
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'study', duration: 20 }),
+      100,
+      { awaitCloudWrite: true },
+    );
+  });
+
+  it('reports import errors when durable cloud write fails', async () => {
+    mockCreateSession.mockRejectedValueOnce(new Error('Failed to sync created session to cloud'));
+    const manager = new ImportManager();
+    const payload = JSON.stringify({
+      trainingSessions: [
+        {
+          id: 101,
+          type: 'study',
+          date: '2024-02-01T00:00:00.000Z',
+          duration: 20,
+        },
+      ],
+    });
+
+    const result = await manager.importData(payload, defaultOptions);
+
+    expect(result.success).toBe(false);
+    expect(result.imported.sessions).toBe(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('Failed to import session 101');
+  });
 });

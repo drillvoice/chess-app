@@ -114,9 +114,14 @@ function canSyncToCloud(): boolean {
   return Boolean(getCurrentUserId());
 }
 
+interface CreateSessionOptions {
+  awaitCloudWrite?: boolean;
+}
+
 export async function createSession(
   insertSession: InsertTrainingSession,
   id?: number,
+  options: CreateSessionOptions = {},
 ): Promise<TrainingSession> {
   console.log('createSession called with:', insertSession);
   const sessionId = id ?? Date.now();
@@ -150,11 +155,20 @@ export async function createSession(
     queueMicrotask(() => updateStatisticsInBackground());
 
     if (canSyncToCloud()) {
-      queueMicrotask(() => {
-        upsertSessionToCloud(newSession).catch((error) => {
-          console.warn('Background cloud sync failed for created session:', error);
+      if (options.awaitCloudWrite) {
+        try {
+          await upsertSessionToCloud(newSession);
+        } catch (error) {
+          console.warn('Synchronous cloud sync failed for created session:', error);
+          throw new Error('Failed to sync created session to cloud');
+        }
+      } else {
+        queueMicrotask(() => {
+          upsertSessionToCloud(newSession).catch((error) => {
+            console.warn('Background cloud sync failed for created session:', error);
+          });
         });
-      });
+      }
     }
   } catch (error) {
     console.error('Failed to save session locally:', error);

@@ -439,6 +439,7 @@ export class ImportManager {
               studyNotes: session.studyNotes,
             },
             session.id,
+            { awaitCloudWrite: true },
           );
 
           imported++;

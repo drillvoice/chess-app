@@ -1,7 +1,18 @@
 {
-  "version": "2.1.0",
+  "version": "2.1.1",
   "lastUpdated": "23 February 2026",
   "changelog": [
+    {
+      "version": "2.1.1",
+      "date": "23 February 2026",
+      "changes": [
+        "Prevent cloud snapshot reconciliation from removing local-only imported sessions",
+        "Backfill local-only sessions to cloud after realtime reconciliation",
+        "Respect cloud tombstones during local reconciliation",
+        "Add durable import mode to await cloud writes per imported session",
+        "Add regression tests for realtime reconciliation and durable import sync behavior"
+      ]
+    },
     {
       "version": "2.1.0",
       "date": "23 February 2026",

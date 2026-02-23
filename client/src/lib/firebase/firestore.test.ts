@@ -1,20 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const getSessions = vi.fn();
+const addSession = vi.fn();
+const clearStatistics = vi.fn();
 const getCachedStatistics = vi.fn();
 const setCachedStatistics = vi.fn();
 const statisticsCacheSet = vi.fn();
+const mockUpsertSessionToCloud = vi.fn();
+const mockGetCurrentUserId = vi.fn<() => string | null>(() => null);
 
 vi.mock('../offline-storage', () => ({
   offlineStorage: {
     getSessions,
     setSessions: vi.fn(),
-    addSession: vi.fn(),
+    addSession,
     updateSession: vi.fn(),
     getSession: vi.fn(),
     removeSession: vi.fn(),
     deleteSession: vi.fn(),
-    clearStatistics: vi.fn(),
+    clearStatistics,
     getStatistics: getCachedStatistics,
     setStatistics: setCachedStatistics,
     getCacheAge: vi.fn(),
@@ -44,7 +48,7 @@ vi.mock('../migration', () => ({
 }));
 
 vi.mock('./sync-engine', () => ({
-  upsertSessionToCloud: vi.fn(),
+  upsertSessionToCloud: mockUpsertSessionToCloud,
   markSessionDeletedInCloud: vi.fn(),
   syncDailyGoalsToCloud: vi.fn(),
   initializeCloudSyncForCurrentUser: vi.fn(),
@@ -52,7 +56,7 @@ vi.mock('./sync-engine', () => ({
 }));
 
 vi.mock('./core', () => ({
-  getCurrentUserId: vi.fn(() => null),
+  getCurrentUserId: mockGetCurrentUserId,
 }));
 
 describe('calculateStatistics', () => {
@@ -94,6 +98,9 @@ describe('calculateStatistics', () => {
 
     getCachedStatistics.mockResolvedValue(null);
     setCachedStatistics.mockResolvedValue(undefined);
+    addSession.mockResolvedValue(undefined);
+    clearStatistics.mockResolvedValue(undefined);
+    mockGetCurrentUserId.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -120,5 +127,59 @@ describe('calculateStatistics', () => {
 
     expect(statisticsCacheSet).toHaveBeenCalledWith(stats);
     expect(setCachedStatistics).toHaveBeenCalledWith(stats);
+  });
+});
+
+describe('createSession cloud durability mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    addSession.mockResolvedValue(undefined);
+    clearStatistics.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('awaits cloud write when awaitCloudWrite is true', async () => {
+    mockGetCurrentUserId.mockReturnValue('uid-1');
+    mockUpsertSessionToCloud.mockResolvedValue(undefined);
+    vi.resetModules();
+    const { createSession } = await import('./firestore');
+
+    await createSession(
+      {
+        type: 'study',
+        date: new Date('2024-05-01T10:00:00.000Z'),
+        duration: 25,
+      } as any,
+      123,
+      { awaitCloudWrite: true },
+    );
+
+    expect(addSession).toHaveBeenCalled();
+    expect(mockUpsertSessionToCloud).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when durable cloud write fails but keeps local write', async () => {
+    mockGetCurrentUserId.mockReturnValue('uid-1');
+    mockUpsertSessionToCloud.mockRejectedValue(new Error('cloud failed'));
+    vi.resetModules();
+    const { createSession } = await import('./firestore');
+
+    await expect(
+      createSession(
+        {
+          type: 'study',
+          date: new Date('2024-05-01T10:00:00.000Z'),
+          duration: 25,
+        } as any,
+        124,
+        { awaitCloudWrite: true },
+      ),
+    ).rejects.toThrow('Failed to save session offline');
+
+    expect(addSession).toHaveBeenCalled();
+    expect(mockUpsertSessionToCloud).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingSession } from '@shared/schema';
-import { mergeSessionCollections } from './sync-engine';
+import { mergeSessionCollections, reconcileRealtimeSnapshot } from './sync-engine';
 
 function makeSession(
   id: number,
@@ -64,5 +64,48 @@ describe('mergeSessionCollections', () => {
 
     expect(result.merged[0].duration).toBe(30);
     expect(result.collisionsResolved).toBe(1);
+  });
+});
+
+describe('reconcileRealtimeSnapshot', () => {
+  it('keeps local-only sessions and marks them for upload', () => {
+    const local = [makeSession(1, '2025-01-01T10:00:00.000Z')];
+    const remote = [makeSession(2, '2025-01-02T10:00:00.000Z')];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal.map((s) => s.id).sort()).toEqual([1, 2]);
+    expect(result.localOnlyToUpload.map((s) => s.id)).toEqual([1]);
+    expect(result.tombstonedIds).toEqual([]);
+  });
+
+  it('removes local sessions that are tombstoned in cloud', () => {
+    const local = [makeSession(1, '2025-01-01T10:00:00.000Z')];
+    const remote = [
+      makeSession(1, '2025-01-01T10:00:00.000Z', '2025-01-02T10:00:00.000Z', {
+        deletedAt: new Date('2025-01-03T10:00:00.000Z'),
+      } as any),
+    ];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal).toEqual([]);
+    expect(result.localOnlyToUpload).toEqual([]);
+    expect(result.tombstonedIds).toEqual([1]);
+  });
+
+  it('applies recency conflict resolution before backfill selection', () => {
+    const local = [makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-01T10:00:00.000Z', {
+      duration: 10,
+    })];
+    const remote = [makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-03T10:00:00.000Z', {
+      duration: 45,
+    })];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal).toHaveLength(1);
+    expect(result.nextLocal[0].duration).toBe(45);
+    expect(result.localOnlyToUpload).toEqual([]);
   });
 });

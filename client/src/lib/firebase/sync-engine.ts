@@ -32,6 +32,8 @@ export interface CloudSyncStatus {
   elapsedMs?: number | null;
   itemsPerSecond?: number | null;
   lastBatchSize?: number;
+  reconciledLocalOnlyCount?: number;
+  backfilledCount?: number;
 }
 
 export interface MigrationSummary {
@@ -140,6 +142,51 @@ export function mergeSessionCollections(
 
   const merged = Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
   return { merged, collisionsResolved };
+}
+
+export function reconcileRealtimeSnapshot(
+  localSessions: TrainingSession[],
+  remoteSessions: TrainingSession[],
+): {
+  nextLocal: TrainingSession[];
+  localOnlyToUpload: TrainingSession[];
+  tombstonedIds: number[];
+} {
+  const tombstonedIds = remoteSessions
+    .filter((session) => Boolean((session as any).deletedAt))
+    .map((session) => session.id);
+  const tombstonedIdSet = new Set(tombstonedIds);
+  const remoteActive = remoteSessions.filter((session) => !tombstonedIdSet.has(session.id));
+  const localWithoutTombstones = localSessions.filter((session) => !tombstonedIdSet.has(session.id));
+
+  const { merged } = mergeSessionCollections(localWithoutTombstones, remoteActive);
+  const remoteActiveIds = new Set(remoteActive.map((session) => session.id));
+  const localOnlyToUpload = merged.filter(
+    (session) => !remoteActiveIds.has(session.id) && !tombstonedIdSet.has(session.id),
+  );
+
+  return { nextLocal: merged, localOnlyToUpload, tombstonedIds };
+}
+
+async function backfillLocalOnlySessionsToCloud(
+  sessionsToUpload: TrainingSession[],
+  concurrency = 4,
+): Promise<number> {
+  if (sessionsToUpload.length === 0) return 0;
+  const queue = [...sessionsToUpload];
+  let uploaded = 0;
+
+  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const session = queue.shift();
+      if (!session) continue;
+      await upsertSessionToCloud(session);
+      uploaded += 1;
+    }
+  });
+
+  await Promise.all(workers);
+  return uploaded;
 }
 
 function serializeSessionForCloud(session: TrainingSession) {
@@ -407,28 +454,53 @@ export async function startRealtimeSync(): Promise<() => void> {
           }),
         )
         .filter((session) => Number.isFinite(session.id));
-      const activeSessions = remoteSessions.filter((session: any) => !session.deletedAt);
+      const localSessions = await offlineStorage.getSessions();
+      const { nextLocal, localOnlyToUpload, tombstonedIds } = reconcileRealtimeSnapshot(
+        localSessions,
+        remoteSessions,
+      );
       publishStatus({
         state: 'syncing',
         phase: 'Applying latest cloud snapshot',
-        processed: activeSessions.length,
-        total: activeSessions.length,
+        processed: nextLocal.length,
+        total: nextLocal.length,
         progressPct: 100,
         startedAt: new Date(startedAt),
         elapsedMs: Date.now() - startedAt,
         itemsPerSecond: null,
-        lastBatchSize: activeSessions.length,
+        lastBatchSize: nextLocal.length,
+        reconciledLocalOnlyCount: localOnlyToUpload.length,
       });
-      await offlineStorage.setSessions(activeSessions);
+      await offlineStorage.setSessions(nextLocal);
       await Promise.all([
         offlineStorage.setLastSyncedTimestamp(Date.now()),
         offlineStorage.setSyncLastSuccessAt(Date.now()),
         offlineStorage.clearSyncLastError(),
       ]);
+      if (localOnlyToUpload.length > 0) {
+        queueMicrotask(() => {
+          backfillLocalOnlySessionsToCloud(localOnlyToUpload)
+            .then((backfilledCount) => {
+              console.info(
+                `Cloud sync backfilled ${backfilledCount} local-only sessions after reconciliation`,
+              );
+              publishStatus({ backfilledCount });
+            })
+            .catch((error) => {
+              console.warn('Cloud sync backfill failed for local-only sessions:', error);
+            });
+        });
+      }
+      if (tombstonedIds.length > 0) {
+        console.info(
+          `Cloud sync applied ${tombstonedIds.length} tombstones from cloud snapshot`,
+          tombstonedIds,
+        );
+      }
       const elapsedMs = Date.now() - startedAt;
       const itemsPerSecond =
-        activeSessions.length > 0
-          ? Number((activeSessions.length / Math.max(0.001, elapsedMs / 1000)).toFixed(2))
+        nextLocal.length > 0
+          ? Number((nextLocal.length / Math.max(0.001, elapsedMs / 1000)).toFixed(2))
           : 0;
       publishStatus({
         state: 'synced',
