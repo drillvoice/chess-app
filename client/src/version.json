@@ -1,7 +1,15 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.2",
   "lastUpdated": "23 February 2026",
   "changelog": [
+    {
+      "version": "2.0.2",
+      "date": "23 February 2026",
+      "changes": [
+        "Fix Import Data action to work when file is selected via Import from Google Drive picker",
+        "Improve import UX with explicit no-file-selected feedback before starting import"
+      ]
+    },
     {
       "version": "2.0.0",
       "date": "23 February 2026",

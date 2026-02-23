@@ -47,6 +47,7 @@ export default function EnhancedDataManagement() {
   const [importing, setImporting] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null);
   const [importOptions, setImportOptions] = useState<ImportOptions>({
     conflictResolution: 'skip',
     validateSchema: true,
@@ -60,7 +61,8 @@ export default function EnhancedDataManagement() {
   const [verifying, setVerifying] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const deviceFileInputRef = useRef<HTMLInputElement>(null);
+  const cloudFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleExport = async () => {
@@ -171,6 +173,7 @@ export default function EnhancedDataManagement() {
     if (!file) return;
 
     try {
+      setSelectedImportFile(file);
       const content = await file.text();
       const preview = await importManager.previewImport(content);
       setImportPreview(preview);
@@ -183,6 +186,8 @@ export default function EnhancedDataManagement() {
         });
       }
     } catch (_error) {
+      setSelectedImportFile(null);
+      setImportPreview(null);
       toast({
         title: 'Preview Failed',
         description: 'Could not preview import file',
@@ -192,14 +197,20 @@ export default function EnhancedDataManagement() {
   };
 
   const handleImport = async () => {
-    if (!importPreview || !fileInputRef.current?.files?.[0]) return;
+    if (!importPreview || !selectedImportFile) {
+      toast({
+        title: 'No file selected',
+        description: 'Choose an import file first.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       setImporting(true);
       setImportProgress(null);
 
-      const file = fileInputRef.current.files[0];
-      const content = await file.text();
+      const content = await selectedImportFile.text();
 
       const result = await importManager.importData(content, importOptions, (progress) =>
         setImportProgress(progress),
@@ -211,7 +222,9 @@ export default function EnhancedDataManagement() {
           description: `Imported ${result.imported.sessions} sessions successfully`,
         });
         setImportPreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        setSelectedImportFile(null);
+        if (deviceFileInputRef.current) deviceFileInputRef.current.value = '';
+        if (cloudFileInputRef.current) cloudFileInputRef.current.value = '';
       } else {
         toast({
           title: 'Import Partially Failed',
@@ -374,7 +387,7 @@ export default function EnhancedDataManagement() {
                       type="file"
                       accept=".json,.csv"
                       onChange={handleImportPreview}
-                      ref={fileInputRef}
+                      ref={deviceFileInputRef}
                       className="cursor-pointer"
                     />
                   </CardContent>
@@ -391,6 +404,7 @@ export default function EnhancedDataManagement() {
                       type="file"
                       accept=".json,.csv"
                       onChange={handleImportPreview}
+                      ref={cloudFileInputRef}
                       className="cursor-pointer"
                     />
                     <p className="text-xs text-green-600">Uses your device's native file picker</p>
@@ -523,7 +537,12 @@ export default function EnhancedDataManagement() {
 
               <Button
                 onClick={handleImport}
-                disabled={!importPreview || importing || !importPreview.validation.valid}
+                disabled={
+                  !importPreview ||
+                  !selectedImportFile ||
+                  importing ||
+                  !importPreview.validation.valid
+                }
                 className="w-full"
               >
                 {importing ? 'Importing...' : 'Import Data'}
