@@ -301,9 +301,17 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   let uploadedCount = 0;
   const uploadTotal = Math.max(1, mergedValid.length);
   for (const session of mergedValid) {
+    const inFlightIndex = uploadedCount + 1;
+    publishStatus({
+      phase: `Uploading merged sessions (${inFlightIndex}/${uploadTotal})`,
+      processed: uploadedCount,
+      total: uploadTotal,
+      ...progressMetrics(uploadedCount, uploadTotal, migrationStart),
+    });
+
     const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
     await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
-    uploadedCount += 1;
+    uploadedCount = inFlightIndex;
     publishStatus({
       phase: 'Uploading merged sessions',
       processed: uploadedCount,
@@ -407,7 +415,7 @@ export async function startRealtimeSync(): Promise<() => void> {
         total: activeSessions.length,
         progressPct: 100,
         startedAt: new Date(startedAt),
-        elapsedMs: 0,
+        elapsedMs: Date.now() - startedAt,
         itemsPerSecond: null,
         lastBatchSize: activeSessions.length,
       });

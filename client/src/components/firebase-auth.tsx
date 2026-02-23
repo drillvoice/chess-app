@@ -28,6 +28,7 @@ export default function FirebaseAuth() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
   const [pendingSwitch, setPendingSwitch] = useState(getPendingAccountSwitch());
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   const runSyncInitialization = useCallback(async () => {
     const summary = await initializeCloudSyncForCurrentUser();
@@ -179,6 +180,14 @@ export default function FirebaseAuth() {
 
   const syncInfo = syncStatus?.data;
 
+  useEffect(() => {
+    if (!syncInfo || syncInfo.state !== SyncStateEnum.Syncing) {
+      return;
+    }
+    const timer = window.setInterval(() => setNowTick(Date.now()), 500);
+    return () => window.clearInterval(timer);
+  }, [syncInfo]);
+
   const statusMessage = useMemo(() => {
     if (!syncInfo) return null;
     if (pendingSwitch) {
@@ -215,6 +224,17 @@ export default function FirebaseAuth() {
     if (!syncInfo.itemsPerSecond || syncInfo.itemsPerSecond <= 0) return null;
     return `${syncInfo.itemsPerSecond.toFixed(2)} items/sec`;
   }, [syncInfo]);
+
+  const liveElapsedMs = useMemo(() => {
+    if (!syncInfo) return null;
+    if (syncInfo.state !== SyncStateEnum.Syncing) {
+      return syncInfo.elapsedMs ?? null;
+    }
+    if (syncInfo.startedAt) {
+      return Math.max(0, nowTick - new Date(syncInfo.startedAt).getTime());
+    }
+    return syncInfo.elapsedMs ?? null;
+  }, [nowTick, syncInfo]);
 
   const identity = currentUser?.email || currentUser?.displayName || currentUser?.uid || null;
 
@@ -268,8 +288,8 @@ export default function FirebaseAuth() {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span>{progressLabel}</span>
                   {speedLabel && <span>{speedLabel}</span>}
-                  {typeof syncInfo.elapsedMs === 'number' && syncInfo.elapsedMs >= 0 && (
-                    <span>{(syncInfo.elapsedMs / 1000).toFixed(1)}s elapsed</span>
+                  {typeof liveElapsedMs === 'number' && liveElapsedMs >= 0 && (
+                    <span>{(liveElapsedMs / 1000).toFixed(1)}s elapsed</span>
                   )}
                 </div>
               </div>

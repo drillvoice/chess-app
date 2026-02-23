@@ -22,6 +22,7 @@ interface SyncStatus {
   elapsedMs?: number | null;
   itemsPerSecond?: number | null;
   lastBatchSize?: number;
+  startedAt?: Date | null;
 }
 
 export function useSyncStatus() {
@@ -67,6 +68,7 @@ export function useSyncStatus() {
         elapsedMs: cloudStatus.elapsedMs,
         itemsPerSecond: cloudStatus.itemsPerSecond,
         lastBatchSize: cloudStatus.lastBatchSize,
+        startedAt: cloudStatus.startedAt ?? null,
       };
     },
     refetchInterval: 30000,
