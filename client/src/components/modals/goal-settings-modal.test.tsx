@@ -44,7 +44,6 @@ describe('GoalSettingsModal', () => {
       tacticsMinutes: 30,
       gamesCount: 2,
       studyMinutes: 15,
-      autoTracking: false,
     },
     setFormData: vi.fn(),
     resetForm: vi.fn(),
@@ -60,6 +59,8 @@ describe('GoalSettingsModal', () => {
     enableCustomGoals: vi.fn(),
     disableCustomGoals: vi.fn(),
     isSaving: false,
+    autoTrackingEnabled: false,
+    setAutoTrackingEnabled: vi.fn(),
   };
 
   beforeEach(() => {
@@ -177,7 +178,6 @@ describe('GoalSettingsModal', () => {
         tacticsMinutes: 0,
         gamesCount: 0,
         studyMinutes: 0,
-        autoTracking: false,
       },
       setFormData: vi.fn(),
       resetForm: vi.fn(),

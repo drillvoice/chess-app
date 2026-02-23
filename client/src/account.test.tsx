@@ -17,6 +17,10 @@ vi.mock('@/components/lichess-settings', () => ({
   LichessSettingsContent: () => <div>Lichess Settings Content</div>,
 }));
 
+vi.mock('@/components/firebase-auth', () => ({
+  default: () => <div>Cloud Sync Content</div>,
+}));
+
 vi.mock('@/lib/firebase', () => ({
   getStatistics: async () => ({ totalHours: 0, totalSessions: 0, tacticsRating: 0, winRate: 0 }),
   getAllSessions: async () => [],
@@ -72,6 +76,9 @@ describe('account accordion behavior', () => {
     const dataTrigger = screen.getByRole('button', {
       name: /data management/i,
     });
+    const cloudTrigger = screen.getByRole('button', {
+      name: /cloud sync/i,
+    });
 
     // Initially, no section content is visible
     expect(screen.queryByText('Lichess Settings Content')).not.toBeInTheDocument();
@@ -86,6 +93,9 @@ describe('account accordion behavior', () => {
     expect(await screen.findByText('Data Management Content')).toBeVisible();
     expect(screen.getByText('Lichess Settings Content')).toBeVisible();
 
+    fireEvent.click(cloudTrigger);
+    expect(await screen.findByText('Cloud Sync Content')).toBeVisible();
+
     // Collapse first section; second stays open
     fireEvent.click(lichessTrigger);
     expect(screen.queryByText('Lichess Settings Content')).not.toBeInTheDocument();
@@ -94,5 +104,19 @@ describe('account accordion behavior', () => {
     // Collapse second section
     fireEvent.click(dataTrigger);
     expect(screen.queryByText('Data Management Content')).not.toBeInTheDocument();
+  });
+
+  it('renders Cloud Sync between Data Management and Enhanced Backup sections', () => {
+    render(<Account />);
+    const triggers = screen.getAllByRole('button');
+    const labels = triggers.map((button) => button.textContent?.trim() ?? '');
+
+    const dataIndex = labels.findIndex((label) => /data management/i.test(label));
+    const cloudIndex = labels.findIndex((label) => /cloud sync/i.test(label));
+    const enhancedIndex = labels.findIndex((label) => /enhanced backup/i.test(label));
+
+    expect(dataIndex).toBeGreaterThan(-1);
+    expect(cloudIndex).toBeGreaterThan(dataIndex);
+    expect(enhancedIndex).toBeGreaterThan(cloudIndex);
   });
 });

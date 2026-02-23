@@ -35,6 +35,17 @@ vi.mock('../offline-storage', () => ({
     setLastSyncAttempt: vi.fn(),
     getLastBackupTimestamp: vi.fn().mockResolvedValue(undefined),
     setLastBackupTimestamp: vi.fn().mockResolvedValue(undefined),
+    getSyncCurrentUid: vi.fn().mockResolvedValue(null),
+    setSyncCurrentUid: vi.fn().mockResolvedValue(undefined),
+    clearSyncCurrentUid: vi.fn().mockResolvedValue(undefined),
+    getSyncInitializedForUid: vi.fn().mockResolvedValue(true),
+    setSyncInitializedForUid: vi.fn().mockResolvedValue(undefined),
+    getSyncLastSuccessAt: vi.fn().mockResolvedValue(0),
+    setSyncLastSuccessAt: vi.fn().mockResolvedValue(undefined),
+    getSyncLastError: vi.fn().mockResolvedValue(null),
+    setSyncLastError: vi.fn().mockResolvedValue(undefined),
+    clearSyncLastError: vi.fn().mockResolvedValue(undefined),
+    createAccountSnapshot: vi.fn().mockResolvedValue('snapshot:test'),
   },
 }));
 
@@ -211,12 +222,18 @@ describe('firebase auth utilities', () => {
     await utils.updateUserSettings({ lichessUsername: 'abc' });
 
     expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123', 'settings', 'settings');
-    expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'abc' }, { merge: true });
+    expect(setDocMock).toHaveBeenLastCalledWith(
+      {},
+      expect.objectContaining({ lichessUsername: 'abc', theme: 'dark' }),
+      { merge: true },
+    );
     expect(offline.offlineStorage.getSettings).toHaveBeenCalled();
-    expect(offline.offlineStorage.setSettings).toHaveBeenCalledWith({
-      theme: 'dark',
-      lichessUsername: 'abc',
-    });
+    expect(offline.offlineStorage.setSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        theme: 'dark',
+        lichessUsername: 'abc',
+      }),
+    );
   });
 
   it('updates currentUserId on sign-out', async () => {
@@ -464,7 +481,11 @@ describe('firebase auth utilities', () => {
 
     // Firestore should still be called
     expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123', 'settings', 'settings');
-    expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'testuser' }, { merge: true });
+    expect(setDocMock).toHaveBeenLastCalledWith(
+      {},
+      expect.objectContaining({ lichessUsername: 'testuser' }),
+      { merge: true },
+    );
   });
 
   it('updateUserSettings throws SettingsError when Firestore fails', async () => {
@@ -522,6 +543,10 @@ describe('firebase auth utilities', () => {
     await utils.updateUserSettings({ lichessUsername: 'newuser' });
 
     // Verify merge: true is used to preserve other settings
-    expect(setDocMock).toHaveBeenCalledWith({}, { lichessUsername: 'newuser' }, { merge: true });
+    expect(setDocMock).toHaveBeenLastCalledWith(
+      {},
+      expect.objectContaining({ lichessUsername: 'newuser' }),
+      { merge: true },
+    );
   });
 });

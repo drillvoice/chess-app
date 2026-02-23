@@ -5,6 +5,7 @@ import * as statistics from './storage/statistics';
 import * as settings from './storage/settings';
 import * as dailyGoals from './storage/dailyGoals';
 import * as meta from './storage/meta';
+import * as snapshots from './storage/snapshots';
 import { clearAll } from './storage/clear';
 
 export const offlineStorage = {
@@ -47,6 +48,18 @@ export const offlineStorage = {
   setLastSyncAttempt: meta.setLastSyncAttempt,
   getLastBackupTimestamp: meta.getLastBackupTimestamp,
   setLastBackupTimestamp: meta.setLastBackupTimestamp,
+  getSyncCurrentUid: meta.getSyncCurrentUid,
+  setSyncCurrentUid: meta.setSyncCurrentUid,
+  clearSyncCurrentUid: meta.clearSyncCurrentUid,
+  getSyncInitializedForUid: meta.getSyncInitializedForUid,
+  setSyncInitializedForUid: meta.setSyncInitializedForUid,
+  getSyncLastSuccessAt: meta.getSyncLastSuccessAt,
+  setSyncLastSuccessAt: meta.setSyncLastSuccessAt,
+  getSyncLastError: meta.getSyncLastError,
+  setSyncLastError: meta.setSyncLastError,
+  clearSyncLastError: meta.clearSyncLastError,
+  createAccountSnapshot: snapshots.createAccountSnapshot,
+  listAccountSnapshots: snapshots.listAccountSnapshots,
   // maintenance
   clearAll,
   clear: clearAll,

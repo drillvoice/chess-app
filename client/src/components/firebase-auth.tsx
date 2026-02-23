@@ -1,39 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  AlertTriangle,
-  Cloud,
-  CloudOff,
-  DatabaseBackup,
-  Loader2,
-  RefreshCcw,
-  Upload,
-} from 'lucide-react';
+import { AlertTriangle, Cloud, CloudOff, Loader2, UserRound } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSyncStatus, SyncState as SyncStateEnum } from '@/hooks/useSyncStatus';
 import {
-  startAuthFlow,
+  acknowledgeAccountSwitch,
+  getPendingAccountSwitch,
+  initializeCloudSyncForCurrentUser,
   refreshAuthState,
-  verifyDataPresence,
-  startSessionSync,
+  startAuthFlow,
   stopSessionSync,
 } from '@/lib/firebase';
-import {
-  backupAllSessionsToCloud,
-  getBackupStatus,
-  isBackupNeeded,
-} from '@/lib/firebase/firestore-backup';
 import { getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth';
+import type { MigrationSummary } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
-
-type BackupStatus = {
-  lastBackup: Date | null;
-  sessionCount: number;
-  needsBackup: boolean;
-};
 
 export default function FirebaseAuth() {
   const { toast } = useToast();
@@ -41,86 +24,16 @@ export default function FirebaseAuth() {
 
   const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [reauthRequired, setReauthRequired] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
-  const [isBackupRunning, setIsBackupRunning] = useState(false);
-  const connectedFlowRunningRef = useRef(false);
+  const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
+  const [pendingSwitch, setPendingSwitch] = useState(getPendingAccountSwitch());
 
-  const loadBackupStatus = useCallback(async () => {
-    try {
-      const status = await getBackupStatus();
-      setBackupStatus({
-        lastBackup: status.lastBackup,
-        sessionCount: status.sessionCount,
-        needsBackup: status.needsBackup,
-      });
-    } catch (error) {
-      console.error('Error getting backup status:', error);
-    }
+  const runSyncInitialization = useCallback(async () => {
+    const summary = await initializeCloudSyncForCurrentUser();
+    setMigrationSummary(summary);
+    setPendingSwitch(getPendingAccountSwitch());
+    return summary;
   }, []);
-
-  const runAutoBackup = useCallback(async () => {
-    try {
-      const needsBackup = await isBackupNeeded();
-      if (needsBackup) {
-        console.log('Performing automatic weekly backup...');
-        await backupAllSessionsToCloud();
-        await loadBackupStatus();
-      }
-    } catch (error) {
-      console.error('Auto backup failed:', error);
-    }
-  }, [loadBackupStatus]);
-
-  const handleConnectedFlow = useCallback(
-    async (fromRedirect = false) => {
-      if (connectedFlowRunningRef.current) {
-        return;
-      }
-      connectedFlowRunningRef.current = true;
-      setIsVerifying(true);
-      try {
-        await refreshAuthState();
-        const verified = await verifyDataPresence();
-
-        if (verified) {
-          await startSessionSync();
-          toast({
-            title: 'Connected',
-            description: 'Cloud sync is enabled and your sessions will back up automatically.',
-          });
-          setReauthRequired(false);
-          await loadBackupStatus();
-          await runAutoBackup();
-        } else {
-          toast({
-            title: 'Verification Failed',
-            description: 'We could not verify cloud data. Please try again later.',
-            variant: 'destructive',
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to connect to cloud sync.';
-        toast({
-          title: 'Connection Failed',
-          description: message,
-          variant: 'destructive',
-        });
-        if (!fromRedirect) {
-          sessionStorage.removeItem('redirectAuth');
-        }
-      } finally {
-        connectedFlowRunningRef.current = false;
-        setIsVerifying(false);
-        if (!fromRedirect) {
-          sessionStorage.removeItem('redirectAuth');
-        }
-      }
-    },
-    [loadBackupStatus, runAutoBackup, toast],
-  );
 
   const handleEnable = useCallback(
     async (forceRedirect = false) => {
@@ -129,57 +42,82 @@ export default function FirebaseAuth() {
         await startAuthFlow(forceRedirect);
         if (forceRedirect) {
           sessionStorage.setItem('redirectAuth', 'true');
+          return;
         }
-        await handleConnectedFlow(forceRedirect);
+        await refreshAuthState();
+        const summary = await runSyncInitialization();
+        if (summary) {
+          toast({
+            title: 'Migration complete',
+            description: `Merged ${summary.mergedCount} sessions across your local and cloud data.`,
+          });
+        } else {
+          toast({
+            title: 'Connected',
+            description: 'Cloud sync is enabled and will keep this account updated in real time.',
+          });
+        }
       } catch (error) {
         if (!forceRedirect && (error as any)?.code === 'auth/popup-blocked') {
           sessionStorage.setItem('redirectAuth', 'true');
           await handleEnable(true);
           return;
         }
-
-        const message = error instanceof Error ? error.message : 'Unable to start cloud sync.';
         toast({
           title: 'Sign-in failed',
-          description: message,
+          description: error instanceof Error ? error.message : 'Unable to start cloud sync.',
           variant: 'destructive',
         });
       } finally {
         setIsProcessing(false);
       }
     },
-    [handleConnectedFlow, toast],
+    [runSyncInitialization, toast],
   );
 
   const handleDisable = useCallback(async () => {
     try {
       const auth = await getFirebaseAuth();
       await signOut(auth);
-      await Promise.resolve(stopSessionSync());
+      await stopSessionSync();
       await refreshAuthState();
-      toast({ title: 'Cloud sync disabled', description: 'Local data remains available offline.' });
+      setMigrationSummary(null);
+      setPendingSwitch(null);
+      toast({
+        title: 'Cloud sync disabled',
+        description: 'Local data remains available offline on this device.',
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not disable cloud sync.';
-      toast({ title: 'Sign-out failed', description: message, variant: 'destructive' });
+      toast({
+        title: 'Sign-out failed',
+        description: error instanceof Error ? error.message : 'Could not disable cloud sync.',
+        variant: 'destructive',
+      });
     }
   }, [toast]);
 
-  const handleManualBackup = useCallback(async () => {
+  const handleKeepSeparateProfiles = useCallback(async () => {
     try {
-      setIsBackupRunning(true);
-      await backupAllSessionsToCloud();
-      await loadBackupStatus();
+      setIsProcessing(true);
+      await acknowledgeAccountSwitch(true);
+      const summary = await runSyncInitialization();
+      setPendingSwitch(getPendingAccountSwitch());
       toast({
-        title: 'Backup Complete',
-        description: 'Training sessions stored safely in the cloud.',
+        title: 'Account switched',
+        description: summary
+          ? `Local snapshot saved and ${summary.mergedCount} sessions synced for the selected account.`
+          : 'Local data kept separate and new account sync has started.',
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Cloud backup failed.';
-      toast({ title: 'Backup Failed', description: message, variant: 'destructive' });
+      toast({
+        title: 'Could not switch account',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
-      setIsBackupRunning(false);
+      setIsProcessing(false);
     }
-  }, [loadBackupStatus, toast]);
+  }, [runSyncInitialization, toast]);
 
   useEffect(() => {
     let mounted = true;
@@ -192,18 +130,29 @@ export default function FirebaseAuth() {
 
         unsubscribe = onAuthStateChanged(auth, async (user) => {
           setAuthReady(true);
-          setCurrentUser(user);
-          if (user) {
-            await handleConnectedFlow();
+          setCurrentUser(user && !user.isAnonymous ? user : null);
+          if (user && !user.isAnonymous) {
+            try {
+              await runSyncInitialization();
+            } catch (error) {
+              console.error('Failed to initialize cloud sync:', error);
+            }
           } else {
-            setBackupStatus(null);
+            setMigrationSummary(null);
+            setPendingSwitch(null);
           }
         });
 
         if (sessionStorage.getItem('redirectAuth') === 'true') {
           try {
             await getRedirectResult(auth);
-            await handleConnectedFlow(true);
+            await refreshAuthState();
+            await runSyncInitialization();
+            sessionStorage.removeItem('redirectAuth');
+            toast({
+              title: 'Connected',
+              description: 'Cloud sync is enabled and will keep this account updated in real time.',
+            });
           } catch (error) {
             console.error('Redirect authentication failed:', error);
             toast({
@@ -215,48 +164,38 @@ export default function FirebaseAuth() {
           }
         }
       } catch (error) {
-        console.error('Firebase auth initialisation failed:', error);
+        console.error('Firebase auth initialization failed:', error);
         setAuthReady(true);
       }
     };
 
-    const handleReauthEvent = () => setReauthRequired(true);
-
     setupAuth();
-    window.addEventListener('auth:reauth-required', handleReauthEvent);
-
     return () => {
       mounted = false;
       unsubscribe?.();
-      window.removeEventListener('auth:reauth-required', handleReauthEvent);
     };
-  }, [handleConnectedFlow, toast]);
+  }, [runSyncInitialization, toast]);
 
   const syncInfo = syncStatus?.data;
 
   const statusMessage = useMemo(() => {
-    if (isVerifying) {
-      return 'Verifying cloud sync...';
-    }
-
     if (!syncInfo) return null;
-
-    if (syncInfo.state === SyncStateEnum.Pending && syncInfo.unsyncedCount > 0) {
-      return `${syncInfo.unsyncedCount} session(s) pending sync`;
+    if (pendingSwitch) {
+      return `Account switch detected (${pendingSwitch.previousUid} -> ${pendingSwitch.nextUid})`;
     }
-
     if (syncInfo.state === SyncStateEnum.Syncing) {
-      return `Syncing ${syncInfo.unsyncedCount} session(s)…`;
+      return 'Syncing latest account changes...';
     }
-
     if (syncInfo.state === SyncStateEnum.Synced && syncInfo.lastSynced) {
       return `Synced ${formatDistanceToNow(syncInfo.lastSynced, { addSuffix: true })}`;
     }
-
+    if (syncInfo.lastError) {
+      return syncInfo.lastError;
+    }
     return null;
-  }, [isVerifying, syncInfo]);
+  }, [pendingSwitch, syncInfo]);
 
-  const actionButtonLabel = reauthRequired ? 'Re-enable cloud sync' : 'Enable cloud sync';
+  const identity = currentUser?.email || currentUser?.displayName || currentUser?.uid || null;
 
   return (
     <Card className={currentUser ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}>
@@ -280,59 +219,62 @@ export default function FirebaseAuth() {
         ) : currentUser ? (
           <>
             <p className="text-xs text-gray-600">
-              Your sessions will automatically sync whenever you go online. You can run a manual
-              backup at any time.
+              Real-time sync is active for this account. Local changes are stored instantly and
+              synced across your signed-in devices.
             </p>
+            {identity && (
+              <div className="flex items-center gap-2 rounded-md border border-green-200 bg-white/70 p-2 text-xs text-gray-700">
+                <UserRound className="h-3.5 w-3.5" />
+                <span className="truncate">{identity}</span>
+              </div>
+            )}
+            {migrationSummary && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                Merged {migrationSummary.mergedCount} sessions (local {migrationSummary.localCount}
+                , cloud {migrationSummary.cloudCount}, conflicts resolved{' '}
+                {migrationSummary.collisionsResolved}).
+              </div>
+            )}
+            {pendingSwitch && (
+              <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                <div className="flex items-center gap-2 font-medium">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Account switch requires confirmation</span>
+                </div>
+                <p>
+                  To avoid mixing accounts, keep profiles separate before syncing this Google
+                  account.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleKeepSeparateProfiles}
+                  disabled={isProcessing}
+                >
+                  Keep profiles separate and continue
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleDisable} variant="secondary" disabled={isProcessing}>
                 <CloudOff className="mr-2 h-4 w-4" /> Disable cloud sync
               </Button>
-              <Button onClick={handleManualBackup} variant="outline" disabled={isBackupRunning}>
-                {isBackupRunning ? (
-                  <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="mr-2 h-4 w-4" />
-                )}
-                {isBackupRunning ? 'Backing up...' : 'Backup now'}
-              </Button>
             </div>
-            {backupStatus && (
-              <div className="mt-2 rounded-md border border-gray-200 bg-white/60 p-3 text-xs text-gray-600">
-                <div className="flex items-center gap-2 font-medium text-gray-700">
-                  <DatabaseBackup className="h-4 w-4 text-blue-500" />
-                  <span>Cloud backup summary</span>
-                </div>
-                <div className="mt-1 text-gray-500">
-                  {backupStatus.lastBackup
-                    ? `Last backup ${formatDistanceToNow(backupStatus.lastBackup, { addSuffix: true })}`
-                    : 'No backups yet'}
-                  {` • ${backupStatus.sessionCount} session(s) stored`}
-                  {backupStatus.needsBackup ? ' • Backup recommended' : ''}
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <>
             <p className="text-xs text-gray-600">
-              Enable cloud sync to keep your training data safe across devices.
+              Sign in with Google to sync sessions, daily goals, and settings across devices in
+              real time.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleEnable()} disabled={isProcessing}>
-                {isProcessing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Cloud className="mr-2 h-4 w-4" />
-                )}
-                {isProcessing ? 'Connecting…' : actionButtonLabel}
-              </Button>
-            </div>
-            {reauthRequired && (
-              <div className="flex items-center gap-2 text-xs text-amber-600">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Cloud sync needs to be re-enabled to continue.</span>
-              </div>
-            )}
+            <Button onClick={() => handleEnable()} disabled={isProcessing}>
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Cloud className="mr-2 h-4 w-4" />
+              )}
+              {isProcessing ? 'Connecting…' : 'Sign in with Google'}
+            </Button>
           </>
         )}
       </CardContent>

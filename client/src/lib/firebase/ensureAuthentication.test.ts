@@ -61,7 +61,7 @@ describe('ensureAuthentication', () => {
     expect(signInAnonymously).not.toHaveBeenCalled();
   });
 
-  it('signs in anonymously when no user after authStateReady', async () => {
+  it('keeps local-only mode when no user after authStateReady', async () => {
     const mockAuth: any = {
       currentUser: null,
       authStateReady: vi.fn().mockResolvedValue(undefined),
@@ -74,7 +74,7 @@ describe('ensureAuthentication', () => {
     const { ensureAuthentication } = await import('./auth');
     await ensureAuthentication();
 
-    expect(signInAnonymously).toHaveBeenCalled();
+    expect(signInAnonymously).not.toHaveBeenCalled();
   });
 
   it('dispatches reauth event when previous login detected', async () => {

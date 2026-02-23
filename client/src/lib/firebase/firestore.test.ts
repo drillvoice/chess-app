@@ -11,6 +11,7 @@ vi.mock('../offline-storage', () => ({
     setSessions: vi.fn(),
     addSession: vi.fn(),
     updateSession: vi.fn(),
+    getSession: vi.fn(),
     removeSession: vi.fn(),
     deleteSession: vi.fn(),
     clearStatistics: vi.fn(),
@@ -40,6 +41,18 @@ vi.mock('../cache-utils', () => ({
 vi.mock('../migration', () => ({
   migrateStudySessions: (sessions: any) => sessions,
   getMigrationStats: () => ({ migrationNeeded: false, needsMigration: 0 }),
+}));
+
+vi.mock('./sync-engine', () => ({
+  upsertSessionToCloud: vi.fn(),
+  markSessionDeletedInCloud: vi.fn(),
+  syncDailyGoalsToCloud: vi.fn(),
+  initializeCloudSyncForCurrentUser: vi.fn(),
+  fetchSessionsFromCloudForVerification: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('./core', () => ({
+  getCurrentUserId: vi.fn(() => null),
 }));
 
 describe('calculateStatistics', () => {

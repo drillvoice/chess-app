@@ -6,30 +6,34 @@ const createSession = (
   overrides: Partial<TrainingSession>,
   id: number,
   date: Date = new Date(),
-): TrainingSession => ({
-  id,
-  type: 'tactics',
-  date,
-  duration: 0,
-  pointsGained: null,
-  finalScore: null,
-  tacticsNotes: null,
-  gameResult: null,
-  gameType: null,
-  gameComments: null,
-  playerColor: null,
-  platform: null,
-  timeControl: null,
-  opponentUsername: null,
-  needsReview: false,
-  studyType: null,
-  studyTags: null,
-  studyNotes: null,
-  goalTitle: null,
-  goalDescription: null,
-  goalWeekStart: null,
-  ...overrides,
-});
+): TrainingSession => {
+  const base: TrainingSession = {
+    id,
+    type: 'tactics',
+    date,
+    duration: 0,
+    pointsGained: null,
+    finalScore: null,
+    puzzlesAttempted: null,
+    puzzlesCorrect: null,
+    tacticsNotes: null,
+    gameResult: null,
+    gameType: null,
+    gameComments: null,
+    playerColor: null,
+    platform: null,
+    timeControl: null,
+    opponentUsername: null,
+    needsReview: false,
+    studyType: null,
+    studyTags: null,
+    studyNotes: null,
+    goalTitle: null,
+    goalDescription: null,
+    goalWeekStart: null,
+  };
+  return { ...base, ...overrides } as TrainingSession;
+};
 
 describe('SessionAnalyzer', () => {
   describe('summarizeSessions', () => {

@@ -298,6 +298,7 @@ describe('useDailyGoalsSettings', () => {
         gamesCount: undefined,
         studyMinutes: undefined,
         isCustomized: true,
+        autoTracking: false,
         lastModified: expect.any(Date),
       });
     });
@@ -320,6 +321,7 @@ describe('useDailyGoalsSettings', () => {
 
       expect(mockSetDailyGoalSettings).toHaveBeenCalledWith({
         isCustomized: false,
+        autoTracking: false,
         lastModified: expect.any(Date),
       });
     });

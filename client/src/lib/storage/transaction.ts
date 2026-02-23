@@ -8,7 +8,8 @@ export type StoreName =
   | 'sessions'
   | 'cache_meta'
   | 'daily_goals'
-  | 'sync_queue';
+  | 'sync_queue'
+  | 'account_snapshots';
 
 export async function withStores<N extends readonly StoreName[], M extends IDBTransactionMode, T>(
   storeNames: N,

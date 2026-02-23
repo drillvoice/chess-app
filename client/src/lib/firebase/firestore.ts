@@ -6,11 +6,18 @@ import { safeDatabaseOperation } from '../query-timeout';
 import { migrateStudySessions, getMigrationStats } from '../migration';
 import { sessionEvents } from '../session-events';
 import '../session-event-bridge';
-import { backupAllSessionsToCloud, backupDailyGoalsToCloud } from './firestore-backup';
+import { getCurrentUserId } from './core';
+import {
+  fetchSessionsFromCloudForVerification,
+  initializeCloudSyncForCurrentUser,
+  markSessionDeletedInCloud,
+  upsertSessionToCloud,
+  syncDailyGoalsToCloud,
+} from './sync-engine';
 
-// Simplified Firebase integration - LOCAL FIRST with optional cloud backup
-// No real-time sync, no complex retry logic, no data loss scenarios
-// All operations work locally first, then queue backup operations
+// Firebase data layer - LOCAL FIRST with real-time cloud sync when authenticated.
+// Operations always commit to local IndexedDB first, then perform non-blocking
+// cloud write-through updates for signed-in users.
 
 export async function getAllSessions(): Promise<TrainingSession[]> {
   return safeDatabaseOperation(
@@ -103,6 +110,10 @@ function prepareSessionForStorage(
   return prepared;
 }
 
+function canSyncToCloud(): boolean {
+  return Boolean(getCurrentUserId());
+}
+
 export async function createSession(
   insertSession: InsertTrainingSession,
   id?: number,
@@ -120,6 +131,7 @@ export async function createSession(
     id: sessionId,
     date: sessionDate,
     createdAt: now,
+    updatedAt: now,
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
 
@@ -137,13 +149,13 @@ export async function createSession(
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue backup operation (non-blocking)
-    queueMicrotask(() => {
-      backupAllSessionsToCloud().catch((error) => {
-        console.warn('Background backup failed:', error);
-        // Don't throw - backup failure shouldn't affect user experience
+    if (canSyncToCloud()) {
+      queueMicrotask(() => {
+        upsertSessionToCloud(newSession).catch((error) => {
+          console.warn('Background cloud sync failed for created session:', error);
+        });
       });
-    });
+    }
   } catch (error) {
     console.error('Failed to save session locally:', error);
     throw new Error('Failed to save session offline');
@@ -179,12 +191,13 @@ export async function updateSession(
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue backup operation (non-blocking)
-    queueMicrotask(() => {
-      backupAllSessionsToCloud().catch((error) => {
-        console.warn('Background backup after update failed:', error);
+    if (canSyncToCloud()) {
+      queueMicrotask(() => {
+        upsertSessionToCloud(updatedSession).catch((error) => {
+          console.warn('Background cloud sync failed for updated session:', error);
+        });
       });
-    });
+    }
 
     // Refresh pending review queries so UI reflects latest data
     queryClient.invalidateQueries({ queryKey: ['pending-review'] });
@@ -199,6 +212,7 @@ export async function updateSession(
 
 export async function deleteSession(id: number): Promise<boolean> {
   try {
+    const existingSession = await offlineStorage.getSession(id);
     // Delete locally first - this is the source of truth
     await offlineStorage.deleteSession(id);
     await offlineStorage.clearStatistics();
@@ -210,12 +224,18 @@ export async function deleteSession(id: number): Promise<boolean> {
 
     queueMicrotask(() => updateStatisticsInBackground());
 
-    // Queue backup operation (non-blocking)
-    queueMicrotask(() => {
-      backupAllSessionsToCloud().catch((error) => {
-        console.warn('Background backup after delete failed:', error);
+    if (canSyncToCloud()) {
+      queueMicrotask(() => {
+        markSessionDeletedInCloud(id).catch((error) => {
+          console.warn('Background cloud tombstone sync failed:', error);
+          if (existingSession) {
+            upsertSessionToCloud(existingSession).catch((restoreError) => {
+              console.warn('Failed to re-upsert session after delete sync failure:', restoreError);
+            });
+          }
+        });
       });
-    });
+    }
 
     queryClient.invalidateQueries({ queryKey: ['pending-review'] });
     sessionEvents.emit('sessionDeleted', { id });
@@ -390,12 +410,13 @@ export async function setDailyGoalSettings(settings: DailyGoalSettings): Promise
     // Update offline storage first - this is the source of truth
     await offlineStorage.setDailyGoalSettings(settings);
 
-    // Queue Firebase backup (non-blocking)
-    queueMicrotask(() => {
-      backupDailyGoalsToCloud(settings).catch((error) => {
-        console.warn('Daily goals backup failed:', error);
+    if (canSyncToCloud()) {
+      queueMicrotask(() => {
+        syncDailyGoalsToCloud(settings).catch((error) => {
+          console.warn('Daily goals cloud sync failed:', error);
+        });
       });
-    });
+    }
   } catch (error) {
     console.error('Error setting daily goal settings locally:', error);
     throw new Error('Failed to set daily goal settings');
@@ -404,10 +425,12 @@ export async function setDailyGoalSettings(settings: DailyGoalSettings): Promise
 
 // Stub functions for backward compatibility
 export async function retryPendingSync(): Promise<void> {
-  console.log('retryPendingSync called - no-op in backup-only mode');
+  await initializeCloudSyncForCurrentUser();
 }
 
 export async function fetchSessionsFromFirebase(): Promise<TrainingSession[]> {
-  console.log('fetchSessionsFromFirebase called - returning local sessions instead');
-  return await getAllSessions();
+  if (!canSyncToCloud()) {
+    return [];
+  }
+  return await fetchSessionsFromCloudForVerification();
 }

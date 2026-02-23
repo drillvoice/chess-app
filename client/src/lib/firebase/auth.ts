@@ -5,18 +5,24 @@ import {
   signInWithRedirect,
   linkWithCredential,
 } from 'firebase/auth';
+import {
+  initializeCloudSyncForCurrentUser,
+  startRealtimeSync,
+  stopRealtimeSync,
+} from './sync-engine';
 
 export { ensureAuthentication, getCurrentUserId } from './core';
 
 export async function refreshAuthState(): Promise<void> {
   await ensureFirebase();
   const user = auth.currentUser;
-  if (!user) {
+  if (!user || user.isAnonymous) {
     clearCurrentUserId();
     return;
   }
 
   await setDoc(doc(db, 'users', user.uid), { createdAt: Timestamp.now() }, { merge: true });
+  await initializeCloudSyncForCurrentUser();
 }
 
 export async function startAuthFlow(useRedirect = false): Promise<void> {
@@ -39,15 +45,16 @@ export async function startAuthFlow(useRedirect = false): Promise<void> {
     }
 
     localStorage.setItem('hasRealLogin', 'true');
+    await initializeCloudSyncForCurrentUser();
   } catch (error) {
     throw error;
   }
 }
 
-export function stopSessionSync(): void {
-  // Firestore listeners are managed elsewhere; provided for API compatibility.
+export async function stopSessionSync(): Promise<void> {
+  await stopRealtimeSync();
 }
 
-export function startSessionSync(): void {
-  // Firestore listeners are managed elsewhere; provided for API compatibility.
+export async function startSessionSync(): Promise<void> {
+  await startRealtimeSync();
 }

@@ -2,8 +2,9 @@
 
 ## Project Structure & Module Organization
 
-- `client/` – React 18 + Vite app. Source in `client/src/` (components, pages, hooks, lib). Static assets in `client/public/`.
+- `client/` – React 19 + Vite app. Source in `client/src/` (components, pages, hooks, lib). Static assets in `client/public/`.
 - `server/` – Node/Express entry points and routes.
+- `api/` – API handlers and related tests (`api/index.ts`, `api/index.test.ts`).
 - `shared/` – Cross‑package TypeScript types and Zod/Drizzle schemas (e.g., `shared/schema.ts`).
 - `tests/` – Playwright E2E tests. Unit/integration tests live next to code as `*.test.ts(x)`.
 - `public/` – App icons/manifests for deployment.
@@ -15,9 +16,10 @@
 - `npm run build` – Build client (Vite) and bundle server (esbuild) into `dist/`.
 - `npm start` – Run production build from `dist/`.
 - `npm test` – Run unit/integration tests with Vitest.
+- `npm run test:coverage` – Run Vitest with coverage.
 - `npm run test:e2e` – Run Playwright end‑to‑end tests (use `npm run pretest:e2e` once to install browsers).
 - `npm run lint` / `npm run lint:fix` – Lint and auto‑fix.
-- `npm run format` – Format with Prettier.
+- `npm run format` / `npm run format:check` – Format or verify formatting with Prettier.
 - `npm run type-check` – TypeScript type checks.
 - `npm run validate` – Type, lint, and test in one go (use before PRs).
 

@@ -21,7 +21,6 @@ export let signInAnonymously: typeof import('firebase/auth').signInAnonymously;
 let currentUserId: string | null = null;
 let authListenerInitialized = false;
 let authResolvers: Array<() => void> = [];
-let anonymousSignInPromise: Promise<void> | null = null;
 
 export async function ensureFirebase() {
   if (!auth) {
@@ -54,7 +53,7 @@ export async function ensureFirebase() {
   if (!authListenerInitialized) {
     if (!onAuthStateChanged) throw new Error('Firebase auth not initialized');
     onAuthStateChanged(auth, async (user) => {
-      currentUserId = user ? user.uid : null;
+      currentUserId = user && !user.isAnonymous ? user.uid : null;
 
       if (currentUserId) {
         await ensureUserDoc();
@@ -66,30 +65,6 @@ export async function ensureFirebase() {
   }
 }
 
-async function ensureAnonymousAuth(): Promise<void> {
-  if (anonymousSignInPromise) {
-    return anonymousSignInPromise;
-  }
-
-  if (auth.currentUser) {
-    return;
-  }
-
-  anonymousSignInPromise = (async () => {
-    try {
-      console.log('Signing in anonymously for cloud backup...');
-      await signInAnonymously(auth);
-      console.log('Anonymous backup authentication successful');
-    } catch (error) {
-      console.error('Anonymous backup sign-in failed:', error);
-      anonymousSignInPromise = null;
-      throw error;
-    }
-  })();
-
-  return anonymousSignInPromise;
-}
-
 export async function waitForAuth(): Promise<void> {
   await ensureFirebase();
 
@@ -98,19 +73,13 @@ export async function waitForAuth(): Promise<void> {
   }
 
   const existingUser = auth.currentUser;
-  if (existingUser) {
+  if (existingUser && !existingUser.isAnonymous) {
     currentUserId = existingUser.uid;
     await ensureUserDoc();
     return;
   }
 
-  await ensureAnonymousAuth();
-
-  const user = auth.currentUser;
-  if (user) {
-    currentUserId = user.uid;
-    await ensureUserDoc();
-  }
+  throw new Error('No authenticated user available for cloud sync');
 }
 
 export async function getSessionsCollection() {
@@ -154,6 +123,9 @@ export async function ensureAuthentication(): Promise<void> {
   }
 
   if (auth.currentUser) {
+    if (auth.currentUser.isAnonymous) {
+      return;
+    }
     return;
   }
 
@@ -164,5 +136,5 @@ export async function ensureAuthentication(): Promise<void> {
     return;
   }
 
-  await ensureAnonymousAuth();
+  clearCurrentUserId();
 }

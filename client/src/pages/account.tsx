@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { LichessSettingsContent } from '@/components/lichess-settings';
+import FirebaseAuth from '@/components/firebase-auth';
 import {
   diagnoseDatabase,
   logDatabaseDiagnostics,
@@ -117,6 +118,15 @@ ${diagnostics.errors.map((error) => `  - ${error}`).join('\n')}
           <AccordionContent>
             <Suspense fallback={<div>Loading account data...</div>}>
               <DataManagementContent />
+            </Suspense>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="cloud-sync">
+          <AccordionTrigger>Cloud Sync</AccordionTrigger>
+          <AccordionContent>
+            <Suspense fallback={<div>Loading cloud sync...</div>}>
+              <FirebaseAuth />
             </Suspense>
           </AccordionContent>
         </AccordionItem>

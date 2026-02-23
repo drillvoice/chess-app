@@ -9,7 +9,7 @@ interface ChessLoggerDB extends DBSchema {
   };
   cache_meta: {
     key: string;
-    value: { key: string; timestamp: number };
+    value: { key: string; timestamp: number | string };
   };
   statistics: {
     key: string;
@@ -33,12 +33,25 @@ interface ChessLoggerDB extends DBSchema {
       updateData?: any;
     };
   };
+  account_snapshots: {
+    key: string;
+    value: {
+      id: string;
+      uid: string;
+      createdAt: string;
+      payload: {
+        sessions: Array<TrainingSession & { date: string; updatedAt?: string; deletedAt?: string }>;
+        settings: any;
+        dailyGoals: (DailyGoalSettings & { id: string; lastModified?: string }) | null;
+      };
+    };
+  };
 }
 
 export type DB = IDBPDatabase<ChessLoggerDB>;
 
 const DB_NAME = 'chess-logger-offline';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
@@ -61,6 +74,9 @@ export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
     }
     if (!db.objectStoreNames.contains('sync_queue')) {
       db.createObjectStore('sync_queue', { keyPath: 'sessionId' });
+    }
+    if (!db.objectStoreNames.contains('account_snapshots')) {
+      db.createObjectStore('account_snapshots', { keyPath: 'id' });
     }
   },
 });

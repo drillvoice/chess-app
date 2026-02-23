@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getFirebaseAuth } from '@/lib/firebaseClient';
+import { getCloudSyncStatus } from '@/lib/firebase';
 
 export enum SyncState {
   Disabled = 'disabled',
@@ -13,6 +14,7 @@ interface SyncStatus {
   lastSynced: Date | null;
   lastAttempt: Date | null;
   state: SyncState;
+  lastError?: string | null;
 }
 
 export function useSyncStatus() {
@@ -25,12 +27,17 @@ export function useSyncStatus() {
         offlineStorage.getLastSyncedTimestamp(),
         offlineStorage.getLastSyncAttempt(),
       ]);
+      const cloudStatus = getCloudSyncStatus();
       const lastSynced = lastSyncedTs ? new Date(lastSyncedTs) : null;
       const auth = await getFirebaseAuth();
       const user = auth.currentUser;
       let state: SyncState;
-      if (!user || user.isAnonymous) {
+      if (!user || user.isAnonymous || cloudStatus.state === 'disabled') {
         state = unsynced.length > 0 ? SyncState.Pending : SyncState.Disabled;
+      } else if (cloudStatus.state === 'error') {
+        state = SyncState.Pending;
+      } else if (cloudStatus.state === 'syncing' || cloudStatus.state === 'initializing') {
+        state = SyncState.Syncing;
       } else if (unsynced.length > 0) {
         if (lastAttempt && (!lastSynced || lastAttempt > lastSynced)) {
           state = SyncState.Syncing;
@@ -42,9 +49,10 @@ export function useSyncStatus() {
       }
       return {
         unsyncedCount: unsynced.length,
-        lastSynced,
+        lastSynced: cloudStatus.lastSyncedAt ?? lastSynced,
         lastAttempt,
         state,
+        lastError: cloudStatus.lastError,
       };
     },
     refetchInterval: 30000,

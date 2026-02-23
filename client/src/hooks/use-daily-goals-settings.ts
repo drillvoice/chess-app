@@ -186,15 +186,17 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       gamesCount: formData.gamesCount || undefined,
       studyMinutes: formData.studyMinutes || undefined,
       isCustomized: true,
+      autoTracking: autoTrackingEnabled,
       lastModified: new Date(),
     };
 
     await saveMutation.mutateAsync(newSettings);
-  }, [formData, saveMutation]);
+  }, [autoTrackingEnabled, formData, saveMutation]);
 
   const disableCustomGoals = useCallback(async () => {
     const newSettings: DailyGoalSettings = {
       isCustomized: false,
+      autoTracking: false,
       lastModified: new Date(),
     };
 

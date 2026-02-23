@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from 'lucide-react';
-import FirebaseAuth from './firebase-auth';
 // Dynamic import for firebase to maintain code splitting
 
 function DataManagementContent() {
@@ -49,18 +48,6 @@ function DataManagementContent() {
 
   return (
     <div className="space-y-6">
-      {/* Firebase Cloud Backup */}
-      <div>
-        <Label className="mb-3 block text-sm font-medium text-gray-700">Cloud Backup</Label>
-        <div className="space-y-3">
-          <FirebaseAuth />
-          <p className="text-sm text-gray-600">
-            Your data is automatically backed up to Firebase Cloud weekly when you're online. Manual
-            backups can be triggered anytime from the backup status above.
-          </p>
-        </div>
-      </div>
-
       {/* Enhanced Data Management */}
       <div>
         <Label className="mb-3 block text-sm font-medium text-gray-700">
@@ -98,9 +85,8 @@ function DataManagementContent() {
 
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> The enhanced data management system above provides comprehensive
-          backup and restore capabilities. Your data is now safer with automatic weekly backups and
-          advanced import/export options.
+          <strong>Note:</strong> Cloud Sync is now managed in its own section under Account. The
+          tools here remain available for manual backup, restore, and data integrity workflows.
         </p>
       </div>
     </div>

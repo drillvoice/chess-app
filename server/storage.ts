@@ -68,6 +68,8 @@ export class MemStorage implements IStorage {
       duration: insertSession.duration ?? null,
       pointsGained: insertSession.pointsGained ?? null,
       finalScore: insertSession.finalScore ?? null,
+      puzzlesAttempted: insertSession.puzzlesAttempted ?? null,
+      puzzlesCorrect: insertSession.puzzlesCorrect ?? null,
       tacticsNotes: insertSession.tacticsNotes ?? null,
       gameResult: insertSession.gameResult ?? null,
       gameType: insertSession.gameType ?? null,

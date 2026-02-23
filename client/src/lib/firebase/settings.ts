@@ -64,6 +64,7 @@ async function updateWeeklyGoalInBackground(): Promise<void> {
 export interface UserSettings {
   lichessUsername?: string;
   studyPreferences?: UserStudyPreferences;
+  lastModified?: Date | string;
 }
 
 // Retrieve user settings, preferring cached offline data when available
@@ -122,12 +123,16 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
     console.warn('Failed to read settings from offline storage:', error);
   }
   const mergedSettings = { ...existingSettings, ...settings };
-  console.log('🔄 Merged settings:', mergedSettings);
+  const mergedSettingsWithTimestamp: UserSettings = {
+    ...mergedSettings,
+    lastModified: new Date(),
+  };
+  console.log('🔄 Merged settings:', mergedSettingsWithTimestamp);
 
   // Always save to offline storage first (offline-first approach)
   try {
     console.log('📱 Saving to offline storage first...');
-    await offlineStorage.setSettings(mergedSettings);
+    await offlineStorage.setSettings(mergedSettingsWithTimestamp);
     console.log('✅ Successfully saved to offline storage');
   } catch (error) {
     console.warn('❌ Failed to save to offline storage:', error);
@@ -156,7 +161,7 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
     const settingsRef = doc(db, 'users', userId, 'settings', 'settings');
     console.log('💾 Attempting to save to Firestore path:', `users/${userId}/settings/settings`);
 
-    await setDoc(settingsRef, settings, { merge: true });
+    await setDoc(settingsRef, mergedSettingsWithTimestamp, { merge: true });
     console.log('✅ Successfully saved to Firestore');
   } catch (error) {
     console.error('⚠️ Failed to save to Firestore:', error);

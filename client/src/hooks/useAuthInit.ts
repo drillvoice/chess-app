@@ -4,8 +4,11 @@ export function useAuthInit() {
   useEffect(() => {
     const init = async () => {
       try {
-        const { ensureAuthentication } = await import('@/lib/firebase');
+        const { ensureAuthentication, initializeCloudSyncForCurrentUser } = await import(
+          '@/lib/firebase'
+        );
         await ensureAuthentication();
+        await initializeCloudSyncForCurrentUser();
       } catch (err) {
         console.error('Auth init failed:', err);
       }

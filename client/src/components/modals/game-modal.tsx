@@ -176,6 +176,8 @@ export default function GameModal({
           duration: editingSession.duration, // Preserve existing duration
           pointsGained: null,
           finalScore: null,
+          puzzlesAttempted: null,
+          puzzlesCorrect: null,
           tacticsNotes: null,
           gameResult: newSession.gameResult,
           gameType: null,
@@ -207,6 +209,8 @@ export default function GameModal({
           duration: null,
           pointsGained: null,
           finalScore: null,
+          puzzlesAttempted: null,
+          puzzlesCorrect: null,
           tacticsNotes: null,
           gameResult: newSession.gameResult,
           gameType: null,

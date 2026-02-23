@@ -7,6 +7,7 @@ const STORES = [
   'cache_meta',
   'sync_queue',
   'daily_goals',
+  'account_snapshots',
 ] as const;
 
 export async function clearAll(): Promise<void> {
