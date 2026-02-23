@@ -15,6 +15,13 @@ interface SyncStatus {
   lastAttempt: Date | null;
   state: SyncState;
   lastError?: string | null;
+  phase?: string | null;
+  processed?: number;
+  total?: number;
+  progressPct?: number;
+  elapsedMs?: number | null;
+  itemsPerSecond?: number | null;
+  lastBatchSize?: number;
 }
 
 export function useSyncStatus() {
@@ -53,6 +60,13 @@ export function useSyncStatus() {
         lastAttempt,
         state,
         lastError: cloudStatus.lastError,
+        phase: cloudStatus.phase,
+        processed: cloudStatus.processed,
+        total: cloudStatus.total,
+        progressPct: cloudStatus.progressPct,
+        elapsedMs: cloudStatus.elapsedMs,
+        itemsPerSecond: cloudStatus.itemsPerSecond,
+        lastBatchSize: cloudStatus.lastBatchSize,
       };
     },
     refetchInterval: 30000,

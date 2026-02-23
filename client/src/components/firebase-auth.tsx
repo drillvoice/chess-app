@@ -5,6 +5,7 @@ import { getFirebaseAuth } from '@/lib/firebaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useSyncStatus, SyncState as SyncStateEnum } from '@/hooks/useSyncStatus';
 import {
   acknowledgeAccountSwitch,
@@ -195,6 +196,26 @@ export default function FirebaseAuth() {
     return null;
   }, [pendingSwitch, syncInfo]);
 
+  const progressLabel = useMemo(() => {
+    if (!syncInfo) return null;
+    if (syncInfo.state !== SyncStateEnum.Syncing) return null;
+    const processed = syncInfo.processed ?? 0;
+    const total = syncInfo.total ?? 0;
+    if (total > 0) {
+      return `${processed}/${total} items synced`;
+    }
+    if (syncInfo.lastBatchSize && syncInfo.lastBatchSize > 0) {
+      return `${syncInfo.lastBatchSize} items in latest sync batch`;
+    }
+    return 'Preparing sync...';
+  }, [syncInfo]);
+
+  const speedLabel = useMemo(() => {
+    if (!syncInfo) return null;
+    if (!syncInfo.itemsPerSecond || syncInfo.itemsPerSecond <= 0) return null;
+    return `${syncInfo.itemsPerSecond.toFixed(2)} items/sec`;
+  }, [syncInfo]);
+
   const identity = currentUser?.email || currentUser?.displayName || currentUser?.uid || null;
 
   return (
@@ -233,6 +254,24 @@ export default function FirebaseAuth() {
                 Merged {migrationSummary.mergedCount} sessions (local {migrationSummary.localCount}
                 , cloud {migrationSummary.cloudCount}, conflicts resolved{' '}
                 {migrationSummary.collisionsResolved}).
+              </div>
+            )}
+            {syncInfo?.state === SyncStateEnum.Syncing && (
+              <div className="space-y-2 rounded-md border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
+                <div className="font-medium">
+                  {syncInfo.phase || 'Synchronizing account data'}
+                </div>
+                <Progress
+                  value={Math.max(0, Math.min(100, syncInfo.progressPct ?? 0))}
+                  className="h-2 bg-sky-100"
+                />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>{progressLabel}</span>
+                  {speedLabel && <span>{speedLabel}</span>}
+                  {typeof syncInfo.elapsedMs === 'number' && syncInfo.elapsedMs >= 0 && (
+                    <span>{(syncInfo.elapsedMs / 1000).toFixed(1)}s elapsed</span>
+                  )}
+                </div>
               </div>
             )}
             {pendingSwitch && (

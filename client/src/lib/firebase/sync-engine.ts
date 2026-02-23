@@ -24,6 +24,14 @@ export interface CloudSyncStatus {
   currentUid: string | null;
   lastSyncedAt: Date | null;
   lastError: string | null;
+  phase?: string | null;
+  processed?: number;
+  total?: number;
+  progressPct?: number;
+  startedAt?: Date | null;
+  elapsedMs?: number | null;
+  itemsPerSecond?: number | null;
+  lastBatchSize?: number;
 }
 
 export interface MigrationSummary {
@@ -45,6 +53,14 @@ let status: CloudSyncStatus = {
   currentUid: null,
   lastSyncedAt: null,
   lastError: null,
+  phase: null,
+  processed: 0,
+  total: 0,
+  progressPct: 0,
+  startedAt: null,
+  elapsedMs: null,
+  itemsPerSecond: null,
+  lastBatchSize: 0,
 };
 
 let stopRealtimeSyncFn: (() => void) | null = null;
@@ -61,6 +77,17 @@ function resolveUid(): string | null {
 function publishStatus(next: Partial<CloudSyncStatus>) {
   status = { ...status, ...next };
   window.dispatchEvent(new CustomEvent('cloud-sync:status', { detail: status }));
+}
+
+function progressMetrics(processed: number, total: number, startedAt: number) {
+  const now = Date.now();
+  const elapsedMs = Math.max(1, now - startedAt);
+  const safeTotal = Math.max(1, total);
+  return {
+    progressPct: Math.min(100, Math.round((processed / safeTotal) * 100)),
+    elapsedMs,
+    itemsPerSecond: Number((processed / (elapsedMs / 1000)).toFixed(2)),
+  };
 }
 
 function toDate(value: unknown): Date | null {
@@ -209,7 +236,18 @@ export async function acknowledgeAccountSwitch(keepSeparate = true): Promise<voi
 export async function stopRealtimeSync(): Promise<void> {
   stopRealtimeSyncFn?.();
   stopRealtimeSyncFn = null;
-  publishStatus({ state: 'disabled', currentUid: null });
+  publishStatus({
+    state: 'disabled',
+    currentUid: null,
+    phase: null,
+    processed: 0,
+    total: 0,
+    progressPct: 0,
+    startedAt: null,
+    elapsedMs: null,
+    itemsPerSecond: null,
+    lastBatchSize: 0,
+  });
 }
 
 export async function runInitialMergeMigration(): Promise<MigrationSummary> {
@@ -218,6 +256,19 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   if (!uid) {
     throw new Error('Cannot run migration without authenticated user');
   }
+
+  const migrationStart = Date.now();
+  publishStatus({
+    state: 'syncing',
+    currentUid: uid,
+    phase: 'Loading local and cloud data',
+    processed: 0,
+    total: 1,
+    progressPct: 0,
+    startedAt: new Date(migrationStart),
+    elapsedMs: 0,
+    itemsPerSecond: 0,
+  });
 
   const [localSessions, cloudSessions, localSettings, cloudSettings, localGoals, cloudGoals] =
     await Promise.all([
@@ -230,13 +281,26 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     ]);
 
   const { merged, collisionsResolved } = mergeSessionCollections(localSessions, cloudSessions);
+  publishStatus({
+    phase: 'Merging local and cloud sessions',
+    processed: 1,
+    total: Math.max(1, merged.length + 1),
+    ...progressMetrics(1, Math.max(1, merged.length + 1), migrationStart),
+  });
   await offlineStorage.setSessions(merged);
 
   let uploadedCount = 0;
+  const uploadTotal = Math.max(1, merged.length);
   for (const session of merged) {
     const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
     await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
     uploadedCount += 1;
+    publishStatus({
+      phase: 'Uploading merged sessions',
+      processed: uploadedCount,
+      total: uploadTotal,
+      ...progressMetrics(uploadedCount, uploadTotal, migrationStart),
+    });
   }
 
   if (isCloudNewer(localSettings, cloudSettings)) {
@@ -268,6 +332,15 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     offlineStorage.clearSyncLastError(),
   ]);
 
+  publishStatus({
+    state: 'synced',
+    phase: 'Migration complete',
+    processed: uploadTotal,
+    total: uploadTotal,
+    ...progressMetrics(uploadTotal, uploadTotal, migrationStart),
+    lastSyncedAt: new Date(),
+  });
+
   const summary: MigrationSummary = {
     localCount: localSessions.length,
     cloudCount: cloudSessions.length,
@@ -288,7 +361,18 @@ export async function startRealtimeSync(): Promise<() => void> {
   }
 
   stopRealtimeSyncFn?.();
-  publishStatus({ state: 'syncing', currentUid: uid, lastError: null });
+  publishStatus({
+    state: 'syncing',
+    currentUid: uid,
+    lastError: null,
+    phase: 'Starting realtime listeners',
+    processed: 0,
+    total: 0,
+    progressPct: 0,
+    startedAt: new Date(),
+    elapsedMs: 0,
+    itemsPerSecond: 0,
+  });
 
   const sessionsRef = collection(db, 'users', uid, 'trainingSessions');
   const settingsRef = doc(db, 'users', uid, 'settings', 'settings');
@@ -297,15 +381,38 @@ export async function startRealtimeSync(): Promise<() => void> {
   const unsubscribeSessions = onSnapshot(
     query(sessionsRef),
     async (snapshot) => {
+      const startedAt = Date.now();
       const remoteSessions = snapshot.docs.map((entry) => deserializeSessionFromCloud(entry.data()));
       const activeSessions = remoteSessions.filter((session: any) => !session.deletedAt);
+      publishStatus({
+        state: 'syncing',
+        phase: 'Applying latest cloud snapshot',
+        processed: activeSessions.length,
+        total: activeSessions.length,
+        progressPct: 100,
+        startedAt: new Date(startedAt),
+        elapsedMs: 0,
+        itemsPerSecond: null,
+        lastBatchSize: activeSessions.length,
+      });
       await offlineStorage.setSessions(activeSessions);
       await Promise.all([
         offlineStorage.setLastSyncedTimestamp(Date.now()),
         offlineStorage.setSyncLastSuccessAt(Date.now()),
         offlineStorage.clearSyncLastError(),
       ]);
-      publishStatus({ state: 'synced', lastSyncedAt: new Date() });
+      const elapsedMs = Date.now() - startedAt;
+      const itemsPerSecond =
+        activeSessions.length > 0
+          ? Number((activeSessions.length / Math.max(0.001, elapsedMs / 1000)).toFixed(2))
+          : 0;
+      publishStatus({
+        state: 'synced',
+        phase: 'Realtime sync idle',
+        lastSyncedAt: new Date(),
+        elapsedMs,
+        itemsPerSecond,
+      });
     },
     async (error) => {
       const message = error instanceof Error ? error.message : 'Session sync failed';
