@@ -1,7 +1,16 @@
 {
-  "version": "2.1.6",
+  "version": "2.1.7",
   "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.7",
+      "date": "24 February 2026",
+      "changes": [
+        "Add live cloud-repair progress display in Account so long repair runs are visible",
+        "Add per-session upload timeouts so one stuck write cannot freeze the repair action indefinitely",
+        "Report incremental processed/uploaded/failed counts during forced cloud repair"
+      ]
+    },
     {
       "version": "2.1.6",
       "date": "24 February 2026",

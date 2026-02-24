@@ -58,6 +58,19 @@ export interface ForceUploadSummary {
   failedCount: number;
 }
 
+interface BackfillProgress {
+  processed: number;
+  total: number;
+  uploadedCount: number;
+  failedCount: number;
+}
+
+interface BackfillOptions {
+  concurrency?: number;
+  perItemTimeoutMs?: number;
+  onProgress?: (progress: BackfillProgress) => void;
+}
+
 interface AccountSwitchPrompt {
   previousUid: string;
   nextUid: string;
@@ -128,6 +141,23 @@ function omitUndefinedFields<T extends Record<string, unknown>>(payload: T): T {
   return Object.fromEntries(
     Object.entries(payload).filter(([, value]) => value !== undefined),
   ) as T;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
 }
 
 function sessionRecency(session: Partial<TrainingSession> & { updatedAt?: any; date?: any }) {
@@ -253,8 +283,10 @@ export function reconcileRealtimeSnapshot(
 
 async function backfillLocalOnlySessionsToCloud(
   sessionsToUpload: TrainingSession[],
-  concurrency = 4,
+  options: BackfillOptions = {},
 ): Promise<{ uploadedCount: number; failedCount: number }> {
+  const concurrency = options.concurrency ?? 4;
+  const perItemTimeoutMs = options.perItemTimeoutMs ?? 15000;
   if (sessionsToUpload.length === 0) {
     return { uploadedCount: 0, failedCount: 0 };
   }
@@ -262,17 +294,37 @@ async function backfillLocalOnlySessionsToCloud(
   const queue = [...sessionsToUpload];
   let uploadedCount = 0;
   let failedCount = 0;
+  let processed = 0;
+  const total = sessionsToUpload.length;
+
+  const emitProgress = () => {
+    options.onProgress?.({
+      processed,
+      total,
+      uploadedCount,
+      failedCount,
+    });
+  };
+
+  emitProgress();
 
   const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
     while (queue.length > 0) {
       const session = queue.shift();
       if (!session) continue;
       try {
-        await upsertSessionToCloud(session);
+        await withTimeout(
+          upsertSessionToCloud(session),
+          perItemTimeoutMs,
+          `Timed out uploading session ${session.id}`,
+        );
         uploadedCount += 1;
       } catch (error) {
         failedCount += 1;
         console.warn(`Failed to backfill local-only session ${session.id} to cloud`, error);
+      } finally {
+        processed += 1;
+        emitProgress();
       }
     }
   });
@@ -538,7 +590,7 @@ export async function backfillMissingLocalSessionsToCloud(concurrency = 4): Prom
   const { localOnlyToUpload } = reconcileRealtimeSnapshot(localSessions, remoteSessions);
   const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(
     localOnlyToUpload,
-    concurrency,
+    { concurrency },
   );
 
   return {
@@ -549,7 +601,7 @@ export async function backfillMissingLocalSessionsToCloud(concurrency = 4): Prom
 }
 
 export async function forceUploadAllLocalSessionsToCloud(
-  concurrency = 4,
+  options: BackfillOptions = {},
 ): Promise<ForceUploadSummary> {
   await ensureFirebase();
   const uid = resolveUid();
@@ -561,10 +613,47 @@ export async function forceUploadAllLocalSessionsToCloud(
   const normalizedLocal = localSessions
     .map((session) => normalizeSessionForSync(session))
     .filter((session): session is TrainingSession => Boolean(session));
+  const repairStart = Date.now();
+  publishStatus({
+    state: 'syncing',
+    currentUid: uid,
+    phase: 'Repairing cloud data',
+    processed: 0,
+    total: normalizedLocal.length,
+    progressPct: 0,
+    startedAt: new Date(repairStart),
+    elapsedMs: 0,
+    itemsPerSecond: 0,
+    lastError: null,
+  });
   const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(
     normalizedLocal,
-    concurrency,
+    {
+      ...options,
+      onProgress: (progress) => {
+        options.onProgress?.(progress);
+        publishStatus({
+          state: 'syncing',
+          currentUid: uid,
+          phase: 'Repairing cloud data',
+          processed: progress.processed,
+          total: progress.total,
+          ...progressMetrics(progress.processed, Math.max(1, progress.total), repairStart),
+        });
+      },
+    },
   );
+
+  publishStatus({
+    state: failedCount > 0 ? 'error' : 'synced',
+    currentUid: uid,
+    phase: failedCount > 0 ? 'Cloud repair completed with errors' : 'Cloud repair complete',
+    processed: normalizedLocal.length,
+    total: normalizedLocal.length,
+    ...progressMetrics(normalizedLocal.length, Math.max(1, normalizedLocal.length), repairStart),
+    lastSyncedAt: failedCount > 0 ? status.lastSyncedAt : new Date(),
+    lastError: failedCount > 0 ? `${failedCount} sessions failed during cloud repair` : null,
+  });
 
   return {
     totalLocalCount: normalizedLocal.length,

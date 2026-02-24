@@ -36,6 +36,7 @@ vi.mock('@/lib/firebase', () => ({
   startAuthFlow: vi.fn(),
   refreshAuthState: vi.fn(),
   stopSessionSync: vi.fn(),
+  forceUploadAllLocalSessionsToCloud: vi.fn(),
   initializeCloudSyncForCurrentUser: vi.fn().mockResolvedValue(null),
   acknowledgeAccountSwitch: vi.fn(),
   getPendingAccountSwitch: vi.fn(() => null),

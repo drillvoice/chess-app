@@ -30,6 +30,12 @@ export default function FirebaseAuth() {
   const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
   const [pendingSwitch, setPendingSwitch] = useState(getPendingAccountSwitch());
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [repairProgress, setRepairProgress] = useState<{
+    processed: number;
+    total: number;
+    uploadedCount: number;
+    failedCount: number;
+  } | null>(null);
 
   const runSyncInitialization = useCallback(async () => {
     const summary = await initializeCloudSyncForCurrentUser();
@@ -102,7 +108,17 @@ export default function FirebaseAuth() {
   const handleRepairCloudData = useCallback(async () => {
     try {
       setIsProcessing(true);
-      const summary = await forceUploadAllLocalSessionsToCloud();
+      setRepairProgress({
+        processed: 0,
+        total: 0,
+        uploadedCount: 0,
+        failedCount: 0,
+      });
+      const summary = await forceUploadAllLocalSessionsToCloud({
+        onProgress: (progress) => {
+          setRepairProgress(progress);
+        },
+      });
       if (summary.failedCount > 0) {
         toast({
           title: 'Repair partially complete',
@@ -122,6 +138,7 @@ export default function FirebaseAuth() {
         variant: 'destructive',
       });
     } finally {
+      setRepairProgress(null);
       setIsProcessing(false);
     }
   }, [toast]);
@@ -350,6 +367,14 @@ export default function FirebaseAuth() {
                 <CloudOff className="mr-2 h-4 w-4" /> Disable cloud sync
               </Button>
             </div>
+            {isProcessing && repairProgress && (
+              <div className="rounded-md border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
+                Repair progress: {repairProgress.processed}/{repairProgress.total || '?'} processed
+                {repairProgress.total > 0
+                  ? ` (${repairProgress.uploadedCount} uploaded, ${repairProgress.failedCount} failed)`
+                  : ''}
+              </div>
+            )}
           </>
         ) : (
           <>
