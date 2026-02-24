@@ -107,7 +107,9 @@ function progressMetrics(processed: number, total: number, startedAt: number) {
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
-  if (value instanceof Date) return value;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
   if (typeof value === 'string') {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -120,6 +122,12 @@ function toDate(value: unknown): Date | null {
     }
   }
   return null;
+}
+
+function omitUndefinedFields<T extends Record<string, unknown>>(payload: T): T {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined),
+  ) as T;
 }
 
 function sessionRecency(session: Partial<TrainingSession> & { updatedAt?: any; date?: any }) {
@@ -279,14 +287,14 @@ function serializeSessionForCloud(session: TrainingSession) {
     throw new Error(`Session ${String((session as any)?.id)} is missing a valid id or date`);
   }
 
-  return {
+  return omitUndefinedFields({
     ...normalizedSession,
     date: Timestamp.fromDate(normalizedSession.date),
     updatedAt: Timestamp.fromDate(toDate((normalizedSession as any).updatedAt) ?? new Date()),
     deletedAt: toDate((normalizedSession as any).deletedAt)
       ? Timestamp.fromDate(toDate((normalizedSession as any).deletedAt)!)
       : null,
-  };
+  });
 }
 
 function deserializeSessionFromCloud(payload: any): TrainingSession {

@@ -1,7 +1,16 @@
 {
-  "version": "2.1.5",
+  "version": "2.1.6",
   "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.6",
+      "date": "24 February 2026",
+      "changes": [
+        "Fix force-repair cloud uploads by removing undefined fields from Firestore session payloads",
+        "Validate Date instances before upload serialization to prevent invalid Timestamp conversion failures",
+        "Improve reliability of full local-session upload retry loops during cloud repair"
+      ]
+    },
     {
       "version": "2.1.5",
       "date": "24 February 2026",
