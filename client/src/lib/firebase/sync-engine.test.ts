@@ -106,6 +106,22 @@ describe('reconcileRealtimeSnapshot', () => {
     expect(result.tombstonedIds).toEqual([1]);
   });
 
+  it('resurrects local session when it is newer than cloud tombstone', () => {
+    const local = [makeSession(1, '2025-01-01T10:00:00.000Z', '2025-01-04T10:00:00.000Z')];
+    const remote = [
+      makeSession(1, '2025-01-01T10:00:00.000Z', '2025-01-02T10:00:00.000Z', {
+        deletedAt: new Date('2025-01-03T10:00:00.000Z'),
+      } as any),
+    ];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal).toHaveLength(1);
+    expect(result.nextLocal[0].id).toBe(1);
+    expect(result.localOnlyToUpload.map((s) => s.id)).toEqual([1]);
+    expect(result.tombstonedIds).toEqual([]);
+  });
+
   it('applies recency conflict resolution before backfill selection', () => {
     const local = [makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-01T10:00:00.000Z', {
       duration: 10,

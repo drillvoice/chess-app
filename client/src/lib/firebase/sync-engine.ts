@@ -201,19 +201,37 @@ export function reconcileRealtimeSnapshot(
     .map((session) => normalizeSessionForSync(session))
     .filter((session): session is TrainingSession => Boolean(session));
 
-  const tombstonedIds = normalizedRemoteSessions
-    .filter((session) => Boolean((session as any).deletedAt))
-    .map((session) => session.id);
-  const tombstonedIdSet = new Set(tombstonedIds);
+  const tombstoneRecencyById = new Map<number, number>();
+  for (const session of normalizedRemoteSessions) {
+    if (!(session as any).deletedAt) continue;
+    const deletedAtTs = toDate((session as any).deletedAt)?.getTime();
+    const tombstoneRecency = deletedAtTs ?? sessionRecency(session);
+    tombstoneRecencyById.set(session.id, tombstoneRecency);
+  }
+
+  const tombstonedIdSet = new Set(tombstoneRecencyById.keys());
   const remoteActive = normalizedRemoteSessions.filter((session) => !tombstonedIdSet.has(session.id));
-  const localWithoutTombstones = normalizedLocalSessions.filter(
-    (session) => !tombstonedIdSet.has(session.id),
+
+  const localWithoutTombstones = normalizedLocalSessions.filter((session) => {
+    const tombstoneRecency = tombstoneRecencyById.get(session.id);
+    if (tombstoneRecency == null) return true;
+    return sessionRecency(session) > tombstoneRecency;
+  });
+
+  const resurrectedIdSet = new Set(
+    localWithoutTombstones
+      .filter((session) => tombstoneRecencyById.has(session.id))
+      .map((session) => session.id),
   );
+  const tombstonedIds = Array.from(tombstoneRecencyById.keys()).filter(
+    (id) => !resurrectedIdSet.has(id),
+  );
+  const effectiveTombstonedIdSet = new Set(tombstonedIds);
 
   const { merged } = mergeSessionCollections(localWithoutTombstones, remoteActive);
   const remoteActiveIds = new Set(remoteActive.map((session) => session.id));
   const localOnlyToUpload = merged.filter(
-    (session) => !remoteActiveIds.has(session.id) && !tombstonedIdSet.has(session.id),
+    (session) => !remoteActiveIds.has(session.id) && !effectiveTombstonedIdSet.has(session.id),
   );
 
   return { nextLocal: merged, localOnlyToUpload, tombstonedIds };
