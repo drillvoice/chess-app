@@ -1,7 +1,17 @@
 {
-  "version": "2.1.4",
+  "version": "2.1.5",
   "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.5",
+      "date": "24 February 2026",
+      "changes": [
+        "Fix cloud sync reconciliation so newer local sessions can override stale cloud tombstones",
+        "Add startup and account-level repair flows to backfill missing local sessions to cloud",
+        "Add 'Repair cloud data' action in Account > Cloud Sync to force upload all local sessions",
+        "Harden Firebase collection UID resolution to avoid false \"synced\" states with partial cloud writes"
+      ]
+    },
     {
       "version": "2.1.4",
       "date": "24 February 2026",
