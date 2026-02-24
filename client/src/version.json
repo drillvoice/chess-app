@@ -1,7 +1,17 @@
 {
-  "version": "2.1.3",
+  "version": "2.1.4",
   "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.4",
+      "date": "24 February 2026",
+      "changes": [
+        "Restore Lichess sync startup for local-only devices after cloud sync auth changes",
+        "Allow account-level Sync Status to become active without requiring cloud sign-in",
+        "Fix disabled 'Sync Now' button regression when a saved Lichess username exists locally",
+        "Add regression test to keep local-only Lichess sync initialization covered"
+      ]
+    },
     {
       "version": "2.1.3",
       "date": "24 February 2026",

@@ -45,10 +45,46 @@ export function useLichessSync() {
     let stopSync: (() => void) | undefined;
     let unsub: (() => void) | undefined;
     let mounted = true;
+    let activeUsername: string | null = null;
+
+    const syncWithUsername = (rawUsername?: string) => {
+      const nextUsername = rawUsername?.trim().toLowerCase() || null;
+      if (nextUsername === activeUsername) {
+        return;
+      }
+
+      if (stopSync) {
+        debugLog('🛑 [Lichess Sync] Stopping existing sync');
+        stopSync();
+        stopSync = undefined;
+      }
+
+      activeUsername = nextUsername;
+      if (!nextUsername) {
+        debugLog('ℹ️ [Lichess Sync] No username configured in settings');
+        return;
+      }
+
+      import('@/lib/lichess-sync')
+        .then(({ startLichessSync }) => {
+          if (!mounted) {
+            return;
+          }
+          debugLog('✅ [Lichess Sync] Starting sync for username:', nextUsername);
+          stopSync = startLichessSync(nextUsername);
+          debugLog('✅ [Lichess Sync] Sync started successfully, stopSync function:', !!stopSync);
+        })
+        .catch((err) => {
+          console.error('❌ [Lichess Sync] Failed to import sync module:', err);
+        });
+    };
 
     const init = async () => {
       try {
         debugLog('🔄 [Lichess Sync] Initializing...');
+        const initialSettings = await loadSettingsWithRetry();
+        if (!mounted) return;
+        syncWithUsername(initialSettings.lichessUsername);
 
         const { getFirebaseAuth } = await import('@/lib/firebaseClient');
         const auth = await getFirebaseAuth();
@@ -58,7 +94,6 @@ export function useLichessSync() {
         );
 
         const { onAuthStateChanged } = await import('firebase/auth');
-        const { startLichessSync } = await import('@/lib/lichess-sync');
 
         unsub = onAuthStateChanged(auth, async (user) => {
           debugLog(
@@ -69,45 +104,19 @@ export function useLichessSync() {
           );
           if (!mounted) return;
 
-          // Stop any existing sync
-          if (stopSync) {
-            debugLog('🛑 [Lichess Sync] Stopping existing sync');
-            stopSync();
-            stopSync = undefined;
-          }
-
-          if (user) {
-            debugLog('👤 [Lichess Sync] User authenticated, loading settings...');
-            try {
-              const settings = await loadSettingsWithRetry();
-              debugLog('✅ [Lichess Sync] Settings loaded:', settings);
-
-              if (!mounted) {
-                debugLog('⚠️ [Lichess Sync] Component unmounted, aborting');
-                return;
-              }
-
-              if (settings.lichessUsername) {
-                debugLog('✅ [Lichess Sync] Starting sync for username:', settings.lichessUsername);
-                stopSync = startLichessSync(settings.lichessUsername);
-                debugLog(
-                  '✅ [Lichess Sync] Sync started successfully, stopSync function:',
-                  !!stopSync,
-                );
-              } else {
-                debugLog('ℹ️ [Lichess Sync] No username configured in settings');
-              }
-            } catch (err) {
-              if (!mounted) return;
-              console.error('❌ [Lichess Sync] Failed to start sync:', err);
-              console.error('❌ [Lichess Sync] Error details:', {
-                name: err instanceof Error ? err.name : 'unknown',
-                message: err instanceof Error ? err.message : String(err),
-                stack: err instanceof Error ? err.stack : undefined,
-              });
-            }
-          } else {
-            debugLog('🚫 [Lichess Sync] No user authenticated, sync not started');
+          try {
+            const settings = await loadSettingsWithRetry();
+            debugLog('✅ [Lichess Sync] Settings loaded after auth change:', settings);
+            if (!mounted) return;
+            syncWithUsername(settings.lichessUsername);
+          } catch (err) {
+            if (!mounted) return;
+            console.error('❌ [Lichess Sync] Failed to refresh sync settings:', err);
+            console.error('❌ [Lichess Sync] Error details:', {
+              name: err instanceof Error ? err.name : 'unknown',
+              message: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
+            });
           }
         });
       } catch (err) {
