@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingSession } from '@shared/schema';
-import { mergeSessionCollections, reconcileRealtimeSnapshot } from './sync-engine';
+import { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot } from './sync-engine';
 
 function makeSession(
   id: number,
@@ -147,5 +147,63 @@ describe('reconcileRealtimeSnapshot', () => {
     expect(result.nextLocal).toHaveLength(1);
     expect(result.nextLocal[0].id).toBe(12);
     expect(result.localOnlyToUpload).toHaveLength(0);
+  });
+});
+
+describe('mergeSettingsForSync', () => {
+  it('keeps local study preferences when cloud settings are missing them', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading', 'middle game'],
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      lichessUsername: 'cloud-user',
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.lichessUsername).toBe('cloud-user');
+    expect(merged.studyPreferences).toEqual(local.studyPreferences);
+  });
+
+  it('prefers newer local study preferences over stale cloud study preferences', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading', 'calculation'],
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading'],
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+      lastModified: new Date('2026-02-18T10:00:00.000Z'),
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.studyPreferences).toEqual(local.studyPreferences);
+  });
+
+  it('prefers cloud study preferences when they are newer', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading', 'endgames'],
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.studyPreferences).toEqual(cloud.studyPreferences);
   });
 });

@@ -433,6 +433,48 @@ function isCloudNewer(localValue: any, cloudValue: any): boolean {
   return (cloudTs ?? 0) >= (localTs ?? 0);
 }
 
+function settingsTimestamp(value: any): number {
+  const settingsTs = toDate(value?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const studyPrefsTs =
+    toDate(value?.studyPreferences?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
+  return Math.max(settingsTs, studyPrefsTs);
+}
+
+function studyPreferencesTimestamp(value: any): number {
+  return toDate(value?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
+}
+
+export function mergeSettingsForSync(localSettings: any, cloudSettings: any): any {
+  const local = localSettings && typeof localSettings === 'object' ? localSettings : {};
+  const cloud = cloudSettings && typeof cloudSettings === 'object' ? cloudSettings : {};
+  const preferCloud = settingsTimestamp(cloud) >= settingsTimestamp(local);
+  const merged = preferCloud ? { ...local, ...cloud } : { ...cloud, ...local };
+
+  const localStudyPreferences =
+    local.studyPreferences && typeof local.studyPreferences === 'object'
+      ? local.studyPreferences
+      : null;
+  const cloudStudyPreferences =
+    cloud.studyPreferences && typeof cloud.studyPreferences === 'object'
+      ? cloud.studyPreferences
+      : null;
+
+  if (localStudyPreferences && !cloudStudyPreferences) {
+    merged.studyPreferences = localStudyPreferences;
+  } else if (!localStudyPreferences && cloudStudyPreferences) {
+    merged.studyPreferences = cloudStudyPreferences;
+  } else if (localStudyPreferences && cloudStudyPreferences) {
+    const preferCloudStudyPreferences =
+      studyPreferencesTimestamp(cloudStudyPreferences) >=
+      studyPreferencesTimestamp(localStudyPreferences);
+    merged.studyPreferences = preferCloudStudyPreferences
+      ? cloudStudyPreferences
+      : localStudyPreferences;
+  }
+
+  return merged;
+}
+
 export function getCloudSyncStatus(): CloudSyncStatus {
   return status;
 }
@@ -556,11 +598,11 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     });
   }
 
-  if (isCloudNewer(localSettings, cloudSettings)) {
-    await offlineStorage.setSettings(cloudSettings ?? {});
-  } else if (localSettings) {
+  const mergedSettings = mergeSettingsForSync(localSettings, cloudSettings);
+  await offlineStorage.setSettings(mergedSettings);
+  if (Object.keys(mergedSettings).length > 0) {
     const settingsRef = doc(db, 'users', uid, 'settings', 'settings');
-    await setDoc(settingsRef, localSettings, { merge: true });
+    await setDoc(settingsRef, mergedSettings, { merge: true });
   }
 
   if (isCloudNewer(localGoals, cloudGoals)) {
@@ -803,7 +845,9 @@ export async function startRealtimeSync(): Promise<() => void> {
     settingsRef,
     async (snapshot) => {
       if (!snapshot.exists()) return;
-      await offlineStorage.setSettings(snapshot.data());
+      const localSettings = await offlineStorage.getSettings();
+      const mergedSettings = mergeSettingsForSync(localSettings, snapshot.data());
+      await offlineStorage.setSettings(mergedSettings);
     },
     async (error) => {
       const message = error instanceof Error ? error.message : 'Settings sync failed';
