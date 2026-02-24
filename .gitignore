@@ -25,3 +25,4 @@ settings.gradle
 .env.local
 /android
 /android
+client/public/version.json

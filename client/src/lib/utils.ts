@@ -104,8 +104,7 @@ export function isPWA(): boolean {
 // Utility to get app version for debugging
 export function getAppVersion(): string {
   try {
-    // Try to get version from the version.json file
-    return (window as any).__APP_VERSION__ || 'unknown';
+    return import.meta.env.VITE_APP_VERSION || 'unknown';
   } catch {
     return 'unknown';
   }

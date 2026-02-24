@@ -10,7 +10,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties } from '@/lib/utils';
-import versionData from '@/version.json';
 
 interface Statistics {
   totalHours: number;
@@ -22,6 +21,7 @@ interface Statistics {
 }
 
 export default function Home() {
+  const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
   const [tacticsModalOpen, setTacticsModalOpen] = useState(false);
   const [gameModalOpen, setGameModalOpen] = useState(false);
   const [studyModalOpen, setStudyModalOpen] = useState(false);
@@ -378,10 +378,7 @@ export default function Home() {
 
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">
-        <p className="text-xs text-gray-500">
-          {' '}
-          Pawn Star Chess Log v{versionData.version} - {versionData.lastUpdated}
-        </p>
+        <p className="text-xs text-gray-500">Pawn Star Chess Log v{appVersion}</p>
       </div>
     </div>
   );
