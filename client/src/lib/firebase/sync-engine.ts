@@ -52,6 +52,12 @@ export interface BackfillSummary {
   failedCount: number;
 }
 
+export interface ForceUploadSummary {
+  totalLocalCount: number;
+  uploadedCount: number;
+  failedCount: number;
+}
+
 interface AccountSwitchPrompt {
   previousUid: string;
   nextUid: string;
@@ -444,7 +450,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     });
 
     try {
-      const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
+      const sessionDoc = doc(await getSessionsCollection(uid), session.id.toString());
       await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
       uploadedCount += 1;
     } catch (error) {
@@ -529,6 +535,31 @@ export async function backfillMissingLocalSessionsToCloud(concurrency = 4): Prom
 
   return {
     candidateCount: localOnlyToUpload.length,
+    uploadedCount,
+    failedCount,
+  };
+}
+
+export async function forceUploadAllLocalSessionsToCloud(
+  concurrency = 4,
+): Promise<ForceUploadSummary> {
+  await ensureFirebase();
+  const uid = resolveUid();
+  if (!uid) {
+    throw new Error('Cannot upload sessions without authenticated user');
+  }
+
+  const localSessions = await offlineStorage.getSessions();
+  const normalizedLocal = localSessions
+    .map((session) => normalizeSessionForSync(session))
+    .filter((session): session is TrainingSession => Boolean(session));
+  const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(
+    normalizedLocal,
+    concurrency,
+  );
+
+  return {
+    totalLocalCount: normalizedLocal.length,
     uploadedCount,
     failedCount,
   };
@@ -695,6 +726,23 @@ export async function startRealtimeSync(): Promise<() => void> {
     });
   });
 
+  queueMicrotask(() => {
+    backfillMissingLocalSessionsToCloud()
+      .then(({ candidateCount, uploadedCount, failedCount }) => {
+        if (candidateCount === 0) return;
+        console.info(
+          `Cloud sync startup backfill uploaded ${uploadedCount}/${candidateCount} local-only sessions`,
+        );
+        publishStatus({ backfilledCount: uploadedCount });
+        if (failedCount > 0) {
+          console.warn(`Cloud sync startup backfill failed for ${failedCount} sessions`);
+        }
+      })
+      .catch((error) => {
+        console.warn('Cloud sync startup backfill failed:', error);
+      });
+  });
+
   stopRealtimeSyncFn = () => {
     unsubscribeSessions();
     unsubscribeSettings();
@@ -741,7 +789,7 @@ export async function upsertSessionToCloud(session: TrainingSession): Promise<vo
   await ensureFirebase();
   const uid = resolveUid();
   if (!uid) return;
-  const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
+  const sessionDoc = doc(await getSessionsCollection(uid), session.id.toString());
   await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
 }
 
@@ -750,7 +798,7 @@ export async function markSessionDeletedInCloud(id: number): Promise<void> {
   const uid = resolveUid();
   if (!uid) return;
   const deletedAt = new Date();
-  const sessionDoc = doc(await getSessionsCollection(), id.toString());
+  const sessionDoc = doc(await getSessionsCollection(uid), id.toString());
   await setDoc(
     sessionDoc,
     {
@@ -796,6 +844,6 @@ export async function hardDeleteSessionFromCloud(id: number): Promise<void> {
   await ensureFirebase();
   const uid = resolveUid();
   if (!uid) return;
-  const sessionDoc = doc(await getSessionsCollection(), id.toString());
+  const sessionDoc = doc(await getSessionsCollection(uid), id.toString());
   await deleteDoc(sessionDoc);
 }

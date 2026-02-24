@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { useSyncStatus, SyncState as SyncStateEnum } from '@/hooks/useSyncStatus';
 import {
   acknowledgeAccountSwitch,
+  forceUploadAllLocalSessionsToCloud,
   getPendingAccountSwitch,
   initializeCloudSyncForCurrentUser,
   refreshAuthState,
@@ -95,6 +96,33 @@ export default function FirebaseAuth() {
         description: error instanceof Error ? error.message : 'Could not disable cloud sync.',
         variant: 'destructive',
       });
+    }
+  }, [toast]);
+
+  const handleRepairCloudData = useCallback(async () => {
+    try {
+      setIsProcessing(true);
+      const summary = await forceUploadAllLocalSessionsToCloud();
+      if (summary.failedCount > 0) {
+        toast({
+          title: 'Repair partially complete',
+          description: `Uploaded ${summary.uploadedCount}/${summary.totalLocalCount} sessions. ${summary.failedCount} failed; keep this screen open and retry.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Cloud repair complete',
+          description: `Uploaded ${summary.uploadedCount} local sessions to cloud.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Cloud repair failed',
+        description: error instanceof Error ? error.message : 'Could not force upload local data.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
     }
   }, [toast]);
 
@@ -315,6 +343,9 @@ export default function FirebaseAuth() {
               </div>
             )}
             <div className="flex flex-wrap gap-2">
+              <Button onClick={handleRepairCloudData} variant="outline" disabled={isProcessing}>
+                <Cloud className="mr-2 h-4 w-4" /> Repair cloud data
+              </Button>
               <Button onClick={handleDisable} variant="secondary" disabled={isProcessing}>
                 <CloudOff className="mr-2 h-4 w-4" /> Disable cloud sync
               </Button>

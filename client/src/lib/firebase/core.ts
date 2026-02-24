@@ -82,14 +82,30 @@ export async function waitForAuth(): Promise<void> {
   throw new Error('No authenticated user available for cloud sync');
 }
 
-export async function getSessionsCollection() {
-  if (!currentUserId) throw new Error('User not authenticated');
-  return collection(db, 'users', currentUserId, 'trainingSessions');
+function resolveCollectionUserId(preferredUid?: string): string | null {
+  if (preferredUid && preferredUid.trim().length > 0) {
+    return preferredUid;
+  }
+  if (currentUserId) {
+    return currentUserId;
+  }
+  const authUser = auth?.currentUser;
+  if (authUser && !authUser.isAnonymous) {
+    return authUser.uid;
+  }
+  return null;
 }
 
-export async function getDailyGoalsCollection() {
-  if (!currentUserId) throw new Error('User not authenticated');
-  return collection(db, 'users', currentUserId, 'dailyGoals');
+export async function getSessionsCollection(uid?: string) {
+  const resolvedUid = resolveCollectionUserId(uid);
+  if (!resolvedUid) throw new Error('User not authenticated');
+  return collection(db, 'users', resolvedUid, 'trainingSessions');
+}
+
+export async function getDailyGoalsCollection(uid?: string) {
+  const resolvedUid = resolveCollectionUserId(uid);
+  if (!resolvedUid) throw new Error('User not authenticated');
+  return collection(db, 'users', resolvedUid, 'dailyGoals');
 }
 
 async function ensureUserDoc(): Promise<void> {
