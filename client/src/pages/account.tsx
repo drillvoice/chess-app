@@ -95,106 +95,115 @@ ${diagnostics.errors.map((error) => `  - ${error}`).join('\n')}
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600">Manage your account settings and data.</p>
-        </CardContent>
-      </Card>
+    <div className="page-stack">
+      <div className="tablet-grid items-start">
+        <div className="tablet-side">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600">Manage your account settings and data.</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <Accordion type="multiple" className="w-full">
-        <AccordionItem value="lichess">
-          <AccordionTrigger>Lichess integration</AccordionTrigger>
-          <AccordionContent>
-            <LichessSettingsContent />
-          </AccordionContent>
-        </AccordionItem>
+        <div className="tablet-main">
+          <Accordion type="multiple" className="w-full">
+            <AccordionItem value="lichess">
+              <AccordionTrigger>Lichess integration</AccordionTrigger>
+              <AccordionContent>
+                <LichessSettingsContent />
+              </AccordionContent>
+            </AccordionItem>
 
-        <AccordionItem value="data-management">
-          <AccordionTrigger>Data Management</AccordionTrigger>
-          <AccordionContent>
-            <Suspense fallback={<div>Loading account data...</div>}>
-              <DataManagementContent />
-            </Suspense>
-          </AccordionContent>
-        </AccordionItem>
+            <AccordionItem value="data-management">
+              <AccordionTrigger>Data Management</AccordionTrigger>
+              <AccordionContent>
+                <Suspense fallback={<div>Loading account data...</div>}>
+                  <DataManagementContent />
+                </Suspense>
+              </AccordionContent>
+            </AccordionItem>
 
-        <AccordionItem value="cloud-sync">
-          <AccordionTrigger>Cloud Sync</AccordionTrigger>
-          <AccordionContent>
-            <Suspense fallback={<div>Loading cloud sync...</div>}>
-              <FirebaseAuth />
-            </Suspense>
-          </AccordionContent>
-        </AccordionItem>
+            <AccordionItem value="cloud-sync">
+              <AccordionTrigger>Cloud Sync</AccordionTrigger>
+              <AccordionContent>
+                <Suspense fallback={<div>Loading cloud sync...</div>}>
+                  <FirebaseAuth />
+                </Suspense>
+              </AccordionContent>
+            </AccordionItem>
 
-        <AccordionItem value="enhanced-data-management">
-          <AccordionTrigger>Enhanced Backup &amp; Restore</AccordionTrigger>
-          <AccordionContent>
-            <Suspense fallback={<div>Loading enhanced data management...</div>}>
-              <EnhancedDataManagement />
-            </Suspense>
-          </AccordionContent>
-        </AccordionItem>
+            <AccordionItem value="enhanced-data-management">
+              <AccordionTrigger>Enhanced Backup &amp; Restore</AccordionTrigger>
+              <AccordionContent>
+                <Suspense fallback={<div>Loading enhanced data management...</div>}>
+                  <EnhancedDataManagement />
+                </Suspense>
+              </AccordionContent>
+            </AccordionItem>
 
-        <AccordionItem value="debug-tools">
-          <AccordionTrigger>Database debug tools</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-3">
-              <p className="mb-4 text-sm text-gray-600">
-                Use these tools to diagnose and fix database issues after the recent upgrade.
-              </p>
+            <AccordionItem value="debug-tools">
+              <AccordionTrigger>Database debug tools</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3">
+                  <p className="mb-4 text-sm text-gray-600">
+                    Use these tools to diagnose and fix database issues after the recent upgrade.
+                  </p>
 
-              <div className="space-y-2">
-                <Button
-                  onClick={handleRunDiagnostics}
-                  disabled={isRunningDiagnostics}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {isRunningDiagnostics ? 'Running Diagnostics...' : '🔍 Run Database Diagnostics'}
-                </Button>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleRunDiagnostics}
+                      disabled={isRunningDiagnostics}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {isRunningDiagnostics
+                        ? 'Running Diagnostics...'
+                        : '🔍 Run Database Diagnostics'}
+                    </Button>
 
-                <Button
-                  onClick={handleForceUpgrade}
-                  disabled={isUpgrading}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {isUpgrading ? 'Upgrading...' : '🔄 Force Database Upgrade'}
-                </Button>
+                    <Button
+                      onClick={handleForceUpgrade}
+                      disabled={isUpgrading}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {isUpgrading ? 'Upgrading...' : '🔄 Force Database Upgrade'}
+                    </Button>
 
-                <Button
-                  onClick={handleClearDatabase}
-                  disabled={isClearing}
-                  variant="destructive"
-                  className="w-full"
-                >
-                  {isClearing ? 'Clearing...' : '🗑️ Clear Database & Reinitialize'}
-                </Button>
-              </div>
+                    <Button
+                      onClick={handleClearDatabase}
+                      disabled={isClearing}
+                      variant="destructive"
+                      className="w-full"
+                    >
+                      {isClearing ? 'Clearing...' : '🗑️ Clear Database & Reinitialize'}
+                    </Button>
+                  </div>
 
-              {/* Diagnostic Results Display */}
-              {diagnosticResults && (
-                <div className="mt-4 rounded-md bg-gray-50 p-3">
-                  <h4 className="mb-2 font-semibold">Diagnostic Results:</h4>
-                  <pre className="whitespace-pre-wrap text-xs text-gray-700">
-                    {diagnosticResults}
-                  </pre>
+                  {/* Diagnostic Results Display */}
+                  {diagnosticResults && (
+                    <div className="mt-4 rounded-md bg-gray-50 p-3">
+                      <h4 className="mb-2 font-semibold">Diagnostic Results:</h4>
+                      <pre className="whitespace-pre-wrap text-xs text-gray-700">
+                        {diagnosticResults}
+                      </pre>
+                    </div>
+                  )}
+
+                  <p className="mt-4 text-xs text-gray-500">
+                    <strong>Note:</strong> The "Clear Database" option will delete all local data.
+                    If you're logged in with cloud sync, your data should be restored from the
+                    cloud.
+                  </p>
                 </div>
-              )}
-
-              <p className="mt-4 text-xs text-gray-500">
-                <strong>Note:</strong> The "Clear Database" option will delete all local data. If
-                you're logged in with cloud sync, your data should be restored from the cloud.
-              </p>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </div>
     </div>
   );
 }

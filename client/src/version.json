@@ -1,7 +1,19 @@
 {
-  "version": "2.1.2",
+  "version": "2.1.3",
   "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.3",
+      "date": "24 February 2026",
+      "changes": [
+        "Introduce tablet-first responsive shell sizing to remove phone-width rendering on tablets",
+        "Add reusable tablet layout utilities for consistent two-column page composition",
+        "Redesign Home page for tablet density with split content panels and responsive action grid",
+        "Rework Activity page top section into tablet two-column layout and wrap filter controls",
+        "Apply tablet-responsive layout improvements to Account and Info pages",
+        "Improve top navigation spacing and container width behavior on tablet and desktop"
+      ]
+    },
     {
       "version": "2.1.2",
       "date": "24 February 2026",

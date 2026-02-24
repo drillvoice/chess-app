@@ -429,16 +429,22 @@ export default function Activity() {
 
   if (statsLoading || sessionsLoading) {
     return (
-      <div className="space-y-3 md:space-y-4">
+      <div className="page-stack">
         <div className="py-2 text-center">
           <h2 className="mb-1 text-2xl font-bold text-gray-800">Training statistics</h2>
         </div>
-        <div className="grid grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
-          ))}
+        <div className="tablet-grid items-start">
+          <div className="tablet-main">
+            <Skeleton className="h-40 rounded-xl" />
+          </div>
+          <div className="tablet-side">
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-20 rounded-xl" />
+              ))}
+            </div>
+          </div>
         </div>
-        <Skeleton className="h-40 rounded-xl" />
 
         <div className="py-2 text-center">
           <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
@@ -453,72 +459,78 @@ export default function Activity() {
   }
 
   return (
-    <div className="space-y-3 md:space-y-4">
+    <div className="page-stack">
       <div className="py-2 text-center">
         <h2 className="mb-1 text-2xl font-bold text-gray-800">Training statistics</h2>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <Card className="border-blue-100 bg-blue-50">
-          <CardContent className="p-3">
-            <div className="text-center">
-              <div className="text-xl font-bold text-[#1E40AF]">{stats?.totalHours || 0}</div>
-              <div className="text-xs text-gray-600">Total hours</div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="tablet-grid items-start">
+        <div className="tablet-main order-2 md:order-1">
+          <Card className="border-gray-200">
+            <CardContent className="p-4 md:p-5">
+              <h3 className="mb-4 text-lg font-semibold text-gray-800">This week's activity</h3>
+              {sessions && sessions.length > 0 ? (
+                <Suspense fallback={<div className="h-32 animate-pulse rounded bg-gray-100"></div>}>
+                  <WeeklyActivityChart sessions={sessions} />
+                </Suspense>
+              ) : (
+                <div className="flex h-32 items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <div className="text-sm">No activity this week</div>
+                    <div className="mt-1 text-xs">Start logging sessions to see your progress</div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="border-emerald-100 bg-emerald-50">
-          <CardContent className="p-3">
-            <div className="text-center">
-              <div className="text-xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
-              <div className="text-xs text-gray-600">Sessions</div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="tablet-side order-1 md:order-2">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
+            <Card className="border-blue-100 bg-blue-50">
+              <CardContent className="p-3 md:p-4">
+                <div className="text-center">
+                  <div className="text-xl font-bold text-[#1E40AF]">{stats?.totalHours || 0}</div>
+                  <div className="text-xs text-gray-600">Total hours</div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="border-amber-100 bg-amber-50">
-          <CardContent className="p-3">
-            <div className="text-center">
-              <div className="text-xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
-              <div className="text-xs text-gray-600">Tactics rating</div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="border-emerald-100 bg-emerald-50">
+              <CardContent className="p-3 md:p-4">
+                <div className="text-center">
+                  <div className="text-xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
+                  <div className="text-xs text-gray-600">Sessions</div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="border-green-100 bg-green-50">
-          <CardContent className="p-3">
-            <div className="text-center">
-              <div className="text-xl font-bold text-green-600">{stats?.winRate || 0}%</div>
-              <div className="text-xs text-gray-600">Win rate</div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="border-amber-100 bg-amber-50">
+              <CardContent className="p-3 md:p-4">
+                <div className="text-center">
+                  <div className="text-xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
+                  <div className="text-xs text-gray-600">Tactics rating</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-100 bg-green-50">
+              <CardContent className="p-3 md:p-4">
+                <div className="text-center">
+                  <div className="text-xl font-bold text-green-600">{stats?.winRate || 0}%</div>
+                  <div className="text-xs text-gray-600">Win rate</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-
-      <Card className="border-gray-200">
-        <CardContent className="p-4">
-          <h3 className="mb-4 text-lg font-semibold text-gray-800">This week's activity</h3>
-          {sessions && sessions.length > 0 ? (
-            <Suspense fallback={<div className="h-32 animate-pulse rounded bg-gray-100"></div>}>
-              <WeeklyActivityChart sessions={sessions} />
-            </Suspense>
-          ) : (
-            <div className="flex h-32 items-center justify-center text-gray-500">
-              <div className="text-center">
-                <div className="text-sm">No activity this week</div>
-                <div className="mt-1 text-xs">Start logging sessions to see your progress</div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <div className="py-2 text-center">
         <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
       </div>
 
-      <div className="mb-2 flex space-x-2">
+      <div className="mb-2 flex flex-wrap gap-2">
         <Button
           variant={filter === 'all' ? 'default' : 'secondary'}
           size="sm"
