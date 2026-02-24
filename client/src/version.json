@@ -1,7 +1,18 @@
 {
-  "version": "2.1.1",
-  "lastUpdated": "23 February 2026",
+  "version": "2.1.2",
+  "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.2",
+      "date": "24 February 2026",
+      "changes": [
+        "Backfill previously imported local-only sessions to cloud after sync starts so existing devices are repaired",
+        "Trigger cloud backfill after local bulk session replacement (import/restore flows)",
+        "Normalize imported session IDs and dates during reconciliation to support legacy import formats",
+        "Continue backfilling when individual session uploads fail and report partial failures",
+        "Use durable cloud writes for overwrite imports and backup restores"
+      ]
+    },
     {
       "version": "2.1.1",
       "date": "23 February 2026",

@@ -65,6 +65,18 @@ describe('mergeSessionCollections', () => {
     expect(result.merged[0].duration).toBe(30);
     expect(result.collisionsResolved).toBe(1);
   });
+
+  it('normalizes numeric string ids and resolves collisions correctly', () => {
+    const local = [makeSession(9, '2025-01-01T10:00:00.000Z', '2025-01-01T10:00:00.000Z')] as any;
+    local[0].id = '9';
+    const cloud = [makeSession(9, '2025-01-01T10:00:00.000Z', '2025-01-02T10:00:00.000Z')];
+
+    const result = mergeSessionCollections(local, cloud);
+
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].id).toBe(9);
+    expect(result.collisionsResolved).toBe(1);
+  });
 });
 
 describe('reconcileRealtimeSnapshot', () => {
@@ -107,5 +119,17 @@ describe('reconcileRealtimeSnapshot', () => {
     expect(result.nextLocal).toHaveLength(1);
     expect(result.nextLocal[0].duration).toBe(45);
     expect(result.localOnlyToUpload).toEqual([]);
+  });
+
+  it('normalizes local numeric string ids before deciding what to upload', () => {
+    const local = [makeSession(12, '2025-01-01T10:00:00.000Z')] as any;
+    local[0].id = '12';
+    const remote = [makeSession(12, '2025-01-01T10:00:00.000Z')];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal).toHaveLength(1);
+    expect(result.nextLocal[0].id).toBe(12);
+    expect(result.localOnlyToUpload).toHaveLength(0);
   });
 });

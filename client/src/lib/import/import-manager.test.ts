@@ -159,4 +159,38 @@ describe('ImportManager backup imports', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('Failed to import session 101');
   });
+
+  it('uses durable cloud write when overwriting an existing session', async () => {
+    const manager = new ImportManager();
+    mockGetSessions.mockResolvedValue([
+      {
+        id: 42,
+        type: 'study',
+        date: new Date('2024-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    const payload = JSON.stringify({
+      trainingSessions: [
+        {
+          id: 42,
+          type: 'study',
+          date: '2024-02-01T00:00:00.000Z',
+          duration: 25,
+        },
+      ],
+    });
+
+    const result = await manager.importData(payload, {
+      ...defaultOptions,
+      conflictResolution: 'overwrite',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'study', duration: 25 }),
+      42,
+      { awaitCloudWrite: true },
+    );
+  });
 });

@@ -339,6 +339,7 @@ export class BackupVerificationManager {
                 studyNotes: session.studyNotes,
               },
               session.id,
+              { awaitCloudWrite: true },
             );
 
             restored.sessions++;

@@ -1,5 +1,6 @@
 import type { DailyGoalSettings, TrainingSession } from '@shared/schema';
 import { offlineStorage } from '../offline-storage';
+import { sessionEvents } from '../session-events';
 import {
   auth,
   collection,
@@ -43,6 +44,12 @@ export interface MigrationSummary {
   uploadedCount: number;
   downloadedCount: number;
   collisionsResolved: number;
+}
+
+export interface BackfillSummary {
+  candidateCount: number;
+  uploadedCount: number;
+  failedCount: number;
 }
 
 interface AccountSwitchPrompt {
@@ -117,6 +124,37 @@ function sessionRecency(session: Partial<TrainingSession> & { updatedAt?: any; d
   );
 }
 
+function normalizeSessionId(id: unknown): number | null {
+  if (typeof id === 'number' && Number.isFinite(id)) {
+    return id;
+  }
+  if (typeof id === 'string' && id.trim().length > 0) {
+    const parsed = Number(id);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function normalizeSessionForSync(session: TrainingSession): TrainingSession | null {
+  const normalizedId = normalizeSessionId((session as any)?.id);
+  if (normalizedId == null) {
+    return null;
+  }
+  const normalizedDate = toDate((session as any)?.date);
+  if (!normalizedDate) {
+    return null;
+  }
+
+  return {
+    ...session,
+    id: normalizedId,
+    date: normalizedDate,
+    updatedAt: toDate((session as any)?.updatedAt) ?? undefined,
+    deletedAt: toDate((session as any)?.deletedAt) ?? undefined,
+    needsReview: Boolean((session as any)?.needsReview),
+  } as TrainingSession;
+}
+
 export function mergeSessionCollections(
   localSessions: TrainingSession[],
   cloudSessions: TrainingSession[],
@@ -124,11 +162,15 @@ export function mergeSessionCollections(
   const map = new Map<number, TrainingSession>();
   let collisionsResolved = 0;
 
-  for (const session of localSessions) {
+  for (const rawSession of localSessions) {
+    const session = normalizeSessionForSync(rawSession);
+    if (!session) continue;
     map.set(session.id, session);
   }
 
-  for (const cloudSession of cloudSessions) {
+  for (const rawCloudSession of cloudSessions) {
+    const cloudSession = normalizeSessionForSync(rawCloudSession);
+    if (!cloudSession) continue;
     const existing = map.get(cloudSession.id);
     if (!existing) {
       map.set(cloudSession.id, cloudSession);
@@ -152,12 +194,21 @@ export function reconcileRealtimeSnapshot(
   localOnlyToUpload: TrainingSession[];
   tombstonedIds: number[];
 } {
-  const tombstonedIds = remoteSessions
+  const normalizedLocalSessions = localSessions
+    .map((session) => normalizeSessionForSync(session))
+    .filter((session): session is TrainingSession => Boolean(session));
+  const normalizedRemoteSessions = remoteSessions
+    .map((session) => normalizeSessionForSync(session))
+    .filter((session): session is TrainingSession => Boolean(session));
+
+  const tombstonedIds = normalizedRemoteSessions
     .filter((session) => Boolean((session as any).deletedAt))
     .map((session) => session.id);
   const tombstonedIdSet = new Set(tombstonedIds);
-  const remoteActive = remoteSessions.filter((session) => !tombstonedIdSet.has(session.id));
-  const localWithoutTombstones = localSessions.filter((session) => !tombstonedIdSet.has(session.id));
+  const remoteActive = normalizedRemoteSessions.filter((session) => !tombstonedIdSet.has(session.id));
+  const localWithoutTombstones = normalizedLocalSessions.filter(
+    (session) => !tombstonedIdSet.has(session.id),
+  );
 
   const { merged } = mergeSessionCollections(localWithoutTombstones, remoteActive);
   const remoteActiveIds = new Set(remoteActive.map((session) => session.id));
@@ -171,31 +222,45 @@ export function reconcileRealtimeSnapshot(
 async function backfillLocalOnlySessionsToCloud(
   sessionsToUpload: TrainingSession[],
   concurrency = 4,
-): Promise<number> {
-  if (sessionsToUpload.length === 0) return 0;
+): Promise<{ uploadedCount: number; failedCount: number }> {
+  if (sessionsToUpload.length === 0) {
+    return { uploadedCount: 0, failedCount: 0 };
+  }
+
   const queue = [...sessionsToUpload];
-  let uploaded = 0;
+  let uploadedCount = 0;
+  let failedCount = 0;
 
   const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
     while (queue.length > 0) {
       const session = queue.shift();
       if (!session) continue;
-      await upsertSessionToCloud(session);
-      uploaded += 1;
+      try {
+        await upsertSessionToCloud(session);
+        uploadedCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        console.warn(`Failed to backfill local-only session ${session.id} to cloud`, error);
+      }
     }
   });
 
   await Promise.all(workers);
-  return uploaded;
+  return { uploadedCount, failedCount };
 }
 
 function serializeSessionForCloud(session: TrainingSession) {
+  const normalizedSession = normalizeSessionForSync(session);
+  if (!normalizedSession) {
+    throw new Error(`Session ${String((session as any)?.id)} is missing a valid id or date`);
+  }
+
   return {
-    ...session,
-    date: Timestamp.fromDate(session.date),
-    updatedAt: Timestamp.fromDate(toDate((session as any).updatedAt) ?? new Date()),
-    deletedAt: toDate((session as any).deletedAt)
-      ? Timestamp.fromDate(toDate((session as any).deletedAt)!)
+    ...normalizedSession,
+    date: Timestamp.fromDate(normalizedSession.date),
+    updatedAt: Timestamp.fromDate(toDate((normalizedSession as any).updatedAt) ?? new Date()),
+    deletedAt: toDate((normalizedSession as any).deletedAt)
+      ? Timestamp.fromDate(toDate((normalizedSession as any).deletedAt)!)
       : null,
   };
 }
@@ -224,7 +289,8 @@ async function fetchCloudSessions(uid: string): Promise<TrainingSession[]> {
         id: item.data()?.id ?? item.id,
       }),
     )
-    .filter((session) => Number.isFinite(session.id));
+    .map((session) => normalizeSessionForSync(session))
+    .filter((session): session is TrainingSession => Boolean(session));
 }
 
 async function fetchCloudSettings(uid: string): Promise<any> {
@@ -336,7 +402,9 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     ]);
 
   const { merged, collisionsResolved } = mergeSessionCollections(localSessions, cloudSessions);
-  const mergedValid = merged.filter((session) => Number.isFinite(session.id));
+  const mergedValid = merged
+    .map((session) => normalizeSessionForSync(session))
+    .filter((session): session is TrainingSession => Boolean(session));
   publishStatus({
     phase: 'Merging local and cloud sessions',
     processed: 1,
@@ -346,24 +414,31 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   await offlineStorage.setSessions(mergedValid);
 
   let uploadedCount = 0;
+  let processedCount = 0;
   const uploadTotal = Math.max(1, mergedValid.length);
   for (const session of mergedValid) {
-    const inFlightIndex = uploadedCount + 1;
+    const inFlightIndex = processedCount + 1;
     publishStatus({
       phase: `Uploading merged sessions (${inFlightIndex}/${uploadTotal})`,
-      processed: uploadedCount,
+      processed: processedCount,
       total: uploadTotal,
-      ...progressMetrics(uploadedCount, uploadTotal, migrationStart),
+      ...progressMetrics(processedCount, uploadTotal, migrationStart),
     });
 
-    const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
-    await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
-    uploadedCount = inFlightIndex;
+    try {
+      const sessionDoc = doc(await getSessionsCollection(), session.id.toString());
+      await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
+      uploadedCount += 1;
+    } catch (error) {
+      console.warn(`Failed uploading merged session ${session.id} to cloud`, error);
+    }
+    processedCount = inFlightIndex;
+
     publishStatus({
       phase: 'Uploading merged sessions',
-      processed: uploadedCount,
+      processed: processedCount,
       total: uploadTotal,
-      ...progressMetrics(uploadedCount, uploadTotal, migrationStart),
+      ...progressMetrics(processedCount, uploadTotal, migrationStart),
     });
   }
 
@@ -417,6 +492,30 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   return summary;
 }
 
+export async function backfillMissingLocalSessionsToCloud(concurrency = 4): Promise<BackfillSummary> {
+  await ensureFirebase();
+  const uid = resolveUid();
+  if (!uid) {
+    return { candidateCount: 0, uploadedCount: 0, failedCount: 0 };
+  }
+
+  const [localSessions, remoteSessions] = await Promise.all([
+    offlineStorage.getSessions(),
+    fetchCloudSessions(uid),
+  ]);
+  const { localOnlyToUpload } = reconcileRealtimeSnapshot(localSessions, remoteSessions);
+  const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(
+    localOnlyToUpload,
+    concurrency,
+  );
+
+  return {
+    candidateCount: localOnlyToUpload.length,
+    uploadedCount,
+    failedCount,
+  };
+}
+
 export async function startRealtimeSync(): Promise<() => void> {
   await ensureFirebase();
   const uid = resolveUid();
@@ -453,7 +552,8 @@ export async function startRealtimeSync(): Promise<() => void> {
             id: entry.data()?.id ?? entry.id,
           }),
         )
-        .filter((session) => Number.isFinite(session.id));
+        .map((session) => normalizeSessionForSync(session))
+        .filter((session): session is TrainingSession => Boolean(session));
       const localSessions = await offlineStorage.getSessions();
       const { nextLocal, localOnlyToUpload, tombstonedIds } = reconcileRealtimeSnapshot(
         localSessions,
@@ -480,14 +580,16 @@ export async function startRealtimeSync(): Promise<() => void> {
       if (localOnlyToUpload.length > 0) {
         queueMicrotask(() => {
           backfillLocalOnlySessionsToCloud(localOnlyToUpload)
-            .then((backfilledCount) => {
+            .then(({ uploadedCount, failedCount }) => {
               console.info(
-                `Cloud sync backfilled ${backfilledCount} local-only sessions after reconciliation`,
+                `Cloud sync backfilled ${uploadedCount}/${localOnlyToUpload.length} local-only sessions after reconciliation`,
               );
-              publishStatus({ backfilledCount });
-            })
-            .catch((error) => {
-              console.warn('Cloud sync backfill failed for local-only sessions:', error);
+              publishStatus({ backfilledCount: uploadedCount });
+              if (failedCount > 0) {
+                console.warn(
+                  `Cloud sync failed to backfill ${failedCount} local-only sessions after reconciliation`,
+                );
+              }
             });
         });
       }
@@ -554,10 +656,32 @@ export async function startRealtimeSync(): Promise<() => void> {
     },
   );
 
+  const unsubscribeSessionsReplaced = sessionEvents.on('sessionsReplaced', () => {
+    queueMicrotask(() => {
+      backfillMissingLocalSessionsToCloud()
+        .then(({ candidateCount, uploadedCount, failedCount }) => {
+          if (candidateCount === 0) return;
+          console.info(
+            `Cloud sync backfilled ${uploadedCount}/${candidateCount} sessions after a local bulk replace`,
+          );
+          publishStatus({ backfilledCount: uploadedCount });
+          if (failedCount > 0) {
+            console.warn(
+              `Cloud sync failed to backfill ${failedCount} local sessions after a local bulk replace`,
+            );
+          }
+        })
+        .catch((error) => {
+          console.warn('Cloud sync bulk-replace backfill failed:', error);
+        });
+    });
+  });
+
   stopRealtimeSyncFn = () => {
     unsubscribeSessions();
     unsubscribeSettings();
     unsubscribeGoals();
+    unsubscribeSessionsReplaced();
   };
 
   return stopRealtimeSyncFn;
