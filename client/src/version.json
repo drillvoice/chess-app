@@ -1,7 +1,16 @@
 {
-  "version": "2.1.7",
+  "version": "2.1.8",
   "lastUpdated": "24 February 2026",
   "changelog": [
+    {
+      "version": "2.1.8",
+      "date": "24 February 2026",
+      "changes": [
+        "Add advanced Cloud Sync troubleshooting panel for mobile diagnostics",
+        "Expose recent per-session cloud repair failures directly in the UI",
+        "Add copy-to-clipboard diagnostics snapshot for quick issue reporting"
+      ]
+    },
     {
       "version": "2.1.7",
       "date": "24 February 2026",

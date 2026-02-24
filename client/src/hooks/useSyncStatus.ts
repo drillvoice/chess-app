@@ -23,6 +23,10 @@ interface SyncStatus {
   itemsPerSecond?: number | null;
   lastBatchSize?: number;
   startedAt?: Date | null;
+  reconciledLocalOnlyCount?: number;
+  backfilledCount?: number;
+  latestFailure?: string | null;
+  failureSamples?: string[];
 }
 
 export function useSyncStatus() {
@@ -69,6 +73,10 @@ export function useSyncStatus() {
         itemsPerSecond: cloudStatus.itemsPerSecond,
         lastBatchSize: cloudStatus.lastBatchSize,
         startedAt: cloudStatus.startedAt ?? null,
+        reconciledLocalOnlyCount: cloudStatus.reconciledLocalOnlyCount,
+        backfilledCount: cloudStatus.backfilledCount,
+        latestFailure: cloudStatus.latestFailure ?? null,
+        failureSamples: cloudStatus.failureSamples ?? [],
       };
     },
     refetchInterval: 30000,

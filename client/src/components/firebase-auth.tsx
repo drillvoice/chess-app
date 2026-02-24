@@ -30,6 +30,7 @@ export default function FirebaseAuth() {
   const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
   const [pendingSwitch, setPendingSwitch] = useState(getPendingAccountSwitch());
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [showTroubleshooting, setShowTroubleshooting] = useState(false);
   const [repairProgress, setRepairProgress] = useState<{
     processed: number;
     total: number;
@@ -281,6 +282,47 @@ export default function FirebaseAuth() {
     return syncInfo.elapsedMs ?? null;
   }, [nowTick, syncInfo]);
 
+  const diagnosticsText = useMemo(() => {
+    const lines = [
+      `time=${new Date().toISOString()}`,
+      `state=${syncInfo?.state ?? 'unknown'}`,
+      `phase=${syncInfo?.phase ?? 'n/a'}`,
+      `processed=${syncInfo?.processed ?? 0}`,
+      `total=${syncInfo?.total ?? 0}`,
+      `progressPct=${syncInfo?.progressPct ?? 0}`,
+      `lastSynced=${syncInfo?.lastSynced?.toISOString?.() ?? 'n/a'}`,
+      `lastError=${syncInfo?.lastError ?? 'n/a'}`,
+      `latestFailure=${(syncInfo as any)?.latestFailure ?? 'n/a'}`,
+      `reconciledLocalOnlyCount=${(syncInfo as any)?.reconciledLocalOnlyCount ?? 0}`,
+      `backfilledCount=${(syncInfo as any)?.backfilledCount ?? 0}`,
+      `repairProgress=${repairProgress ? `${repairProgress.processed}/${repairProgress.total}` : 'n/a'}`,
+      `repairUploaded=${repairProgress?.uploadedCount ?? 0}`,
+      `repairFailed=${repairProgress?.failedCount ?? 0}`,
+    ];
+    const samples = ((syncInfo as any)?.failureSamples ?? []) as string[];
+    if (samples.length > 0) {
+      lines.push('failureSamples=');
+      samples.forEach((sample, index) => lines.push(`${index + 1}. ${sample}`));
+    }
+    return lines.join('\n');
+  }, [repairProgress, syncInfo]);
+
+  const handleCopyDiagnostics = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(diagnosticsText);
+      toast({
+        title: 'Diagnostics copied',
+        description: 'Troubleshooting details copied to clipboard.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Copy failed',
+        description: error instanceof Error ? error.message : 'Could not copy diagnostics.',
+        variant: 'destructive',
+      });
+    }
+  }, [diagnosticsText, toast]);
+
   const identity = currentUser?.email || currentUser?.displayName || currentUser?.uid || null;
 
   return (
@@ -363,6 +405,13 @@ export default function FirebaseAuth() {
               <Button onClick={handleRepairCloudData} variant="outline" disabled={isProcessing}>
                 <Cloud className="mr-2 h-4 w-4" /> Repair cloud data
               </Button>
+              <Button
+                onClick={() => setShowTroubleshooting((prev) => !prev)}
+                variant="outline"
+                disabled={isProcessing}
+              >
+                {showTroubleshooting ? 'Hide troubleshooting' : 'Show troubleshooting'}
+              </Button>
               <Button onClick={handleDisable} variant="secondary" disabled={isProcessing}>
                 <CloudOff className="mr-2 h-4 w-4" /> Disable cloud sync
               </Button>
@@ -373,6 +422,32 @@ export default function FirebaseAuth() {
                 {repairProgress.total > 0
                   ? ` (${repairProgress.uploadedCount} uploaded, ${repairProgress.failedCount} failed)`
                   : ''}
+              </div>
+            )}
+            {showTroubleshooting && (
+              <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                <div className="font-medium">Advanced troubleshooting</div>
+                <div>Phase: {syncInfo?.phase || 'n/a'}</div>
+                <div>
+                  Sync progress: {syncInfo?.processed ?? 0}/{syncInfo?.total ?? 0}
+                </div>
+                <div>Latest failure: {(syncInfo as any)?.latestFailure || 'n/a'}</div>
+                {Array.isArray((syncInfo as any)?.failureSamples) &&
+                  ((syncInfo as any).failureSamples as string[]).length > 0 && (
+                    <div>
+                      Recent failures:
+                      <div className="mt-1 space-y-1">
+                        {((syncInfo as any).failureSamples as string[]).map((sample, idx) => (
+                          <div key={`${sample}-${idx}`} className="break-words">
+                            {idx + 1}. {sample}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                <Button size="sm" variant="outline" onClick={handleCopyDiagnostics}>
+                  Copy diagnostics
+                </Button>
               </div>
             )}
           </>

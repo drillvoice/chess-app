@@ -35,6 +35,8 @@ export interface CloudSyncStatus {
   lastBatchSize?: number;
   reconciledLocalOnlyCount?: number;
   backfilledCount?: number;
+  latestFailure?: string | null;
+  failureSamples?: string[];
 }
 
 export interface MigrationSummary {
@@ -141,6 +143,25 @@ function omitUndefinedFields<T extends Record<string, unknown>>(payload: T): T {
   return Object.fromEntries(
     Object.entries(payload).filter(([, value]) => value !== undefined),
   ) as T;
+}
+
+function formatSyncError(error: unknown): string {
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) {
+    const code = (error as any)?.code;
+    return code ? `${code}: ${error.message}` : error.message;
+  }
+  if (error && typeof error === 'object') {
+    const code = (error as any)?.code;
+    const message = (error as any)?.message;
+    if (typeof code === 'string' && typeof message === 'string') {
+      return `${code}: ${message}`;
+    }
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+  return 'Unknown sync error';
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -284,11 +305,11 @@ export function reconcileRealtimeSnapshot(
 async function backfillLocalOnlySessionsToCloud(
   sessionsToUpload: TrainingSession[],
   options: BackfillOptions = {},
-): Promise<{ uploadedCount: number; failedCount: number }> {
+): Promise<{ uploadedCount: number; failedCount: number; failureSamples: string[] }> {
   const concurrency = options.concurrency ?? 4;
   const perItemTimeoutMs = options.perItemTimeoutMs ?? 15000;
   if (sessionsToUpload.length === 0) {
-    return { uploadedCount: 0, failedCount: 0 };
+    return { uploadedCount: 0, failedCount: 0, failureSamples: [] };
   }
 
   const queue = [...sessionsToUpload];
@@ -296,6 +317,7 @@ async function backfillLocalOnlySessionsToCloud(
   let failedCount = 0;
   let processed = 0;
   const total = sessionsToUpload.length;
+  const failureSamples: string[] = [];
 
   const emitProgress = () => {
     options.onProgress?.({
@@ -321,6 +343,14 @@ async function backfillLocalOnlySessionsToCloud(
         uploadedCount += 1;
       } catch (error) {
         failedCount += 1;
+        const detail = `Session ${session.id}: ${formatSyncError(error)}`;
+        if (failureSamples.length < 10 && !failureSamples.includes(detail)) {
+          failureSamples.push(detail);
+        }
+        publishStatus({
+          latestFailure: detail,
+          failureSamples: [...failureSamples],
+        });
         console.warn(`Failed to backfill local-only session ${session.id} to cloud`, error);
       } finally {
         processed += 1;
@@ -330,7 +360,7 @@ async function backfillLocalOnlySessionsToCloud(
   });
 
   await Promise.all(workers);
-  return { uploadedCount, failedCount };
+  return { uploadedCount, failedCount, failureSamples };
 }
 
 function serializeSessionForCloud(session: TrainingSession) {
@@ -625,8 +655,10 @@ export async function forceUploadAllLocalSessionsToCloud(
     elapsedMs: 0,
     itemsPerSecond: 0,
     lastError: null,
+    latestFailure: null,
+    failureSamples: [],
   });
-  const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(
+  const { uploadedCount, failedCount, failureSamples } = await backfillLocalOnlySessionsToCloud(
     normalizedLocal,
     {
       ...options,
@@ -653,6 +685,8 @@ export async function forceUploadAllLocalSessionsToCloud(
     ...progressMetrics(normalizedLocal.length, Math.max(1, normalizedLocal.length), repairStart),
     lastSyncedAt: failedCount > 0 ? status.lastSyncedAt : new Date(),
     lastError: failedCount > 0 ? `${failedCount} sessions failed during cloud repair` : null,
+    latestFailure: failedCount > 0 ? failureSamples[0] ?? status.latestFailure ?? null : null,
+    failureSamples: failedCount > 0 ? failureSamples : [],
   });
 
   return {
