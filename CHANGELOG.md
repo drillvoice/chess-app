@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.9] - 26 February 2026
+- Split the Home goal action into two half-width buttons: `Set goal` and `CFD`
+- Add a Chess Free Day modal to schedule a rest day in the next 7 days (including today)
+- Show a prominent Home reminder on the selected chess free day
+- Show a compact Home reminder when no valid chess free day is nominated
+- Persist chess free day selection in cloud-synced user settings (offline-first)
+- Add regression tests for chess free day date-window logic and modal submission flow
+
 ## [2.1.8] - 24 February 2026
 - Add advanced Cloud Sync troubleshooting panel for mobile diagnostics
 - Expose recent per-session cloud repair failures directly in the UI

@@ -1,7 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, Suspense, useEffect } from 'react';
-import { Puzzle, Crown, Book, Target, Archive, X } from 'lucide-react';
-import { TacticsModal, GameModal, StudyModal, GoalModal } from '@/components/lazy-components';
+import { format } from 'date-fns';
+import { Puzzle, Crown, Book, Target, Archive, X, Coffee } from 'lucide-react';
+import {
+  TacticsModal,
+  GameModal,
+  StudyModal,
+  GoalModal,
+  ChessFreeDayModal,
+} from '@/components/lazy-components';
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from '@/components/install-prompt';
 import CloudBackupReminder from '@/components/cloud-backup-reminder';
@@ -10,6 +17,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties } from '@/lib/utils';
+import { getChessFreeDayStatus } from '@/lib/chess-free-day';
+import type { UserSettings } from '@/lib/firebase/settings';
 
 interface Statistics {
   totalHours: number;
@@ -26,6 +35,7 @@ export default function Home() {
   const [gameModalOpen, setGameModalOpen] = useState(false);
   const [studyModalOpen, setStudyModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [cfdModalOpen, setCfdModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
   const [weeklyGoalPromptDismissed, setWeeklyGoalPromptDismissed] = useState(false);
 
@@ -60,6 +70,22 @@ export default function Home() {
     refetchOnWindowFocus: true,
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
     staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+  });
+
+  const { data: userSettings, isLoading: isUserSettingsLoading } = useQuery<UserSettings>({
+    queryKey: ['user-settings'],
+    queryFn: async () => {
+      const { getUserSettings } = await import('@/lib/firebase');
+      try {
+        return await getUserSettings();
+      } catch (error) {
+        console.warn('Failed to load user settings for CFD state:', error);
+        return {};
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const queryClient = useQueryClient();
@@ -110,6 +136,12 @@ export default function Home() {
   const isGoalOld = goalProperties?.goalWeekStart
     ? new Date().getTime() - goalProperties.goalWeekStart.getTime() > 7 * 24 * 60 * 60 * 1000
     : false;
+  const cfdStatus = getChessFreeDayStatus(userSettings?.chessFreeDayDate);
+  const showTodayCfdBanner = !isUserSettingsLoading && cfdStatus.isTodayCfd;
+  const showMissingCfdReminder = !isUserSettingsLoading && cfdStatus.needsCfdNomination;
+  const cfdDisplayDate = cfdStatus.selectedDate
+    ? format(cfdStatus.selectedDate, 'EEE d MMM')
+    : null;
 
   // Load dismissal state from localStorage on mount
   useEffect(() => {
@@ -128,6 +160,33 @@ export default function Home() {
     <div className="page-stack">
       <InstallPrompt />
       <CloudBackupReminder />
+      {showTodayCfdBanner && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4 md:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start space-x-3">
+                <Coffee className="mt-0.5 h-5 w-5 text-orange-700" />
+                <div>
+                  <h3 className="font-semibold text-orange-900">Today is your chess free day.</h3>
+                  {cfdDisplayDate && (
+                    <p className="mt-1 text-sm text-orange-800">
+                      Rest day scheduled for {cfdDisplayDate}.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-orange-300 bg-orange-100 text-orange-900 hover:bg-orange-200"
+                onClick={() => setCfdModalOpen(true)}
+              >
+                Change CFD
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="py-3 text-center md:py-4">
         <h2 className="mb-2 text-2xl font-bold text-gray-800 md:text-3xl">Log your training</h2>
@@ -225,7 +284,9 @@ export default function Home() {
                     <div className="text-sm text-gray-600">Total time</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-[#059669]">{stats?.todaySessions || 0}</div>
+                    <div className="text-2xl font-bold text-[#059669]">
+                      {stats?.todaySessions || 0}
+                    </div>
                     <div className="text-sm text-gray-600">Sessions</div>
                   </div>
                 </div>
@@ -248,7 +309,9 @@ export default function Home() {
                     <div className="text-xs text-gray-600">Hours logged</div>
                   </div>
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-center">
-                    <div className="text-xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
+                    <div className="text-xl font-bold text-[#059669]">
+                      {stats?.totalSessions || 0}
+                    </div>
                     <div className="text-xs text-gray-600">Sessions</div>
                   </div>
                 </div>
@@ -259,6 +322,21 @@ export default function Home() {
 
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
           <DailyGoalsMVP />
+
+          {showMissingCfdReminder && (
+            <Card className="border-dashed border-orange-200 bg-orange-50">
+              <CardContent className="flex items-center justify-between gap-3 p-4 md:p-5">
+                <p className="text-sm text-orange-900">No chess free day selected this week.</p>
+                <Button
+                  size="sm"
+                  className="bg-orange-600 text-white hover:bg-orange-700"
+                  onClick={() => setCfdModalOpen(true)}
+                >
+                  Choose CFD
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Button
@@ -297,17 +375,27 @@ export default function Home() {
               </div>
             </Button>
 
-            <Button
-              onClick={() => setGoalModalOpen(true)}
-              className="h-auto min-h-11 w-full transform rounded-xl bg-purple-600 px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-700 active:scale-95"
-            >
-              <div className="flex items-center justify-center space-x-3">
-                <Target className="h-8 w-8" />
-                <div className="text-left">
-                  <div className="text-base md:text-lg">Set weekly goal</div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => setGoalModalOpen(true)}
+                className="h-auto min-h-11 w-full transform rounded-xl bg-purple-600 px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-700 active:scale-95"
+              >
+                <div className="flex flex-col items-center justify-center space-y-1">
+                  <Target className="h-6 w-6" />
+                  <div className="text-sm md:text-base">Set goal</div>
                 </div>
-              </div>
-            </Button>
+              </Button>
+
+              <Button
+                onClick={() => setCfdModalOpen(true)}
+                className="h-auto min-h-11 w-full transform rounded-xl bg-slate-700 px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-slate-800 active:scale-95"
+              >
+                <div className="flex flex-col items-center justify-center space-y-1">
+                  <Coffee className="h-6 w-6" />
+                  <div className="text-sm md:text-base">CFD</div>
+                </div>
+              </Button>
+            </div>
           </div>
 
           {pendingSessions && pendingSessions.length > 0 && (
@@ -374,6 +462,11 @@ export default function Home() {
         />
         <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
         <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
+        <ChessFreeDayModal
+          open={cfdModalOpen}
+          onOpenChange={setCfdModalOpen}
+          currentDateKey={cfdStatus.selectedDateKey}
+        />
       </Suspense>
 
       {/* Version Control Note */}

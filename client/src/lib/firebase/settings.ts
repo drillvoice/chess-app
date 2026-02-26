@@ -63,6 +63,7 @@ async function updateWeeklyGoalInBackground(): Promise<void> {
 
 export interface UserSettings {
   lichessUsername?: string;
+  chessFreeDayDate?: string;
   studyPreferences?: UserStudyPreferences;
   lastModified?: Date | string;
 }
