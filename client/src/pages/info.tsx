@@ -12,10 +12,10 @@ export default function Info() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              Pawn Star is an app to help you get the most out of your chess practice. Playing
-              games and studying tactics is essential to improve at chess. And you can get even
-              more out of it when you track your progress and review how you are going. This
-              approach is inspired by{' '}
+              Pawn Star is an app to help you get the most out of your chess practice. Playing games
+              and studying tactics is essential to improve at chess. And you can get even more out
+              of it when you track your progress and review how you are going. This approach is
+              inspired by{' '}
               <a
                 className="text-blue-800 underline"
                 href="https://nextlevelchess.com/free-ebook/"
