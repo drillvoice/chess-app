@@ -16,6 +16,6 @@ jobs:
         with: { node-version: 20, cache: npm }
       - run: npm ci --no-audit --no-fund
       - run: npx prettier --write .
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: 'chore(prettier): auto-format'
