@@ -43,13 +43,13 @@ export default function ChessFreeDayModal({
 
   const mutation = useMutation({
     mutationFn: async (dateKey: string) => updateUserSettings({ chessFreeDayDate: dateKey }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['user-settings'] });
+    onSuccess: () => {
       toast({
         title: 'Chess free day saved',
         description: 'Your rest day has been scheduled for this week.',
       });
       onOpenChange(false);
+      void queryClient.invalidateQueries({ queryKey: ['user-settings'] });
     },
     onError: (error: unknown) => {
       toast({
