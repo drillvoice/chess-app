@@ -236,6 +236,38 @@ describe('firebase auth utilities', () => {
     );
   });
 
+  it('updateUserSettings writes chessFreeDayDate to Firestore for cross-device sync', async () => {
+    const mockAuth = { currentUser: { uid: 'user123' } };
+    const mockDb = {};
+    const firebaseClient = await import('../firebaseClient');
+    (firebaseClient.getFirebaseAuth as any).mockResolvedValue(mockAuth);
+    (firebaseClient.getFirestoreDb as any).mockResolvedValue(mockDb);
+
+    const utils = await import('./index');
+    await utils.refreshAuthState();
+
+    const offline = await import('../offline-storage');
+    vi.mocked(offline.offlineStorage.getSettings).mockResolvedValue({ lichessUsername: 'abc' });
+
+    await utils.updateUserSettings({ chessFreeDayDate: '2026-02-28' } as any);
+
+    expect(docMock).toHaveBeenCalledWith(mockDb, 'users', 'user123', 'settings', 'settings');
+    expect(setDocMock).toHaveBeenLastCalledWith(
+      {},
+      expect.objectContaining({
+        lichessUsername: 'abc',
+        chessFreeDayDate: '2026-02-28',
+      }),
+      { merge: true },
+    );
+    expect(offline.offlineStorage.setSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lichessUsername: 'abc',
+        chessFreeDayDate: '2026-02-28',
+      }),
+    );
+  });
+
   it('updates currentUserId on sign-out', async () => {
     const mockAuth: any = { currentUser: { uid: 'user123' } };
     const mockDb = {};
