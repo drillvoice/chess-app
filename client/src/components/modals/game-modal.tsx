@@ -25,7 +25,9 @@ function normalizePlatform(platform: unknown): 'lichess' | 'chess.com' | 'otb' |
   return undefined;
 }
 
-function normalizeTimeControl(timeControl: unknown): 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined {
+function normalizeTimeControl(
+  timeControl: unknown,
+): 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined {
   if (typeof timeControl === 'string' && validTimeControls.has(timeControl)) {
     return timeControl as 'bullet' | 'blitz' | 'rapid' | 'classical';
   }
