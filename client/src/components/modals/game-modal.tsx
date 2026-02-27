@@ -15,6 +15,25 @@ import { Trophy, X, Square, Zap, Hourglass, Clock3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+const validPlatforms = new Set(['lichess', 'chess.com', 'otb']);
+const validTimeControls = new Set(['bullet', 'blitz', 'rapid', 'classical']);
+
+function normalizePlatform(platform: unknown): 'lichess' | 'chess.com' | 'otb' | undefined {
+  if (typeof platform === 'string' && validPlatforms.has(platform)) {
+    return platform as 'lichess' | 'chess.com' | 'otb';
+  }
+  return undefined;
+}
+
+function normalizeTimeControl(
+  timeControl: unknown,
+): 'bullet' | 'blitz' | 'rapid' | 'classical' | undefined {
+  if (typeof timeControl === 'string' && validTimeControls.has(timeControl)) {
+    return timeControl as 'bullet' | 'blitz' | 'rapid' | 'classical';
+  }
+  return undefined;
+}
+
 interface GameModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +60,7 @@ export default function GameModal({
   const [opponentName, setOpponentName] = useState<string>('');
   const [isOpponentInputFocused, setIsOpponentInputFocused] = useState(false);
   const [selectedOpponentFromSuggestions, setSelectedOpponentFromSuggestions] = useState(false);
+  const [formSubmissionError, setFormSubmissionError] = useState<string | null>(null);
   const initialDate = editingSession?.date ? new Date(editingSession.date) : new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
   const [dateInput, setDateInput] = useState<string>(format(initialDate, 'yyyy-MM-dd'));
@@ -139,6 +159,7 @@ export default function GameModal({
       return await createSession(data);
     },
     onMutate: async (newSession) => {
+      setFormSubmissionError(null);
       // Close modal immediately for better UX
       onOpenChange(false);
       reset();
@@ -300,51 +321,44 @@ export default function GameModal({
     if (isEditMode && editingSession) {
       const gameResult = editingSession.gameResult as 'win' | 'loss' | 'draw' | null;
       const playerColor = editingSession.playerColor as 'white' | 'black' | null;
-      const timeControl = editingSession.timeControl;
-      const platform = editingSession.platform;
+      const timeControl = normalizeTimeControl(editingSession.timeControl);
+      const platform = normalizePlatform(editingSession.platform);
       const opponentUsername = editingSession.opponentUsername || '';
+      const gameComments = editingSession.gameComments || '';
 
       // Set visual state
       setSelectedResult(gameResult);
       setSelectedColor(playerColor);
       setSelectedTimeControl(timeControl);
-      setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
+      setSelectedPlatform(platform || null);
       setOpponentName(opponentUsername);
       setSelectedOpponentFromSuggestions(false);
       setIsOpponentInputFocused(false);
+      setFormSubmissionError(null);
       const editDate = new Date(editingSession.date);
       setSelectedDate(editDate);
       setDateInput(format(editDate, 'yyyy-MM-dd'));
 
-      // Set form values properly with validation
-      if (gameResult) {
-        setValue('gameResult', gameResult, { shouldValidate: true });
-      }
-      if (playerColor) {
-        setValue('playerColor', playerColor, { shouldValidate: true });
-      }
-      if (timeControl) {
-        setValue('timeControl', timeControl as any, { shouldValidate: true });
-      }
-      if (platform) {
-        setValue('platform', platform as any, { shouldValidate: true });
-      }
-      // Load existing comments for any game being edited
-      if (editingSession.gameComments) {
-        setValue('gameComments', editingSession.gameComments, { shouldValidate: true });
-      }
-      // Load existing opponent name
-      if (opponentUsername) {
-        setValue('opponentUsername', opponentUsername, { shouldValidate: true });
-      }
+      // Keep form state and visual state aligned for edit hydration.
+      reset({
+        type: 'game',
+        gameResult: gameResult || undefined,
+        gameComments,
+        playerColor: playerColor || undefined,
+        platform,
+        timeControl,
+        opponentUsername,
+      });
     } else {
       const now = new Date();
       setSelectedDate(now);
       setDateInput(format(now, 'yyyy-MM-dd'));
+      setFormSubmissionError(null);
     }
-  }, [editingSession, isEditMode, setValue]);
+  }, [editingSession, isEditMode, reset]);
 
   const onSubmit = (data: GameSession) => {
+    setFormSubmissionError(null);
     if (selectedDate > new Date()) {
       toast({
         title: 'Invalid date',
@@ -360,6 +374,16 @@ export default function GameModal({
       date: selectedDate,
     };
     mutation.mutate(sessionData);
+  };
+
+  const onInvalidSubmit = () => {
+    const message = 'Please complete required fields before saving.';
+    setFormSubmissionError(message);
+    toast({
+      title: 'Cannot save game',
+      description: message,
+      variant: 'destructive',
+    });
   };
 
   const handleResultSelect = (result: 'win' | 'loss' | 'draw') => {
@@ -446,6 +470,7 @@ export default function GameModal({
       if (!mutation.isPending) {
         onClearEditingSession?.();
       }
+      setFormSubmissionError(null);
       const resetDate = editingSession?.date ? new Date(editingSession.date) : new Date();
       setSelectedDate(resetDate);
       setDateInput(format(resetDate, 'yyyy-MM-dd'));
@@ -491,7 +516,7 @@ export default function GameModal({
           </Popover>
           <DialogTitle className="text-xl font-bold text-gray-800">Log game</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
+        <form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-2">
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Colour</Label>
@@ -764,6 +789,12 @@ export default function GameModal({
               />
             </div>
           </div>
+
+          {formSubmissionError && (
+            <p className="px-2 pb-1 text-sm text-red-600" role="alert">
+              {formSubmissionError}
+            </p>
+          )}
 
           <div className="flex space-x-3 pt-2">
             <Button

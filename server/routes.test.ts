@@ -147,6 +147,8 @@ describe('API routes', () => {
           headers: expect.objectContaining({ Accept: 'application/x-ndjson' }),
         }),
       );
+      const calledUrl = new URL(fetchMock.mock.calls[0][0] as string);
+      expect(calledUrl.searchParams.get('clocks')).toBe('true');
       expect(res.body).toEqual({ games: [earlierPayload, latestPayload] });
     });
 

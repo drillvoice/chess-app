@@ -224,7 +224,7 @@ export function startLichessSync(username: string) {
 
         const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
 
-        let timeControl = '';
+        let timeControl: InsertTrainingSession['timeControl'] = undefined;
         if (game?.clock) {
           const initial = Math.round((game.clock.initial || 0) / 60);
           const increment = game.clock.increment || 0;
@@ -402,7 +402,7 @@ export async function triggerManualSync(): Promise<{
 
       const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
 
-      let timeControl = '';
+      let timeControl: InsertTrainingSession['timeControl'] = undefined;
       if (game?.clock) {
         const initial = Math.round((game.clock.initial || 0) / 60);
         const increment = game.clock.increment || 0;
