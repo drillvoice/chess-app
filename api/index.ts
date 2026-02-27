@@ -34,7 +34,7 @@ app.get('/api/lichess/latest', async (req, res) => {
 
     const params = new URLSearchParams({
       max: '50',
-      clocks: 'false',
+      clocks: 'true',
       moves: 'false',
       opening: 'false',
       format: 'json',

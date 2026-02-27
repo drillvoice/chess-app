@@ -106,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const params = new URLSearchParams({
         max: '50',
-        clocks: 'false',
+        clocks: 'true',
         moves: 'false',
         opening: 'false',
         format: 'json',

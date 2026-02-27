@@ -4,9 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { format } from 'date-fns';
 
 import GameModal from './game-modal';
-import { createSession } from '@/lib/firebase';
+import { createSession, updateSession } from '@/lib/firebase';
 
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+const toastMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 vi.mock('@/lib/firebase', () => ({
   createSession: vi.fn(),
   updateSession: vi.fn(),
@@ -77,6 +79,7 @@ function renderWithClient(ui: React.ReactNode) {
 describe('GameModal date selection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    toastMock.mockReset();
   });
 
   it('uses selected date when creating session', async () => {
@@ -113,6 +116,75 @@ describe('GameModal date selection', () => {
     const saveButton = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
     fireEvent.click(saveButton);
+    expect(createSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('GameModal edit-mode validation resilience', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    toastMock.mockReset();
+  });
+
+  it('saves review when editing session has malformed optional enum values', async () => {
+    renderWithClient(
+      <GameModal
+        open={true}
+        onOpenChange={() => {}}
+        isEditMode={true}
+        editingSession={
+          {
+            id: 42,
+            type: 'game',
+            date: new Date('2024-10-03'),
+            duration: 12,
+            pointsGained: null,
+            finalScore: null,
+            puzzlesAttempted: null,
+            puzzlesCorrect: null,
+            tacticsNotes: null,
+            gameResult: 'win',
+            gameType: null,
+            gameComments: 'Old note',
+            playerColor: 'white',
+            platform: 'lichess',
+            timeControl: '' as any,
+            opponentUsername: 'opponent',
+            studyType: null,
+            studyTags: null,
+            studyNotes: null,
+            goalTitle: null,
+            goalDescription: null,
+            goalWeekStart: null,
+            needsReview: true,
+          } as any
+        }
+      />,
+    );
+
+    const comments = (await screen.findAllByPlaceholderText('Great endgame technique...'))[0];
+    fireEvent.change(comments, { target: { value: 'Reviewed and saved.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(updateSession).toHaveBeenCalled());
+    const updatePayload = vi.mocked(updateSession).mock.calls[0][1];
+    expect(updatePayload.needsReview).toBe(false);
+    expect(typeof updatePayload.gameComments).toBe('string');
+  });
+
+  it('shows visible feedback when save is blocked by invalid form state', async () => {
+    renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Please complete required fields');
+    });
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Cannot save game',
+      }),
+    );
     expect(createSession).not.toHaveBeenCalled();
   });
 });

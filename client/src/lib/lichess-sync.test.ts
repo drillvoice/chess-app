@@ -323,6 +323,42 @@ describe('startLichessSync', () => {
 
     stopSync?.();
   });
+
+  it('stores undefined timeControl when a game has no clock information', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        games: [
+          {
+            id: 'game1',
+            lastMoveAt: 3000,
+            createdAt: 1000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+          },
+        ],
+      }),
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
+    const stopSync = startLichessSync('TestUser');
+    await flushPromises();
+    await flushPromises();
+
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platform: 'lichess',
+        timeControl: undefined,
+      }),
+    );
+
+    stopSync?.();
+  });
 });
 
 describe('mapLichessTimeControl', () => {

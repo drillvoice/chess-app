@@ -68,6 +68,9 @@ describe('Vercel API serverless function', () => {
           }),
         }),
       );
+
+      const calledUrl = new URL(fetchMock.mock.calls[0][0] as string);
+      expect(calledUrl.searchParams.get('clocks')).toBe('true');
     });
 
     it('returns games sorted by timestamp (oldest first)', async () => {
