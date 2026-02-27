@@ -115,9 +115,9 @@ export default function TacticsModal({
           _pending: true,
         } as any;
 
-        // Cancel outgoing refetches
-        await queryClient.cancelQueries({ queryKey: ['sessions'] });
-        await queryClient.cancelQueries({ queryKey: ['statistics'] });
+        // Don't block save on query cancellation; fire-and-forget keeps the UI responsive.
+        void queryClient.cancelQueries({ queryKey: ['sessions'] });
+        void queryClient.cancelQueries({ queryKey: ['statistics'] });
 
         // Snapshot previous values
         const previousSessions = queryClient.getQueryData<TrainingSession[]>(['sessions']);

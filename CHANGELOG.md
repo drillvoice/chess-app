@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.10] - 27 February 2026
+- Fix save flows in Study, Tactics, Game, and Goal modals so saves are not blocked by in-flight query cancellation
+- Keep modal save actions responsive by making query cancellation fire-and-forget during optimistic updates
+- Add regression tests that simulate hanging `cancelQueries` and verify all four modal save paths still call `createSession`
+
 ## [2.1.9] - 26 February 2026
 - Split the Home goal action into two half-width buttons: `Set goal` and `CFD`
 - Add a Chess Free Day modal to schedule a rest day in the next 7 days (including today)
