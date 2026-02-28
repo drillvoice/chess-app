@@ -29,9 +29,7 @@ function createQueryClientWithHangingCancels(): QueryClient {
     },
   });
 
-  vi.spyOn(queryClient, 'cancelQueries').mockImplementation(
-    () => new Promise<unknown>(() => {}),
-  );
+  vi.spyOn(queryClient, 'cancelQueries').mockImplementation(() => new Promise<unknown>(() => {}));
 
   return queryClient;
 }
