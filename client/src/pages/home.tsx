@@ -225,7 +225,9 @@ export default function Home() {
                     <div className="text-sm text-gray-600">Total time</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-[#059669]">{stats?.todaySessions || 0}</div>
+                    <div className="text-2xl font-bold text-[#059669]">
+                      {stats?.todaySessions || 0}
+                    </div>
                     <div className="text-sm text-gray-600">Sessions</div>
                   </div>
                 </div>
@@ -248,7 +250,9 @@ export default function Home() {
                     <div className="text-xs text-gray-600">Hours logged</div>
                   </div>
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-center">
-                    <div className="text-xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
+                    <div className="text-xl font-bold text-[#059669]">
+                      {stats?.totalSessions || 0}
+                    </div>
                     <div className="text-xs text-gray-600">Sessions</div>
                   </div>
                 </div>

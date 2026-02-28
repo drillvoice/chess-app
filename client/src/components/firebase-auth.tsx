@@ -358,16 +358,14 @@ export default function FirebaseAuth() {
             )}
             {migrationSummary && (
               <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
-                Merged {migrationSummary.mergedCount} sessions (local {migrationSummary.localCount}
-                , cloud {migrationSummary.cloudCount}, conflicts resolved{' '}
+                Merged {migrationSummary.mergedCount} sessions (local {migrationSummary.localCount},
+                cloud {migrationSummary.cloudCount}, conflicts resolved{' '}
                 {migrationSummary.collisionsResolved}).
               </div>
             )}
             {syncInfo?.state === SyncStateEnum.Syncing && (
               <div className="space-y-2 rounded-md border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
-                <div className="font-medium">
-                  {syncInfo.phase || 'Synchronizing account data'}
-                </div>
+                <div className="font-medium">{syncInfo.phase || 'Synchronizing account data'}</div>
                 <Progress
                   value={Math.max(0, Math.min(100, syncInfo.progressPct ?? 0))}
                   className="h-2 bg-sky-100"
@@ -454,8 +452,8 @@ export default function FirebaseAuth() {
         ) : (
           <>
             <p className="text-xs text-gray-600">
-              Sign in with Google to sync sessions, daily goals, and settings across devices in
-              real time.
+              Sign in with Google to sync sessions, daily goals, and settings across devices in real
+              time.
             </p>
             <Button onClick={() => handleEnable()} disabled={isProcessing}>
               {isProcessing ? (

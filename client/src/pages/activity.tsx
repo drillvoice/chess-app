@@ -417,10 +417,7 @@ export default function Activity() {
     earlierSessions,
   } = useMemo(() => groupSessionsByDate(filteredSessions), [filteredSessions]);
 
-  const handleEdit = useCallback(
-    (session: TrainingSession) => setEditingSession(session),
-    [],
-  );
+  const handleEdit = useCallback((session: TrainingSession) => setEditingSession(session), []);
 
   const handleDelete = useCallback(
     (sessionId: number) => deleteSessionMutation.mutate(sessionId),
@@ -499,7 +496,9 @@ export default function Activity() {
             <Card className="border-emerald-100 bg-emerald-50">
               <CardContent className="p-3 md:p-4">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-[#059669]">{stats?.totalSessions || 0}</div>
+                  <div className="text-xl font-bold text-[#059669]">
+                    {stats?.totalSessions || 0}
+                  </div>
                   <div className="text-xs text-gray-600">Sessions</div>
                 </div>
               </CardContent>
@@ -508,7 +507,9 @@ export default function Activity() {
             <Card className="border-amber-100 bg-amber-50">
               <CardContent className="p-3 md:p-4">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-[#F59E0B]">{stats?.tacticsRating || 0}</div>
+                  <div className="text-xl font-bold text-[#F59E0B]">
+                    {stats?.tacticsRating || 0}
+                  </div>
                   <div className="text-xs text-gray-600">Tactics rating</div>
                 </div>
               </CardContent>
@@ -614,7 +615,12 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {todaySessions.map((session) => (
-                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     ))}
                   </div>
                 </AccordionContent>
@@ -630,7 +636,12 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {yesterdaySessions.map((session) => (
-                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     ))}
                   </div>
                 </AccordionContent>
@@ -646,7 +657,12 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {last7DaysSessions.map((session) => (
-                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     ))}
                   </div>
                 </AccordionContent>
@@ -662,7 +678,12 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {last30DaysSessions.map((session) => (
-                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     ))}
                   </div>
                 </AccordionContent>
@@ -678,7 +699,12 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {earlierSessions.map((session) => (
-                      <SessionCard key={session.id} session={session} onEdit={handleEdit} onDelete={handleDelete} />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     ))}
                   </div>
                 </AccordionContent>
