@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingSession } from '@shared/schema';
-import { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot } from './sync-engine';
+import {
+  mergeSessionCollections,
+  mergeSettingsForSync,
+  reconcileRealtimeSnapshot,
+} from './sync-engine';
 
 function makeSession(
   id: number,
@@ -123,12 +127,16 @@ describe('reconcileRealtimeSnapshot', () => {
   });
 
   it('applies recency conflict resolution before backfill selection', () => {
-    const local = [makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-01T10:00:00.000Z', {
-      duration: 10,
-    })];
-    const remote = [makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-03T10:00:00.000Z', {
-      duration: 45,
-    })];
+    const local = [
+      makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-01T10:00:00.000Z', {
+        duration: 10,
+      }),
+    ];
+    const remote = [
+      makeSession(5, '2025-01-01T10:00:00.000Z', '2025-01-03T10:00:00.000Z', {
+        duration: 45,
+      }),
+    ];
 
     const result = reconcileRealtimeSnapshot(local, remote);
 

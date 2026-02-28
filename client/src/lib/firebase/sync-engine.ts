@@ -275,7 +275,9 @@ export function reconcileRealtimeSnapshot(
   }
 
   const tombstonedIdSet = new Set(tombstoneRecencyById.keys());
-  const remoteActive = normalizedRemoteSessions.filter((session) => !tombstonedIdSet.has(session.id));
+  const remoteActive = normalizedRemoteSessions.filter(
+    (session) => !tombstonedIdSet.has(session.id),
+  );
 
   const localWithoutTombstones = normalizedLocalSessions.filter((session) => {
     const tombstoneRecency = tombstoneRecencyById.get(session.id);
@@ -648,7 +650,9 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   return summary;
 }
 
-export async function backfillMissingLocalSessionsToCloud(concurrency = 4): Promise<BackfillSummary> {
+export async function backfillMissingLocalSessionsToCloud(
+  concurrency = 4,
+): Promise<BackfillSummary> {
   await ensureFirebase();
   const uid = resolveUid();
   if (!uid) {
@@ -660,10 +664,9 @@ export async function backfillMissingLocalSessionsToCloud(concurrency = 4): Prom
     fetchCloudSessions(uid),
   ]);
   const { localOnlyToUpload } = reconcileRealtimeSnapshot(localSessions, remoteSessions);
-  const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(
-    localOnlyToUpload,
-    { concurrency },
-  );
+  const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(localOnlyToUpload, {
+    concurrency,
+  });
 
   return {
     candidateCount: localOnlyToUpload.length,
@@ -727,7 +730,7 @@ export async function forceUploadAllLocalSessionsToCloud(
     ...progressMetrics(normalizedLocal.length, Math.max(1, normalizedLocal.length), repairStart),
     lastSyncedAt: failedCount > 0 ? status.lastSyncedAt : new Date(),
     lastError: failedCount > 0 ? `${failedCount} sessions failed during cloud repair` : null,
-    latestFailure: failedCount > 0 ? failureSamples[0] ?? status.latestFailure ?? null : null,
+    latestFailure: failedCount > 0 ? (failureSamples[0] ?? status.latestFailure ?? null) : null,
     failureSamples: failedCount > 0 ? failureSamples : [],
   });
 
@@ -801,8 +804,8 @@ export async function startRealtimeSync(): Promise<() => void> {
       ]);
       if (localOnlyToUpload.length > 0) {
         queueMicrotask(() => {
-          backfillLocalOnlySessionsToCloud(localOnlyToUpload)
-            .then(({ uploadedCount, failedCount }) => {
+          backfillLocalOnlySessionsToCloud(localOnlyToUpload).then(
+            ({ uploadedCount, failedCount }) => {
               console.info(
                 `Cloud sync backfilled ${uploadedCount}/${localOnlyToUpload.length} local-only sessions after reconciliation`,
               );
@@ -812,7 +815,8 @@ export async function startRealtimeSync(): Promise<() => void> {
                   `Cloud sync failed to backfill ${failedCount} local-only sessions after reconciliation`,
                 );
               }
-            });
+            },
+          );
         });
       }
       if (tombstonedIds.length > 0) {

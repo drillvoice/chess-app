@@ -4,7 +4,8 @@ import { queryClient } from './queryClient';
 
 const isDebug =
   typeof import.meta !== 'undefined' &&
-  ((import.meta as any).env?.DEV || (import.meta as any).env?.VITE_ENABLE_LICHESS_SYNC_DEBUG === 'true');
+  ((import.meta as any).env?.DEV ||
+    (import.meta as any).env?.VITE_ENABLE_LICHESS_SYNC_DEBUG === 'true');
 const debugLog = (...args: Parameters<typeof console.log>) => {
   if (isDebug) console.log(...args);
 };
@@ -149,9 +150,7 @@ export function startLichessSync(username: string) {
         // would repeatedly receive the same last game and never see newer ones when
         // `max=1` is used on the proxy endpoint.
         params.set('since', Math.trunc(lastTimestamp + 1).toString());
-        debugLog(
-          `🔄 [Lichess Sync Poll] Requesting games since: ${Math.trunc(lastTimestamp + 1)}`,
-        );
+        debugLog(`🔄 [Lichess Sync Poll] Requesting games since: ${Math.trunc(lastTimestamp + 1)}`);
       } else {
         debugLog(`🔄 [Lichess Sync Poll] No timestamp, fetching all recent games`);
       }
@@ -208,9 +207,7 @@ export function startLichessSync(username: string) {
           continue;
         }
 
-        debugLog(
-          `📥 [Lichess Sync Poll] Importing game: id=${game?.id}, lastMoveAt=${lastMoveAt}`,
-        );
+        debugLog(`📥 [Lichess Sync Poll] Importing game: id=${game?.id}, lastMoveAt=${lastMoveAt}`);
 
         const color =
           game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
