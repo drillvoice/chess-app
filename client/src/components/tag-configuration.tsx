@@ -86,18 +86,17 @@ export function TagConfigurationContent() {
       {},
     );
 
-    const saved = Object.entries(preferences.tagConfigs ?? {}).reduce<Record<string, TagConfigDraft>>(
-      (acc, [key, cfg]) => {
-        const unitLabel = cfg.unitLabel.trim();
-        const minutesPerUnit =
-          cfg.minutesPerUnit !== undefined ? String(cfg.minutesPerUnit).trim() : '';
-        if (unitLabel.length > 0 && minutesPerUnit.length > 0) {
-          acc[normalizeStudyTagKey(key)] = { unitLabel, minutesPerUnit };
-        }
-        return acc;
-      },
-      {},
-    );
+    const saved = Object.entries(preferences.tagConfigs ?? {}).reduce<
+      Record<string, TagConfigDraft>
+    >((acc, [key, cfg]) => {
+      const unitLabel = cfg.unitLabel.trim();
+      const minutesPerUnit =
+        cfg.minutesPerUnit !== undefined ? String(cfg.minutesPerUnit).trim() : '';
+      if (unitLabel.length > 0 && minutesPerUnit.length > 0) {
+        acc[normalizeStudyTagKey(key)] = { unitLabel, minutesPerUnit };
+      }
+      return acc;
+    }, {});
 
     return JSON.stringify(current) !== JSON.stringify(saved);
   }, [configByTag, preferences]);
@@ -164,7 +163,10 @@ export function TagConfigurationContent() {
           minutesPerUnit: draft.minutesPerUnit.trim(),
         }))
         .filter((cfg) => cfg.unitLabel.length > 0 && cfg.minutesPerUnit.length > 0)
-        .map((cfg) => [cfg.key, { unitLabel: cfg.unitLabel, minutesPerUnit: Number(cfg.minutesPerUnit) }]),
+        .map((cfg) => [
+          cfg.key,
+          { unitLabel: cfg.unitLabel, minutesPerUnit: Number(cfg.minutesPerUnit) },
+        ]),
     );
 
     setIsSaving(true);
@@ -204,8 +206,8 @@ export function TagConfigurationContent() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
-        Optionally set a unit label and conversion rate per tag. Example: variations at 0.25
-        minutes per unit. Leave both blank to keep minute-only logging.
+        Optionally set a unit label and conversion rate per tag. Example: variations at 0.25 minutes
+        per unit. Leave both blank to keep minute-only logging.
       </p>
 
       <div className="space-y-3">
