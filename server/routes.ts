@@ -8,32 +8,12 @@ import {
   goalSessionSchema,
   type InsertTrainingSession,
 } from '@shared/schema';
-import path from 'path';
 import { asyncHandler } from './asyncHandler';
 import { fromZodError } from 'zod-validation-error';
 import { z, ZodError, type ZodTypeAny } from 'zod';
 
 interface LichessLatestResponse {
   games: unknown[];
-}
-
-/**
- * Helper to register a static file route with predefined headers.
- */
-function serveStaticFile(
-  app: Express,
-  urlPath: string,
-  filename: string,
-  contentType: string,
-  extraHeaders: Record<string, string> = {},
-): void {
-  app.get(urlPath, (_req, res) => {
-    res.setHeader('Content-Type', contentType);
-    for (const [key, value] of Object.entries(extraHeaders)) {
-      res.setHeader(key, value);
-    }
-    res.sendFile(path.join(process.cwd(), 'public', filename));
-  });
 }
 
 /**
@@ -61,20 +41,6 @@ function createSessionRoute<T extends ZodTypeAny>(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // PWA routes with proper headers
-  serveStaticFile(app, '/manifest.json', 'manifest.json', 'application/manifest+json');
-  serveStaticFile(app, '/sw.js', 'sw.js', 'application/javascript', {
-    'Service-Worker-Allowed': '/',
-    'Cache-Control': 'no-cache',
-  });
-
-  ['192', '512'].forEach((size) => {
-    serveStaticFile(app, `/icon-${size}.svg`, `icon-${size}.svg`, 'image/svg+xml');
-    serveStaticFile(app, `/icon-${size}.png`, `icon-${size}.png`, 'image/png');
-  });
-
-  serveStaticFile(app, '/screenshot-mobile.png', 'screenshot-mobile.png', 'image/png');
-
   // Get all training sessions
   app.get(
     '/api/training-sessions',

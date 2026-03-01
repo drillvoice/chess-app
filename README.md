@@ -118,9 +118,9 @@ npm run format:check # Prettier check
 │   │   ├── components/    # UI components
 │   │   ├── lib/          # Storage and Firebase logic
 │   │   └── hooks/        # Custom React hooks
+│   └── public/            # Canonical static/PWA assets
 ├── server/                # Express backend (dev only)
-├── shared/               # Shared types and schemas
-└── public/               # PWA assets
+└── shared/               # Shared types and schemas
 ```
 
 ## Storage System
