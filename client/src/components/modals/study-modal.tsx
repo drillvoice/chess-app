@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,7 +39,6 @@ export default function StudyModal({
   const {
     register,
     setValue,
-    watch,
     handleSubmit,
     formState: { errors },
     reset,
@@ -49,38 +48,41 @@ export default function StudyModal({
       isEditMode && editingSession
         ? {
             type: 'study',
-            duration: editingSession.duration || 0,
+            duration:
+              editingSession.primaryStudyTag && editingSession.quantity
+                ? editingSession.quantity
+                : (editingSession.duration ?? 0),
             studyTags: editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [],
             studyNotes: editingSession.studyNotes || '',
-            quantity: editingSession.quantity || undefined,
-            primaryStudyTag: editingSession.primaryStudyTag || undefined,
           }
         : {
             type: 'study',
             duration: 0,
             studyTags: [],
             studyNotes: '',
-            quantity: undefined,
-            primaryStudyTag: undefined,
           },
   });
-  const watchedQuantity = watch('quantity');
-  const watchedPrimaryTag = watch('primaryStudyTag');
 
-  const configuredUnitTagOptions = selectedTags.filter((tag) => {
-    const key = normalizeStudyTagKey(tag);
-    return !!preferences?.tagConfigs?.[key]?.unitLabel;
-  });
-  const shouldShowQuantityControls =
-    configuredUnitTagOptions.length > 0 ||
-    watchedQuantity !== undefined ||
-    !!editingSession?.quantity ||
-    !!watchedPrimaryTag;
-  const primaryTagOptions =
-    configuredUnitTagOptions.length > 0 ? configuredUnitTagOptions : selectedTags;
-  const primaryUnitLabel = watchedPrimaryTag
-    ? preferences?.tagConfigs?.[normalizeStudyTagKey(watchedPrimaryTag)]?.unitLabel || 'units'
-    : 'units';
+  const configuredTagSelection = useMemo(() => {
+    const configuredTags = selectedTags.filter((tag) => {
+      const key = normalizeStudyTagKey(tag);
+      return !!preferences?.tagConfigs?.[key]?.unitLabel;
+    });
+
+    if (configuredTags.length !== 1) {
+      return null;
+    }
+
+    const primaryStudyTag = configuredTags[0];
+    const unitLabel =
+      preferences?.tagConfigs?.[normalizeStudyTagKey(primaryStudyTag)]?.unitLabel || null;
+    if (!unitLabel) return null;
+
+    return {
+      primaryStudyTag,
+      unitLabel,
+    };
+  }, [preferences?.tagConfigs, selectedTags]);
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
@@ -244,13 +246,9 @@ export default function StudyModal({
       // Set selected tags from editing session
       const tags = editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [];
       setSelectedTags(tags);
-      setValue('quantity', editingSession.quantity || undefined);
-      setValue('primaryStudyTag', editingSession.primaryStudyTag || undefined);
     } else {
       // Reset selected tags for new sessions
       setSelectedTags([]);
-      setValue('quantity', undefined);
-      setValue('primaryStudyTag', undefined);
     }
   }, [editingSession, isEditMode, setValue]);
 
@@ -263,14 +261,6 @@ export default function StudyModal({
   }, [open, reset]);
 
   useEffect(() => {
-    if (!watchedPrimaryTag) return;
-    if (selectedTags.length === 0) return;
-    if (!selectedTags.includes(watchedPrimaryTag)) {
-      setValue('primaryStudyTag', undefined);
-    }
-  }, [selectedTags, setValue, watchedPrimaryTag]);
-
-  useEffect(() => {
     setValue('studyTags', selectedTags, { shouldValidate: true });
   }, [selectedTags, setValue]);
 
@@ -278,6 +268,8 @@ export default function StudyModal({
     // Add current date and selected tags to the session data
     const sessionData = {
       ...data,
+      quantity: configuredTagSelection ? data.duration : undefined,
+      primaryStudyTag: configuredTagSelection?.primaryStudyTag,
       studyTags: selectedTags,
       date: isEditMode && editingSession ? editingSession.date : new Date(),
     };
@@ -301,7 +293,9 @@ export default function StudyModal({
 
             <div>
               <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-                Duration (minutes)
+                {configuredTagSelection
+                  ? `${configuredTagSelection.unitLabel.charAt(0).toUpperCase()}${configuredTagSelection.unitLabel.slice(1)}`
+                  : 'Duration (minutes)'}
               </Label>
               <Input
                 id="duration"
@@ -327,52 +321,6 @@ export default function StudyModal({
                 onFocus={(e) => e.target.select()}
               />
             </div>
-
-            {shouldShowQuantityControls && (
-              <>
-                <div>
-                  <Label htmlFor="primaryStudyTag" className="text-sm font-medium text-gray-700">
-                    Primary tag for quantity
-                  </Label>
-                  <select
-                    id="primaryStudyTag"
-                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                    value={watchedPrimaryTag || ''}
-                    onChange={(e) =>
-                      setValue('primaryStudyTag', e.target.value || undefined, {
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <option value="">Select a tag</option>
-                    {primaryTagOptions.map((tag) => (
-                      <option key={tag} value={tag}>
-                        {tag}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.primaryStudyTag && (
-                    <p className="mt-1 text-sm text-red-600">{errors.primaryStudyTag.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">
-                    Quantity ({primaryUnitLabel})
-                  </Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    className="mt-1"
-                    {...register('quantity', { valueAsNumber: true })}
-                    onFocus={(e) => e.target.select()}
-                  />
-                  {errors.quantity && (
-                    <p className="mt-1 text-sm text-red-600">{errors.quantity.message}</p>
-                  )}
-                </div>
-              </>
-            )}
           </div>
 
           <div className="flex space-x-3 pt-3">

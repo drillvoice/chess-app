@@ -70,18 +70,17 @@ describe('StudyModal quantity inputs', () => {
     });
   });
 
-  it('hides quantity controls when selected tags have no configured units', async () => {
+  it('keeps duration label when selected tags have no configured units', async () => {
     renderWithClient(<StudyModal open={true} onOpenChange={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: /select reading/i }));
 
-    await waitFor(() => {
-      expect(screen.queryByLabelText(/primary tag for quantity/i)).not.toBeInTheDocument();
-    });
-    expect(screen.queryByLabelText(/quantity/i)).not.toBeInTheDocument();
+    expect(await screen.findByLabelText(/duration \(minutes\)/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/primary tag for quantity/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^quantity/i)).not.toBeInTheDocument();
   });
 
-  it('shows quantity controls when a configured tag is selected', async () => {
+  it('relabels duration field to configured unit when a configured tag is selected', async () => {
     useStudyPreferencesMock.mockReturnValue({
       preferences: {
         customTags: ['reading', 'chessable'],
@@ -96,11 +95,13 @@ describe('StudyModal quantity inputs', () => {
     renderWithClient(<StudyModal open={true} onOpenChange={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /select chessable/i }));
 
-    expect(await screen.findByLabelText(/primary tag for quantity/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/quantity \(units\)/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/variations/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/duration \(minutes\)/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/primary tag for quantity/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^quantity/i)).not.toBeInTheDocument();
   });
 
-  it('requires a primary study tag when quantity is entered', async () => {
+  it('auto-maps relabeled value to quantity and primaryStudyTag on save', async () => {
     useStudyPreferencesMock.mockReturnValue({
       preferences: {
         customTags: ['reading', 'chessable'],
@@ -114,51 +115,19 @@ describe('StudyModal quantity inputs', () => {
 
     renderWithClient(<StudyModal open={true} onOpenChange={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /select chessable/i }));
-    fireEvent.change(screen.getByLabelText(/duration \(minutes\)/i), {
-      target: { value: '20' },
-    });
-    fireEvent.change(screen.getByLabelText(/quantity \(units\)/i), {
-      target: { value: '5' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
-
-    expect(await screen.findByText(/primary study tag is required/i)).toBeInTheDocument();
-    expect(createSessionMock).not.toHaveBeenCalled();
-  });
-
-  it('includes quantity and primaryStudyTag in save payload', async () => {
-    useStudyPreferencesMock.mockReturnValue({
-      preferences: {
-        customTags: ['reading', 'chessable'],
-        tagConfigs: {
-          chessable: { unitLabel: 'variations' },
-        },
-      },
-      isLoading: false,
-      error: null,
-    });
-
-    renderWithClient(<StudyModal open={true} onOpenChange={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /select chessable/i }));
-    fireEvent.change(screen.getByLabelText(/duration \(minutes\)/i), {
-      target: { value: '20' },
-    });
-    fireEvent.change(screen.getByLabelText(/primary tag for quantity/i), {
-      target: { value: 'chessable' },
-    });
-    fireEvent.change(screen.getByLabelText(/quantity \(variations\)|quantity \(units\)/i), {
+    fireEvent.change(screen.getByLabelText(/variations/i), {
       target: { value: '7' },
     });
-
     fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
     const payload = createSessionMock.mock.calls[0][0];
     expect(payload.quantity).toBe(7);
     expect(payload.primaryStudyTag).toBe('chessable');
+    expect(payload.duration).toBe(7);
   });
 
-  it('prefills edit mode and falls back to units label when config is missing', async () => {
+  it('prefills edit mode using quantity value and keeps duration label when config is missing', async () => {
     const editingSession = {
       id: 101,
       type: 'study',
@@ -179,8 +148,8 @@ describe('StudyModal quantity inputs', () => {
       />,
     );
 
-    expect(await screen.findByLabelText(/primary tag for quantity/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/quantity \(units\)/i)).toHaveValue(3);
-    expect(screen.getByLabelText(/primary tag for quantity/i)).toHaveValue('reading');
+    expect(await screen.findByLabelText(/duration \(minutes\)/i)).toHaveValue(3);
+    expect(screen.queryByLabelText(/primary tag for quantity/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^quantity/i)).not.toBeInTheDocument();
   });
 });
