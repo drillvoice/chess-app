@@ -173,7 +173,10 @@ describe('mergeSettingsForSync', () => {
     const merged = mergeSettingsForSync(local, cloud);
 
     expect(merged.lichessUsername).toBe('cloud-user');
-    expect(merged.studyPreferences).toEqual(local.studyPreferences);
+    expect(merged.studyPreferences).toEqual({
+      ...local.studyPreferences,
+      customTags: ['middle game', 'reading'],
+    });
   });
 
   it('prefers newer local study preferences over stale cloud study preferences', () => {
@@ -193,7 +196,10 @@ describe('mergeSettingsForSync', () => {
 
     const merged = mergeSettingsForSync(local, cloud);
 
-    expect(merged.studyPreferences).toEqual(local.studyPreferences);
+    expect(merged.studyPreferences).toEqual({
+      ...local.studyPreferences,
+      customTags: ['calculation', 'reading'],
+    });
   });
 
   it('prefers cloud study preferences when they are newer', () => {
@@ -212,6 +218,29 @@ describe('mergeSettingsForSync', () => {
 
     const merged = mergeSettingsForSync(local, cloud);
 
-    expect(merged.studyPreferences).toEqual(cloud.studyPreferences);
+    expect(merged.studyPreferences).toEqual({
+      ...cloud.studyPreferences,
+      customTags: ['endgames', 'reading'],
+    });
+  });
+
+  it('unions custom tags across local and cloud study preferences', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading', 'calculation'],
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['Reading', 'endgames'],
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.studyPreferences.customTags).toEqual(['calculation', 'endgames', 'reading']);
+    expect(merged.studyPreferences.lastModified).toEqual(cloud.studyPreferences.lastModified);
   });
 });

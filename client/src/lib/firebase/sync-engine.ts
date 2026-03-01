@@ -446,6 +446,67 @@ function studyPreferencesTimestamp(value: any): number {
   return toDate(value?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
 }
 
+function normalizeCustomTags(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return [];
+
+  const deduped = new Map<string, string>();
+  for (const rawTag of tags) {
+    if (typeof rawTag !== 'string') continue;
+    const trimmed = rawTag.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!deduped.has(key)) {
+      deduped.set(key, trimmed);
+    }
+  }
+
+  return Array.from(deduped.values()).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' }),
+  );
+}
+
+function mergeStudyPreferencesForSync(localStudy: any, cloudStudy: any): any {
+  if (!localStudy && !cloudStudy) return undefined;
+  if (localStudy && !cloudStudy) {
+    return {
+      ...localStudy,
+      customTags: normalizeCustomTags(localStudy.customTags),
+    };
+  }
+  if (!localStudy && cloudStudy) {
+    return {
+      ...cloudStudy,
+      customTags: normalizeCustomTags(cloudStudy.customTags),
+    };
+  }
+
+  const local = localStudy && typeof localStudy === 'object' ? localStudy : {};
+  const cloud = cloudStudy && typeof cloudStudy === 'object' ? cloudStudy : {};
+  const preferCloud = studyPreferencesTimestamp(cloud) >= studyPreferencesTimestamp(local);
+
+  const primary = preferCloud ? cloud : local;
+  const secondary = preferCloud ? local : cloud;
+
+  return {
+    ...secondary,
+    ...primary,
+    customTags: normalizeCustomTags([
+      ...(Array.isArray(local.customTags) ? local.customTags : []),
+      ...(Array.isArray(cloud.customTags) ? cloud.customTags : []),
+    ]),
+  };
+}
+
+function areSameTagSet(a: unknown, b: unknown): boolean {
+  const aTags = normalizeCustomTags(a);
+  const bTags = normalizeCustomTags(b);
+  if (aTags.length !== bTags.length) return false;
+  for (let i = 0; i < aTags.length; i += 1) {
+    if (aTags[i].toLowerCase() !== bTags[i].toLowerCase()) return false;
+  }
+  return true;
+}
+
 export function mergeSettingsForSync(localSettings: any, cloudSettings: any): any {
   const local = localSettings && typeof localSettings === 'object' ? localSettings : {};
   const cloud = cloudSettings && typeof cloudSettings === 'object' ? cloudSettings : {};
@@ -461,17 +522,11 @@ export function mergeSettingsForSync(localSettings: any, cloudSettings: any): an
       ? cloud.studyPreferences
       : null;
 
-  if (localStudyPreferences && !cloudStudyPreferences) {
-    merged.studyPreferences = localStudyPreferences;
-  } else if (!localStudyPreferences && cloudStudyPreferences) {
-    merged.studyPreferences = cloudStudyPreferences;
-  } else if (localStudyPreferences && cloudStudyPreferences) {
-    const preferCloudStudyPreferences =
-      studyPreferencesTimestamp(cloudStudyPreferences) >=
-      studyPreferencesTimestamp(localStudyPreferences);
-    merged.studyPreferences = preferCloudStudyPreferences
-      ? cloudStudyPreferences
-      : localStudyPreferences;
+  if (localStudyPreferences || cloudStudyPreferences) {
+    merged.studyPreferences = mergeStudyPreferencesForSync(
+      localStudyPreferences,
+      cloudStudyPreferences,
+    );
   }
 
   return merged;
@@ -850,8 +905,21 @@ export async function startRealtimeSync(): Promise<() => void> {
     async (snapshot) => {
       if (!snapshot.exists()) return;
       const localSettings = await offlineStorage.getSettings();
-      const mergedSettings = mergeSettingsForSync(localSettings, snapshot.data());
+      const cloudSettings = snapshot.data();
+      const mergedSettings = mergeSettingsForSync(localSettings, cloudSettings);
       await offlineStorage.setSettings(mergedSettings);
+
+      const cloudTags = cloudSettings?.studyPreferences?.customTags;
+      const mergedTags = mergedSettings?.studyPreferences?.customTags;
+      if (!areSameTagSet(cloudTags, mergedTags)) {
+        queueMicrotask(async () => {
+          try {
+            await setDoc(settingsRef, mergedSettings, { merge: true });
+          } catch (error) {
+            console.warn('Failed to backfill merged study tags to cloud settings', error);
+          }
+        });
+      }
     },
     async (error) => {
       const message = error instanceof Error ? error.message : 'Settings sync failed';

@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.9] - 1 March 2026
+- Preserve study custom tags added on any synced device during settings reconciliation
+- Merge cloud/local study tag lists with case-insensitive deduplication to avoid tag loss
+- Backfill merged study tags to cloud from realtime settings sync so tags propagate across devices
+
 ## [2.1.8] - 24 February 2026
 
 - Add advanced Cloud Sync troubleshooting panel for mobile diagnostics
