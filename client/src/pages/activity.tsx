@@ -670,13 +670,13 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {todaySessions.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    studyUnitLabelByTag={studyUnitLabelByTag}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        studyUnitLabelByTag={studyUnitLabelByTag}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     ))}
                   </div>
                 </AccordionContent>
