@@ -85,7 +85,7 @@ describe('StudyModal quantity inputs', () => {
       preferences: {
         customTags: ['reading', 'chessable'],
         tagConfigs: {
-          chessable: { unitLabel: 'variations' },
+          chessable: { unitLabel: 'variations', minutesPerUnit: 0.25 },
         },
       },
       isLoading: false,
@@ -106,7 +106,7 @@ describe('StudyModal quantity inputs', () => {
       preferences: {
         customTags: ['reading', 'chessable'],
         tagConfigs: {
-          chessable: { unitLabel: 'variations' },
+          chessable: { unitLabel: 'variations', minutesPerUnit: 0.25 },
         },
       },
       isLoading: false,
@@ -124,7 +124,7 @@ describe('StudyModal quantity inputs', () => {
     const payload = createSessionMock.mock.calls[0][0];
     expect(payload.quantity).toBe(7);
     expect(payload.primaryStudyTag).toBe('chessable');
-    expect(payload.duration).toBe(7);
+    expect(payload.duration).toBe(1.75);
   });
 
   it('prefills edit mode using quantity value and keeps duration label when config is missing', async () => {

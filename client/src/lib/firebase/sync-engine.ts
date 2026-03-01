@@ -465,27 +465,33 @@ function normalizeCustomTags(tags: unknown): string[] {
   );
 }
 
-function normalizeTagConfigs(tagConfigs: unknown): Record<string, { unitLabel: string }> {
+function normalizeTagConfigs(
+  tagConfigs: unknown,
+): Record<string, { unitLabel: string; minutesPerUnit: number }> {
   if (!tagConfigs || typeof tagConfigs !== 'object') return {};
 
-  const normalized: Record<string, { unitLabel: string }> = {};
+  const normalized: Record<string, { unitLabel: string; minutesPerUnit: number }> = {};
   for (const [rawKey, rawConfig] of Object.entries(tagConfigs as Record<string, unknown>)) {
     const key = normalizeStudyTagKey(rawKey);
     const unitLabel =
       rawConfig && typeof rawConfig === 'object' ? (rawConfig as any).unitLabel : undefined;
+    const minutesPerUnitRaw =
+      rawConfig && typeof rawConfig === 'object' ? (rawConfig as any).minutesPerUnit : undefined;
     if (typeof unitLabel !== 'string') continue;
     const trimmedUnit = unitLabel.trim();
     if (!trimmedUnit) continue;
-    normalized[key] = { unitLabel: trimmedUnit };
+    const minutesPerUnit = Number(minutesPerUnitRaw);
+    if (!Number.isFinite(minutesPerUnit) || minutesPerUnit <= 0) continue;
+    normalized[key] = { unitLabel: trimmedUnit, minutesPerUnit };
   }
 
   return normalized;
 }
 
 function pruneTagConfigsByTags(
-  tagConfigs: Record<string, { unitLabel: string }>,
+  tagConfigs: Record<string, { unitLabel: string; minutesPerUnit: number }>,
   tags: string[],
-): Record<string, { unitLabel: string }> {
+): Record<string, { unitLabel: string; minutesPerUnit: number }> {
   const allowedKeys = new Set(tags.map((tag) => normalizeStudyTagKey(tag)));
   return Object.fromEntries(
     Object.entries(tagConfigs).filter(([key]) => allowedKeys.has(normalizeStudyTagKey(key))),
@@ -559,6 +565,7 @@ function areSameTagConfigs(a: unknown, b: unknown): boolean {
   for (let i = 0; i < aKeys.length; i += 1) {
     if (aKeys[i] !== bKeys[i]) return false;
     if (aConfigs[aKeys[i]]?.unitLabel !== bConfigs[bKeys[i]]?.unitLabel) return false;
+    if (aConfigs[aKeys[i]]?.minutesPerUnit !== bConfigs[bKeys[i]]?.minutesPerUnit) return false;
   }
 
   return true;

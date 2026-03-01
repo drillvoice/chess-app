@@ -262,8 +262,8 @@ describe('mergeSettingsForSync', () => {
       studyPreferences: {
         customTags: ['reading', 'chessable'],
         tagConfigs: {
-          reading: { unitLabel: 'chapters' },
-          chessable: { unitLabel: 'reps' },
+          reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
+          chessable: { unitLabel: 'reps', minutesPerUnit: 0.25 },
         },
         lastModified: new Date('2026-02-18T10:00:00.000Z'),
       },
@@ -272,7 +272,7 @@ describe('mergeSettingsForSync', () => {
       studyPreferences: {
         customTags: ['reading', 'chessable'],
         tagConfigs: {
-          reading: { unitLabel: 'sections' },
+          reading: { unitLabel: 'sections', minutesPerUnit: 12 },
         },
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
@@ -281,8 +281,8 @@ describe('mergeSettingsForSync', () => {
     const merged = mergeSettingsForSync(local, cloud);
 
     expect(merged.studyPreferences.tagConfigs).toEqual({
-      chessable: { unitLabel: 'reps' },
-      reading: { unitLabel: 'sections' },
+      chessable: { unitLabel: 'reps', minutesPerUnit: 0.25 },
+      reading: { unitLabel: 'sections', minutesPerUnit: 12 },
     });
   });
 
@@ -291,8 +291,8 @@ describe('mergeSettingsForSync', () => {
       studyPreferences: {
         customTags: ['reading'],
         tagConfigs: {
-          reading: { unitLabel: 'chapters' },
-          chessable: { unitLabel: 'variations' },
+          reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
+          chessable: { unitLabel: 'variations', minutesPerUnit: 0.25 },
         },
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
@@ -301,7 +301,7 @@ describe('mergeSettingsForSync', () => {
       studyPreferences: {
         customTags: ['reading'],
         tagConfigs: {
-          reading: { unitLabel: 'chapters' },
+          reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
         },
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
@@ -310,7 +310,7 @@ describe('mergeSettingsForSync', () => {
     const merged = mergeSettingsForSync(local, cloud);
 
     expect(merged.studyPreferences.tagConfigs).toEqual({
-      reading: { unitLabel: 'chapters' },
+      reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
     });
   });
 });

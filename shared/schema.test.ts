@@ -195,11 +195,13 @@ describe('date preprocessing', () => {
       tagConfigs: {
         reading: {
           unitLabel: 'chapters',
+          minutesPerUnit: 12.5,
         },
       },
     });
 
     expect(parsed.tagConfigs.reading?.unitLabel).toBe('chapters');
+    expect(parsed.tagConfigs.reading?.minutesPerUnit).toBe(12.5);
 
     expect(() =>
       userStudyPreferencesSchema.parse({
@@ -207,6 +209,19 @@ describe('date preprocessing', () => {
         tagConfigs: {
           Reading: {
             unitLabel: 'chapters',
+            minutesPerUnit: 10,
+          },
+        },
+      }),
+    ).toThrow();
+
+    expect(() =>
+      userStudyPreferencesSchema.parse({
+        customTags: ['reading'],
+        tagConfigs: {
+          reading: {
+            unitLabel: 'chapters',
+            minutesPerUnit: 0,
           },
         },
       }),

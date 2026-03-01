@@ -179,6 +179,11 @@ const studyUnitLabelSchema = z
 
 export const studyTagConfigSchema = z.object({
   unitLabel: studyUnitLabelSchema,
+  minutesPerUnit: z
+    .number()
+    .positive('Minutes per unit must be greater than 0')
+    .max(999, 'Minutes per unit cannot exceed 999')
+    .optional(),
 });
 
 const studyTagConfigsSchema = z
@@ -195,7 +200,7 @@ const studyTagConfigsSchema = z
 export const studySessionSchema = insertTrainingSessionSchema
   .extend({
     type: z.literal('study'),
-    duration: z.number().min(1, 'Duration must be at least 1 minute'),
+    duration: z.number().min(0.01, 'Duration must be greater than 0'),
     studyTags: z
       .array(studyTagSchema)
       .max(10, 'Cannot select more than 10 tags')

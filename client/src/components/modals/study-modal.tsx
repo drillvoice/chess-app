@@ -25,6 +25,8 @@ interface StudyModalProps {
   isEditMode?: boolean;
 }
 
+const roundToTwoDecimals = (value: number): number => Math.round(value * 100) / 100;
+
 export default function StudyModal({
   open,
   onOpenChange,
@@ -74,13 +76,15 @@ export default function StudyModal({
     }
 
     const primaryStudyTag = configuredTags[0];
-    const unitLabel =
-      preferences?.tagConfigs?.[normalizeStudyTagKey(primaryStudyTag)]?.unitLabel || null;
-    if (!unitLabel) return null;
+    const tagConfig = preferences?.tagConfigs?.[normalizeStudyTagKey(primaryStudyTag)];
+    const unitLabel = tagConfig?.unitLabel || null;
+    const minutesPerUnit = Number(tagConfig?.minutesPerUnit);
+    if (!unitLabel || !Number.isFinite(minutesPerUnit) || minutesPerUnit <= 0) return null;
 
     return {
       primaryStudyTag,
       unitLabel,
+      minutesPerUnit,
     };
   }, [preferences?.tagConfigs, selectedTags]);
 
@@ -265,9 +269,14 @@ export default function StudyModal({
   }, [selectedTags, setValue]);
 
   const onSubmit = (data: StudySession) => {
+    const convertedDuration = configuredTagSelection
+      ? roundToTwoDecimals(data.duration * configuredTagSelection.minutesPerUnit)
+      : data.duration;
+
     // Add current date and selected tags to the session data
     const sessionData = {
       ...data,
+      duration: convertedDuration,
       quantity: configuredTagSelection ? data.duration : undefined,
       primaryStudyTag: configuredTagSelection?.primaryStudyTag,
       studyTags: selectedTags,
