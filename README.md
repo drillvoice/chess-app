@@ -19,7 +19,7 @@ A Progressive Web App for tracking chess training sessions with cloud synchroniz
 - **Storage**: Hybrid system (IndexedDB + Firebase Firestore)
 - **UI**: Tailwind CSS with shadcn/ui components
 - **Build**: Vite
-- **Hosting**: Firebase Hosting
+- **Hosting**: Vercel
 
 ## Environment & Secrets
 
@@ -49,24 +49,9 @@ Local development uses a `.env.local` file that is not committed to version cont
 
    The Firebase CLI prompts for the secret value during the `firebase functions:secrets:set` command.
 
-## Firebase Hosting Deployment
+## Vercel Deployment
 
-This app is configured for Firebase Hosting deployment (static hosting), not Firebase App Hosting.
-
-### Prerequisites
-
-1. Install Firebase CLI:
-
-   ```bash
-   npm install -g firebase-tools
-   ```
-
-2. Login to Firebase:
-   ```bash
-   firebase login
-   ```
-
-### Deploy to Firebase Hosting
+This project is deployed on Vercel.
 
 1. **Build the app:**
 
@@ -74,30 +59,15 @@ This app is configured for Firebase Hosting deployment (static hosting), not Fir
    npm run build
    ```
 
-2. **Deploy to Firebase Hosting:**
+2. **Deploy to Vercel:**
 
    ```bash
-   firebase deploy --only hosting
+   npx vercel --prod
    ```
 
-   The CLI will prompt for any missing secret values when deploying.
+3. **Configuration**
 
-   Or use the deployment script:
-
-   ```bash
-   ./deploy.sh
-   ```
-
-### Configuration Files
-
-- `firebase.json` - Firebase Hosting configuration
-- `.firebaserc` - Firebase project configuration
-- `deploy.sh` - Automated deployment script
-
-### Live URLs
-
-- Primary: https://chess-logger.web.app
-- Alternative: https://chess-logger.firebaseapp.com
+   - `vercel.json` controls build output and rewrite behavior.
 
 ## Development
 
@@ -150,9 +120,7 @@ npm run format:check # Prettier check
 │   │   └── hooks/        # Custom React hooks
 ├── server/                # Express backend (dev only)
 ├── shared/               # Shared types and schemas
-├── public/               # PWA assets
-├── firebase.json         # Firebase Hosting config
-└── deploy.sh            # Deployment script
+└── public/               # PWA assets
 ```
 
 ## Storage System
