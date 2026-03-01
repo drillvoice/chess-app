@@ -28,11 +28,6 @@
     "validate": "npm run type-check && npm run lint && npm run test"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
-    "@capacitor/device": "^7.0.2",
-    "@capacitor/ios": "^7.4.3",
-    "@capacitor/preferences": "^7.0.2",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@neondatabase/serverless": "^0.10.4",
