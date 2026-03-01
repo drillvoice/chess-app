@@ -11,6 +11,8 @@ function makeSession(id: number, daysAgo: number): TrainingSession {
     id,
     type: 'study',
     date,
+    quantity: null,
+    primaryStudyTag: null,
   } as TrainingSession;
 }
 

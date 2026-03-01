@@ -552,6 +552,8 @@ export class ImportManager {
       'studyType',
       'studyTags',
       'studyNotes',
+      'quantity',
+      'primaryStudyTag',
     ];
 
     for (const field of fields) {
@@ -615,6 +617,8 @@ export class ImportManager {
         studyType: session.studyType,
         studyTags: session.studyTags,
         studyNotes: session.studyNotes,
+        quantity: session.quantity,
+        primaryStudyTag: session.primaryStudyTag,
       },
       session.id,
       { awaitCloudWrite: true },
@@ -643,6 +647,8 @@ export class ImportManager {
       'studyType',
       'studyTags',
       'studyNotes',
+      'quantity',
+      'primaryStudyTag',
     ];
 
     for (const field of mergeableFields) {

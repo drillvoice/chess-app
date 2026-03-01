@@ -8,7 +8,7 @@ export default function Navigation() {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/activity', label: 'Activity', icon: TrendingUp },
-    { path: '/account', label: 'Account', icon: UserIcon },
+    { path: '/account', label: 'Settings', icon: UserIcon },
     { path: '/info', label: 'Info', icon: InfoIcon },
   ];
 

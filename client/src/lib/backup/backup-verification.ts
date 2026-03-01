@@ -337,6 +337,8 @@ export class BackupVerificationManager {
                 studyType: session.studyType,
                 studyTags: session.studyTags,
                 studyNotes: session.studyNotes,
+                quantity: session.quantity,
+                primaryStudyTag: session.primaryStudyTag,
               },
               session.id,
               { awaitCloudWrite: true },

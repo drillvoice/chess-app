@@ -19,6 +19,8 @@ function makeSession(
     duration: 30,
     needsReview: false,
     studyTags: [],
+    quantity: null,
+    primaryStudyTag: null,
     createdAt: new Date(date),
     updatedAt: updatedAt ? new Date(updatedAt) : undefined,
     ...overrides,
@@ -163,6 +165,7 @@ describe('mergeSettingsForSync', () => {
     const local = {
       studyPreferences: {
         customTags: ['reading', 'middle game'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
     };
@@ -176,6 +179,7 @@ describe('mergeSettingsForSync', () => {
     expect(merged.studyPreferences).toEqual({
       ...local.studyPreferences,
       customTags: ['middle game', 'reading'],
+      tagConfigs: {},
     });
   });
 
@@ -183,12 +187,14 @@ describe('mergeSettingsForSync', () => {
     const local = {
       studyPreferences: {
         customTags: ['reading', 'calculation'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
     };
     const cloud = {
       studyPreferences: {
         customTags: ['reading'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-18T10:00:00.000Z'),
       },
       lastModified: new Date('2026-02-18T10:00:00.000Z'),
@@ -199,6 +205,7 @@ describe('mergeSettingsForSync', () => {
     expect(merged.studyPreferences).toEqual({
       ...local.studyPreferences,
       customTags: ['calculation', 'reading'],
+      tagConfigs: {},
     });
   });
 
@@ -206,12 +213,14 @@ describe('mergeSettingsForSync', () => {
     const local = {
       studyPreferences: {
         customTags: ['reading'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-18T10:00:00.000Z'),
       },
     };
     const cloud = {
       studyPreferences: {
         customTags: ['reading', 'endgames'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
     };
@@ -221,6 +230,7 @@ describe('mergeSettingsForSync', () => {
     expect(merged.studyPreferences).toEqual({
       ...cloud.studyPreferences,
       customTags: ['endgames', 'reading'],
+      tagConfigs: {},
     });
   });
 
@@ -228,12 +238,14 @@ describe('mergeSettingsForSync', () => {
     const local = {
       studyPreferences: {
         customTags: ['reading', 'calculation'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-18T10:00:00.000Z'),
       },
     };
     const cloud = {
       studyPreferences: {
         customTags: ['Reading', 'endgames'],
+        tagConfigs: {},
         lastModified: new Date('2026-02-20T10:00:00.000Z'),
       },
     };
@@ -241,6 +253,64 @@ describe('mergeSettingsForSync', () => {
     const merged = mergeSettingsForSync(local, cloud);
 
     expect(merged.studyPreferences.customTags).toEqual(['calculation', 'endgames', 'reading']);
+    expect(merged.studyPreferences.tagConfigs).toEqual({});
     expect(merged.studyPreferences.lastModified).toEqual(cloud.studyPreferences.lastModified);
+  });
+
+  it('merges tag configs and prefers newer study preferences on key conflicts', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading', 'chessable'],
+        tagConfigs: {
+          reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
+          chessable: { unitLabel: 'reps', minutesPerUnit: 0.25 },
+        },
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading', 'chessable'],
+        tagConfigs: {
+          reading: { unitLabel: 'sections', minutesPerUnit: 12 },
+        },
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.studyPreferences.tagConfigs).toEqual({
+      chessable: { unitLabel: 'reps', minutesPerUnit: 0.25 },
+      reading: { unitLabel: 'sections', minutesPerUnit: 12 },
+    });
+  });
+
+  it('prunes tag configs for removed tags after merge', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {
+          reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
+          chessable: { unitLabel: 'variations', minutesPerUnit: 0.25 },
+        },
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {
+          reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
+        },
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.studyPreferences.tagConfigs).toEqual({
+      reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
+    });
   });
 });

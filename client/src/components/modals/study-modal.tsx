@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,9 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useStudyPreferences } from '@/hooks/use-study-preferences';
 import { TagManager } from '@/components/ui/tag-manager';
 // Dynamic import for firebase to maintain code splitting
-import { studySessionSchema, type StudySession, type TrainingSession } from '@shared/schema';
+import {
+  normalizeStudyTagKey,
+  studySessionSchema,
+  type StudySession,
+  type TrainingSession,
+} from '@shared/schema';
 
 interface StudyModalProps {
   open: boolean;
@@ -18,6 +24,8 @@ interface StudyModalProps {
   editingSession?: TrainingSession;
   isEditMode?: boolean;
 }
+
+const roundToTwoDecimals = (value: number): number => Math.round(value * 100) / 100;
 
 export default function StudyModal({
   open,
@@ -28,9 +36,11 @@ export default function StudyModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const { preferences } = useStudyPreferences();
 
   const {
     register,
+    setValue,
     handleSubmit,
     formState: { errors },
     reset,
@@ -40,7 +50,10 @@ export default function StudyModal({
       isEditMode && editingSession
         ? {
             type: 'study',
-            duration: editingSession.duration || 0,
+            duration:
+              editingSession.primaryStudyTag && editingSession.quantity
+                ? editingSession.quantity
+                : (editingSession.duration ?? 0),
             studyTags: editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [],
             studyNotes: editingSession.studyNotes || '',
           }
@@ -51,6 +64,29 @@ export default function StudyModal({
             studyNotes: '',
           },
   });
+
+  const configuredTagSelection = useMemo(() => {
+    const configuredTags = selectedTags.filter((tag) => {
+      const key = normalizeStudyTagKey(tag);
+      return !!preferences?.tagConfigs?.[key]?.unitLabel;
+    });
+
+    if (configuredTags.length !== 1) {
+      return null;
+    }
+
+    const primaryStudyTag = configuredTags[0];
+    const tagConfig = preferences?.tagConfigs?.[normalizeStudyTagKey(primaryStudyTag)];
+    const unitLabel = tagConfig?.unitLabel || null;
+    const minutesPerUnit = Number(tagConfig?.minutesPerUnit);
+    if (!unitLabel || !Number.isFinite(minutesPerUnit) || minutesPerUnit <= 0) return null;
+
+    return {
+      primaryStudyTag,
+      unitLabel,
+      minutesPerUnit,
+    };
+  }, [preferences?.tagConfigs, selectedTags]);
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
@@ -100,6 +136,8 @@ export default function StudyModal({
           studyType: newSession.studyType || null,
           studyTags: JSON.stringify(selectedTags),
           studyNotes: newSession.studyNotes || null,
+          quantity: newSession.quantity || null,
+          primaryStudyTag: newSession.primaryStudyTag || null,
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
@@ -134,6 +172,8 @@ export default function StudyModal({
           studyType: newSession.studyType || null,
           studyTags: JSON.stringify(selectedTags),
           studyNotes: newSession.studyNotes || null,
+          quantity: newSession.quantity || null,
+          primaryStudyTag: newSession.primaryStudyTag || null,
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
@@ -214,7 +254,7 @@ export default function StudyModal({
       // Reset selected tags for new sessions
       setSelectedTags([]);
     }
-  }, [editingSession, isEditMode]);
+  }, [editingSession, isEditMode, setValue]);
 
   // Reset form and tags when modal closes
   useEffect(() => {
@@ -224,10 +264,21 @@ export default function StudyModal({
     }
   }, [open, reset]);
 
+  useEffect(() => {
+    setValue('studyTags', selectedTags, { shouldValidate: true });
+  }, [selectedTags, setValue]);
+
   const onSubmit = (data: StudySession) => {
+    const convertedDuration = configuredTagSelection
+      ? roundToTwoDecimals(data.duration * configuredTagSelection.minutesPerUnit)
+      : data.duration;
+
     // Add current date and selected tags to the session data
     const sessionData = {
       ...data,
+      duration: convertedDuration,
+      quantity: configuredTagSelection ? data.duration : undefined,
+      primaryStudyTag: configuredTagSelection?.primaryStudyTag,
       studyTags: selectedTags,
       date: isEditMode && editingSession ? editingSession.date : new Date(),
     };
@@ -251,7 +302,9 @@ export default function StudyModal({
 
             <div>
               <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-                Duration (minutes)
+                {configuredTagSelection
+                  ? `${configuredTagSelection.unitLabel.charAt(0).toUpperCase()}${configuredTagSelection.unitLabel.slice(1)}`
+                  : 'Duration (minutes)'}
               </Label>
               <Input
                 id="duration"

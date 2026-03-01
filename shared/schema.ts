@@ -45,7 +45,13 @@ export const gameFields = [
   'platform',
   'timeControl',
 ] as const;
-export const studyFields = ['studyType', 'studyNotes'] as const;
+export const studyFields = [
+  'studyType',
+  'studyTags',
+  'studyNotes',
+  'quantity',
+  'primaryStudyTag',
+] as const;
 export const goalFields = ['goalTitle', 'goalDescription'] as const;
 
 export const trainingSessionsTable = pgTable('training_sessions', {
@@ -72,6 +78,8 @@ export const trainingSessionsTable = pgTable('training_sessions', {
   studyType: text('study_type'), // Legacy field - kept for backward compatibility
   studyTags: text('study_tags'), // JSON array of custom tags, replaces studyType (nullable for non-study sessions)
   studyNotes: text('study_notes'),
+  quantity: integer('quantity'), // Optional study quantity for configured units
+  primaryStudyTag: text('primary_study_tag'), // Selected tag that quantity applies to
   // Goal specific fields
   goalTitle: text('goal_title'),
   goalDescription: text('goal_description'),
@@ -157,22 +165,80 @@ export const studyTagSchema = z
   .max(25, 'Tag cannot exceed 25 characters')
   .refine((tag) => !/[<>&"']/.test(tag), 'Tag cannot contain special characters < > & " \'');
 
+export const normalizeStudyTagKey = (tag: string): string => tag.trim().toLowerCase();
+
+const studyUnitLabelSchema = z
+  .string()
+  .trim()
+  .min(1, 'Unit label cannot be empty')
+  .max(20, 'Unit label cannot exceed 20 characters')
+  .refine(
+    (label) => !/[<>&"']/.test(label),
+    'Unit label cannot contain special characters < > & " \'',
+  );
+
+export const studyTagConfigSchema = z.object({
+  unitLabel: studyUnitLabelSchema,
+  minutesPerUnit: z
+    .number()
+    .positive('Minutes per unit must be greater than 0')
+    .max(999, 'Minutes per unit cannot exceed 999')
+    .optional(),
+});
+
+const studyTagConfigsSchema = z
+  .record(studyTagConfigSchema)
+  .default({})
+  .refine(
+    (configs) =>
+      Object.keys(configs).every(
+        (key) => key === normalizeStudyTagKey(key) && !!key && key.length <= 25,
+      ),
+    'Tag config keys must use normalized lowercase tag values',
+  );
+
 export const studySessionSchema = insertTrainingSessionSchema
   .extend({
     type: z.literal('study'),
-    duration: z.number().min(1, 'Duration must be at least 1 minute'),
+    duration: z.number().min(0.01, 'Duration must be greater than 0'),
     studyTags: z
       .array(studyTagSchema)
       .max(10, 'Cannot select more than 10 tags')
       .optional()
       .default([]),
+    quantity: z.preprocess(
+      (val) => (val === '' || val === null || Number.isNaN(val) ? undefined : val),
+      z
+        .number()
+        .int('Quantity must be a whole number')
+        .min(1, 'Quantity must be at least 1')
+        .optional(),
+    ),
+    primaryStudyTag: studyTagSchema.optional(),
     studyNotes: z.string().optional(),
     // Keep studyType as optional for backward compatibility
     studyType: z
       .enum(['video', 'book', 'analysis', 'chessable', 'coaching', 'online-course'])
       .optional(),
   })
-  .omit(buildOmit(tacticsFields, gameFields, goalFields));
+  .omit(buildOmit(tacticsFields, gameFields, goalFields))
+  .superRefine((data, ctx) => {
+    if (data.quantity !== undefined && !data.primaryStudyTag) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Primary study tag is required when quantity is set',
+        path: ['primaryStudyTag'],
+      });
+    }
+
+    if (data.primaryStudyTag && !data.studyTags?.includes(data.primaryStudyTag)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Primary study tag must be selected in study tags',
+        path: ['primaryStudyTag'],
+      });
+    }
+  });
 
 export const goalSessionSchema = insertTrainingSessionSchema
   .extend({
@@ -189,6 +255,7 @@ export const userStudyPreferencesSchema = z.object({
     .array(studyTagSchema)
     .max(10, 'Cannot have more than 10 custom tags')
     .default(['reading', 'videos', 'coaching']), // Default tags
+  tagConfigs: studyTagConfigsSchema,
   lastModified: isoDateOptional,
 });
 
@@ -210,4 +277,5 @@ export type GoalSession = z.infer<typeof goalSessionSchema>;
 export type TrainingSession = typeof trainingSessionsTable.$inferSelect;
 export type DailyGoalSettings = z.infer<typeof dailyGoalSettingsSchema>;
 export type StudyTag = z.infer<typeof studyTagSchema>;
+export type StudyTagConfig = z.infer<typeof studyTagConfigSchema>;
 export type UserStudyPreferences = z.infer<typeof userStudyPreferencesSchema>;
