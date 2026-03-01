@@ -23,6 +23,7 @@ vi.mock('@/components/firebase-auth', () => ({
 
 vi.mock('@/components/tag-configuration', () => ({
   default: () => <div>Tag Configuration Content</div>,
+  TagConfigurationContent: () => <div>Tag Configuration Content</div>,
 }));
 
 vi.mock('@/lib/firebase', () => ({
