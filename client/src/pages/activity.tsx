@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn, formatStudyDisplay } from '@/lib/utils';
-import type { TrainingSession } from '@shared/schema';
+import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
+import { useStudyPreferences } from '@/hooks/use-study-preferences';
 import {
   TacticsModal,
   GameModal,
@@ -64,14 +65,47 @@ function getSessionBgColor(type: string) {
   }
 }
 
-function getSessionTitle(session: TrainingSession) {
+function parseStudyTags(session: TrainingSession): string[] {
+  if (!session.studyTags) return [];
+  if (Array.isArray(session.studyTags)) return session.studyTags as string[];
+  if (typeof session.studyTags === 'string') {
+    try {
+      const parsed = JSON.parse(session.studyTags);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function getStudyUnitLabel(
+  session: TrainingSession,
+  studyUnitLabelByTag: Record<string, string>,
+): string | null {
+  if (!session.primaryStudyTag) return null;
+  return studyUnitLabelByTag[normalizeStudyTagKey(session.primaryStudyTag)] || null;
+}
+
+function getSessionTitle(
+  session: TrainingSession,
+  studyUnitLabelByTag: Record<string, string> = {},
+) {
   switch (session.type) {
     case 'tactics':
       return 'Tactics Practice';
     case 'game':
       return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
-    case 'study':
-      return formatStudyDisplay(session);
+    case 'study': {
+      const tags = parseStudyTags(session);
+      const baseTitle = tags.length > 0 ? `Study: ${tags.join(', ')}` : formatStudyDisplay(session);
+      if (typeof session.quantity === 'number' && session.quantity > 0) {
+        const unitLabel = getStudyUnitLabel(session, studyUnitLabelByTag) || 'units';
+        const tagLabel = session.primaryStudyTag ? ` · ${session.primaryStudyTag}` : '';
+        return `${baseTitle} (${session.quantity} ${unitLabel}${tagLabel})`;
+      }
+      return baseTitle;
+    }
     case 'goal':
       return session.goalTitle || 'Weekly Goal';
     default:
@@ -79,7 +113,10 @@ function getSessionTitle(session: TrainingSession) {
   }
 }
 
-function getSessionSubtitle(session: TrainingSession) {
+function getSessionSubtitle(
+  session: TrainingSession,
+  studyUnitLabelByTag: Record<string, string> = {},
+) {
   switch (session.type) {
     case 'tactics':
       return session.pointsGained != null
@@ -90,7 +127,7 @@ function getSessionSubtitle(session: TrainingSession) {
     case 'study': {
       const quantitySuffix =
         typeof session.quantity === 'number' && session.quantity > 0
-          ? ` • ${session.quantity} units${session.primaryStudyTag ? ` (${session.primaryStudyTag})` : ''}`
+          ? ` • ${session.quantity} ${getStudyUnitLabel(session, studyUnitLabelByTag) || 'units'}${session.primaryStudyTag ? ` (${session.primaryStudyTag})` : ''}`
           : '';
       return session.studyNotes
         ? `${session.studyNotes} • ${session.duration} min${quantitySuffix}`
@@ -197,10 +234,12 @@ export function groupSessionsByDate(sessions: TrainingSession[]) {
 
 const SessionCard = memo(function SessionCard({
   session,
+  studyUnitLabelByTag,
   onEdit,
   onDelete,
 }: {
   session: TrainingSession;
+  studyUnitLabelByTag: Record<string, string>;
   onEdit: (session: TrainingSession) => void;
   onDelete: (sessionId: number) => void;
 }) {
@@ -228,14 +267,14 @@ const SessionCard = memo(function SessionCard({
             </div>
             <div>
               <div className={cn('font-semibold', isPending ? 'text-blue-700' : 'text-gray-800')}>
-                {isPending ? 'Saving...' : getSessionTitle(session)}
+                {isPending ? 'Saving...' : getSessionTitle(session, studyUnitLabelByTag)}
               </div>
               <div className={cn('text-sm', isPending ? 'text-blue-600' : 'text-gray-600')}>
                 {isPending ? (
                   `${session.duration} min study session`
                 ) : (
                   <>
-                    {getSessionSubtitle(session)}
+                    {getSessionSubtitle(session, studyUnitLabelByTag)}
                     {session.type === 'tactics' &&
                       (() => {
                         const attempted = session.puzzlesAttempted as any;
@@ -328,6 +367,17 @@ export default function Activity() {
   const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { preferences: studyPreferences } = useStudyPreferences();
+  const studyUnitLabelByTag = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(studyPreferences?.tagConfigs ?? {}).map(([key, config]) => [
+          normalizeStudyTagKey(key),
+          config.unitLabel,
+        ]),
+      ) as Record<string, string>,
+    [studyPreferences?.tagConfigs],
+  );
 
   // Listen for fresh data notifications from service worker
   useEffect(() => {
@@ -620,12 +670,13 @@ export default function Activity() {
                 <AccordionContent className="pt-3">
                   <div className="space-y-2">
                     {todaySessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    studyUnitLabelByTag={studyUnitLabelByTag}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                     ))}
                   </div>
                 </AccordionContent>
@@ -644,6 +695,7 @@ export default function Activity() {
                       <SessionCard
                         key={session.id}
                         session={session}
+                        studyUnitLabelByTag={studyUnitLabelByTag}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                       />
@@ -665,6 +717,7 @@ export default function Activity() {
                       <SessionCard
                         key={session.id}
                         session={session}
+                        studyUnitLabelByTag={studyUnitLabelByTag}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                       />
@@ -686,6 +739,7 @@ export default function Activity() {
                       <SessionCard
                         key={session.id}
                         session={session}
+                        studyUnitLabelByTag={studyUnitLabelByTag}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                       />
@@ -707,6 +761,7 @@ export default function Activity() {
                       <SessionCard
                         key={session.id}
                         session={session}
+                        studyUnitLabelByTag={studyUnitLabelByTag}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                       />

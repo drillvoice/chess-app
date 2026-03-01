@@ -216,12 +216,13 @@ export function TagConfigurationContent() {
           const errorMessage = fieldErrors[key];
 
           return (
-            <div key={tag} className="space-y-1">
+            <div key={tag} className="space-y-1 overflow-hidden">
               <Label htmlFor={`tag-unit-${key}`} className="text-sm font-medium text-gray-700">
                 {tag}
               </Label>
               <Input
                 id={`tag-unit-${key}`}
+                className="w-full max-w-full focus-visible:ring-1 focus-visible:ring-offset-0"
                 value={configByTag[key]?.unitLabel ?? ''}
                 onChange={(e) => handleUnitChange(tag, e.target.value)}
                 placeholder="Optional unit label (e.g. chapters)"
@@ -232,6 +233,7 @@ export function TagConfigurationContent() {
                 type="number"
                 step="0.01"
                 min="0.01"
+                className="w-full max-w-full focus-visible:ring-1 focus-visible:ring-offset-0"
                 value={configByTag[key]?.minutesPerUnit ?? ''}
                 onChange={(e) => handleMinutesChange(tag, e.target.value)}
                 placeholder="Minutes per unit (e.g. 0.25)"
