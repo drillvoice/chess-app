@@ -66,7 +66,6 @@ This project is deployed on Vercel.
    ```
 
 3. **Configuration**
-
    - `vercel.json` controls build output and rewrite behavior.
 
 ## Development
