@@ -45,7 +45,13 @@ export const gameFields = [
   'platform',
   'timeControl',
 ] as const;
-export const studyFields = ['studyType', 'studyTags', 'studyNotes', 'quantity', 'primaryStudyTag'] as const;
+export const studyFields = [
+  'studyType',
+  'studyTags',
+  'studyNotes',
+  'quantity',
+  'primaryStudyTag',
+] as const;
 export const goalFields = ['goalTitle', 'goalDescription'] as const;
 
 export const trainingSessionsTable = pgTable('training_sessions', {

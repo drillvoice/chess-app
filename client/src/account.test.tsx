@@ -121,12 +121,9 @@ describe('account accordion behavior', () => {
       .getAllByRole('button')
       .map((button) => button.textContent?.trim() ?? '')
       .filter((label) =>
-        [
-          'Lichess integration',
-          'Cloud sync',
-          'Tag configuration',
-          'Developer options',
-        ].includes(label),
+        ['Lichess integration', 'Cloud sync', 'Tag configuration', 'Developer options'].includes(
+          label,
+        ),
       );
 
     expect(labels).toEqual([
