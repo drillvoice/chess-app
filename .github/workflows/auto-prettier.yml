@@ -24,7 +24,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx prettier --write .
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: 'chore(prettier): auto-format'
           file_pattern: .
