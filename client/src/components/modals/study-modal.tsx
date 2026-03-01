@@ -8,9 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useStudyPreferences } from '@/hooks/use-study-preferences';
 import { TagManager } from '@/components/ui/tag-manager';
 // Dynamic import for firebase to maintain code splitting
-import { studySessionSchema, type StudySession, type TrainingSession } from '@shared/schema';
+import {
+  normalizeStudyTagKey,
+  studySessionSchema,
+  type StudySession,
+  type TrainingSession,
+} from '@shared/schema';
 
 interface StudyModalProps {
   open: boolean;
@@ -28,9 +34,12 @@ export default function StudyModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const { preferences } = useStudyPreferences();
 
   const {
     register,
+    setValue,
+    watch,
     handleSubmit,
     formState: { errors },
     reset,
@@ -43,14 +52,35 @@ export default function StudyModal({
             duration: editingSession.duration || 0,
             studyTags: editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [],
             studyNotes: editingSession.studyNotes || '',
+            quantity: editingSession.quantity || undefined,
+            primaryStudyTag: editingSession.primaryStudyTag || undefined,
           }
         : {
             type: 'study',
             duration: 0,
             studyTags: [],
             studyNotes: '',
+            quantity: undefined,
+            primaryStudyTag: undefined,
           },
   });
+  const watchedQuantity = watch('quantity');
+  const watchedPrimaryTag = watch('primaryStudyTag');
+
+  const configuredUnitTagOptions = selectedTags.filter((tag) => {
+    const key = normalizeStudyTagKey(tag);
+    return !!preferences?.tagConfigs?.[key]?.unitLabel;
+  });
+  const shouldShowQuantityControls =
+    configuredUnitTagOptions.length > 0 ||
+    watchedQuantity !== undefined ||
+    !!editingSession?.quantity ||
+    !!watchedPrimaryTag;
+  const primaryTagOptions =
+    configuredUnitTagOptions.length > 0 ? configuredUnitTagOptions : selectedTags;
+  const primaryUnitLabel = watchedPrimaryTag
+    ? preferences?.tagConfigs?.[normalizeStudyTagKey(watchedPrimaryTag)]?.unitLabel || 'units'
+    : 'units';
 
   const mutation = useMutation({
     mutationFn: async (data: StudySession) => {
@@ -100,6 +130,8 @@ export default function StudyModal({
           studyType: newSession.studyType || null,
           studyTags: JSON.stringify(selectedTags),
           studyNotes: newSession.studyNotes || null,
+          quantity: newSession.quantity || null,
+          primaryStudyTag: newSession.primaryStudyTag || null,
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
@@ -134,6 +166,8 @@ export default function StudyModal({
           studyType: newSession.studyType || null,
           studyTags: JSON.stringify(selectedTags),
           studyNotes: newSession.studyNotes || null,
+          quantity: newSession.quantity || null,
+          primaryStudyTag: newSession.primaryStudyTag || null,
           goalTitle: null,
           goalDescription: null,
           goalWeekStart: null,
@@ -210,11 +244,15 @@ export default function StudyModal({
       // Set selected tags from editing session
       const tags = editingSession.studyTags ? JSON.parse(editingSession.studyTags) : [];
       setSelectedTags(tags);
+      setValue('quantity', editingSession.quantity || undefined);
+      setValue('primaryStudyTag', editingSession.primaryStudyTag || undefined);
     } else {
       // Reset selected tags for new sessions
       setSelectedTags([]);
+      setValue('quantity', undefined);
+      setValue('primaryStudyTag', undefined);
     }
-  }, [editingSession, isEditMode]);
+  }, [editingSession, isEditMode, setValue]);
 
   // Reset form and tags when modal closes
   useEffect(() => {
@@ -223,6 +261,18 @@ export default function StudyModal({
       setSelectedTags([]);
     }
   }, [open, reset]);
+
+  useEffect(() => {
+    if (!watchedPrimaryTag) return;
+    if (selectedTags.length === 0) return;
+    if (!selectedTags.includes(watchedPrimaryTag)) {
+      setValue('primaryStudyTag', undefined);
+    }
+  }, [selectedTags, setValue, watchedPrimaryTag]);
+
+  useEffect(() => {
+    setValue('studyTags', selectedTags, { shouldValidate: true });
+  }, [selectedTags, setValue]);
 
   const onSubmit = (data: StudySession) => {
     // Add current date and selected tags to the session data
@@ -277,6 +327,52 @@ export default function StudyModal({
                 onFocus={(e) => e.target.select()}
               />
             </div>
+
+            {shouldShowQuantityControls && (
+              <>
+                <div>
+                  <Label htmlFor="primaryStudyTag" className="text-sm font-medium text-gray-700">
+                    Primary tag for quantity
+                  </Label>
+                  <select
+                    id="primaryStudyTag"
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    value={watchedPrimaryTag || ''}
+                    onChange={(e) =>
+                      setValue('primaryStudyTag', e.target.value || undefined, {
+                        shouldValidate: true,
+                      })
+                    }
+                  >
+                    <option value="">Select a tag</option>
+                    {primaryTagOptions.map((tag) => (
+                      <option key={tag} value={tag}>
+                        {tag}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.primaryStudyTag && (
+                    <p className="mt-1 text-sm text-red-600">{errors.primaryStudyTag.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">
+                    Quantity ({primaryUnitLabel})
+                  </Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    className="mt-1"
+                    {...register('quantity', { valueAsNumber: true })}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  {errors.quantity && (
+                    <p className="mt-1 text-sm text-red-600">{errors.quantity.message}</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex space-x-3 pt-3">

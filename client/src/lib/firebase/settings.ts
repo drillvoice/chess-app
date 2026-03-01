@@ -1,4 +1,9 @@
-import { TrainingSession, UserStudyPreferences, userStudyPreferencesSchema } from '@shared/schema';
+import {
+  TrainingSession,
+  UserStudyPreferences,
+  normalizeStudyTagKey,
+  userStudyPreferencesSchema,
+} from '@shared/schema';
 import { WeeklyGoalCache } from '../cache-utils';
 import { offlineStorage } from '../offline-storage';
 import { db, waitForAuth, doc, getDoc, setDoc, getCurrentUserId } from './core';
@@ -175,8 +180,20 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
 // Default study preferences for new users
 const DEFAULT_STUDY_PREFERENCES: UserStudyPreferences = {
   customTags: ['reading', 'videos', 'coaching'],
+  tagConfigs: {},
   lastModified: new Date(),
 };
+
+function pruneTagConfigs(
+  tagConfigs: NonNullable<UserStudyPreferences['tagConfigs']>,
+  tags: string[],
+): UserStudyPreferences['tagConfigs'] {
+  const allowedKeys = new Set(tags.map((tag) => normalizeStudyTagKey(tag)));
+  const pruned = Object.fromEntries(
+    Object.entries(tagConfigs ?? {}).filter(([key]) => allowedKeys.has(normalizeStudyTagKey(key))),
+  );
+  return pruned;
+}
 
 // Retrieve user study preferences, with smart defaults for new users (OFFLINE-FIRST)
 export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
@@ -275,7 +292,10 @@ export async function updateUserStudyPreferences(preferences: UserStudyPreferenc
 
   try {
     // Validate the preferences data
-    const validatedPreferences = userStudyPreferencesSchema.parse(preferences);
+    const validatedPreferences = userStudyPreferencesSchema.parse({
+      ...preferences,
+      tagConfigs: pruneTagConfigs(preferences.tagConfigs ?? {}, preferences.customTags ?? []),
+    });
 
     // Add timestamp
     const preferencesWithTimestamp = {
@@ -369,6 +389,7 @@ export async function addCustomStudyTag(tagName: string): Promise<void> {
     const updatedPreferences: UserStudyPreferences = {
       ...currentPreferences,
       customTags: updatedTags,
+      tagConfigs: pruneTagConfigs(currentPreferences.tagConfigs ?? {}, updatedTags),
     };
 
     await updateUserStudyPreferences(updatedPreferences);
@@ -400,6 +421,7 @@ export async function removeCustomStudyTag(tagName: string): Promise<void> {
     const updatedPreferences: UserStudyPreferences = {
       ...currentPreferences,
       customTags: updatedTags,
+      tagConfigs: pruneTagConfigs(currentPreferences.tagConfigs ?? {}, updatedTags),
     };
 
     await updateUserStudyPreferences(updatedPreferences);

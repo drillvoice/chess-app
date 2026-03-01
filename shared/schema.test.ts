@@ -14,7 +14,11 @@ import {
   tacticsFields,
 } from './schema';
 
-const keys = (schema: { shape: Record<string, unknown> }) => Object.keys(schema.shape);
+const keys = (schema: any): string[] => {
+  if (schema?.shape) return Object.keys(schema.shape);
+  if (schema?._def?.schema) return keys(schema._def.schema);
+  return [];
+};
 
 describe('session schema field omission', () => {
   it('tactics session omits game, study and goal fields', () => {
@@ -105,6 +109,38 @@ describe('session schema validation', () => {
     expect(() =>
       studySessionSchema.parse({ type: 'study', duration: 10, studyTags: ['<bad>'] } as any),
     ).toThrow();
+
+    expect(
+      studySessionSchema.parse({
+        type: 'study',
+        duration: 20,
+        studyTags: ['chessable'],
+        quantity: 5,
+        primaryStudyTag: 'chessable',
+      } as any),
+    ).toMatchObject({
+      quantity: 5,
+      primaryStudyTag: 'chessable',
+    });
+
+    expect(() =>
+      studySessionSchema.parse({
+        type: 'study',
+        duration: 20,
+        studyTags: ['chessable'],
+        quantity: 5,
+      } as any),
+    ).toThrow();
+
+    expect(() =>
+      studySessionSchema.parse({
+        type: 'study',
+        duration: 20,
+        studyTags: ['reading'],
+        quantity: 5,
+        primaryStudyTag: 'chessable',
+      } as any),
+    ).toThrow();
   });
 
   it('validates goal sessions', () => {
@@ -143,6 +179,38 @@ describe('date preprocessing', () => {
     });
     expect(parsed.lastModified).toBeInstanceOf(Date);
     expect(parsed.lastModified?.toISOString()).toBe(isoString);
+  });
+
+  it('defaults tagConfigs for legacy user study preferences payloads', () => {
+    const parsed = userStudyPreferencesSchema.parse({
+      customTags: ['reading'],
+    });
+
+    expect(parsed.tagConfigs).toEqual({});
+  });
+
+  it('validates tagConfigs structure and normalized keys', () => {
+    const parsed = userStudyPreferencesSchema.parse({
+      customTags: ['reading'],
+      tagConfigs: {
+        reading: {
+          unitLabel: 'chapters',
+        },
+      },
+    });
+
+    expect(parsed.tagConfigs.reading?.unitLabel).toBe('chapters');
+
+    expect(() =>
+      userStudyPreferencesSchema.parse({
+        customTags: ['reading'],
+        tagConfigs: {
+          Reading: {
+            unitLabel: 'chapters',
+          },
+        },
+      }),
+    ).toThrow();
   });
 
   it('accepts ISO strings for daily goal settings lastModified', () => {

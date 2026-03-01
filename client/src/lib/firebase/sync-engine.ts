@@ -1,4 +1,4 @@
-import type { DailyGoalSettings, TrainingSession } from '@shared/schema';
+import { normalizeStudyTagKey, type DailyGoalSettings, type TrainingSession } from '@shared/schema';
 import { offlineStorage } from '../offline-storage';
 import { sessionEvents } from '../session-events';
 import {
@@ -465,18 +465,49 @@ function normalizeCustomTags(tags: unknown): string[] {
   );
 }
 
+function normalizeTagConfigs(tagConfigs: unknown): Record<string, { unitLabel: string }> {
+  if (!tagConfigs || typeof tagConfigs !== 'object') return {};
+
+  const normalized: Record<string, { unitLabel: string }> = {};
+  for (const [rawKey, rawConfig] of Object.entries(tagConfigs as Record<string, unknown>)) {
+    const key = normalizeStudyTagKey(rawKey);
+    const unitLabel =
+      rawConfig && typeof rawConfig === 'object' ? (rawConfig as any).unitLabel : undefined;
+    if (typeof unitLabel !== 'string') continue;
+    const trimmedUnit = unitLabel.trim();
+    if (!trimmedUnit) continue;
+    normalized[key] = { unitLabel: trimmedUnit };
+  }
+
+  return normalized;
+}
+
+function pruneTagConfigsByTags(
+  tagConfigs: Record<string, { unitLabel: string }>,
+  tags: string[],
+): Record<string, { unitLabel: string }> {
+  const allowedKeys = new Set(tags.map((tag) => normalizeStudyTagKey(tag)));
+  return Object.fromEntries(
+    Object.entries(tagConfigs).filter(([key]) => allowedKeys.has(normalizeStudyTagKey(key))),
+  );
+}
+
 function mergeStudyPreferencesForSync(localStudy: any, cloudStudy: any): any {
   if (!localStudy && !cloudStudy) return undefined;
   if (localStudy && !cloudStudy) {
+    const customTags = normalizeCustomTags(localStudy.customTags);
     return {
       ...localStudy,
-      customTags: normalizeCustomTags(localStudy.customTags),
+      customTags,
+      tagConfigs: pruneTagConfigsByTags(normalizeTagConfigs(localStudy.tagConfigs), customTags),
     };
   }
   if (!localStudy && cloudStudy) {
+    const customTags = normalizeCustomTags(cloudStudy.customTags);
     return {
       ...cloudStudy,
-      customTags: normalizeCustomTags(cloudStudy.customTags),
+      customTags,
+      tagConfigs: pruneTagConfigsByTags(normalizeTagConfigs(cloudStudy.tagConfigs), customTags),
     };
   }
 
@@ -486,14 +517,25 @@ function mergeStudyPreferencesForSync(localStudy: any, cloudStudy: any): any {
 
   const primary = preferCloud ? cloud : local;
   const secondary = preferCloud ? local : cloud;
+  const customTags = normalizeCustomTags([
+    ...(Array.isArray(local.customTags) ? local.customTags : []),
+    ...(Array.isArray(cloud.customTags) ? cloud.customTags : []),
+  ]);
+  const primaryTagConfigs = normalizeTagConfigs(primary.tagConfigs);
+  const secondaryTagConfigs = normalizeTagConfigs(secondary.tagConfigs);
 
   return {
     ...secondary,
     ...primary,
-    customTags: normalizeCustomTags([
-      ...(Array.isArray(local.customTags) ? local.customTags : []),
-      ...(Array.isArray(cloud.customTags) ? cloud.customTags : []),
-    ]),
+    customTags,
+    // Merge tag configs by normalized key; newer prefs win conflicts via spread order.
+    tagConfigs: pruneTagConfigsByTags(
+      {
+        ...secondaryTagConfigs,
+        ...primaryTagConfigs,
+      },
+      customTags,
+    ),
   };
 }
 
@@ -504,6 +546,21 @@ function areSameTagSet(a: unknown, b: unknown): boolean {
   for (let i = 0; i < aTags.length; i += 1) {
     if (aTags[i].toLowerCase() !== bTags[i].toLowerCase()) return false;
   }
+  return true;
+}
+
+function areSameTagConfigs(a: unknown, b: unknown): boolean {
+  const aConfigs = normalizeTagConfigs(a);
+  const bConfigs = normalizeTagConfigs(b);
+  const aKeys = Object.keys(aConfigs).sort();
+  const bKeys = Object.keys(bConfigs).sort();
+
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i += 1) {
+    if (aKeys[i] !== bKeys[i]) return false;
+    if (aConfigs[aKeys[i]]?.unitLabel !== bConfigs[bKeys[i]]?.unitLabel) return false;
+  }
+
   return true;
 }
 
@@ -911,7 +968,12 @@ export async function startRealtimeSync(): Promise<() => void> {
 
       const cloudTags = cloudSettings?.studyPreferences?.customTags;
       const mergedTags = mergedSettings?.studyPreferences?.customTags;
-      if (!areSameTagSet(cloudTags, mergedTags)) {
+      const cloudTagConfigs = cloudSettings?.studyPreferences?.tagConfigs;
+      const mergedTagConfigs = mergedSettings?.studyPreferences?.tagConfigs;
+      if (
+        !areSameTagSet(cloudTags, mergedTags) ||
+        !areSameTagConfigs(cloudTagConfigs, mergedTagConfigs)
+      ) {
         queueMicrotask(async () => {
           try {
             await setDoc(settingsRef, mergedSettings, { merge: true });

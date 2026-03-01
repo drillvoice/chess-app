@@ -87,10 +87,15 @@ function getSessionSubtitle(session: TrainingSession) {
         : `${session.duration} min`;
     case 'game':
       return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
-    case 'study':
+    case 'study': {
+      const quantitySuffix =
+        typeof session.quantity === 'number' && session.quantity > 0
+          ? ` • ${session.quantity} units${session.primaryStudyTag ? ` (${session.primaryStudyTag})` : ''}`
+          : '';
       return session.studyNotes
-        ? `${session.studyNotes} • ${session.duration} min`
-        : `${session.duration} min`;
+        ? `${session.studyNotes} • ${session.duration} min${quantitySuffix}`
+        : `${session.duration} min${quantitySuffix}`;
+    }
     case 'goal':
       return session.goalDescription || 'Weekly focus area';
     default:

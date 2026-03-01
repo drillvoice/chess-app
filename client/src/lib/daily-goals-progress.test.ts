@@ -28,6 +28,8 @@ const createSession = (
     studyType: null,
     studyTags: null,
     studyNotes: null,
+    quantity: null,
+    primaryStudyTag: null,
     goalTitle: null,
     goalDescription: null,
     goalWeekStart: null,

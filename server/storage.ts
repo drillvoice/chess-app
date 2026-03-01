@@ -84,6 +84,8 @@ export class MemStorage implements IStorage {
       studyType: insertSession.studyType ?? null,
       studyTags: insertSession.studyTags ?? null,
       studyNotes: insertSession.studyNotes ?? null,
+      quantity: insertSession.quantity ?? null,
+      primaryStudyTag: insertSession.primaryStudyTag ?? null,
       goalTitle: insertSession.goalTitle ?? null,
       goalDescription: insertSession.goalDescription ?? null,
       goalWeekStart:

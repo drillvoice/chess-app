@@ -85,7 +85,7 @@ function DataManagementContent() {
 
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Cloud Sync is now managed in its own section under Account. The
+          <strong>Note:</strong> Cloud sync is now managed in its own section under Settings. The
           tools here remain available for manual backup, restore, and data integrity workflows.
         </p>
       </div>

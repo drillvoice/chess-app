@@ -21,6 +21,10 @@ vi.mock('@/components/firebase-auth', () => ({
   default: () => <div>Cloud Sync Content</div>,
 }));
 
+vi.mock('@/components/tag-configuration', () => ({
+  default: () => <div>Tag Configuration Content</div>,
+}));
+
 vi.mock('@/lib/firebase', () => ({
   getStatistics: async () => ({ totalHours: 0, totalSessions: 0, tacticsRating: 0, winRate: 0 }),
   getAllSessions: async () => [],
@@ -47,7 +51,7 @@ describe('data management location', () => {
 
   it('shows account tab in navigation', () => {
     render(<Navigation />);
-    expect(screen.getByRole('button', { name: /account/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /settings/i })).toBeInTheDocument();
   });
 
   it('shows info tab in navigation', () => {
@@ -60,7 +64,8 @@ describe('data management location', () => {
     expect(screen.queryByText(/data management/i)).not.toBeInTheDocument();
     cleanup();
     render(<Account />);
-    expect(await screen.findByText(/data management/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /developer options/i }));
+    expect(await screen.findByRole('button', { name: /^data management$/i })).toBeInTheDocument();
   });
 });
 
@@ -73,50 +78,74 @@ describe('account accordion behavior', () => {
     const lichessTrigger = screen.getByRole('button', {
       name: /lichess integration/i,
     });
-    const dataTrigger = screen.getByRole('button', {
-      name: /data management/i,
-    });
     const cloudTrigger = screen.getByRole('button', {
       name: /cloud sync/i,
+    });
+    const tagConfigTrigger = screen.getByRole('button', {
+      name: /tag configuration/i,
+    });
+    const developerOptionsTrigger = screen.getByRole('button', {
+      name: /developer options/i,
     });
 
     // Initially, no section content is visible
     expect(screen.queryByText('Lichess Settings Content')).not.toBeInTheDocument();
-    expect(screen.queryByText('Data Management Content')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tag Configuration Content')).not.toBeInTheDocument();
 
     // Open first section
     fireEvent.click(lichessTrigger);
     expect(await screen.findByText('Lichess Settings Content')).toBeVisible();
 
     // Open second section; first remains open
-    fireEvent.click(dataTrigger);
-    expect(await screen.findByText('Data Management Content')).toBeVisible();
-    expect(screen.getByText('Lichess Settings Content')).toBeVisible();
-
     fireEvent.click(cloudTrigger);
     expect(await screen.findByText('Cloud Sync Content')).toBeVisible();
+    expect(screen.getByText('Lichess Settings Content')).toBeVisible();
+
+    fireEvent.click(tagConfigTrigger);
+    expect(await screen.findByText('Tag Configuration Content')).toBeVisible();
+
+    fireEvent.click(developerOptionsTrigger);
+    const nestedDataManagement = screen.getByRole('button', { name: /data management/i });
+    fireEvent.click(nestedDataManagement);
+    expect(await screen.findByText('Data Management Content')).toBeVisible();
 
     // Collapse first section; second stays open
     fireEvent.click(lichessTrigger);
     expect(screen.queryByText('Lichess Settings Content')).not.toBeInTheDocument();
     expect(screen.getByText('Data Management Content')).toBeVisible();
-
-    // Collapse second section
-    fireEvent.click(dataTrigger);
-    expect(screen.queryByText('Data Management Content')).not.toBeInTheDocument();
   });
 
-  it('renders Cloud Sync between Data Management and Enhanced Backup sections', () => {
+  it('renders top-level settings sections in the correct order', () => {
     render(<Account />);
-    const triggers = screen.getAllByRole('button');
-    const labels = triggers.map((button) => button.textContent?.trim() ?? '');
+    const labels = screen
+      .getAllByRole('button')
+      .map((button) => button.textContent?.trim() ?? '')
+      .filter((label) =>
+        [
+          'Lichess integration',
+          'Cloud sync',
+          'Tag configuration',
+          'Developer options',
+        ].includes(label),
+      );
 
-    const dataIndex = labels.findIndex((label) => /data management/i.test(label));
-    const cloudIndex = labels.findIndex((label) => /cloud sync/i.test(label));
-    const enhancedIndex = labels.findIndex((label) => /enhanced backup/i.test(label));
+    expect(labels).toEqual([
+      'Lichess integration',
+      'Cloud sync',
+      'Tag configuration',
+      'Developer options',
+    ]);
+  });
 
-    expect(dataIndex).toBeGreaterThan(-1);
-    expect(cloudIndex).toBeGreaterThan(dataIndex);
-    expect(enhancedIndex).toBeGreaterThan(cloudIndex);
+  it('shows data management, enhanced backup, and debug tools only under developer options', () => {
+    render(<Account />);
+
+    expect(screen.queryByRole('button', { name: /^data management$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /developer options/i }));
+
+    expect(screen.getByRole('button', { name: /^data management$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enhanced backup/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /database debug tools/i })).toBeInTheDocument();
   });
 });

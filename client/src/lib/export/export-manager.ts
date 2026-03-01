@@ -190,6 +190,8 @@ export class ExportManager {
       'Needs Review',
       'Study Type',
       'Study Tags',
+      'Study Quantity',
+      'Primary Study Tag',
       'Notes',
     ];
 
@@ -210,6 +212,8 @@ export class ExportManager {
       session.needsReview || false,
       session.studyType || '',
       session.studyTags || '',
+      session.quantity || '',
+      session.primaryStudyTag || '',
       (session.tacticsNotes || session.gameComments || session.studyNotes || '').replace(
         /"/g,
         '""',

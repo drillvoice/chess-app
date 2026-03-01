@@ -263,6 +263,11 @@ export function hasActiveGoals(settings: any): boolean {
  * Handles both new studyTags format and legacy studyType format
  */
 export function formatStudyDisplay(session: any): string {
+  const quantitySuffix =
+    typeof session.quantity === 'number' && session.quantity > 0
+      ? ` (${session.quantity} units${session.primaryStudyTag ? ` · ${session.primaryStudyTag}` : ''})`
+      : '';
+
   // Try to parse studyTags first (new format)
   if (session.studyTags) {
     try {
@@ -270,7 +275,7 @@ export function formatStudyDisplay(session: any): string {
         typeof session.studyTags === 'string' ? JSON.parse(session.studyTags) : session.studyTags;
 
       if (Array.isArray(tags) && tags.length > 0) {
-        return `Study: ${tags.join(', ')}`;
+        return `Study: ${tags.join(', ')}${quantitySuffix}`;
       }
     } catch (error) {
       console.warn('Failed to parse studyTags:', error);
@@ -279,9 +284,9 @@ export function formatStudyDisplay(session: any): string {
 
   // Fall back to legacy studyType format
   if (session.studyType) {
-    return `${session.studyType.charAt(0).toUpperCase()}${session.studyType.slice(1)} Study`;
+    return `${session.studyType.charAt(0).toUpperCase()}${session.studyType.slice(1)} Study${quantitySuffix}`;
   }
 
   // Default fallback
-  return 'Study';
+  return `Study${quantitySuffix}`;
 }
