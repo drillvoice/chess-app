@@ -124,6 +124,61 @@ export default function Home() {
     localStorage.setItem('weeklyGoalPromptDismissed', 'true');
   };
 
+  const renderPendingReviewCard = () => {
+    if (!pendingSessions || pendingSessions.length === 0) return null;
+
+    return (
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="space-y-2 p-4 md:p-5">
+          <h3 className="font-semibold text-gray-800">Games needing review</h3>
+          {pendingSessions.map((session) => (
+            <div key={session.id} className="flex items-center justify-between text-sm">
+              <div className="flex flex-col">
+                <span className="text-gray-700">{formatSessionDate(session.date)}</span>
+                {session.type === 'game' && (
+                  <span className="font-mono text-xs text-gray-500">
+                    {session.gameResult === 'draw'
+                      ? '1/2-1/2'
+                      : session.gameResult === 'win'
+                        ? session.playerColor === 'white'
+                          ? '1-0'
+                          : '0-1'
+                        : session.playerColor === 'white'
+                          ? '0-1'
+                          : '1-0'}
+                  </span>
+                )}
+                {session.opponentUsername && (
+                  <span className="text-xs text-gray-500">vs {session.opponentUsername}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingSession(session);
+                    setGameModalOpen(true);
+                  }}
+                >
+                  Review
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => archiveMutation.mutate(session.id)}
+                  aria-label="Archive game"
+                >
+                  <Archive className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="page-stack">
       <InstallPrompt />
@@ -208,34 +263,38 @@ export default function Home() {
             </Card>
           ) : null}
 
+          <div className="md:hidden">{renderPendingReviewCard()}</div>
+
           <Card className="rounded-xl bg-gray-100">
-            <CardContent className="p-4 md:p-5">
-              <h3 className="mb-3 text-lg font-semibold text-gray-800">Today's progress</h3>
+            <CardContent className="p-3 md:p-5">
+              <h3 className="mb-2 text-base font-semibold text-gray-800 md:mb-3 md:text-lg">
+                Today's progress
+              </h3>
               {isLoading ? (
                 <div className="grid grid-cols-2 gap-4">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-14 w-full md:h-16" />
+                  <Skeleton className="h-14 w-full md:h-16" />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-[#1E40AF]">
+                    <div className="text-xl font-bold text-[#1E40AF] md:text-2xl">
                       {`${stats?.todayTotalTime || 0}m`}
                     </div>
-                    <div className="text-sm text-gray-600">Total time</div>
+                    <div className="text-xs text-gray-600 md:text-sm">Total time</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-[#059669]">
+                    <div className="text-xl font-bold text-[#059669] md:text-2xl">
                       {stats?.todaySessions || 0}
                     </div>
-                    <div className="text-sm text-gray-600">Sessions</div>
+                    <div className="text-xs text-gray-600 md:text-sm">Sessions</div>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="rounded-xl border-gray-200">
+          <Card className="hidden rounded-xl border-gray-200 md:block">
             <CardContent className="p-4 md:p-5">
               <h3 className="mb-3 text-lg font-semibold text-gray-800">Overall progress</h3>
               {isLoading ? (
@@ -314,56 +373,7 @@ export default function Home() {
             </Button>
           </div>
 
-          {pendingSessions && pendingSessions.length > 0 && (
-            <Card className="border-blue-200 bg-blue-50">
-              <CardContent className="space-y-2 p-4 md:p-5">
-                <h3 className="font-semibold text-gray-800">Games needing review</h3>
-                {pendingSessions.map((session) => (
-                  <div key={session.id} className="flex items-center justify-between text-sm">
-                    <div className="flex flex-col">
-                      <span className="text-gray-700">{formatSessionDate(session.date)}</span>
-                      {session.type === 'game' && (
-                        <span className="font-mono text-xs text-gray-500">
-                          {session.gameResult === 'draw'
-                            ? '1/2-1/2'
-                            : session.gameResult === 'win'
-                              ? session.playerColor === 'white'
-                                ? '1-0'
-                                : '0-1'
-                              : session.playerColor === 'white'
-                                ? '0-1'
-                                : '1-0'}
-                        </span>
-                      )}
-                      {session.opponentUsername && (
-                        <span className="text-xs text-gray-500">vs {session.opponentUsername}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setEditingSession(session);
-                          setGameModalOpen(true);
-                        }}
-                      >
-                        Review
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-gray-500 hover:text-gray-700"
-                        onClick={() => archiveMutation.mutate(session.id)}
-                        aria-label="Archive game"
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          <div className="hidden md:block">{renderPendingReviewCard()}</div>
         </div>
       </div>
 
