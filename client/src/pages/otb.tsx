@@ -418,8 +418,8 @@ export default function OtbPage() {
                   <div>
                     <Label>Status</Label>
                     <p className="mt-2 text-sm text-gray-600">
-                      Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status} •
-                      View: {isBoardFlipped ? 'Black' : 'White'}
+                      Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status} • View:{' '}
+                      {isBoardFlipped ? 'Black' : 'White'}
                     </p>
                   </div>
                 </div>

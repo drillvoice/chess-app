@@ -371,7 +371,6 @@ export default function Home() {
                 </div>
               </div>
             </Button>
-
           </div>
 
           <div className="hidden md:block">{renderPendingReviewCard()}</div>
