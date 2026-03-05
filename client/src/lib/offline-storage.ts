@@ -6,6 +6,7 @@ import * as settings from './storage/settings';
 import * as dailyGoals from './storage/dailyGoals';
 import * as meta from './storage/meta';
 import * as snapshots from './storage/snapshots';
+import * as otbGames from './storage/otb-games';
 import { clearAll } from './storage/clear';
 
 export const offlineStorage = {
@@ -60,6 +61,13 @@ export const offlineStorage = {
   clearSyncLastError: meta.clearSyncLastError,
   createAccountSnapshot: snapshots.createAccountSnapshot,
   listAccountSnapshots: snapshots.listAccountSnapshots,
+  // OTB games
+  getOtbGames: otbGames.getOtbGames,
+  getOtbGame: otbGames.getOtbGame,
+  createOtbGame: otbGames.createOtbGame,
+  saveOtbGame: otbGames.saveOtbGame,
+  deleteOtbGame: otbGames.deleteOtbGame,
+  resetOtbGame: otbGames.resetOtbGame,
   // maintenance
   clearAll,
   clear: clearAll,
