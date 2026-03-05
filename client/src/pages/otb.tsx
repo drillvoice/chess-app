@@ -322,8 +322,7 @@ export default function OtbPage() {
       <div className="py-3 text-center md:py-4">
         <h2 className="mb-2 text-2xl font-bold text-gray-800 md:text-3xl">OTB Board Logger</h2>
         <p className="text-sm text-gray-600">
-          Tap squares to record your over-the-board game. Note: no engine or analysis, logging
-          only.
+          Tap squares to record your over-the-board game. Note: no engine or analysis, logging only.
         </p>
       </div>
 
