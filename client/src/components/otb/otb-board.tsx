@@ -65,7 +65,7 @@ export default function OtbBoard({
               >
                 <span
                   className={cn(
-                    'pointer-events-none select-none font-semibold leading-[0.82] text-[2.7rem] sm:text-[3.35rem]',
+                    'pointer-events-none select-none text-[2.7rem] font-semibold leading-[0.82] sm:text-[3.35rem]',
                     piece?.color === 'w'
                       ? 'text-[#f8f8f8] [-webkit-text-stroke:1.9px_#111111]'
                       : 'text-[#111111] [-webkit-text-stroke:1.5px_#f5f5f5]',
