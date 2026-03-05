@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.2.0] - 6 March 2026
+
+- Add a dedicated OTB board screen with move-by-move tap logging and legal-move validation
+- Add PGN export for OTB games via copy-to-clipboard and `.pgn` download
+- Add promotion picker, undo/reset controls, and multi-game local OTB persistence
+- Add top-navigation entry for OTB and remove Home card entry for that flow
+- Add board orientation flip option and on-board chess coordinates (bottom and right edges)
+- Add Activity-session bridge so OTB games can create/update standard game logs for stats
+
 ## [2.1.9] - 1 March 2026
 
 - Preserve study custom tags added on any synced device during settings reconciliation
