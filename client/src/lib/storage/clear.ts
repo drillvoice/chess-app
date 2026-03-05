@@ -8,6 +8,7 @@ const STORES = [
   'sync_queue',
   'daily_goals',
   'account_snapshots',
+  'otb_games',
 ] as const;
 
 export async function clearAll(): Promise<void> {
