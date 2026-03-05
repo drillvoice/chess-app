@@ -80,7 +80,12 @@ export function applyMove(
     const chess = toChess(game);
     const legalMoves = chess.moves({ square: from as ChessSquare, verbose: true });
     if (legalMoves.length === 0) {
-      return { game, applied: false, promotionRequired: false, error: 'No legal moves from square' };
+      return {
+        game,
+        applied: false,
+        promotionRequired: false,
+        error: 'No legal moves from square',
+      };
     }
 
     const candidates = legalMoves.filter((move) => move.to === to);

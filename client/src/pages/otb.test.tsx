@@ -93,7 +93,10 @@ describe('OTB page', () => {
     deleteOtbGameMock.mockResolvedValue(undefined);
     resetOtbGameMock.mockImplementation(async (id: string) => ({ ...baseGame(id), id }));
     upsertOtbSessionMock.mockResolvedValue(99);
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
 
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -173,7 +176,9 @@ describe('OTB page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Create Activity Session/i }));
     await waitFor(() => expect(upsertOtbSessionMock).toHaveBeenCalledTimes(1));
-    expect(await screen.findByRole('button', { name: /Update Activity Session/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Update Activity Session/i }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Update Activity Session/i }));
     await waitFor(() => expect(upsertOtbSessionMock).toHaveBeenCalledTimes(2));

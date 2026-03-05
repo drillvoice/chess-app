@@ -31,7 +31,12 @@ export default function PromotionPicker({ open, onSelect, onCancel }: PromotionP
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2">
           {OPTIONS.map((option) => (
-            <Button key={option.value} type="button" variant="outline" onClick={() => onSelect(option.value)}>
+            <Button
+              key={option.value}
+              type="button"
+              variant="outline"
+              onClick={() => onSelect(option.value)}
+            >
               {option.label}
             </Button>
           ))}

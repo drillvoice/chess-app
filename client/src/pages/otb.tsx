@@ -28,7 +28,9 @@ interface PendingPromotion {
 }
 
 function sortGames(games: OtbGame[]): OtbGame[] {
-  return [...games].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return [...games].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
 }
 
 function toInputDate(value: string): string {
@@ -443,7 +445,9 @@ export default function OtbPage() {
                     Download PGN
                   </Button>
                   <Button type="button" onClick={() => void handleSyncSession()}>
-                    {activeGame.linkedSessionId ? 'Update Activity Session' : 'Create Activity Session'}
+                    {activeGame.linkedSessionId
+                      ? 'Update Activity Session'
+                      : 'Create Activity Session'}
                   </Button>
                 </div>
               </CardContent>

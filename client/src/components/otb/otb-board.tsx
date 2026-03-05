@@ -46,7 +46,7 @@ export default function OtbBoard({
                 className={cn(
                   'relative aspect-square w-full text-2xl transition-colors sm:text-3xl',
                   isDarkSquare(square) ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
-                  isSelected && 'ring-4 ring-blue-500 ring-inset',
+                  isSelected && 'ring-4 ring-inset ring-blue-500',
                 )}
                 onClick={() => onSquareTap(square)}
                 aria-label={`Square ${square}`}
