@@ -35,6 +35,8 @@ export default function OtbBoard({
 }: OtbBoardProps) {
   const files = isFlipped ? [...FILES].reverse() : FILES;
   const ranks = isFlipped ? [...RANKS].reverse() : RANKS;
+  const bottomRank = ranks[ranks.length - 1];
+  const rightFile = files[files.length - 1];
 
   return (
     <div className="w-full rounded-xl border border-gray-200 bg-white p-3">
@@ -43,16 +45,19 @@ export default function OtbBoard({
           files.map((file) => {
             const square = `${file}${rank}` as Square;
             const piece = pieceMap[square];
+            const darkSquare = isDarkSquare(square);
             const isSelected = selectedSquare === square;
             const isLegalTarget = legalTargets.includes(square);
+            const showFileCoordinate = rank === bottomRank;
+            const showRankCoordinate = file === rightFile;
 
             return (
               <button
                 key={square}
                 type="button"
                 className={cn(
-                  'relative aspect-square w-full text-2xl transition-colors sm:text-3xl',
-                  isDarkSquare(square) ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
+                  'relative flex aspect-square w-full items-center justify-center overflow-hidden transition-colors',
+                  darkSquare ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
                   isSelected && 'ring-4 ring-inset ring-blue-500',
                 )}
                 onClick={() => onSquareTap(square)}
@@ -60,14 +65,34 @@ export default function OtbBoard({
               >
                 <span
                   className={cn(
-                    'pointer-events-none select-none text-[2.15rem] leading-none sm:text-[2.6rem]',
+                    'pointer-events-none select-none font-semibold leading-[0.82] text-[2.7rem] sm:text-[3.35rem]',
                     piece?.color === 'w'
-                      ? 'text-slate-100 [text-shadow:0_1px_1px_rgba(0,0,0,0.8)]'
-                      : 'text-slate-900 [text-shadow:0_1px_1px_rgba(255,255,255,0.15)]',
+                      ? 'text-[#f8f8f8] [-webkit-text-stroke:1.9px_#111111]'
+                      : 'text-[#111111] [-webkit-text-stroke:1.5px_#f5f5f5]',
                   )}
                 >
                   {piece ? UNICODE_PIECES[piece.color][piece.type] : ''}
                 </span>
+                {showFileCoordinate && (
+                  <span
+                    className={cn(
+                      'pointer-events-none absolute bottom-0.5 left-1 text-[10px] font-semibold leading-none',
+                      darkSquare ? 'text-[#f1dfbf]/90' : 'text-[#8b6a51]',
+                    )}
+                  >
+                    {file}
+                  </span>
+                )}
+                {showRankCoordinate && (
+                  <span
+                    className={cn(
+                      'pointer-events-none absolute right-1 top-0.5 text-[10px] font-semibold leading-none',
+                      darkSquare ? 'text-[#f1dfbf]/90' : 'text-[#8b6a51]',
+                    )}
+                  >
+                    {rank}
+                  </span>
+                )}
                 {isLegalTarget && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <span className="h-3 w-3 rounded-full bg-blue-600/70" />
