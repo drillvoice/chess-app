@@ -67,8 +67,8 @@ export default function OtbBoard({
                   className={cn(
                     'pointer-events-none select-none text-[2.7rem] font-semibold leading-[0.82] sm:text-[3.35rem]',
                     piece?.color === 'w'
-                      ? 'text-[#f8f8f8] [-webkit-text-stroke:1.9px_#111111]'
-                      : 'text-[#111111] [-webkit-text-stroke:1.5px_#f5f5f5]',
+                      ? 'text-[#f8f8f8] [-webkit-text-stroke:0.9px_#181818]'
+                      : 'text-[#111111]',
                   )}
                 >
                   {piece ? UNICODE_PIECES[piece.color][piece.type] : ''}
