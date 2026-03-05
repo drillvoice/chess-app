@@ -6,7 +6,9 @@ const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'] as const;
 
 const UNICODE_PIECES: Record<'w' | 'b', Record<string, string>> = {
-  w: { p: '♙', n: '♘', b: '♗', r: '♖', q: '♕', k: '♔' },
+  // Use filled glyphs for both colors and colorize via CSS so white pieces
+  // are not rendered as hollow outlines.
+  w: { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
   b: { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
 };
 
@@ -56,7 +58,14 @@ export default function OtbBoard({
                 onClick={() => onSquareTap(square)}
                 aria-label={`Square ${square}`}
               >
-                <span className="pointer-events-none select-none">
+                <span
+                  className={cn(
+                    'pointer-events-none select-none text-[2.15rem] leading-none sm:text-[2.6rem]',
+                    piece?.color === 'w'
+                      ? 'text-slate-100 [text-shadow:0_1px_1px_rgba(0,0,0,0.8)]'
+                      : 'text-slate-900 [text-shadow:0_1px_1px_rgba(255,255,255,0.15)]',
+                  )}
+                >
                   {piece ? UNICODE_PIECES[piece.color][piece.type] : ''}
                 </span>
                 {isLegalTarget && (
