@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, Suspense, useEffect } from 'react';
 import { Puzzle, Crown, Book, Target, Archive, X } from 'lucide-react';
-import { Link } from 'wouter';
 import { TacticsModal, GameModal, StudyModal, GoalModal } from '@/components/lazy-components';
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from '@/components/install-prompt';
@@ -324,7 +323,7 @@ export default function Home() {
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
           <DailyGoalsMVP />
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Button
               onClick={() => setTacticsModalOpen(true)}
               className="h-auto min-h-11 w-full transform rounded-xl bg-[#1E40AF] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-800 active:scale-95"
@@ -373,19 +372,6 @@ export default function Home() {
               </div>
             </Button>
 
-            <Button
-              asChild
-              className="h-auto min-h-11 w-full transform rounded-xl bg-slate-700 px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-slate-800 active:scale-95"
-            >
-              <Link href="/otb">
-                <div className="flex items-center justify-center space-x-3">
-                  <Archive className="h-8 w-8" />
-                  <div className="text-left">
-                    <div className="text-base md:text-lg">OTB Board</div>
-                  </div>
-                </div>
-              </Link>
-            </Button>
           </div>
 
           <div className="hidden md:block">{renderPendingReviewCard()}</div>

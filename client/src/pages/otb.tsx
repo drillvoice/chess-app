@@ -57,6 +57,7 @@ export default function OtbPage() {
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
+  const [isBoardFlipped, setIsBoardFlipped] = useState(false);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
 
   const activeGame = useMemo(
@@ -336,6 +337,7 @@ export default function OtbPage() {
               pieceMap={pieceMap}
               selectedSquare={selectedSquare}
               legalTargets={legalTargets}
+              isFlipped={isBoardFlipped}
               onSquareTap={(square) => void handleSquareTap(square)}
             />
 
@@ -416,12 +418,20 @@ export default function OtbPage() {
                   <div>
                     <Label>Status</Label>
                     <p className="mt-2 text-sm text-gray-600">
-                      Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status}
+                      Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status} •
+                      View: {isBoardFlipped ? 'Black' : 'White'}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsBoardFlipped((previous) => !previous)}
+                  >
+                    Flip Board
+                  </Button>
                   <Button type="button" variant="outline" onClick={() => void handleUndo()}>
                     Undo
                   </Button>

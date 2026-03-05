@@ -20,6 +20,7 @@ interface OtbBoardProps {
   pieceMap: Record<string, PieceView>;
   selectedSquare: Square | null;
   legalTargets: Square[];
+  isFlipped: boolean;
   onSquareTap: (square: Square) => void;
 }
 
@@ -27,13 +28,17 @@ export default function OtbBoard({
   pieceMap,
   selectedSquare,
   legalTargets,
+  isFlipped,
   onSquareTap,
 }: OtbBoardProps) {
+  const files = isFlipped ? [...FILES].reverse() : FILES;
+  const ranks = isFlipped ? [...RANKS].reverse() : RANKS;
+
   return (
     <div className="w-full rounded-xl border border-gray-200 bg-white p-3">
       <div className="mx-auto grid max-w-lg grid-cols-8 gap-0 overflow-hidden rounded-md border border-gray-300">
-        {RANKS.flatMap((rank) =>
-          FILES.map((file) => {
+        {ranks.flatMap((rank) =>
+          files.map((file) => {
             const square = `${file}${rank}` as Square;
             const piece = pieceMap[square];
             const isSelected = selectedSquare === square;

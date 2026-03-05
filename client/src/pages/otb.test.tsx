@@ -183,4 +183,18 @@ describe('OTB page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Update Activity Session/i }));
     await waitFor(() => expect(upsertOtbSessionMock).toHaveBeenCalledTimes(2));
   });
+
+  it('flips board orientation on demand', async () => {
+    getOtbGamesMock.mockResolvedValue([baseGame()]);
+    render(<OtbPage />);
+
+    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    expect(screen.getByText(/View: White/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Flip Board/i }));
+    expect(screen.getByText(/View: Black/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Flip Board/i }));
+    expect(screen.getByText(/View: White/i)).toBeInTheDocument();
+  });
 });

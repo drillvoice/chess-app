@@ -48,11 +48,9 @@ vi.mock('@tanstack/react-query', () => ({
   })),
 }));
 
-describe('Home OTB entry', () => {
-  it('renders OTB Board card linking to /otb', () => {
+describe('Home cards', () => {
+  it('does not render an OTB Board card on home', () => {
     render(<Home />);
-    const otbLink = screen.getByRole('link', { name: /OTB Board/i });
-    expect(otbLink).toBeInTheDocument();
-    expect(otbLink).toHaveAttribute('href', '/otb');
+    expect(screen.queryByRole('link', { name: /OTB Board/i })).not.toBeInTheDocument();
   });
 });
