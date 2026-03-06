@@ -345,84 +345,92 @@ export default function OtbPage() {
 
             <Card>
               <CardContent className="space-y-3 p-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div>
-                    <Label htmlFor="whiteName">White</Label>
-                    <Input
-                      id="whiteName"
-                      value={activeGame.whiteName}
-                      onChange={(event) => void handleUpdateGame({ whiteName: event.target.value })}
-                    />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="whiteName">White</Label>
+                      <Input
+                        id="whiteName"
+                        value={activeGame.whiteName}
+                        onChange={(event) => void handleUpdateGame({ whiteName: event.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="blackName">Black</Label>
+                      <Input
+                        id="blackName"
+                        value={activeGame.blackName}
+                        onChange={(event) => void handleUpdateGame({ blackName: event.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="blackName">Black</Label>
-                    <Input
-                      id="blackName"
-                      value={activeGame.blackName}
-                      onChange={(event) => void handleUpdateGame({ blackName: event.target.value })}
-                    />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="playerColor">Your colour</Label>
+                      <select
+                        id="playerColor"
+                        className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        value={activeGame.playerColor || ''}
+                        onChange={(event) =>
+                          void handleUpdateGame({
+                            playerColor:
+                              event.target.value === 'white' || event.target.value === 'black'
+                                ? event.target.value
+                                : null,
+                          })
+                        }
+                      >
+                        <option value="">Select colour</option>
+                        <option value="white">White</option>
+                        <option value="black">Black</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="result">Result</Label>
+                      <select
+                        id="result"
+                        className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        value={activeGame.result}
+                        onChange={(event) =>
+                          void handleUpdateGame({
+                            result:
+                              event.target.value === '1-0' ||
+                              event.target.value === '0-1' ||
+                              event.target.value === '1/2-1/2' ||
+                              event.target.value === '*'
+                                ? event.target.value
+                                : '*',
+                          })
+                        }
+                      >
+                        <option value="*">*</option>
+                        <option value="1-0">1-0</option>
+                        <option value="0-1">0-1</option>
+                        <option value="1/2-1/2">1/2-1/2</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="playedAt">Date</Label>
-                    <Input
-                      id="playedAt"
-                      type="date"
-                      value={toInputDate(activeGame.playedAt)}
-                      onChange={(event) =>
-                        void handleUpdateGame({ playedAt: fromInputDate(event.target.value) })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="playerColor">Your colour</Label>
-                    <select
-                      id="playerColor"
-                      className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={activeGame.playerColor || ''}
-                      onChange={(event) =>
-                        void handleUpdateGame({
-                          playerColor:
-                            event.target.value === 'white' || event.target.value === 'black'
-                              ? event.target.value
-                              : null,
-                        })
-                      }
-                    >
-                      <option value="">Select colour</option>
-                      <option value="white">White</option>
-                      <option value="black">Black</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="result">Result</Label>
-                    <select
-                      id="result"
-                      className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={activeGame.result}
-                      onChange={(event) =>
-                        void handleUpdateGame({
-                          result:
-                            event.target.value === '1-0' ||
-                            event.target.value === '0-1' ||
-                            event.target.value === '1/2-1/2' ||
-                            event.target.value === '*'
-                              ? event.target.value
-                              : '*',
-                        })
-                      }
-                    >
-                      <option value="*">*</option>
-                      <option value="1-0">1-0</option>
-                      <option value="0-1">0-1</option>
-                      <option value="1/2-1/2">1/2-1/2</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Status</Label>
-                    <p className="mt-2 text-sm text-gray-600">
-                      Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status} • View:{' '}
-                      {isBoardFlipped ? 'Black' : 'White'}
-                    </p>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div>
+                      <Label htmlFor="playedAt">Date</Label>
+                      <Input
+                        id="playedAt"
+                        type="date"
+                        value={toInputDate(activeGame.playedAt)}
+                        onChange={(event) =>
+                          void handleUpdateGame({ playedAt: fromInputDate(event.target.value) })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label>Status</Label>
+                      <p className="mt-2 text-sm text-gray-600">
+                        Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status} •
+                        View: {isBoardFlipped ? 'Black' : 'White'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
