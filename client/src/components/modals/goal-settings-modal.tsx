@@ -157,7 +157,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="mobile-modal !fixed !left-1/2 !top-2 mx-auto max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] !-translate-x-1/2 !translate-y-0 overflow-y-auto sm:!top-1/2 sm:max-h-[85vh] sm:w-auto sm:max-w-md sm:!-translate-y-1/2">
+      <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />

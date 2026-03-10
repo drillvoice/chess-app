@@ -587,7 +587,7 @@ export default function GameModal({
 
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Time control</Label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {[
                   { value: 'bullet', label: 'Bullet', icon: '•' },
                   { value: 'blitz', label: 'Blitz', icon: Zap },
@@ -599,7 +599,7 @@ export default function GameModal({
                     type="button"
                     variant="outline"
                     className={cn(
-                      'flex h-auto items-center justify-center space-x-1 px-3 py-2',
+                      'flex h-auto min-h-[44px] min-w-0 items-center justify-center gap-1 whitespace-normal px-2 py-2 text-center leading-tight',
                       selectedTimeControl === tc.value
                         ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -622,12 +622,12 @@ export default function GameModal({
 
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Platform</Label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <Button
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
+                    'flex h-auto min-h-[44px] min-w-0 items-center justify-center gap-2 whitespace-normal px-2 py-2 text-center leading-tight',
                     selectedPlatform === 'lichess'
                       ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -640,7 +640,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
+                    'flex h-auto min-h-[44px] min-w-0 items-center justify-center gap-2 whitespace-normal px-2 py-2 text-center leading-tight',
                     selectedPlatform === 'chess.com'
                       ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
@@ -653,7 +653,7 @@ export default function GameModal({
                   type="button"
                   variant="outline"
                   className={cn(
-                    'flex h-auto items-center justify-center space-x-2 px-3 py-2',
+                    'col-span-2 flex h-auto min-h-[44px] min-w-0 items-center justify-center gap-2 whitespace-normal px-2 py-2 text-center leading-tight sm:col-span-1',
                     selectedPlatform === 'otb'
                       ? 'border-blue-600 bg-blue-100 text-blue-800 ring-2 ring-blue-600'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',

@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.2.1] - 10 March 2026
+
+- Fix mobile/PWA top navigation overflow on narrow phones with icon-first compact tabs
+- Fix modal clipping and centering issues by standardizing bounded `dvw`/`dvh` dialog sizing
+- Fix `Log game` mobile option rows (time control/platform) to wrap cleanly without horizontal overflow
+- Improve Home action-button responsiveness so labels/icons fit on smaller screens
+- Add responsive regression coverage for compact nav accessibility and mobile layout assertions
+
 ## [2.2.0] - 6 March 2026
 
 - Add a dedicated OTB board screen with move-by-move tap logging and legal-move validation

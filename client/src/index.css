@@ -90,24 +90,19 @@
 }
 
 /* Mobile-specific modal improvements */
-/* Mobile modal positioning - position higher to avoid keyboard overlap */
 .mobile-modal {
-  position: fixed !important;
-  left: 50% !important;
-  right: auto !important;
-  max-height: calc(100vh - 2rem) !important;
-  overflow-y: auto !important;
+  left: 50%;
+  width: min(100%, calc(100dvw - 1rem));
+  max-width: 28rem;
+  max-height: calc(100dvh - 1rem);
+  overflow: hidden;
 }
 
 @media (max-width: 640px) {
   .mobile-modal {
-    top: 15px !important;
-    transform: translateX(-50%) !important;
-    max-height: calc(100dvh - 2rem) !important;
-    overflow-y: auto !important;
-    margin: 0 !important;
-    width: calc(100vw - 2rem) !important;
-    max-width: calc(100vw - 2rem) !important;
+    top: 0.5rem;
+    transform: translateX(-50%);
+    border-radius: 0.75rem;
   }
 
   /* Make buttons sticky at bottom for visibility above keyboard */
@@ -123,6 +118,7 @@
     border-top: 1px solid #e5e7eb;
     position: sticky;
     bottom: 0;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     background: white;
     z-index: 10;
   }
@@ -130,33 +126,8 @@
 
 @media (min-width: 641px) {
   .mobile-modal {
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
-  }
-}
-
-@media (max-height: 700px) {
-  [data-radix-dialog-content] {
-    top: 10% !important;
-    transform: translateX(-50%) translateY(0) !important;
-    max-height: 70vh !important;
-    margin: 0.5rem !important;
-  }
-}
-
-@media (max-height: 600px) {
-  [data-radix-dialog-content] {
-    top: 5% !important;
-    transform: translateX(-50%) translateY(0) !important;
-    max-height: 65vh !important;
-    margin: 0.25rem !important;
-  }
-}
-
-/* Handle viewport units for mobile keyboards */
-@supports (height: 100dvh) {
-  [data-radix-dialog-content] {
-    max-height: 70dvh;
+    top: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 
@@ -204,6 +175,7 @@
   }
 
   main {
+    max-width: 100%;
     padding: 0.5rem;
   }
 }

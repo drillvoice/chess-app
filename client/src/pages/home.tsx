@@ -180,7 +180,7 @@ export default function Home() {
   };
 
   return (
-    <div className="page-stack">
+    <div className="page-stack mx-auto w-full max-w-full">
       <InstallPrompt />
       <CloudBackupReminder />
 
@@ -323,51 +323,59 @@ export default function Home() {
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
           <DailyGoalsMVP />
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Button
               onClick={() => setTacticsModalOpen(true)}
-              className="h-auto min-h-11 w-full transform rounded-xl bg-[#1E40AF] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-800 active:scale-95"
+              className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-[#1E40AF] px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-800 active:scale-95 sm:px-6"
             >
-              <div className="flex items-center justify-center space-x-3">
-                <Puzzle className="h-8 w-8" />
-                <div className="text-left">
-                  <div className="text-base md:text-lg">Log tactics</div>
+              <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
+                <Puzzle className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" />
+                <div className="min-w-0 text-left">
+                  <div className="whitespace-normal text-sm leading-tight sm:text-base md:text-lg">
+                    Log tactics
+                  </div>
                 </div>
               </div>
             </Button>
 
             <Button
               onClick={() => setGameModalOpen(true)}
-              className="h-auto min-h-11 w-full transform rounded-xl bg-[#059669] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-emerald-700 active:scale-95"
+              className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-[#059669] px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-emerald-700 active:scale-95 sm:px-6"
             >
-              <div className="flex items-center justify-center space-x-3">
-                <Crown className="h-8 w-8" />
-                <div className="text-left">
-                  <div className="text-base md:text-lg">Log game</div>
+              <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
+                <Crown className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" />
+                <div className="min-w-0 text-left">
+                  <div className="whitespace-normal text-sm leading-tight sm:text-base md:text-lg">
+                    Log game
+                  </div>
                 </div>
               </div>
             </Button>
 
             <Button
               onClick={() => setStudyModalOpen(true)}
-              className="h-auto min-h-11 w-full transform rounded-xl bg-[#F59E0B] px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-amber-600 active:scale-95"
+              className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-[#F59E0B] px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-amber-600 active:scale-95 sm:px-6"
             >
-              <div className="flex items-center justify-center space-x-3">
-                <Book className="h-8 w-8" />
-                <div className="text-left">
-                  <div className="text-base md:text-lg">Other study</div>
+              <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
+                <Book className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" />
+                <div className="min-w-0 text-left">
+                  <div className="whitespace-normal text-sm leading-tight sm:text-base md:text-lg">
+                    Other study
+                  </div>
                 </div>
               </div>
             </Button>
 
             <Button
               onClick={() => setGoalModalOpen(true)}
-              className="h-auto min-h-11 w-full transform rounded-xl bg-purple-600 px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-700 active:scale-95"
+              className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-purple-600 px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-700 active:scale-95 sm:px-6"
             >
-              <div className="flex items-center justify-center space-x-3">
-                <Target className="h-8 w-8" />
-                <div className="text-left">
-                  <div className="text-base md:text-lg">Set weekly goal</div>
+              <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
+                <Target className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" />
+                <div className="min-w-0 text-left">
+                  <div className="whitespace-normal text-sm leading-tight sm:text-base md:text-lg">
+                    Set weekly goal
+                  </div>
                 </div>
               </div>
             </Button>

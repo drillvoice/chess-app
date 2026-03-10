@@ -47,7 +47,7 @@ function App() {
         <TooltipProvider>
           <div className="app-container">
             <Navigation />
-            <main className="p-4 md:p-6 lg:p-8">
+            <main className="max-w-full p-4 md:p-6 lg:p-8">
               <Router />
             </main>
           </div>
