@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+- Make `Log game` time control and platform options more space-efficient on mobile by using single-row layouts and tighter button padding
+
 ## [2.2.1] - 10 March 2026
 
 - Fix mobile/PWA top navigation overflow on narrow phones with icon-first compact tabs
