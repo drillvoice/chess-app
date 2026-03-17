@@ -14,10 +14,10 @@ export default function Navigation() {
   ];
 
   return (
-    <header className="bg-[#1E40AF] px-3 py-3 text-white shadow-md md:px-6 md:py-5">
+    <header className="bg-[#1E40AF] px-2 py-2 text-white shadow-md sm:px-3 sm:py-3 md:px-6 md:py-5">
       <div className="mx-auto w-full max-w-[1240px]">
         <div className="flex items-center gap-2 md:gap-3">
-          <Link href="/" aria-label="Go to Home">
+          <Link href="/" aria-label="Go to Home" className="hidden sm:block">
             <img
               src="/icon-192x192.png"
               alt="Pawn Star Chess Log"
@@ -35,13 +35,12 @@ export default function Navigation() {
                     <button
                       aria-label={item.label}
                       className={cn(
-                        'flex min-w-0 flex-1 items-center justify-center gap-0 rounded-md px-1.5 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 sm:text-sm md:px-5 md:py-2.5',
+                        'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 text-[10px] font-medium leading-none transition-colors sm:flex-row sm:gap-2 sm:px-3 sm:py-2 sm:text-sm md:px-5 md:py-2.5',
                         isActive ? 'bg-white text-[#1E40AF]' : 'text-white hover:bg-blue-700',
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span className="hidden sm:inline">{item.label}</span>
-                      <span className="sr-only sm:hidden">{item.label}</span>
+                      <span className="block truncate text-center sm:text-left">{item.label}</span>
                     </button>
                   </Link>
                 );
