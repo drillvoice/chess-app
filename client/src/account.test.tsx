@@ -65,13 +65,16 @@ describe('data management location', () => {
     expect(screen.getByRole('button', { name: /otb/i })).toBeInTheDocument();
   });
 
-  it('keeps nav buttons accessible when labels are visually hidden on narrow screens', () => {
+  it('keeps nav buttons accessible on narrow screens while showing compact labels', () => {
     render(<Navigation />);
 
     const activityButton = screen.getByRole('button', { name: /activity/i });
     expect(activityButton).toHaveAttribute('aria-label', 'Activity');
-    expect(activityButton.querySelector('.hidden.sm\\:inline')).toBeInTheDocument();
-    expect(activityButton.querySelector('.sr-only.sm\\:hidden')).toBeInTheDocument();
+    expect(activityButton).toHaveTextContent('Activity');
+    expect(screen.getByRole('img', { name: /pawn star chess log/i }).closest('a')).toHaveClass(
+      'hidden',
+      'sm:block',
+    );
   });
   it('renders data management only on account page', async () => {
     render(<Activity />);
