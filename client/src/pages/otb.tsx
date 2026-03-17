@@ -352,7 +352,9 @@ export default function OtbPage() {
                       <Input
                         id="whiteName"
                         value={activeGame.whiteName}
-                        onChange={(event) => void handleUpdateGame({ whiteName: event.target.value })}
+                        onChange={(event) =>
+                          void handleUpdateGame({ whiteName: event.target.value })
+                        }
                       />
                     </div>
                     <div>
@@ -360,7 +362,9 @@ export default function OtbPage() {
                       <Input
                         id="blackName"
                         value={activeGame.blackName}
-                        onChange={(event) => void handleUpdateGame({ blackName: event.target.value })}
+                        onChange={(event) =>
+                          void handleUpdateGame({ blackName: event.target.value })
+                        }
                       />
                     </div>
                   </div>
