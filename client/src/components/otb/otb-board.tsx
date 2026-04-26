@@ -15,7 +15,7 @@ const UNICODE_PIECES: Record<'w' | 'b', Record<string, string>> = {
 function isDarkSquare(square: Square): boolean {
   const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
   const rank = Number(square[1]) - 1;
-  return (file + rank) % 2 === 1;
+  return (file + rank) % 2 === 0;
 }
 
 interface OtbBoardProps {
@@ -23,6 +23,7 @@ interface OtbBoardProps {
   selectedSquare: Square | null;
   legalTargets: Square[];
   isFlipped: boolean;
+  isTableMode: boolean;
   onSquareTap: (square: Square) => void;
 }
 
@@ -31,6 +32,7 @@ export default function OtbBoard({
   selectedSquare,
   legalTargets,
   isFlipped,
+  isTableMode,
   onSquareTap,
 }: OtbBoardProps) {
   const files = isFlipped ? [...FILES].reverse() : FILES;
@@ -41,13 +43,14 @@ export default function OtbBoard({
   return (
     <div className="w-full rounded-xl border border-gray-200 bg-white p-3">
       <div className="mx-auto grid max-w-lg grid-cols-8 gap-0 overflow-hidden rounded-md border border-gray-300">
-        {ranks.flatMap((rank) =>
+        {ranks.flatMap((rank, rankIndex) =>
           files.map((file) => {
             const square = `${file}${rank}` as Square;
             const piece = pieceMap[square];
             const darkSquare = isDarkSquare(square);
             const isSelected = selectedSquare === square;
             const isLegalTarget = legalTargets.includes(square);
+            const rotatePiece = isTableMode && rankIndex < 4;
             const showFileCoordinate = rank === bottomRank;
             const showRankCoordinate = file === rightFile;
 
@@ -66,6 +69,7 @@ export default function OtbBoard({
                 <span
                   className={cn(
                     'pointer-events-none select-none text-[2.7rem] font-semibold leading-[0.82] sm:text-[3.35rem]',
+                    rotatePiece && 'rotate-180',
                     piece?.color === 'w'
                       ? 'text-[#f8f8f8] [-webkit-text-stroke:0.9px_#181818]'
                       : 'text-[#111111]',

@@ -80,6 +80,15 @@ function promotionReadyGame(): OtbGame {
   return game;
 }
 
+function pieceGlyphFor(square: string): HTMLElement {
+  const pieceGlyph = screen.getByRole('button', {
+    name: new RegExp(`Square ${square}`, 'i'),
+  }).firstElementChild;
+
+  expect(pieceGlyph).toBeInstanceOf(HTMLElement);
+  return pieceGlyph as HTMLElement;
+}
+
 describe('OTB page', () => {
   afterEach(() => {
     cleanup();
@@ -196,5 +205,61 @@ describe('OTB page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Flip Board/i }));
     expect(screen.getByText(/View: White/i)).toBeInTheDocument();
+  });
+
+  it('renders h1 as a light square in the default orientation', async () => {
+    getOtbGamesMock.mockResolvedValue([baseGame()]);
+    render(<OtbPage />);
+
+    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+
+    expect(screen.getByRole('button', { name: /Square h1/i })).toHaveClass('bg-[#f0d9b5]');
+  });
+
+  it('toggles table mode on and off', async () => {
+    getOtbGamesMock.mockResolvedValue([baseGame()]);
+    render(<OtbPage />);
+
+    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+
+    expect(screen.getByRole('button', { name: /Table Mode: Off/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Table Mode: Off/i }));
+    expect(screen.getByRole('button', { name: /Table Mode: On/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Table Mode: On/i }));
+    expect(screen.getByRole('button', { name: /Table Mode: Off/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('rotates pieces on the top half of the board in table mode', async () => {
+    getOtbGamesMock.mockResolvedValue([baseGame()]);
+    render(<OtbPage />);
+
+    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    fireEvent.click(screen.getByRole('button', { name: /Table Mode: Off/i }));
+
+    expect(pieceGlyphFor('a8')).toHaveClass('rotate-180');
+    expect(pieceGlyphFor('h1')).not.toHaveClass('rotate-180');
+  });
+
+  it('keeps table mode rotation tied to the top visible rows after flipping', async () => {
+    getOtbGamesMock.mockResolvedValue([baseGame()]);
+    render(<OtbPage />);
+
+    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    fireEvent.click(screen.getByRole('button', { name: /Table Mode: Off/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Flip Board/i }));
+
+    expect(pieceGlyphFor('h1')).toHaveClass('rotate-180');
+    expect(pieceGlyphFor('a8')).not.toHaveClass('rotate-180');
   });
 });

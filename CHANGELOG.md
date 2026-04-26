@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file.
 
 - Make `Log game` time control and platform options more space-efficient on mobile by using single-row layouts and tighter button padding
 
+## [2.2.2] - 27 April 2026
+
+- Add OTB Table Mode for shared-phone human play with far-side pieces rotated for the opponent
+- Fix OTB board square coloring so `h1` renders as a light square
+- Add regression coverage for OTB square coloring, Table Mode toggling, and flipped-board piece orientation
+
 ## [2.2.1] - 10 March 2026
 
 - Fix mobile/PWA top navigation overflow on narrow phones with icon-first compact tabs
