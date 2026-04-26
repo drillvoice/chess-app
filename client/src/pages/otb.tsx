@@ -58,6 +58,7 @@ export default function OtbPage() {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
   const [isBoardFlipped, setIsBoardFlipped] = useState(false);
+  const [isTableMode, setIsTableMode] = useState(false);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
 
   const activeGame = useMemo(
@@ -340,6 +341,7 @@ export default function OtbPage() {
               selectedSquare={selectedSquare}
               legalTargets={legalTargets}
               isFlipped={isBoardFlipped}
+              isTableMode={isTableMode}
               onSquareTap={(square) => void handleSquareTap(square)}
             />
 
@@ -428,7 +430,8 @@ export default function OtbPage() {
                       <Label>Status</Label>
                       <p className="mt-2 text-sm text-gray-600">
                         Turn: {activeColor === 'w' ? 'White' : 'Black'} • {activeGame.status} •
-                        View: {isBoardFlipped ? 'Black' : 'White'}
+                        View: {isBoardFlipped ? 'Black' : 'White'} • Table Mode:{' '}
+                        {isTableMode ? 'On' : 'Off'}
                       </p>
                     </div>
                   </div>
@@ -441,6 +444,14 @@ export default function OtbPage() {
                     onClick={() => setIsBoardFlipped((previous) => !previous)}
                   >
                     Flip Board
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    aria-pressed={isTableMode}
+                    onClick={() => setIsTableMode((previous) => !previous)}
+                  >
+                    Table Mode: {isTableMode ? 'On' : 'Off'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => void handleUndo()}>
                     Undo
