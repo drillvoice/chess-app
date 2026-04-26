@@ -81,8 +81,9 @@ function promotionReadyGame(): OtbGame {
 }
 
 function pieceGlyphFor(square: string): HTMLElement {
-  const pieceGlyph = screen.getByRole('button', { name: new RegExp(`Square ${square}`, 'i') })
-    .firstElementChild;
+  const pieceGlyph = screen.getByRole('button', {
+    name: new RegExp(`Square ${square}`, 'i'),
+  }).firstElementChild;
 
   expect(pieceGlyph).toBeInstanceOf(HTMLElement);
   return pieceGlyph as HTMLElement;
