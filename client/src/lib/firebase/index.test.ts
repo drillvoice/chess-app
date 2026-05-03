@@ -417,9 +417,10 @@ describe('firebase auth utilities', () => {
       { id: 7, type: 'game', duration: 60, date: iso, createdAt: createdTs },
     ]);
 
-    const error = await utils
-      .importData(backup)
-      .then(() => null, (error: unknown) => error);
+    const error = await utils.importData(backup).then(
+      () => null,
+      (error: unknown) => error,
+    );
 
     expect(error).toBeInstanceOf(AggregateError);
     expect((error as AggregateError).errors).toHaveLength(1);
