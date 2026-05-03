@@ -8,6 +8,22 @@ const packageJson = JSON.parse(
   readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8'),
 );
 
+function manualChunks(id: string): string | undefined {
+  if (id.includes('node_modules/firebase/')) {
+    return 'firebase';
+  }
+
+  if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+    return 'vendor';
+  }
+
+  if (id.includes('node_modules/@radix-ui/react-')) {
+    return 'ui';
+  }
+
+  return undefined;
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -32,11 +48,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-alert-dialog', '@radix-ui/react-popover'],
-        },
+        manualChunks,
         // Improve chunk naming for better caching
         chunkFileNames: (chunkInfo) => {
           const facadeModuleId = chunkInfo.facadeModuleId

@@ -417,14 +417,13 @@ describe('firebase auth utilities', () => {
       { id: 7, type: 'game', duration: 60, date: iso, createdAt: createdTs },
     ]);
 
-    try {
-      await utils.importData(backup);
-      throw new Error('expected importData to throw');
-    } catch (error: any) {
-      expect(error).toBeInstanceOf(AggregateError);
-      expect(error.errors).toHaveLength(1);
-      expect(error.message).toBe('Failed to import 1 sessions');
-    }
+    const error = await utils
+      .importData(backup)
+      .then(() => null, (error: unknown) => error);
+
+    expect(error).toBeInstanceOf(AggregateError);
+    expect((error as AggregateError).errors).toHaveLength(1);
+    expect((error as AggregateError).message).toBe('Failed to import 1 sessions');
 
     const stored = await offline.offlineStorage.getSessions();
     expect(stored).toHaveLength(1);
