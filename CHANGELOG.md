@@ -4,7 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.2.3] - 5 May 2026
+
 - Make `Log game` time control and platform options more space-efficient on mobile by using single-row layouts and tighter button padding
+- Address initial dependency audit findings with conservative patch updates for Express, Serve, PostCSS, Vite, ProtobufJS, and tar
 
 ## [2.2.2] - 27 April 2026
 
