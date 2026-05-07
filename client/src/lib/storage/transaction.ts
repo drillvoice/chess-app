@@ -10,7 +10,8 @@ export type StoreName =
   | 'daily_goals'
   | 'sync_queue'
   | 'account_snapshots'
-  | 'otb_games';
+  | 'otb_games'
+  | 'opening_repertoires';
 
 export async function withStores<N extends readonly StoreName[], M extends IDBTransactionMode, T>(
   storeNames: N,

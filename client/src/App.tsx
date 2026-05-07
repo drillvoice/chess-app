@@ -19,6 +19,7 @@ import AccountPage from '@/pages/account';
 const Activity = lazy(() => import('@/pages/activity'));
 const Info = lazy(() => import('@/pages/info'));
 const OtbPage = lazy(() => import('@/pages/otb'));
+const OpeningsPage = lazy(() => import('@/pages/openings'));
 const NotFound = lazy(() => import('@/pages/not-found'));
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
     <Suspense fallback={<div>Loading...</div>}>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/openings" component={OpeningsPage} />
         <Route path="/otb" component={OtbPage} />
         <Route path="/activity" component={Activity} />
         <Route path="/account" component={AccountPage} />
