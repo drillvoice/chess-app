@@ -70,6 +70,28 @@ export function chooseWeightedMove(
   return moves[moves.length - 1];
 }
 
+function hasSamePrefix(path: string[], prefix: string[]): boolean {
+  return prefix.every((moveId, index) => path[index] === moveId);
+}
+
+function chooseMoveForLine(
+  state: OpeningTrainingState,
+  moves: OpeningMoveNode[],
+  rng: () => number = Math.random,
+): OpeningMoveNode | null {
+  if (moves.length <= 1 || state.lastCompletedLineMoveIds.length === 0) {
+    return chooseWeightedMove(state.repertoire, moves, rng);
+  }
+
+  if (!hasSamePrefix(state.lastCompletedLineMoveIds, state.currentLineMoveIds)) {
+    return chooseWeightedMove(state.repertoire, moves, rng);
+  }
+
+  const previouslyChosenMoveId = state.lastCompletedLineMoveIds[state.currentLineMoveIds.length];
+  const alternatives = moves.filter((move) => move.id !== previouslyChosenMoveId);
+  return chooseWeightedMove(state.repertoire, alternatives.length > 0 ? alternatives : moves, rng);
+}
+
 function chooseExpectedUserMove(
   state: OpeningTrainingState,
   rng: () => number = Math.random,
@@ -80,8 +102,8 @@ function chooseExpectedUserMove(
   if (getTurn(state.currentFen) !== sideToTurn(state.repertoire.side)) {
     return state;
   }
-  const expected = chooseWeightedMove(
-    state.repertoire,
+  const expected = chooseMoveForLine(
+    state,
     getChildren(state.repertoire, state.currentNodeId),
     rng,
   );
@@ -95,13 +117,13 @@ export function advanceOpponentMoves(
   let next = { ...state, expectedMoveId: null, feedback: 'idle' as const };
 
   while (getTurn(next.currentFen) !== sideToTurn(next.repertoire.side)) {
-    const move = chooseWeightedMove(
-      next.repertoire,
-      getChildren(next.repertoire, next.currentNodeId),
-      rng,
-    );
+    const move = chooseMoveForLine(next, getChildren(next.repertoire, next.currentNodeId), rng);
     if (!move) {
-      return { ...next, feedback: 'complete' };
+      return {
+        ...next,
+        feedback: 'complete',
+        lastCompletedLineMoveIds: next.currentLineMoveIds,
+      };
     }
     next = {
       ...next,
@@ -109,11 +131,12 @@ export function advanceOpponentMoves(
       currentFen: move.fenAfter,
       incorrectAttempts: 0,
       expectedMoveId: null,
+      currentLineMoveIds: [...next.currentLineMoveIds, move.id],
     };
   }
 
   if (getChildren(next.repertoire, next.currentNodeId).length === 0) {
-    return { ...next, feedback: 'complete' };
+    return { ...next, feedback: 'complete', lastCompletedLineMoveIds: next.currentLineMoveIds };
   }
 
   return chooseExpectedUserMove(next, rng);
@@ -121,6 +144,7 @@ export function advanceOpponentMoves(
 
 export function startOpeningTraining(
   repertoire: OpeningRepertoire,
+  lastCompletedLineMoveIds: string[] = [],
   rng: () => number = Math.random,
 ): OpeningTrainingState {
   return advanceOpponentMoves(
@@ -131,6 +155,8 @@ export function startOpeningTraining(
       expectedMoveId: null,
       incorrectAttempts: 0,
       feedback: 'idle',
+      currentLineMoveIds: [],
+      lastCompletedLineMoveIds,
     },
     rng,
   );
@@ -172,7 +198,11 @@ export function applyTrainerMove(
     : null;
   if (!expectedMove) {
     return {
-      state: { ...prepared, feedback: 'complete' },
+      state: {
+        ...prepared,
+        feedback: 'complete',
+        lastCompletedLineMoveIds: prepared.currentLineMoveIds,
+      },
       applied: false,
       correct: false,
       promotionRequired: false,
@@ -202,9 +232,7 @@ export function applyTrainerMove(
   }
 
   const playedUci = `${appliedMove.from}${appliedMove.to}${appliedMove.promotion ?? ''}`;
-  const matchingMove = getChildren(prepared.repertoire, prepared.currentNodeId).find(
-    (move) => move.uci === playedUci,
-  );
+  const matchingMove = expectedMove.uci === playedUci ? expectedMove : null;
 
   if (!matchingMove) {
     return markIncorrect(prepared, expectedMove.id);
@@ -220,6 +248,7 @@ export function applyTrainerMove(
       expectedMoveId: null,
       incorrectAttempts: 0,
       feedback: 'idle',
+      currentLineMoveIds: [...prepared.currentLineMoveIds, matchingMove.id],
     },
     rng,
   );

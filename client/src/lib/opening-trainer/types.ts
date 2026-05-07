@@ -41,4 +41,6 @@ export interface OpeningTrainingState {
   expectedMoveId: string | null;
   incorrectAttempts: number;
   feedback: 'idle' | 'incorrect' | 'revealed' | 'complete';
+  currentLineMoveIds: string[];
+  lastCompletedLineMoveIds: string[];
 }

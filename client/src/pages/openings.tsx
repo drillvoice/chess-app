@@ -81,8 +81,8 @@ export default function OpeningsPage() {
     return saved;
   }, []);
 
-  const startTraining = useCallback((repertoire: OpeningRepertoire) => {
-    setTrainingState(startOpeningTraining(repertoire));
+  const startTraining = useCallback((repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
+    setTrainingState(startOpeningTraining(repertoire, avoidLine));
     setIsBoardFlipped(repertoire.side === 'black');
     clearSelection();
   }, []);
@@ -118,8 +118,18 @@ export default function OpeningsPage() {
   };
 
   const handleStart = () => {
-    if (activeRepertoire) {
-      startTraining(activeRepertoire);
+    const currentTrainingState = trainingState;
+    const sourceRepertoire =
+      currentTrainingState && currentTrainingState.repertoire.id === activeRepertoire?.id
+        ? currentTrainingState.repertoire
+        : activeRepertoire;
+    if (sourceRepertoire) {
+      startTraining(
+        sourceRepertoire,
+        currentTrainingState?.feedback === 'complete'
+          ? currentTrainingState.lastCompletedLineMoveIds
+          : [],
+      );
     }
   };
 
@@ -168,7 +178,7 @@ export default function OpeningsPage() {
     }
 
     if (nextState.feedback === 'complete') {
-      toast({ title: 'Line complete', description: 'Start again to drill another branch.' });
+      toast({ title: 'Line complete', description: 'Use Next Line to drill another branch.' });
       return;
     }
 
@@ -243,7 +253,7 @@ export default function OpeningsPage() {
       return 'Import or select a repertoire to start.';
     }
     if (trainingState.feedback === 'complete') {
-      return 'Line complete.';
+      return 'Line complete. Ready for the next branch.';
     }
     if (trainingState.feedback === 'revealed') {
       return `Replay: ${expectedMoveSan(trainingState) ?? 'the revealed move'}`;
@@ -304,7 +314,7 @@ export default function OpeningsPage() {
                     disabled={!activeRepertoire}
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    Reset Drill
+                    {trainingState?.feedback === 'complete' ? 'Next Line' : 'Reset Drill'}
                   </Button>
                   <Button
                     type="button"

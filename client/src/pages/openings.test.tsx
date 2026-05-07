@@ -83,4 +83,26 @@ describe('Openings page', () => {
       expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Correct' })),
     );
   });
+
+  it('shows Next Line after completion and avoids repeating the same branch', async () => {
+    render(<OpeningsPage />);
+
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 (1. d4 d5) e5' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+
+    expect(await screen.findByText(/Ready for the next branch/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Next Line/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+
+    await waitFor(() => expect(screen.getByText(/Try again/i)).toBeInTheDocument());
+  });
 });

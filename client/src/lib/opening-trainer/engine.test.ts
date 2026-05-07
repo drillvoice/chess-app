@@ -5,7 +5,7 @@ import { parseOpeningRepertoirePgn } from './parser';
 describe('opening trainer engine', () => {
   it('tests only the configured side and auto-plays opponent moves', () => {
     const repertoire = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
-    const started = startOpeningTraining(repertoire, () => 0);
+    const started = startOpeningTraining(repertoire, [], () => 0);
 
     expect(started.currentNodeId).toBe('root');
     expect(started.currentFen.split(' ')[1]).toBe('w');
@@ -53,5 +53,26 @@ describe('opening trainer engine', () => {
         () => 0.99,
       )?.id,
     ).toBe(d4);
+  });
+
+  it('avoids immediately repeating a completed line when another branch exists', () => {
+    const repertoire = parseOpeningRepertoirePgn('1. e4 (1. d4 d5) e5', 'white');
+    const firstLine = startOpeningTraining(repertoire, [], () => 0);
+    const completed = applyTrainerMove(firstLine, 'e2', 'e4', undefined, () => 0).state;
+
+    expect(completed.feedback).toBe('complete');
+    expect(
+      completed.lastCompletedLineMoveIds.map((id) => completed.repertoire.nodes[id].san),
+    ).toEqual(['e4', 'e5']);
+
+    const nextLine = startOpeningTraining(
+      completed.repertoire,
+      completed.lastCompletedLineMoveIds,
+      () => 0,
+    );
+
+    expect(
+      nextLine.expectedMoveId ? nextLine.repertoire.nodes[nextLine.expectedMoveId].san : null,
+    ).toBe('d4');
   });
 });
