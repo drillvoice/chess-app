@@ -17,7 +17,10 @@ describe('parseStudyTags', () => {
   it('returns undefined and warns on invalid JSON', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(parseStudyTags('not json', 7)).toBeUndefined();
-    expect(warn).toHaveBeenCalledWith('Failed to parse studyTags for session 7:', expect.anything());
+    expect(warn).toHaveBeenCalledWith(
+      'Failed to parse studyTags for session 7:',
+      expect.anything(),
+    );
   });
 });
 
