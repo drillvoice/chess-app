@@ -1,6 +1,7 @@
 import { TrainingSession, InsertTrainingSession, DailyGoalSettings } from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from '../cache-utils';
 import { offlineStorage } from '../offline-storage';
+import { serializeStudyTags } from '../storage/study-tags';
 import { queryClient } from '../queryClient';
 import { safeDatabaseOperation } from '../query-timeout';
 import { migrateStudySessions, getMigrationStats } from '../migration';
@@ -100,14 +101,7 @@ export async function getSessionsByDateRange(
 function prepareSessionForStorage(
   session: Partial<InsertTrainingSession>,
 ): Partial<InsertTrainingSession> {
-  const prepared = { ...session };
-
-  // Convert studyTags array to JSON string for database storage
-  if (prepared.studyTags && Array.isArray(prepared.studyTags)) {
-    prepared.studyTags = JSON.stringify(prepared.studyTags);
-  }
-
-  return prepared;
+  return { ...session, studyTags: serializeStudyTags(session.studyTags) };
 }
 
 function canSyncToCloud(): boolean {

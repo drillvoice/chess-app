@@ -26,3 +26,5 @@ settings.gradle
 /android
 /android
 client/public/version.json
+test-results
+playwright-report

@@ -13,7 +13,7 @@ export async function getStatistics(): Promise<any> {
 export async function setStatistics(stats: any): Promise<void> {
   await withStores([STATS, META] as const, 'readwrite', async ({ statistics, cache_meta }) => {
     await statistics.put({ id: 'current', data: stats });
-    await cache_meta.put({ key: 'statistics_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'statistics_last_updated', value: Date.now() });
   });
 }
 

@@ -1,7 +1,7 @@
 // Vercel serverless function entry point
 // NOTE: This is a PROXY-ONLY serverless function for the Lichess API.
 // All data storage happens client-side (IndexedDB), not on the backend.
-import express, { type Request, Response, NextFunction } from 'express';
+import express from 'express';
 import path from 'path';
 
 const app = express();

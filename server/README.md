@@ -1,12 +1,16 @@
 # Server
 
-Express backend providing REST APIs for training sessions and statistics.
+Express app for local development (`npm run dev`) and self-hosting (`npm run start`).
+
+All user data lives client-side (IndexedDB + Firebase Firestore), so this server is not a
+data backend. It serves the built client and proxies the Lichess API (CORS-friendly). In
+production on Vercel, the equivalent proxy lives in `api/index.ts`.
 
 ## Architecture
 
-- **Entry point**: `index.ts` creates the Express app and registers routes from `routes.ts`.
-- **Storage**: `storage.ts` implements an in-memory store used by the routes.
-- **Routes**: `routes.ts` exposes CRUD endpoints for sessions and goal management.
+- **Entry point**: `index.ts` creates the Express app, registers routes, and wires up Vite
+  in dev / static serving in production.
+- **Routes**: `routes.ts` exposes the `/api/lichess/latest` proxy.
 
 ## Development
 

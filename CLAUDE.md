@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Pawn Star Chess Log — a PWA for logging chess training sessions (tactics, games, studies, goals) with offline-first IndexedDB storage, optional Firebase cloud sync, and Lichess game auto-import. Built with React 19 + Vite frontend and Express backend.
+Pawn Star Chess Log — a PWA for logging chess training sessions (tactics, games, studies, goals) with offline-first IndexedDB storage, optional Firebase cloud sync, and Lichess game auto-import. Built with React 19 + Vite. There is no traditional application database: all user data lives in the browser (IndexedDB) and syncs to Firebase Firestore. The Express server exists only for local dev and as a thin Lichess API proxy.
 
 ## Commands
 
@@ -22,17 +22,23 @@ npm run format           # Prettier
 npm run format:check     # Prettier check only
 npm run type-check       # TypeScript type checking
 npm run validate         # type-check + lint + test (run before PRs)
-npm run db:push          # Push Drizzle schema migrations
-npm run deploy           # Firebase Hosting deploy
 ```
+
+Deployment is via **Vercel** (see `vercel.json`): `vite build` produces the static client
+in `dist/public`, and all requests are rewritten to the serverless function at
+`api/index.ts`. There is no `npm run deploy` script and no Firebase Hosting config.
 
 ## Architecture
 
 ### Directory Layout
 
-- `client/src/` — React SPA (components, pages, hooks, lib)
-- `server/` — Express backend (routes, storage interface, Vite dev integration)
-- `shared/` — Drizzle + Zod schemas shared between client and server (`schema.ts`)
+- `client/src/` — React SPA (components, pages, hooks, lib); the real app and data layer
+- `server/` — Express app for `npm run dev`/`npm run start` (Vite dev integration + a
+  Lichess proxy). Its in-memory `MemStorage` CRUD routes are not used by the client.
+- `api/index.ts` — Vercel serverless entry used in production; proxy-only (Lichess) + SPA fallback
+- `shared/` — `schema.ts`: Drizzle (pg-core) table + Zod schemas used to derive shared
+  TypeScript types and validation. Note: there is no live Postgres connection — Drizzle is
+  used here for schema/type definitions only.
 - `tests/` — Playwright E2E tests
 - `public/` — PWA manifest, service worker, app icons
 
@@ -49,8 +55,8 @@ npm run deploy           # Firebase Hosting deploy
 - **Forms:** React Hook Form + Zod resolvers
 - **Storage:** IndexedDB (via `idb`) for offline-first local data, Firebase Firestore for cloud sync
 - **Auth:** Firebase Auth (Google sign-in)
-- **ORM:** Drizzle with Neon serverless PostgreSQL
-- **Mobile:** Capacitor wrapper for iOS/Android
+- **Schema/types:** Drizzle (`pg-core`) + Zod in `shared/schema.ts` for type and validation
+  definitions only — no live database is connected
 
 ### Data Flow
 
