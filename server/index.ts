@@ -43,7 +43,8 @@ app.use(requestLogger);
     {
       port,
       host: '0.0.0.0',
-      reusePort: true,
+      // reusePort is unsupported on some platforms (e.g. macOS throws ENOTSUP)
+      reusePort: process.platform === 'linux',
     },
     () => {
       logger.info(`serving on port ${port}`, 'server');
