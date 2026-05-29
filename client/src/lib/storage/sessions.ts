@@ -29,7 +29,7 @@ export async function setSessions(sessionsList: TrainingSession[]): Promise<void
     for (const session of sessionsList) {
       await sessions.add({ ...session, date: session.date.toISOString() });
     }
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 
@@ -38,7 +38,7 @@ export async function mergeSessions(sessionsList: TrainingSession[]): Promise<vo
     for (const session of sessionsList) {
       await sessions.put({ ...session, date: session.date.toISOString() });
     }
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 
@@ -46,7 +46,7 @@ export async function addSession(session: TrainingSession): Promise<void> {
   logger.debug('Adding session', session);
   await withStores([SESSIONS, META] as const, 'readwrite', async ({ sessions, cache_meta }) => {
     await sessions.put({ ...session, date: session.date.toISOString() });
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 
@@ -64,7 +64,7 @@ export async function updateSession(
       updatedAt: new Date().toISOString(),
     };
     await sessions.put(updated);
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
 
     return {
       ...updated,
