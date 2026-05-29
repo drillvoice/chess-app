@@ -1,4 +1,4 @@
-import { normalizeStudyTagKey, type DailyGoalSettings, type TrainingSession } from '@shared/schema';
+import { type DailyGoalSettings, type TrainingSession } from '@shared/schema';
 import { offlineStorage } from '../offline-storage';
 import { sessionEvents } from '../session-events';
 import {
@@ -17,6 +17,23 @@ import {
   setDoc,
   Timestamp,
 } from './core';
+import {
+  deserializeSessionFromCloud,
+  normalizeSessionForSync,
+  serializeSessionForCloud,
+  toDate,
+} from './sync/serialization';
+import {
+  areSameTagConfigs,
+  areSameTagSet,
+  isCloudNewer,
+  mergeSessionCollections,
+  mergeSettingsForSync,
+  reconcileRealtimeSnapshot,
+} from './sync/reconciliation';
+import { backfillSessionsToCloud, type BackfillProgress } from './sync/backfill';
+
+export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
 
 type SyncState = 'disabled' | 'initializing' | 'syncing' | 'synced' | 'error';
 
@@ -56,13 +73,6 @@ export interface BackfillSummary {
 
 export interface ForceUploadSummary {
   totalLocalCount: number;
-  uploadedCount: number;
-  failedCount: number;
-}
-
-interface BackfillProgress {
-  processed: number;
-  total: number;
   uploadedCount: number;
   failedCount: number;
 }
@@ -120,279 +130,16 @@ function progressMetrics(processed: number, total: number, startedAt: number) {
   };
 }
 
-function toDate(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
-  if (typeof value === 'string') {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-  if (typeof value === 'object' && value && 'toDate' in (value as any)) {
-    try {
-      return (value as any).toDate();
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function omitUndefinedFields<T extends Record<string, unknown>>(payload: T): T {
-  return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== undefined),
-  ) as T;
-}
-
-function formatSyncError(error: unknown): string {
-  if (typeof error === 'string') return error;
-  if (error instanceof Error) {
-    const code = (error as any)?.code;
-    return code ? `${code}: ${error.message}` : error.message;
-  }
-  if (error && typeof error === 'object') {
-    const code = (error as any)?.code;
-    const message = (error as any)?.message;
-    if (typeof code === 'string' && typeof message === 'string') {
-      return `${code}: ${message}`;
-    }
-    if (typeof message === 'string') {
-      return message;
-    }
-  }
-  return 'Unknown sync error';
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => {
-      reject(new Error(message));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
-    }
-  }
-}
-
-function sessionRecency(session: Partial<TrainingSession> & { updatedAt?: any; date?: any }) {
-  return (
-    toDate(session.updatedAt)?.getTime() ??
-    toDate(session.date)?.getTime() ??
-    Number.NEGATIVE_INFINITY
-  );
-}
-
-function normalizeSessionId(id: unknown): number | null {
-  if (typeof id === 'number' && Number.isFinite(id)) {
-    return id;
-  }
-  if (typeof id === 'string' && id.trim().length > 0) {
-    const parsed = Number(id);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function normalizeSessionForSync(session: TrainingSession): TrainingSession | null {
-  const normalizedId = normalizeSessionId((session as any)?.id);
-  if (normalizedId == null) {
-    return null;
-  }
-  const normalizedDate = toDate((session as any)?.date);
-  if (!normalizedDate) {
-    return null;
-  }
-
-  return {
-    ...session,
-    id: normalizedId,
-    date: normalizedDate,
-    updatedAt: toDate((session as any)?.updatedAt) ?? undefined,
-    deletedAt: toDate((session as any)?.deletedAt) ?? undefined,
-    needsReview: Boolean((session as any)?.needsReview),
-  } as TrainingSession;
-}
-
-export function mergeSessionCollections(
-  localSessions: TrainingSession[],
-  cloudSessions: TrainingSession[],
-): { merged: TrainingSession[]; collisionsResolved: number } {
-  const map = new Map<number, TrainingSession>();
-  let collisionsResolved = 0;
-
-  for (const rawSession of localSessions) {
-    const session = normalizeSessionForSync(rawSession);
-    if (!session) continue;
-    map.set(session.id, session);
-  }
-
-  for (const rawCloudSession of cloudSessions) {
-    const cloudSession = normalizeSessionForSync(rawCloudSession);
-    if (!cloudSession) continue;
-    const existing = map.get(cloudSession.id);
-    if (!existing) {
-      map.set(cloudSession.id, cloudSession);
-      continue;
-    }
-    collisionsResolved += 1;
-    if (sessionRecency(cloudSession) >= sessionRecency(existing)) {
-      map.set(cloudSession.id, cloudSession);
-    }
-  }
-
-  const merged = Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
-  return { merged, collisionsResolved };
-}
-
-export function reconcileRealtimeSnapshot(
-  localSessions: TrainingSession[],
-  remoteSessions: TrainingSession[],
-): {
-  nextLocal: TrainingSession[];
-  localOnlyToUpload: TrainingSession[];
-  tombstonedIds: number[];
-} {
-  const normalizedLocalSessions = localSessions
-    .map((session) => normalizeSessionForSync(session))
-    .filter((session): session is TrainingSession => Boolean(session));
-  const normalizedRemoteSessions = remoteSessions
-    .map((session) => normalizeSessionForSync(session))
-    .filter((session): session is TrainingSession => Boolean(session));
-
-  const tombstoneRecencyById = new Map<number, number>();
-  for (const session of normalizedRemoteSessions) {
-    if (!(session as any).deletedAt) continue;
-    const deletedAtTs = toDate((session as any).deletedAt)?.getTime();
-    const tombstoneRecency = deletedAtTs ?? sessionRecency(session);
-    tombstoneRecencyById.set(session.id, tombstoneRecency);
-  }
-
-  const tombstonedIdSet = new Set(tombstoneRecencyById.keys());
-  const remoteActive = normalizedRemoteSessions.filter(
-    (session) => !tombstonedIdSet.has(session.id),
-  );
-
-  const localWithoutTombstones = normalizedLocalSessions.filter((session) => {
-    const tombstoneRecency = tombstoneRecencyById.get(session.id);
-    if (tombstoneRecency == null) return true;
-    return sessionRecency(session) > tombstoneRecency;
-  });
-
-  const resurrectedIdSet = new Set(
-    localWithoutTombstones
-      .filter((session) => tombstoneRecencyById.has(session.id))
-      .map((session) => session.id),
-  );
-  const tombstonedIds = Array.from(tombstoneRecencyById.keys()).filter(
-    (id) => !resurrectedIdSet.has(id),
-  );
-  const effectiveTombstonedIdSet = new Set(tombstonedIds);
-
-  const { merged } = mergeSessionCollections(localWithoutTombstones, remoteActive);
-  const remoteActiveIds = new Set(remoteActive.map((session) => session.id));
-  const localOnlyToUpload = merged.filter(
-    (session) => !remoteActiveIds.has(session.id) && !effectiveTombstonedIdSet.has(session.id),
-  );
-
-  return { nextLocal: merged, localOnlyToUpload, tombstonedIds };
-}
-
 async function backfillLocalOnlySessionsToCloud(
   sessionsToUpload: TrainingSession[],
   options: BackfillOptions = {},
 ): Promise<{ uploadedCount: number; failedCount: number; failureSamples: string[] }> {
-  const concurrency = options.concurrency ?? 4;
-  const perItemTimeoutMs = options.perItemTimeoutMs ?? 15000;
-  if (sessionsToUpload.length === 0) {
-    return { uploadedCount: 0, failedCount: 0, failureSamples: [] };
-  }
-
-  const queue = [...sessionsToUpload];
-  let uploadedCount = 0;
-  let failedCount = 0;
-  let processed = 0;
-  const total = sessionsToUpload.length;
-  const failureSamples: string[] = [];
-
-  const emitProgress = () => {
-    options.onProgress?.({
-      processed,
-      total,
-      uploadedCount,
-      failedCount,
-    });
-  };
-
-  emitProgress();
-
-  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    while (queue.length > 0) {
-      const session = queue.shift();
-      if (!session) continue;
-      try {
-        await withTimeout(
-          upsertSessionToCloud(session),
-          perItemTimeoutMs,
-          `Timed out uploading session ${session.id}`,
-        );
-        uploadedCount += 1;
-      } catch (error) {
-        failedCount += 1;
-        const detail = `Session ${session.id}: ${formatSyncError(error)}`;
-        if (failureSamples.length < 10 && !failureSamples.includes(detail)) {
-          failureSamples.push(detail);
-        }
-        publishStatus({
-          latestFailure: detail,
-          failureSamples: [...failureSamples],
-        });
-        console.warn(`Failed to backfill local-only session ${session.id} to cloud`, error);
-      } finally {
-        processed += 1;
-        emitProgress();
-      }
-    }
+  return backfillSessionsToCloud(sessionsToUpload, upsertSessionToCloud, {
+    ...options,
+    onFailure: (detail, samples) => {
+      publishStatus({ latestFailure: detail, failureSamples: samples });
+    },
   });
-
-  await Promise.all(workers);
-  return { uploadedCount, failedCount, failureSamples };
-}
-
-function serializeSessionForCloud(session: TrainingSession) {
-  const normalizedSession = normalizeSessionForSync(session);
-  if (!normalizedSession) {
-    throw new Error(`Session ${String((session as any)?.id)} is missing a valid id or date`);
-  }
-
-  return omitUndefinedFields({
-    ...normalizedSession,
-    date: Timestamp.fromDate(normalizedSession.date),
-    updatedAt: Timestamp.fromDate(toDate((normalizedSession as any).updatedAt) ?? new Date()),
-    deletedAt: toDate((normalizedSession as any).deletedAt)
-      ? Timestamp.fromDate(toDate((normalizedSession as any).deletedAt)!)
-      : null,
-  });
-}
-
-function deserializeSessionFromCloud(payload: any): TrainingSession {
-  const parsedId = typeof payload?.id === 'number' ? payload.id : Number(payload?.id);
-  const updatedAt = toDate(payload.updatedAt);
-  const deletedAt = toDate(payload.deletedAt);
-  return {
-    ...payload,
-    id: parsedId,
-    date: toDate(payload.date) ?? new Date(),
-    updatedAt: updatedAt ?? undefined,
-    deletedAt: deletedAt ?? undefined,
-    needsReview: Boolean(payload.needsReview),
-  } as TrainingSession;
 }
 
 async function fetchCloudSessions(uid: string): Promise<TrainingSession[]> {
@@ -409,7 +156,7 @@ async function fetchCloudSessions(uid: string): Promise<TrainingSession[]> {
     .filter((session): session is TrainingSession => Boolean(session));
 }
 
-async function fetchCloudSettings(uid: string): Promise<any> {
+async function fetchCloudSettings(uid: string): Promise<unknown> {
   const settingsRef = doc(db, 'users', uid, 'settings', 'settings');
   const snapshot = await getDoc(settingsRef);
   return snapshot.exists() ? snapshot.data() : null;
@@ -424,176 +171,6 @@ async function fetchCloudDailyGoals(uid: string): Promise<DailyGoalSettings | nu
     ...payload,
     lastModified: toDate(payload.lastModified) ?? undefined,
   } as DailyGoalSettings;
-}
-
-function isCloudNewer(localValue: any, cloudValue: any): boolean {
-  const localTs = toDate(localValue?.lastModified)?.getTime();
-  const cloudTs = toDate(cloudValue?.lastModified)?.getTime();
-  if (!localTs && cloudTs) return true;
-  if (localTs && !cloudTs) return false;
-  if (!localTs && !cloudTs) return true;
-  return (cloudTs ?? 0) >= (localTs ?? 0);
-}
-
-function settingsTimestamp(value: any): number {
-  const settingsTs = toDate(value?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
-  const studyPrefsTs =
-    toDate(value?.studyPreferences?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
-  return Math.max(settingsTs, studyPrefsTs);
-}
-
-function studyPreferencesTimestamp(value: any): number {
-  return toDate(value?.lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
-}
-
-function normalizeCustomTags(tags: unknown): string[] {
-  if (!Array.isArray(tags)) return [];
-
-  const deduped = new Map<string, string>();
-  for (const rawTag of tags) {
-    if (typeof rawTag !== 'string') continue;
-    const trimmed = rawTag.trim();
-    if (!trimmed) continue;
-    const key = trimmed.toLowerCase();
-    if (!deduped.has(key)) {
-      deduped.set(key, trimmed);
-    }
-  }
-
-  return Array.from(deduped.values()).sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: 'base' }),
-  );
-}
-
-function normalizeTagConfigs(
-  tagConfigs: unknown,
-): Record<string, { unitLabel: string; minutesPerUnit: number }> {
-  if (!tagConfigs || typeof tagConfigs !== 'object') return {};
-
-  const normalized: Record<string, { unitLabel: string; minutesPerUnit: number }> = {};
-  for (const [rawKey, rawConfig] of Object.entries(tagConfigs as Record<string, unknown>)) {
-    const key = normalizeStudyTagKey(rawKey);
-    const unitLabel =
-      rawConfig && typeof rawConfig === 'object' ? (rawConfig as any).unitLabel : undefined;
-    const minutesPerUnitRaw =
-      rawConfig && typeof rawConfig === 'object' ? (rawConfig as any).minutesPerUnit : undefined;
-    if (typeof unitLabel !== 'string') continue;
-    const trimmedUnit = unitLabel.trim();
-    if (!trimmedUnit) continue;
-    const minutesPerUnit = Number(minutesPerUnitRaw);
-    if (!Number.isFinite(minutesPerUnit) || minutesPerUnit <= 0) continue;
-    normalized[key] = { unitLabel: trimmedUnit, minutesPerUnit };
-  }
-
-  return normalized;
-}
-
-function pruneTagConfigsByTags(
-  tagConfigs: Record<string, { unitLabel: string; minutesPerUnit: number }>,
-  tags: string[],
-): Record<string, { unitLabel: string; minutesPerUnit: number }> {
-  const allowedKeys = new Set(tags.map((tag) => normalizeStudyTagKey(tag)));
-  return Object.fromEntries(
-    Object.entries(tagConfigs).filter(([key]) => allowedKeys.has(normalizeStudyTagKey(key))),
-  );
-}
-
-function mergeStudyPreferencesForSync(localStudy: any, cloudStudy: any): any {
-  if (!localStudy && !cloudStudy) return undefined;
-  if (localStudy && !cloudStudy) {
-    const customTags = normalizeCustomTags(localStudy.customTags);
-    return {
-      ...localStudy,
-      customTags,
-      tagConfigs: pruneTagConfigsByTags(normalizeTagConfigs(localStudy.tagConfigs), customTags),
-    };
-  }
-  if (!localStudy && cloudStudy) {
-    const customTags = normalizeCustomTags(cloudStudy.customTags);
-    return {
-      ...cloudStudy,
-      customTags,
-      tagConfigs: pruneTagConfigsByTags(normalizeTagConfigs(cloudStudy.tagConfigs), customTags),
-    };
-  }
-
-  const local = localStudy && typeof localStudy === 'object' ? localStudy : {};
-  const cloud = cloudStudy && typeof cloudStudy === 'object' ? cloudStudy : {};
-  const preferCloud = studyPreferencesTimestamp(cloud) >= studyPreferencesTimestamp(local);
-
-  const primary = preferCloud ? cloud : local;
-  const secondary = preferCloud ? local : cloud;
-  const customTags = normalizeCustomTags([
-    ...(Array.isArray(local.customTags) ? local.customTags : []),
-    ...(Array.isArray(cloud.customTags) ? cloud.customTags : []),
-  ]);
-  const primaryTagConfigs = normalizeTagConfigs(primary.tagConfigs);
-  const secondaryTagConfigs = normalizeTagConfigs(secondary.tagConfigs);
-
-  return {
-    ...secondary,
-    ...primary,
-    customTags,
-    // Merge tag configs by normalized key; newer prefs win conflicts via spread order.
-    tagConfigs: pruneTagConfigsByTags(
-      {
-        ...secondaryTagConfigs,
-        ...primaryTagConfigs,
-      },
-      customTags,
-    ),
-  };
-}
-
-function areSameTagSet(a: unknown, b: unknown): boolean {
-  const aTags = normalizeCustomTags(a);
-  const bTags = normalizeCustomTags(b);
-  if (aTags.length !== bTags.length) return false;
-  for (let i = 0; i < aTags.length; i += 1) {
-    if (aTags[i].toLowerCase() !== bTags[i].toLowerCase()) return false;
-  }
-  return true;
-}
-
-function areSameTagConfigs(a: unknown, b: unknown): boolean {
-  const aConfigs = normalizeTagConfigs(a);
-  const bConfigs = normalizeTagConfigs(b);
-  const aKeys = Object.keys(aConfigs).sort();
-  const bKeys = Object.keys(bConfigs).sort();
-
-  if (aKeys.length !== bKeys.length) return false;
-  for (let i = 0; i < aKeys.length; i += 1) {
-    if (aKeys[i] !== bKeys[i]) return false;
-    if (aConfigs[aKeys[i]]?.unitLabel !== bConfigs[bKeys[i]]?.unitLabel) return false;
-    if (aConfigs[aKeys[i]]?.minutesPerUnit !== bConfigs[bKeys[i]]?.minutesPerUnit) return false;
-  }
-
-  return true;
-}
-
-export function mergeSettingsForSync(localSettings: any, cloudSettings: any): any {
-  const local = localSettings && typeof localSettings === 'object' ? localSettings : {};
-  const cloud = cloudSettings && typeof cloudSettings === 'object' ? cloudSettings : {};
-  const preferCloud = settingsTimestamp(cloud) >= settingsTimestamp(local);
-  const merged = preferCloud ? { ...local, ...cloud } : { ...cloud, ...local };
-
-  const localStudyPreferences =
-    local.studyPreferences && typeof local.studyPreferences === 'object'
-      ? local.studyPreferences
-      : null;
-  const cloudStudyPreferences =
-    cloud.studyPreferences && typeof cloud.studyPreferences === 'object'
-      ? cloud.studyPreferences
-      : null;
-
-  if (localStudyPreferences || cloudStudyPreferences) {
-    merged.studyPreferences = mergeStudyPreferencesForSync(
-      localStudyPreferences,
-      cloudStudyPreferences,
-    );
-  }
-
-  return merged;
 }
 
 export function getCloudSyncStatus(): CloudSyncStatus {
@@ -973,10 +550,16 @@ export async function startRealtimeSync(): Promise<() => void> {
       const mergedSettings = mergeSettingsForSync(localSettings, cloudSettings);
       await offlineStorage.setSettings(mergedSettings);
 
-      const cloudTags = cloudSettings?.studyPreferences?.customTags;
-      const mergedTags = mergedSettings?.studyPreferences?.customTags;
-      const cloudTagConfigs = cloudSettings?.studyPreferences?.tagConfigs;
-      const mergedTagConfigs = mergedSettings?.studyPreferences?.tagConfigs;
+      const cloudStudyPreferences = cloudSettings?.studyPreferences as
+        | Record<string, unknown>
+        | undefined;
+      const mergedStudyPreferences = mergedSettings?.studyPreferences as
+        | Record<string, unknown>
+        | undefined;
+      const cloudTags = cloudStudyPreferences?.customTags;
+      const mergedTags = mergedStudyPreferences?.customTags;
+      const cloudTagConfigs = cloudStudyPreferences?.tagConfigs;
+      const mergedTagConfigs = mergedStudyPreferences?.tagConfigs;
       if (
         !areSameTagSet(cloudTags, mergedTags) ||
         !areSameTagConfigs(cloudTagConfigs, mergedTagConfigs)
