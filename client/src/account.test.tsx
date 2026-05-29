@@ -38,6 +38,13 @@ vi.mock('@/lib/offline-storage', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
+  QueryClient: class {
+    setQueryData = vi.fn();
+    getQueryData = vi.fn();
+    invalidateQueries = vi.fn();
+    cancelQueries = vi.fn();
+  },
+  QueryClientProvider: ({ children }: { children: unknown }) => children,
   useQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useMutation: vi.fn(() => ({ mutate: vi.fn() })),
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
