@@ -53,3 +53,16 @@ export async function deleteOpeningRepertoire(id: string): Promise<void> {
     await opening_repertoires.delete(id);
   });
 }
+
+/**
+ * Replace the entire local repertoire store with the given set. Used by cloud
+ * sync to apply a reconciled snapshot atomically.
+ */
+export async function setOpeningRepertoires(repertoires: OpeningRepertoire[]): Promise<void> {
+  await withStores([OPENING_REPERTOIRES] as const, 'readwrite', async ({ opening_repertoires }) => {
+    await opening_repertoires.clear();
+    for (const repertoire of repertoires) {
+      await opening_repertoires.put(normalizeRepertoire(repertoire));
+    }
+  });
+}

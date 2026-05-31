@@ -8,7 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
-import { offlineStorage } from '@/lib/offline-storage';
+import {
+  deleteOpeningRepertoire,
+  getOpeningRepertoires,
+  saveOpeningRepertoire,
+} from '@/lib/firebase/repertoires';
 import {
   applyTrainerMove,
   expectedMoveSan,
@@ -61,7 +65,7 @@ export default function OpeningsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const stored = await offlineStorage.getOpeningRepertoires();
+      const stored = await getOpeningRepertoires();
       setRepertoires(stored);
       setActiveRepertoireId(stored[0]?.id ?? null);
     };
@@ -74,7 +78,7 @@ export default function OpeningsPage() {
   };
 
   const persistRepertoire = useCallback(async (repertoire: OpeningRepertoire) => {
-    const saved = await offlineStorage.saveOpeningRepertoire(repertoire);
+    const saved = await saveOpeningRepertoire(repertoire);
     setRepertoires((previous) =>
       sortRepertoires([saved, ...previous.filter((item) => item.id !== saved.id)]),
     );
@@ -151,7 +155,7 @@ export default function OpeningsPage() {
       return;
     }
 
-    await offlineStorage.deleteOpeningRepertoire(id);
+    await deleteOpeningRepertoire(id);
     const remaining = repertoires.filter((repertoire) => repertoire.id !== id);
     setRepertoires(remaining);
     setActiveRepertoireId(remaining[0]?.id ?? null);

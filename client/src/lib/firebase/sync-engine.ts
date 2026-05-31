@@ -32,6 +32,12 @@ import {
   reconcileRealtimeSnapshot,
 } from './sync/reconciliation';
 import { backfillSessionsToCloud, type BackfillProgress } from './sync/backfill';
+import {
+  deserializeRepertoireFromCloud,
+  reconcileRepertoireSnapshot,
+  serializeRepertoireForCloud,
+} from './sync/repertoire-sync';
+import type { OpeningRepertoire } from '../opening-trainer/types';
 
 export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
 
@@ -604,6 +610,37 @@ export async function startRealtimeSync(): Promise<() => void> {
     },
   );
 
+  const unsubscribeRepertoires = onSnapshot(
+    query(repertoiresCollection(uid)),
+    async (snapshot) => {
+      const remoteRepertoires = snapshot.docs.map((entry) =>
+        deserializeRepertoireFromCloud({ ...entry.data(), id: entry.data()?.id ?? entry.id }),
+      );
+      const localRepertoires = await offlineStorage.getOpeningRepertoires();
+      const { nextLocal, localOnlyToUpload } = reconcileRepertoireSnapshot(
+        localRepertoires,
+        remoteRepertoires,
+      );
+      await offlineStorage.setOpeningRepertoires(nextLocal);
+      if (localOnlyToUpload.length > 0) {
+        queueMicrotask(() => {
+          Promise.all(
+            localOnlyToUpload.map((repertoire) =>
+              upsertRepertoireToCloud(repertoire).catch((error) => {
+                console.warn(`Failed to backfill repertoire ${repertoire.id} to cloud`, error);
+              }),
+            ),
+          ).catch(() => {});
+        });
+      }
+    },
+    async (error) => {
+      // Keep repertoire sync failures isolated from the primary session status.
+      const message = error instanceof Error ? error.message : 'Repertoire sync failed';
+      console.warn('Cloud repertoire sync error:', message);
+    },
+  );
+
   const unsubscribeSessionsReplaced = sessionEvents.on('sessionsReplaced', () => {
     queueMicrotask(() => {
       backfillMissingLocalSessionsToCloud()
@@ -646,6 +683,7 @@ export async function startRealtimeSync(): Promise<() => void> {
     unsubscribeSessions();
     unsubscribeSettings();
     unsubscribeGoals();
+    unsubscribeRepertoires();
     unsubscribeSessionsReplaced();
   };
 
@@ -729,6 +767,34 @@ export async function syncDailyGoalsToCloud(settings: DailyGoalSettings): Promis
       lastModified: Timestamp.fromDate(toDate(settings.lastModified) ?? new Date()),
     },
     { merge: true },
+  );
+}
+
+function repertoiresCollection(uid: string) {
+  return collection(db, 'users', uid, 'openingRepertoires');
+}
+
+export async function upsertRepertoireToCloud(repertoire: OpeningRepertoire): Promise<void> {
+  await ensureFirebase();
+  const uid = resolveUid();
+  if (!uid) return;
+  const ref = doc(repertoiresCollection(uid), repertoire.id);
+  await setDoc(ref, serializeRepertoireForCloud(repertoire), { merge: true });
+}
+
+export async function markRepertoireDeletedInCloud(id: string): Promise<void> {
+  await ensureFirebase();
+  const uid = resolveUid();
+  if (!uid) return;
+  const nowIso = new Date().toISOString();
+  const ref = doc(repertoiresCollection(uid), id);
+  await setDoc(ref, { id, deletedAt: nowIso, updatedAt: nowIso }, { merge: true });
+}
+
+async function fetchCloudRepertoires(uid: string): Promise<OpeningRepertoire[]> {
+  const snapshot = await getDocs(query(repertoiresCollection(uid)));
+  return snapshot.docs.map((item) =>
+    deserializeRepertoireFromCloud({ ...item.data(), id: item.data()?.id ?? item.id }),
   );
 }
 

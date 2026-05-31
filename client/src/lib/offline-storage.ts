@@ -73,6 +73,7 @@ export const offlineStorage = {
   getOpeningRepertoires: openingRepertoires.getOpeningRepertoires,
   saveOpeningRepertoire: openingRepertoires.saveOpeningRepertoire,
   deleteOpeningRepertoire: openingRepertoires.deleteOpeningRepertoire,
+  setOpeningRepertoires: openingRepertoires.setOpeningRepertoires,
   // maintenance
   clearAll,
   clear: clearAll,

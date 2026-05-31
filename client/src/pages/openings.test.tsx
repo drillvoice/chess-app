@@ -19,12 +19,10 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: toastSpy }),
 }));
 
-vi.mock('@/lib/offline-storage', () => ({
-  offlineStorage: {
-    getOpeningRepertoires: getOpeningRepertoiresMock,
-    saveOpeningRepertoire: saveOpeningRepertoireMock,
-    deleteOpeningRepertoire: deleteOpeningRepertoireMock,
-  },
+vi.mock('@/lib/firebase/repertoires', () => ({
+  getOpeningRepertoires: getOpeningRepertoiresMock,
+  saveOpeningRepertoire: saveOpeningRepertoireMock,
+  deleteOpeningRepertoire: deleteOpeningRepertoireMock,
 }));
 
 describe('Openings page', () => {
