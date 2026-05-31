@@ -30,6 +30,7 @@ vi.mock('@/lib/offline-storage', () => ({
 describe('Openings page', () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   beforeEach(() => {
@@ -37,6 +38,9 @@ describe('Openings page', () => {
     getOpeningRepertoiresMock.mockResolvedValue([]);
     saveOpeningRepertoireMock.mockImplementation(async (repertoire) => repertoire);
     deleteOpeningRepertoireMock.mockResolvedValue(undefined);
+    // The trainer weights branch selection with Math.random; pin it so the
+    // expected branch is deterministic (always the first child) in tests.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     vi.stubGlobal(
       'confirm',
       vi.fn(() => true),
