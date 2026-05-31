@@ -20,12 +20,14 @@ import {
   getPieceMapFromFen,
   moveNeedsPromotionFromFen,
   startOpeningTraining,
+  summarizeRepertoire,
 } from '@/lib/opening-trainer/engine';
 import { parseOpeningRepertoirePgn, type OpeningParseError } from '@/lib/opening-trainer/parser';
 import type {
   OpeningRepertoire,
   OpeningTrainerSide,
   OpeningTrainingState,
+  RepertoireReviewSummary,
 } from '@/lib/opening-trainer/types';
 import type { PromotionPiece, Square } from '@/lib/otb/types';
 
@@ -42,6 +44,21 @@ function sortRepertoires(repertoires: OpeningRepertoire[]): OpeningRepertoire[] 
 
 function repertoireMoveCount(repertoire: OpeningRepertoire): number {
   return Math.max(0, Object.keys(repertoire.nodes).length - 1);
+}
+
+function formatRelativeDue(iso: string | undefined): string {
+  if (!iso) {
+    return '';
+  }
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) {
+    return 'now';
+  }
+  const days = Math.ceil(ms / 86_400_000);
+  if (days >= 1) {
+    return `${days}d`;
+  }
+  return `${Math.max(1, Math.ceil(ms / 3_600_000))}h`;
 }
 
 export default function OpeningsPage() {
@@ -91,6 +108,39 @@ export default function OpeningsPage() {
     setIsBoardFlipped(repertoire.side === 'black');
     clearSelection();
   }, []);
+
+  // Chessable-style review counts. Recomputed whenever a drilled move re-saves a
+  // repertoire, so the badges and banner stay in step with what's actually due.
+  const reviewSummaries = useMemo(() => {
+    const summaries = new Map<string, RepertoireReviewSummary>();
+    for (const repertoire of repertoires) {
+      summaries.set(repertoire.id, summarizeRepertoire(repertoire));
+    }
+    return summaries;
+  }, [repertoires]);
+
+  const totalDueLines = useMemo(
+    () =>
+      repertoires.reduce(
+        (sum, repertoire) => sum + (reviewSummaries.get(repertoire.id)?.dueLines ?? 0),
+        0,
+      ),
+    [repertoires, reviewSummaries],
+  );
+
+  const startReview = useCallback(() => {
+    const target = repertoires
+      .map((repertoire) => ({
+        repertoire,
+        due: reviewSummaries.get(repertoire.id)?.dueLines ?? 0,
+      }))
+      .filter((entry) => entry.due > 0)
+      .sort((a, b) => b.due - a.due)[0]?.repertoire;
+    if (target) {
+      setActiveRepertoireId(target.id);
+      startTraining(target);
+    }
+  }, [repertoires, reviewSummaries, startTraining]);
 
   const handleImport = async () => {
     try {
@@ -194,7 +244,14 @@ export default function OpeningsPage() {
     }
 
     if (nextState.feedback === 'complete') {
-      toast({ title: 'Line complete', description: 'Use Next Line to drill another branch.' });
+      const remaining = summarizeRepertoire(saved).dueLines;
+      toast({
+        title: 'Line complete',
+        description:
+          remaining > 0
+            ? `${remaining} line${remaining === 1 ? '' : 's'} still due — use Next Line to keep going.`
+            : 'All lines reviewed for now. Use Next Line to drill anyway.',
+      });
       return;
     }
 
@@ -290,6 +347,17 @@ export default function OpeningsPage() {
           Drill branches from a PGN without seeing the line name during practice.
         </p>
       </div>
+
+      {totalDueLines > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm font-medium text-blue-900">
+            {totalDueLines} line{totalDueLines === 1 ? '' : 's'} due for review
+          </p>
+          <Button type="button" size="sm" onClick={startReview}>
+            Review due
+          </Button>
+        </div>
+      )}
 
       <div className="tablet-grid items-start">
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
@@ -432,48 +500,65 @@ export default function OpeningsPage() {
                 <p className="text-sm text-gray-500">No repertoires imported yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {repertoires.map((repertoire) => (
-                    <div key={repertoire.id} className="rounded-md border border-gray-200 p-3">
-                      <button
-                        type="button"
-                        className="w-full text-left"
-                        onClick={() => {
-                          setActiveRepertoireId(repertoire.id);
-                          startTraining(repertoire);
-                        }}
-                      >
-                        <span className="block text-sm font-medium text-gray-800">
-                          {repertoire.name}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {repertoire.side === 'white' ? 'White' : 'Black'} •{' '}
-                          {repertoireMoveCount(repertoire)} moves
-                        </span>
-                      </button>
-                      <div className="mt-2 flex gap-2">
-                        <Button
+                  {repertoires.map((repertoire) => {
+                    const summary = reviewSummaries.get(repertoire.id);
+                    return (
+                      <div key={repertoire.id} className="rounded-md border border-gray-200 p-3">
+                        <button
                           type="button"
-                          size="sm"
-                          variant={activeRepertoireId === repertoire.id ? 'default' : 'outline'}
+                          className="w-full text-left"
                           onClick={() => {
                             setActiveRepertoireId(repertoire.id);
                             startTraining(repertoire);
                           }}
                         >
-                          Train
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleDelete(repertoire.id)}
-                          aria-label={`Delete ${repertoire.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <span className="block text-sm font-medium text-gray-800">
+                            {repertoire.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {repertoire.side === 'white' ? 'White' : 'Black'} •{' '}
+                            {summary?.totalLines ?? 0} line
+                            {(summary?.totalLines ?? 0) === 1 ? '' : 's'}
+                            {' • '}
+                            {summary && summary.dueLines > 0 ? (
+                              <span className="font-medium text-blue-700">
+                                {summary.dueLines} due
+                              </span>
+                            ) : (
+                              <span className="text-green-700">
+                                All reviewed
+                                {summary?.nextDueAt
+                                  ? ` · next in ${formatRelativeDue(summary.nextDueAt)}`
+                                  : ''}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={activeRepertoireId === repertoire.id ? 'default' : 'outline'}
+                            onClick={() => {
+                              setActiveRepertoireId(repertoire.id);
+                              startTraining(repertoire);
+                            }}
+                          >
+                            Train
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleDelete(repertoire.id)}
+                            aria-label={`Delete ${repertoire.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

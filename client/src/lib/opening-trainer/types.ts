@@ -21,6 +21,20 @@ export interface OpeningMoveStats {
   misses: number;
   streak: number;
   lastSeenAt?: string;
+  // SRS scheduling (all optional for backward compat with pre-SRS repertoires,
+  // which are then treated as new / due).
+  easeFactor?: number; // default 2.5
+  intervalDays?: number; // current interval in days
+  repetitions?: number; // consecutive successful SRS reviews
+  dueAt?: string; // ISO; absent => new / never scheduled
+}
+
+export interface RepertoireReviewSummary {
+  totalLines: number;
+  dueLines: number; // due now or new
+  newLines: number; // never reviewed
+  learnedLines: number;
+  nextDueAt?: string; // earliest future due across non-due lines
 }
 
 export interface OpeningRepertoire {
