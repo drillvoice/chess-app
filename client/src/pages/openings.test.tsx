@@ -65,6 +65,26 @@ describe('Openings page', () => {
     expect(screen.queryByText(/Caro-Kann Advance to train/i)).not.toBeInTheDocument();
   });
 
+  it('imports the legal moves and warns about a skipped line on a typo', async () => {
+    render(<OpeningsPage />);
+
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 e5 (1... c5 2. Qq9) 2. Nf3 Nc6' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+
+    // The repertoire still imports and starts training.
+    expect(screen.getByText(/White to train/i)).toBeInTheDocument();
+
+    // The skipped line is surfaced with enough detail to fix it.
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/1 skipped line/i);
+    expect(alert).toHaveTextContent(/illegal move 2\. Qq9/i);
+  });
+
   it('handles correct and incorrect board moves', async () => {
     render(<OpeningsPage />);
 

@@ -6,10 +6,30 @@ import type { OpeningMoveNode, OpeningRepertoire, OpeningTrainerSide } from './t
 const ROOT_NODE_ID = 'root';
 const RESULT_TOKENS = new Set(['1-0', '0-1', '1/2-1/2', '*']);
 
+export interface OpeningParseError {
+  /** Human-readable summary with enough detail to locate and fix the move. */
+  message: string;
+  /** The offending token as it appeared in the PGN, when applicable. */
+  token?: string;
+  /** Full-move number of the offending move (1-based). */
+  moveNumber?: number;
+  /** Side to move when the error occurred. */
+  color?: OpeningTrainerSide;
+  /** Sequence of legal moves leading up to the error, for context. */
+  line?: string;
+}
+
+export interface OpeningImportResult {
+  repertoire: OpeningRepertoire;
+  /** Lines that were skipped because of an illegal/unparseable move. */
+  errors: OpeningParseError[];
+}
+
 interface ParseContext {
   tokens: string[];
   index: number;
   nodes: Record<string, OpeningMoveNode>;
+  errors: OpeningParseError[];
 }
 
 interface LastMoveStart {
@@ -87,6 +107,64 @@ function addMoveNode(
   return id;
 }
 
+function formatSanList(sans: string[]): string {
+  let out = '';
+  for (let index = 0; index < sans.length; index += 1) {
+    if (index % 2 === 0) {
+      out += `${index / 2 + 1}. `;
+    }
+    out += `${sans[index]} `;
+  }
+  return out.trim();
+}
+
+function movePathTo(nodes: Record<string, OpeningMoveNode>, nodeId: string): string {
+  const sans: string[] = [];
+  let current: OpeningMoveNode | undefined = nodes[nodeId];
+  while (current && current.parentId) {
+    sans.unshift(current.san);
+    current = nodes[current.parentId];
+  }
+  return formatSanList(sans);
+}
+
+/**
+ * Consume tokens until the current parenthesised variation is balanced, so that
+ * parsing can resume with sibling variations or the remainder of the PGN after
+ * an unrecoverable move. Assumes the opening '(' for this level (if any) was
+ * already consumed by the caller.
+ */
+function skipRestOfVariation(context: ParseContext): void {
+  let depth = 0;
+  while (context.index < context.tokens.length) {
+    const token = context.tokens[context.index++];
+    if (token === '(') {
+      depth += 1;
+    } else if (token === ')') {
+      if (depth === 0) {
+        return;
+      }
+      depth -= 1;
+    }
+  }
+}
+
+function recordIllegalMove(context: ParseContext, parentId: string, token: string): void {
+  const ply = context.nodes[parentId].ply + 1;
+  const moveNumber = Math.ceil(ply / 2);
+  const color: OpeningTrainerSide = ply % 2 === 1 ? 'white' : 'black';
+  const moveLabel = `${moveNumber}${color === 'white' ? '.' : '...'} ${token}`;
+  const line = movePathTo(context.nodes, parentId);
+  const where = line ? ` after ${line}` : ' at the start of the game';
+  context.errors.push({
+    message: `Skipped a line — illegal move ${moveLabel}${where}.`,
+    token,
+    moveNumber,
+    color,
+    line: line || undefined,
+  });
+}
+
 function parseLine(context: ParseContext, chess: Chess, parentId: string): void {
   let currentChess = cloneChess(chess);
   let currentParentId = parentId;
@@ -101,7 +179,11 @@ function parseLine(context: ParseContext, chess: Chess, parentId: string): void 
 
     if (token === '(') {
       if (!lastMoveStart) {
-        throw new Error('PGN variation appears before a move');
+        context.errors.push({
+          message: 'Skipped a variation that appeared before any move was played.',
+        });
+        skipRestOfVariation(context);
+        continue;
       }
       parseLine(context, cloneChess(lastMoveStart.chess), lastMoveStart.parentId);
       continue;
@@ -109,7 +191,6 @@ function parseLine(context: ParseContext, chess: Chess, parentId: string): void 
 
     const san = cleanSan(token);
     const before = cloneChess(currentChess);
-    const beforeFen = before.fen();
     let move: Move | null = null;
     try {
       move = currentChess.move(san);
@@ -117,11 +198,15 @@ function parseLine(context: ParseContext, chess: Chess, parentId: string): void 
       move = null;
     }
     if (!move) {
-      throw new Error(`Illegal PGN move "${token}" after ${beforeFen}`);
+      // Recover: record the bad move, abandon the rest of this line (its later
+      // positions are unknown), and let parsing continue with other branches.
+      recordIllegalMove(context, currentParentId, token);
+      skipRestOfVariation(context);
+      return;
     }
 
     const previousParentId = currentParentId;
-    currentParentId = addMoveNode(context, previousParentId, beforeFen, currentChess.fen(), move);
+    currentParentId = addMoveNode(context, previousParentId, before.fen(), currentChess.fen(), move);
     lastMoveStart = { chess: before, parentId: previousParentId };
   }
 }
@@ -134,7 +219,7 @@ export function parseOpeningRepertoirePgn(
   pgn: string,
   side: OpeningTrainerSide,
   name?: string,
-): OpeningRepertoire {
+): OpeningImportResult {
   const tokens = tokenizePgn(pgn);
   if (tokens.length === 0) {
     throw new Error('PGN does not contain any moves');
@@ -158,22 +243,29 @@ export function parseOpeningRepertoirePgn(
     tokens,
     index: 0,
     nodes: { [ROOT_NODE_ID]: root },
+    errors: [],
   };
 
-  try {
-    parseLine(context, new Chess(), ROOT_NODE_ID);
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Unable to parse PGN');
+  parseLine(context, new Chess(), ROOT_NODE_ID);
+
+  // The root node is always present; anything beyond it is a parsed move.
+  if (Object.keys(context.nodes).length <= 1) {
+    throw new Error(
+      context.errors[0]?.message ?? 'PGN could not be parsed — no legal moves were found.',
+    );
   }
 
   return {
-    id: nanoid(),
-    name: name?.trim() || defaultName(headers),
-    side,
-    createdAt: now,
-    updatedAt: now,
-    rootNodeId: ROOT_NODE_ID,
-    nodes: context.nodes,
-    stats: {},
+    repertoire: {
+      id: nanoid(),
+      name: name?.trim() || defaultName(headers),
+      side,
+      createdAt: now,
+      updatedAt: now,
+      rootNodeId: ROOT_NODE_ID,
+      nodes: context.nodes,
+      stats: {},
+    },
+    errors: context.errors,
   };
 }

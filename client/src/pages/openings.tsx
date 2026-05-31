@@ -17,7 +17,7 @@ import {
   moveNeedsPromotionFromFen,
   startOpeningTraining,
 } from '@/lib/opening-trainer/engine';
-import { parseOpeningRepertoirePgn } from '@/lib/opening-trainer/parser';
+import { parseOpeningRepertoirePgn, type OpeningParseError } from '@/lib/opening-trainer/parser';
 import type {
   OpeningRepertoire,
   OpeningTrainerSide,
@@ -52,6 +52,7 @@ export default function OpeningsPage() {
   const [importName, setImportName] = useState('');
   const [importSide, setImportSide] = useState<OpeningTrainerSide>('white');
   const [pgnText, setPgnText] = useState('');
+  const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
 
   const activeRepertoire = useMemo(
     () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
@@ -89,16 +90,27 @@ export default function OpeningsPage() {
 
   const handleImport = async () => {
     try {
-      const repertoire = parseOpeningRepertoirePgn(pgnText, importSide, importName);
+      const { repertoire, errors } = parseOpeningRepertoirePgn(pgnText, importSide, importName);
       const saved = await persistRepertoire(repertoire);
       startTraining(saved);
       setImportName('');
       setPgnText('');
-      toast({
-        title: 'Repertoire imported',
-        description: `${repertoireMoveCount(saved)} moves are ready for training.`,
-      });
+      setImportWarnings(errors);
+      if (errors.length > 0) {
+        const skipped = `${errors.length} line${errors.length === 1 ? '' : 's'}`;
+        toast({
+          title: 'Imported with warnings',
+          description: `${repertoireMoveCount(saved)} moves ready; skipped ${skipped} with errors — see details below.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Repertoire imported',
+          description: `${repertoireMoveCount(saved)} moves are ready for training.`,
+        });
+      }
     } catch (error) {
+      setImportWarnings([]);
       toast({
         title: 'Import failed',
         description: error instanceof Error ? error.message : 'Unable to import that PGN.',
@@ -383,6 +395,24 @@ export default function OpeningsPage() {
               <Button type="button" onClick={() => void handleImport()} disabled={!pgnText.trim()}>
                 Import Repertoire
               </Button>
+
+              {importWarnings.length > 0 && (
+                <div
+                  role="alert"
+                  className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+                >
+                  <p className="font-medium">
+                    Imported with {importWarnings.length} skipped{' '}
+                    {importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves in your PGN and
+                    re-import to include them:
+                  </p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {importWarnings.map((warning, index) => (
+                      <li key={index}>{warning.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

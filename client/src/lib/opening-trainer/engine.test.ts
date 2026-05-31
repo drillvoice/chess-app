@@ -4,7 +4,7 @@ import { parseOpeningRepertoirePgn } from './parser';
 
 describe('opening trainer engine', () => {
   it('tests only the configured side and auto-plays opponent moves', () => {
-    const repertoire = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
     const started = startOpeningTraining(repertoire, [], () => 0);
 
     expect(started.currentNodeId).toBe('root');
@@ -20,7 +20,7 @@ describe('opening trainer engine', () => {
   });
 
   it('allows one retry before revealing the expected move', () => {
-    const state = startOpeningTraining(parseOpeningRepertoirePgn('1. e4 e5', 'white'));
+    const state = startOpeningTraining(parseOpeningRepertoirePgn('1. e4 e5', 'white').repertoire);
 
     const firstMiss = applyTrainerMove(state, 'g1', 'f3').state;
     expect(firstMiss.feedback).toBe('incorrect');
@@ -35,7 +35,7 @@ describe('opening trainer engine', () => {
   });
 
   it('weights missed moves higher than clean moves', () => {
-    const repertoire = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
     const [e4, d4] = repertoire.nodes.root.children;
     const withStats = {
       ...repertoire,
@@ -56,7 +56,7 @@ describe('opening trainer engine', () => {
   });
 
   it('avoids immediately repeating a completed line when another branch exists', () => {
-    const repertoire = parseOpeningRepertoirePgn('1. e4 (1. d4 d5) e5', 'white');
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4 d5) e5', 'white');
     const firstLine = startOpeningTraining(repertoire, [], () => 0);
     const completed = applyTrainerMove(firstLine, 'e2', 'e4', undefined, () => 0).state;
 
