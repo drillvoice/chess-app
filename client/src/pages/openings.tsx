@@ -403,8 +403,8 @@ export default function OpeningsPage() {
                 >
                   <p className="font-medium">
                     Imported with {importWarnings.length} skipped{' '}
-                    {importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves in your PGN and
-                    re-import to include them:
+                    {importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves in your PGN
+                    and re-import to include them:
                   </p>
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     {importWarnings.map((warning, index) => (

@@ -206,7 +206,13 @@ function parseLine(context: ParseContext, chess: Chess, parentId: string): void 
     }
 
     const previousParentId = currentParentId;
-    currentParentId = addMoveNode(context, previousParentId, before.fen(), currentChess.fen(), move);
+    currentParentId = addMoveNode(
+      context,
+      previousParentId,
+      before.fen(),
+      currentChess.fen(),
+      move,
+    );
     lastMoveStart = { chess: before, parentId: previousParentId };
   }
 }
