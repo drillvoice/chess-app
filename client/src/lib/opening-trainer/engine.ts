@@ -24,6 +24,9 @@ export interface TrainerMoveResult {
   correct: boolean;
   promotionRequired: boolean;
   message?: string;
+  // FEN immediately after the user's move, before the trainer plays its reply.
+  // Lets the UI show the user's move briefly before animating the response.
+  userMoveFen?: string;
 }
 
 function sideToTurn(side: OpeningTrainerSide): 'w' | 'b' {
@@ -322,7 +325,13 @@ export function applyTrainerMove(
     rng,
   );
 
-  return { state: nextState, applied: true, correct: true, promotionRequired: false };
+  return {
+    state: nextState,
+    applied: true,
+    correct: true,
+    promotionRequired: false,
+    userMoveFen: matchingMove.fenAfter,
+  };
 }
 
 function markIncorrect(state: OpeningTrainingState, expectedMoveId: string): TrainerMoveResult {

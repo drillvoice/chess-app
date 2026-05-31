@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookOpen, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { BookOpen, CheckCircle2, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,27 @@ function sortRepertoires(repertoires: OpeningRepertoire[]): OpeningRepertoire[] 
   );
 }
 
+// Small pause between the user's move and the trainer's reply so the change on
+// the board is easy to follow.
+const TRAINER_REPLY_DELAY_MS = 300;
+
+type BoardMessageTone = 'positive' | 'negative' | 'info';
+
+interface BoardMessage {
+  text: string;
+  tone: BoardMessageTone;
+}
+
+const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
+  positive: 'border-green-200 bg-green-50 text-green-800',
+  negative: 'border-red-200 bg-red-50 text-red-800',
+  info: 'border-gray-200 bg-gray-50 text-gray-700',
+};
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function repertoireMoveCount(repertoire: OpeningRepertoire): number {
   return Math.max(0, Object.keys(repertoire.nodes).length - 1);
 }
@@ -74,6 +95,8 @@ export default function OpeningsPage() {
   const [importSide, setImportSide] = useState<OpeningTrainerSide>('white');
   const [pgnText, setPgnText] = useState('');
   const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
+  const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
+  const [isTrainerThinking, setIsTrainerThinking] = useState(false);
 
   const activeRepertoire = useMemo(
     () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
@@ -106,6 +129,8 @@ export default function OpeningsPage() {
   const startTraining = useCallback((repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
     setTrainingState(startOpeningTraining(repertoire, avoidLine));
     setIsBoardFlipped(repertoire.side === 'black');
+    setBoardMessage(null);
+    setIsTrainerThinking(false);
     clearSelection();
   }, []);
 
@@ -219,51 +244,60 @@ export default function OpeningsPage() {
     }
 
     const result = applyTrainerMove(trainingState, from, to, promotion);
-    const saved = await persistRepertoire(result.state.repertoire);
-    const nextState = { ...result.state, repertoire: saved };
-    setTrainingState(nextState);
     clearSelection();
 
     if (result.promotionRequired) {
+      // Nothing was applied yet; wait for the promotion choice.
       setPendingPromotion({ from, to });
       return;
     }
 
-    if (result.correct) {
-      toast({ title: 'Correct', description: 'The trainer picked the next branch.' });
+    const saved = await persistRepertoire(result.state.repertoire);
+    const nextState = { ...result.state, repertoire: saved };
+
+    if (!result.correct) {
+      setTrainingState(nextState);
+      if (nextState.feedback === 'revealed') {
+        setBoardMessage({
+          text: `Revealed: ${expectedMoveSan(nextState) ?? 'the correct move'} — replay it on the board.`,
+          tone: 'negative',
+        });
+      } else {
+        setBoardMessage({ text: 'Not this branch — try again.', tone: 'negative' });
+      }
       return;
     }
 
-    if (nextState.feedback === 'revealed') {
-      toast({
-        title: 'Move revealed',
-        description: result.message || `Correct move: ${expectedMoveSan(nextState)}`,
-        variant: 'destructive',
-      });
-      return;
+    // Correct move. Show the user's move first, then play the trainer's reply
+    // after a short pause so the change is easy to follow.
+    const hasTrainerReply = Boolean(
+      result.userMoveFen && result.userMoveFen !== nextState.currentFen,
+    );
+
+    if (hasTrainerReply && result.userMoveFen) {
+      setTrainingState({ ...nextState, currentFen: result.userMoveFen });
+      setIsTrainerThinking(true);
+      await sleep(TRAINER_REPLY_DELAY_MS);
+      setIsTrainerThinking(false);
     }
+
+    setTrainingState(nextState);
 
     if (nextState.feedback === 'complete') {
-      const remaining = summarizeRepertoire(saved).dueLines;
-      toast({
-        title: 'Line complete',
-        description:
-          remaining > 0
-            ? `${remaining} line${remaining === 1 ? '' : 's'} still due — use Next Line to keep going.`
-            : 'All lines reviewed for now. Use Next Line to drill anyway.',
-      });
+      setBoardMessage(null);
       return;
     }
 
-    toast({
-      title: 'Try again',
-      description: 'That move is in the wrong branch for this position.',
-      variant: 'destructive',
-    });
+    setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
   };
 
   const handleSquareTap = async (square: Square) => {
-    if (!trainingState || pendingPromotion || trainingState.feedback === 'complete') {
+    if (
+      !trainingState ||
+      pendingPromotion ||
+      isTrainerThinking ||
+      trainingState.feedback === 'complete'
+    ) {
       return;
     }
 
@@ -337,6 +371,12 @@ export default function OpeningsPage() {
     return `${trainingState.repertoire.side === 'white' ? 'White' : 'Black'} to train.`;
   }, [trainingState]);
 
+  const isLineComplete = trainingState?.feedback === 'complete';
+  const remainingDueLines = useMemo(
+    () => (trainingState ? summarizeRepertoire(trainingState.repertoire).dueLines : 0),
+    [trainingState],
+  );
+
   return (
     <div className="page-stack">
       <div className="py-3 text-center md:py-4">
@@ -361,6 +401,32 @@ export default function OpeningsPage() {
 
       <div className="tablet-grid items-start">
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
+          {isLineComplete ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-green-300 bg-green-50 p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-6 w-6 flex-shrink-0 text-green-600" />
+                <div>
+                  <p className="text-base font-semibold text-green-900">Line complete!</p>
+                  <p className="text-sm text-green-700">
+                    {remainingDueLines > 0
+                      ? `${remainingDueLines} line${remainingDueLines === 1 ? '' : 's'} still due.`
+                      : 'All lines reviewed for now.'}
+                  </p>
+                </div>
+              </div>
+              <Button type="button" onClick={handleStart} disabled={!activeRepertoire}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Next Line
+              </Button>
+            </div>
+          ) : boardMessage ? (
+            <div
+              className={`rounded-md border p-3 text-sm font-medium ${BOARD_MESSAGE_TONES[boardMessage.tone]}`}
+            >
+              {boardMessage.text}
+            </div>
+          ) : null}
+
           <OtbBoard
             pieceMap={pieceMap}
             selectedSquare={selectedSquare}
