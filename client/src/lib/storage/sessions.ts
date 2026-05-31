@@ -1,4 +1,5 @@
 import { withStores } from './transaction';
+import { parseStudyTags } from './study-tags';
 import { logger } from '../logger';
 import type { TrainingSession } from '@shared/schema';
 
@@ -10,22 +11,11 @@ export async function getSessions(): Promise<TrainingSession[]> {
   return withStores([SESSIONS] as const, 'readonly', async ({ sessions }) => {
     const all = await sessions.getAll();
     const mapped = all.map((s: any) => {
-      // Parse studyTags JSON string back to array
-      let studyTags = s.studyTags;
-      if (typeof studyTags === 'string') {
-        try {
-          studyTags = JSON.parse(studyTags);
-        } catch (error) {
-          console.warn(`Failed to parse studyTags for session ${s.id}:`, error);
-          studyTags = undefined;
-        }
-      }
-
       return {
         ...s,
         date: new Date(s.date),
         needsReview: Boolean(s.needsReview),
-        studyTags,
+        studyTags: parseStudyTags(s.studyTags, s.id),
       };
     });
     mapped.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -39,7 +29,7 @@ export async function setSessions(sessionsList: TrainingSession[]): Promise<void
     for (const session of sessionsList) {
       await sessions.add({ ...session, date: session.date.toISOString() });
     }
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 
@@ -48,7 +38,7 @@ export async function mergeSessions(sessionsList: TrainingSession[]): Promise<vo
     for (const session of sessionsList) {
       await sessions.put({ ...session, date: session.date.toISOString() });
     }
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 
@@ -56,7 +46,7 @@ export async function addSession(session: TrainingSession): Promise<void> {
   logger.debug('Adding session', session);
   await withStores([SESSIONS, META] as const, 'readwrite', async ({ sessions, cache_meta }) => {
     await sessions.put({ ...session, date: session.date.toISOString() });
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 
@@ -74,25 +64,14 @@ export async function updateSession(
       updatedAt: new Date().toISOString(),
     };
     await sessions.put(updated);
-    await cache_meta.put({ key: 'sessions_last_updated', timestamp: Date.now() });
-
-    // Parse studyTags JSON string back to array when returning
-    let studyTags = updated.studyTags;
-    if (typeof studyTags === 'string') {
-      try {
-        studyTags = JSON.parse(studyTags);
-      } catch (error) {
-        console.warn(`Failed to parse studyTags for session ${id}:`, error);
-        studyTags = undefined;
-      }
-    }
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
 
     return {
       ...updated,
       date: new Date(updated.date),
       updatedAt: new Date(updated.updatedAt),
       needsReview: Boolean(updated.needsReview),
-      studyTags,
+      studyTags: parseStudyTags(updated.studyTags, id),
     } as any;
   });
 }
@@ -102,22 +81,11 @@ export async function getSession(id: number): Promise<TrainingSession | null> {
     const result = await sessions.get(id);
     if (!result) return null;
 
-    // Parse studyTags JSON string back to array
-    let studyTags = result.studyTags;
-    if (typeof studyTags === 'string') {
-      try {
-        studyTags = JSON.parse(studyTags);
-      } catch (error) {
-        console.warn(`Failed to parse studyTags for session ${id}:`, error);
-        studyTags = undefined;
-      }
-    }
-
     return {
       ...result,
       date: new Date(result.date),
       needsReview: Boolean(result.needsReview),
-      studyTags,
+      studyTags: parseStudyTags(result.studyTags, id),
     } as any;
   });
 }

@@ -72,6 +72,13 @@ export default [
     },
   }),
   {
+    // The cloud-sync layer was refactored to be free of `any`; keep it that way.
+    files: ['client/src/lib/firebase/sync-engine.ts', 'client/src/lib/firebase/sync/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
+  {
     files: ['tests/**/*', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     ...vitest.configs.recommended,
   },

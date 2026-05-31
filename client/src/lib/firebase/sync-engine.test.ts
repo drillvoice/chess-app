@@ -251,10 +251,11 @@ describe('mergeSettingsForSync', () => {
     };
 
     const merged = mergeSettingsForSync(local, cloud);
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
 
-    expect(merged.studyPreferences.customTags).toEqual(['calculation', 'endgames', 'reading']);
-    expect(merged.studyPreferences.tagConfigs).toEqual({});
-    expect(merged.studyPreferences.lastModified).toEqual(cloud.studyPreferences.lastModified);
+    expect(studyPreferences.customTags).toEqual(['calculation', 'endgames', 'reading']);
+    expect(studyPreferences.tagConfigs).toEqual({});
+    expect(studyPreferences.lastModified).toEqual(cloud.studyPreferences.lastModified);
   });
 
   it('merges tag configs and prefers newer study preferences on key conflicts', () => {
@@ -279,8 +280,9 @@ describe('mergeSettingsForSync', () => {
     };
 
     const merged = mergeSettingsForSync(local, cloud);
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
 
-    expect(merged.studyPreferences.tagConfigs).toEqual({
+    expect(studyPreferences.tagConfigs).toEqual({
       chessable: { unitLabel: 'reps', minutesPerUnit: 0.25 },
       reading: { unitLabel: 'sections', minutesPerUnit: 12 },
     });
@@ -308,8 +310,9 @@ describe('mergeSettingsForSync', () => {
     };
 
     const merged = mergeSettingsForSync(local, cloud);
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
 
-    expect(merged.studyPreferences.tagConfigs).toEqual({
+    expect(studyPreferences.tagConfigs).toEqual({
       reading: { unitLabel: 'chapters', minutesPerUnit: 15 },
     });
   });

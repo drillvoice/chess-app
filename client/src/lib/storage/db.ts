@@ -11,7 +11,9 @@ interface ChessLoggerDB extends DBSchema {
   };
   cache_meta: {
     key: string;
-    value: { key: string; timestamp: number | string };
+    // `value` holds the payload (a timestamp, uid, or error string). `timestamp`
+    // is the legacy field name, kept optional so pre-migration records still read.
+    value: { key: string; value?: number | string; timestamp?: number | string };
   };
   statistics: {
     key: string;
