@@ -1,6 +1,7 @@
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { TrainingSession, DailyGoalSettings } from '@shared/schema';
 import type { OtbGame } from '../otb/types';
+import type { OpeningRepertoire } from '../opening-trainer/types';
 
 interface ChessLoggerDB extends DBSchema {
   sessions: {
@@ -54,12 +55,17 @@ interface ChessLoggerDB extends DBSchema {
     value: OtbGame;
     indexes: { updatedAt: string };
   };
+  opening_repertoires: {
+    key: string;
+    value: OpeningRepertoire;
+    indexes: { updatedAt: string };
+  };
 }
 
 export type DB = IDBPDatabase<ChessLoggerDB>;
 
 const DB_NAME = 'chess-logger-offline';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
@@ -88,6 +94,10 @@ export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
     }
     if (!db.objectStoreNames.contains('otb_games')) {
       const store = db.createObjectStore('otb_games', { keyPath: 'id' });
+      store.createIndex('updatedAt', 'updatedAt');
+    }
+    if (!db.objectStoreNames.contains('opening_repertoires')) {
+      const store = db.createObjectStore('opening_repertoires', { keyPath: 'id' });
       store.createIndex('updatedAt', 'updatedAt');
     }
   },

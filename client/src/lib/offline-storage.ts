@@ -7,6 +7,7 @@ import * as dailyGoals from './storage/dailyGoals';
 import * as meta from './storage/meta';
 import * as snapshots from './storage/snapshots';
 import * as otbGames from './storage/otb-games';
+import * as openingRepertoires from './storage/opening-repertoires';
 import { clearAll } from './storage/clear';
 
 export const offlineStorage = {
@@ -68,6 +69,11 @@ export const offlineStorage = {
   saveOtbGame: otbGames.saveOtbGame,
   deleteOtbGame: otbGames.deleteOtbGame,
   resetOtbGame: otbGames.resetOtbGame,
+  // opening trainer
+  getOpeningRepertoires: openingRepertoires.getOpeningRepertoires,
+  saveOpeningRepertoire: openingRepertoires.saveOpeningRepertoire,
+  deleteOpeningRepertoire: openingRepertoires.deleteOpeningRepertoire,
+  setOpeningRepertoires: openingRepertoires.setOpeningRepertoires,
   // maintenance
   clearAll,
   clear: clearAll,

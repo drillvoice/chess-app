@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.3.0] - 31 May 2026
+
+- Add Opening Repertoire Trainer: import a PGN (paste or file) and drill your lines in a randomized, hidden-label fashion with weighted move selection that resurfaces moves you miss most
+- Track per-move practice stats (attempts, misses, streak, last seen) stored offline, with reveal-after-two-misses and Next Line drilling
+- Tolerate PGN import errors — a single illegal move no longer aborts the whole import; the bad line is skipped and reported with enough detail to fix it
+- Sync opening repertoires across signed-in devices with last-write-wins reconciliation and propagating deletes, matching the existing session sync
+
 ## [2.2.3] - 5 May 2026
 
 - Make `Log game` time control and platform options more space-efficient on mobile by using single-row layouts and tighter button padding
