@@ -7,7 +7,16 @@ import type {
   OpeningRepertoire,
   OpeningTrainerSide,
   OpeningTrainingState,
+  RepertoireReviewSummary,
 } from './types';
+import { gradeMove, isMoveDue } from './scheduler';
+
+export { isMoveDue } from './scheduler';
+
+// Weight multiplier applied to branches whose subtree contains no due/new user
+// move, when at least one sibling branch does. Keeps the existing weighted-random
+// behaviour intact while making due lines dominate the selection.
+const NOT_DUE_BRANCH_FACTOR = 0.02;
 
 export interface TrainerMoveResult {
   state: OpeningTrainingState;
@@ -15,6 +24,9 @@ export interface TrainerMoveResult {
   correct: boolean;
   promotionRequired: boolean;
   message?: string;
+  // FEN immediately after the user's move, before the trainer plays its reply.
+  // Lets the UI show the user's move briefly before animating the response.
+  userMoveFen?: string;
 }
 
 function sideToTurn(side: OpeningTrainerSide): 'w' | 'b' {
@@ -38,6 +50,41 @@ function statFor(repertoire: OpeningRepertoire, moveId: string): OpeningMoveStat
   return repertoire.stats[moveId] ?? { attempts: 0, misses: 0, streak: 0 };
 }
 
+// A node is a "user move" — i.e. one the trainee must recall and therefore an SRS
+// card — when the side to move in the position before it is the trained side.
+function isUserMove(repertoire: OpeningRepertoire, node: OpeningMoveNode | undefined): boolean {
+  return Boolean(node) && getTurn(node!.fenBefore) === sideToTurn(repertoire.side);
+}
+
+// True if the subtree rooted at `nodeId` contains any due/new user-move card.
+// `memo` is filled across siblings within a single selection so each subtree is
+// walked once.
+function subtreeHasDueUserMove(
+  repertoire: OpeningRepertoire,
+  nodeId: string,
+  now: Date,
+  memo: Map<string, boolean>,
+): boolean {
+  const cached = memo.get(nodeId);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const node = repertoire.nodes[nodeId];
+  if (!node) {
+    memo.set(nodeId, false);
+    return false;
+  }
+  let due = isUserMove(repertoire, node) && isMoveDue(repertoire.stats[nodeId], now);
+  for (const childId of node.children) {
+    // Traverse every child (no short-circuit) so the memo is fully populated.
+    if (subtreeHasDueUserMove(repertoire, childId, now, memo)) {
+      due = true;
+    }
+  }
+  memo.set(nodeId, due);
+  return due;
+}
+
 export function moveWeight(
   repertoire: OpeningRepertoire,
   moveId: string,
@@ -54,11 +101,20 @@ export function chooseWeightedMove(
   repertoire: OpeningRepertoire,
   moves: OpeningMoveNode[],
   rng: () => number = Math.random,
+  now: Date = new Date(),
 ): OpeningMoveNode | null {
   if (moves.length === 0) {
     return null;
   }
-  const weights = moves.map((move) => moveWeight(repertoire, move.id));
+  const baseWeights = moves.map((move) => moveWeight(repertoire, move.id, now));
+  const memo = new Map<string, boolean>();
+  const dueFlags = moves.map((move) => subtreeHasDueUserMove(repertoire, move.id, now, memo));
+  // Only suppress not-due branches when something else is actually due; otherwise
+  // fall back to the plain weighted-random distribution.
+  const anyDue = dueFlags.some(Boolean);
+  const weights = baseWeights.map((weight, index) =>
+    anyDue && !dueFlags[index] ? weight * NOT_DUE_BRANCH_FACTOR : weight,
+  );
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   let cursor = rng() * total;
   for (let index = 0; index < moves.length; index += 1) {
@@ -166,14 +222,23 @@ function updateMoveStats(
   repertoire: OpeningRepertoire,
   moveId: string,
   correct: boolean,
+  srsPass?: boolean,
 ): OpeningRepertoire {
   const current = statFor(repertoire, moveId);
-  const updated: OpeningMoveStats = {
+  const now = new Date();
+  // Spread `current` first to preserve SRS fields on counter-only updates (the
+  // wrong-move path records a miss but defers SRS scheduling to the eventual
+  // correct play, graded as a lapse).
+  let updated: OpeningMoveStats = {
+    ...current,
     attempts: current.attempts + 1,
     misses: current.misses + (correct ? 0 : 1),
     streak: correct ? current.streak + 1 : 0,
-    lastSeenAt: new Date().toISOString(),
+    lastSeenAt: now.toISOString(),
   };
+  if (srsPass !== undefined) {
+    updated = gradeMove(updated, srsPass, now);
+  }
 
   return {
     ...repertoire,
@@ -238,7 +303,14 @@ export function applyTrainerMove(
     return markIncorrect(prepared, expectedMove.id);
   }
 
-  const repertoire = updateMoveStats(prepared.repertoire, matchingMove.id, true);
+  // A clean recall (no wrong attempts this drill) is an SRS pass; a correct move
+  // played after a miss or reveal grades as a lapse so the line resurfaces soon.
+  const repertoire = updateMoveStats(
+    prepared.repertoire,
+    matchingMove.id,
+    true,
+    prepared.incorrectAttempts === 0,
+  );
   const nextState = advanceOpponentMoves(
     {
       ...prepared,
@@ -253,7 +325,13 @@ export function applyTrainerMove(
     rng,
   );
 
-  return { state: nextState, applied: true, correct: true, promotionRequired: false };
+  return {
+    state: nextState,
+    applied: true,
+    correct: true,
+    promotionRequired: false,
+    userMoveFen: matchingMove.fenAfter,
+  };
 }
 
 function markIncorrect(state: OpeningTrainingState, expectedMoveId: string): TrainerMoveResult {
@@ -309,4 +387,71 @@ export function moveNeedsPromotionFromFen(fen: string, from: Square, to: Square)
 
 export function expectedMoveSan(state: OpeningTrainingState): string | null {
   return state.expectedMoveId ? (state.repertoire.nodes[state.expectedMoveId]?.san ?? null) : null;
+}
+
+/**
+ * Every root-to-leaf line as an array of move node ids (the placeholder root is
+ * excluded). Used to report review progress at the line level.
+ */
+export function enumerateLines(repertoire: OpeningRepertoire): string[][] {
+  const lines: string[][] = [];
+  const walk = (nodeId: string, path: string[]) => {
+    const node = repertoire.nodes[nodeId];
+    if (!node) {
+      return;
+    }
+    const nextPath = nodeId === repertoire.rootNodeId ? path : [...path, nodeId];
+    if (node.children.length === 0) {
+      if (nextPath.length > 0) {
+        lines.push(nextPath);
+      }
+      return;
+    }
+    for (const childId of node.children) {
+      walk(childId, nextPath);
+    }
+  };
+  walk(repertoire.rootNodeId, []);
+  return lines;
+}
+
+/**
+ * Chessable-style review counts: how many lines are due (or new) vs learned, and
+ * when the next not-yet-due line comes up. A line is due if any of its user-move
+ * cards is due; new if none of its user moves has ever been scheduled.
+ */
+export function summarizeRepertoire(
+  repertoire: OpeningRepertoire,
+  now: Date = new Date(),
+): RepertoireReviewSummary {
+  let totalLines = 0;
+  let dueLines = 0;
+  let newLines = 0;
+  let learnedLines = 0;
+  let nextDueAt: string | undefined;
+
+  for (const line of enumerateLines(repertoire)) {
+    const userMoveIds = line.filter((id) => isUserMove(repertoire, repertoire.nodes[id]));
+    if (userMoveIds.length === 0) {
+      continue;
+    }
+    totalLines += 1;
+    const stats = userMoveIds.map((id) => repertoire.stats[id]);
+    const due = stats.some((stat) => isMoveDue(stat, now));
+    if (due) {
+      dueLines += 1;
+      if (stats.every((stat) => !stat?.dueAt)) {
+        newLines += 1;
+      }
+      continue;
+    }
+    learnedLines += 1;
+    for (const stat of stats) {
+      if (stat?.dueAt && (!nextDueAt || stat.dueAt < nextDueAt)) {
+        nextDueAt = stat.dueAt;
+      }
+    }
+  }
+
+  return { totalLines, dueLines, newLines, learnedLines, nextDueAt };
 }

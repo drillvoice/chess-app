@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookOpen, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { BookOpen, CheckCircle2, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,12 +20,14 @@ import {
   getPieceMapFromFen,
   moveNeedsPromotionFromFen,
   startOpeningTraining,
+  summarizeRepertoire,
 } from '@/lib/opening-trainer/engine';
 import { parseOpeningRepertoirePgn, type OpeningParseError } from '@/lib/opening-trainer/parser';
 import type {
   OpeningRepertoire,
   OpeningTrainerSide,
   OpeningTrainingState,
+  RepertoireReviewSummary,
 } from '@/lib/opening-trainer/types';
 import type { PromotionPiece, Square } from '@/lib/otb/types';
 
@@ -40,8 +42,44 @@ function sortRepertoires(repertoires: OpeningRepertoire[]): OpeningRepertoire[] 
   );
 }
 
+// Small pause between the user's move and the trainer's reply so the change on
+// the board is easy to follow.
+const TRAINER_REPLY_DELAY_MS = 300;
+
+type BoardMessageTone = 'positive' | 'negative' | 'info';
+
+interface BoardMessage {
+  text: string;
+  tone: BoardMessageTone;
+}
+
+const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
+  positive: 'border-green-200 bg-green-50 text-green-800',
+  negative: 'border-red-200 bg-red-50 text-red-800',
+  info: 'border-gray-200 bg-gray-50 text-gray-700',
+};
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function repertoireMoveCount(repertoire: OpeningRepertoire): number {
   return Math.max(0, Object.keys(repertoire.nodes).length - 1);
+}
+
+function formatRelativeDue(iso: string | undefined): string {
+  if (!iso) {
+    return '';
+  }
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) {
+    return 'now';
+  }
+  const days = Math.ceil(ms / 86_400_000);
+  if (days >= 1) {
+    return `${days}d`;
+  }
+  return `${Math.max(1, Math.ceil(ms / 3_600_000))}h`;
 }
 
 export default function OpeningsPage() {
@@ -57,6 +95,8 @@ export default function OpeningsPage() {
   const [importSide, setImportSide] = useState<OpeningTrainerSide>('white');
   const [pgnText, setPgnText] = useState('');
   const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
+  const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
+  const [isTrainerThinking, setIsTrainerThinking] = useState(false);
 
   const activeRepertoire = useMemo(
     () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
@@ -89,8 +129,43 @@ export default function OpeningsPage() {
   const startTraining = useCallback((repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
     setTrainingState(startOpeningTraining(repertoire, avoidLine));
     setIsBoardFlipped(repertoire.side === 'black');
+    setBoardMessage(null);
+    setIsTrainerThinking(false);
     clearSelection();
   }, []);
+
+  // Chessable-style review counts. Recomputed whenever a drilled move re-saves a
+  // repertoire, so the badges and banner stay in step with what's actually due.
+  const reviewSummaries = useMemo(() => {
+    const summaries = new Map<string, RepertoireReviewSummary>();
+    for (const repertoire of repertoires) {
+      summaries.set(repertoire.id, summarizeRepertoire(repertoire));
+    }
+    return summaries;
+  }, [repertoires]);
+
+  const totalDueLines = useMemo(
+    () =>
+      repertoires.reduce(
+        (sum, repertoire) => sum + (reviewSummaries.get(repertoire.id)?.dueLines ?? 0),
+        0,
+      ),
+    [repertoires, reviewSummaries],
+  );
+
+  const startReview = useCallback(() => {
+    const target = repertoires
+      .map((repertoire) => ({
+        repertoire,
+        due: reviewSummaries.get(repertoire.id)?.dueLines ?? 0,
+      }))
+      .filter((entry) => entry.due > 0)
+      .sort((a, b) => b.due - a.due)[0]?.repertoire;
+    if (target) {
+      setActiveRepertoireId(target.id);
+      startTraining(target);
+    }
+  }, [repertoires, reviewSummaries, startTraining]);
 
   const handleImport = async () => {
     try {
@@ -169,44 +244,60 @@ export default function OpeningsPage() {
     }
 
     const result = applyTrainerMove(trainingState, from, to, promotion);
-    const saved = await persistRepertoire(result.state.repertoire);
-    const nextState = { ...result.state, repertoire: saved };
-    setTrainingState(nextState);
     clearSelection();
 
     if (result.promotionRequired) {
+      // Nothing was applied yet; wait for the promotion choice.
       setPendingPromotion({ from, to });
       return;
     }
 
-    if (result.correct) {
-      toast({ title: 'Correct', description: 'The trainer picked the next branch.' });
+    const saved = await persistRepertoire(result.state.repertoire);
+    const nextState = { ...result.state, repertoire: saved };
+
+    if (!result.correct) {
+      setTrainingState(nextState);
+      if (nextState.feedback === 'revealed') {
+        setBoardMessage({
+          text: `Revealed: ${expectedMoveSan(nextState) ?? 'the correct move'} — replay it on the board.`,
+          tone: 'negative',
+        });
+      } else {
+        setBoardMessage({ text: 'Not this branch — try again.', tone: 'negative' });
+      }
       return;
     }
 
-    if (nextState.feedback === 'revealed') {
-      toast({
-        title: 'Move revealed',
-        description: result.message || `Correct move: ${expectedMoveSan(nextState)}`,
-        variant: 'destructive',
-      });
-      return;
+    // Correct move. Show the user's move first, then play the trainer's reply
+    // after a short pause so the change is easy to follow.
+    const hasTrainerReply = Boolean(
+      result.userMoveFen && result.userMoveFen !== nextState.currentFen,
+    );
+
+    if (hasTrainerReply && result.userMoveFen) {
+      setTrainingState({ ...nextState, currentFen: result.userMoveFen });
+      setIsTrainerThinking(true);
+      await sleep(TRAINER_REPLY_DELAY_MS);
+      setIsTrainerThinking(false);
     }
+
+    setTrainingState(nextState);
 
     if (nextState.feedback === 'complete') {
-      toast({ title: 'Line complete', description: 'Use Next Line to drill another branch.' });
+      setBoardMessage(null);
       return;
     }
 
-    toast({
-      title: 'Try again',
-      description: 'That move is in the wrong branch for this position.',
-      variant: 'destructive',
-    });
+    setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
   };
 
   const handleSquareTap = async (square: Square) => {
-    if (!trainingState || pendingPromotion || trainingState.feedback === 'complete') {
+    if (
+      !trainingState ||
+      pendingPromotion ||
+      isTrainerThinking ||
+      trainingState.feedback === 'complete'
+    ) {
       return;
     }
 
@@ -280,6 +371,12 @@ export default function OpeningsPage() {
     return `${trainingState.repertoire.side === 'white' ? 'White' : 'Black'} to train.`;
   }, [trainingState]);
 
+  const isLineComplete = trainingState?.feedback === 'complete';
+  const remainingDueLines = useMemo(
+    () => (trainingState ? summarizeRepertoire(trainingState.repertoire).dueLines : 0),
+    [trainingState],
+  );
+
   return (
     <div className="page-stack">
       <div className="py-3 text-center md:py-4">
@@ -291,8 +388,45 @@ export default function OpeningsPage() {
         </p>
       </div>
 
+      {totalDueLines > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm font-medium text-blue-900">
+            {totalDueLines} line{totalDueLines === 1 ? '' : 's'} due for review
+          </p>
+          <Button type="button" size="sm" onClick={startReview}>
+            Review due
+          </Button>
+        </div>
+      )}
+
       <div className="tablet-grid items-start">
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
+          {isLineComplete ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-green-300 bg-green-50 p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-6 w-6 flex-shrink-0 text-green-600" />
+                <div>
+                  <p className="text-base font-semibold text-green-900">Line complete!</p>
+                  <p className="text-sm text-green-700">
+                    {remainingDueLines > 0
+                      ? `${remainingDueLines} line${remainingDueLines === 1 ? '' : 's'} still due.`
+                      : 'All lines reviewed for now.'}
+                  </p>
+                </div>
+              </div>
+              <Button type="button" onClick={handleStart} disabled={!activeRepertoire}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Next Line
+              </Button>
+            </div>
+          ) : boardMessage ? (
+            <div
+              className={`rounded-md border p-3 text-sm font-medium ${BOARD_MESSAGE_TONES[boardMessage.tone]}`}
+            >
+              {boardMessage.text}
+            </div>
+          ) : null}
+
           <OtbBoard
             pieceMap={pieceMap}
             selectedSquare={selectedSquare}
@@ -432,48 +566,65 @@ export default function OpeningsPage() {
                 <p className="text-sm text-gray-500">No repertoires imported yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {repertoires.map((repertoire) => (
-                    <div key={repertoire.id} className="rounded-md border border-gray-200 p-3">
-                      <button
-                        type="button"
-                        className="w-full text-left"
-                        onClick={() => {
-                          setActiveRepertoireId(repertoire.id);
-                          startTraining(repertoire);
-                        }}
-                      >
-                        <span className="block text-sm font-medium text-gray-800">
-                          {repertoire.name}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {repertoire.side === 'white' ? 'White' : 'Black'} •{' '}
-                          {repertoireMoveCount(repertoire)} moves
-                        </span>
-                      </button>
-                      <div className="mt-2 flex gap-2">
-                        <Button
+                  {repertoires.map((repertoire) => {
+                    const summary = reviewSummaries.get(repertoire.id);
+                    return (
+                      <div key={repertoire.id} className="rounded-md border border-gray-200 p-3">
+                        <button
                           type="button"
-                          size="sm"
-                          variant={activeRepertoireId === repertoire.id ? 'default' : 'outline'}
+                          className="w-full text-left"
                           onClick={() => {
                             setActiveRepertoireId(repertoire.id);
                             startTraining(repertoire);
                           }}
                         >
-                          Train
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleDelete(repertoire.id)}
-                          aria-label={`Delete ${repertoire.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <span className="block text-sm font-medium text-gray-800">
+                            {repertoire.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {repertoire.side === 'white' ? 'White' : 'Black'} •{' '}
+                            {summary?.totalLines ?? 0} line
+                            {(summary?.totalLines ?? 0) === 1 ? '' : 's'}
+                            {' • '}
+                            {summary && summary.dueLines > 0 ? (
+                              <span className="font-medium text-blue-700">
+                                {summary.dueLines} due
+                              </span>
+                            ) : (
+                              <span className="text-green-700">
+                                All reviewed
+                                {summary?.nextDueAt
+                                  ? ` · next in ${formatRelativeDue(summary.nextDueAt)}`
+                                  : ''}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={activeRepertoireId === repertoire.id ? 'default' : 'outline'}
+                            onClick={() => {
+                              setActiveRepertoireId(repertoire.id);
+                              startTraining(repertoire);
+                            }}
+                          >
+                            Train
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleDelete(repertoire.id)}
+                            aria-label={`Delete ${repertoire.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
