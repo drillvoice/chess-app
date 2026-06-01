@@ -97,15 +97,61 @@ export function moveWeight(
   return 1 + stat.misses * 4 + Math.max(0, 3 - stat.streak) + Math.min(3, staleDays / 7);
 }
 
+// A line is paused when its leaf node (the last id on a root-to-leaf path) carries
+// the `disabled` flag. Identifying lines by leaf id is unambiguous because every
+// node has exactly one parent.
+export function isLineDisabled(repertoire: OpeningRepertoire, line: string[]): boolean {
+  const leafId = line[line.length - 1];
+  return leafId ? repertoire.stats[leafId]?.disabled === true : false;
+}
+
+// True if the subtree rooted at `nodeId` contains at least one active (not paused)
+// leaf. A leaf is active unless its stats carry `disabled`. `memo` is filled across
+// siblings within a single selection so each subtree is walked once.
+function subtreeHasActiveLeaf(
+  repertoire: OpeningRepertoire,
+  nodeId: string,
+  memo: Map<string, boolean>,
+): boolean {
+  const cached = memo.get(nodeId);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const node = repertoire.nodes[nodeId];
+  if (!node) {
+    memo.set(nodeId, false);
+    return false;
+  }
+  let active: boolean;
+  if (node.children.length === 0) {
+    active = repertoire.stats[nodeId]?.disabled !== true;
+  } else {
+    active = false;
+    for (const childId of node.children) {
+      // Traverse every child (no short-circuit) so the memo is fully populated.
+      if (subtreeHasActiveLeaf(repertoire, childId, memo)) {
+        active = true;
+      }
+    }
+  }
+  memo.set(nodeId, active);
+  return active;
+}
+
 export function chooseWeightedMove(
   repertoire: OpeningRepertoire,
   moves: OpeningMoveNode[],
   rng: () => number = Math.random,
   now: Date = new Date(),
 ): OpeningMoveNode | null {
-  if (moves.length === 0) {
+  // Never walk into a branch whose every leaf is paused; if all branches are
+  // paused, return null so the drill ends gracefully.
+  const activeMemo = new Map<string, boolean>();
+  const candidates = moves.filter((move) => subtreeHasActiveLeaf(repertoire, move.id, activeMemo));
+  if (candidates.length === 0) {
     return null;
   }
+  moves = candidates;
   const baseWeights = moves.map((move) => moveWeight(repertoire, move.id, now));
   const memo = new Map<string, boolean>();
   const dueFlags = moves.map((move) => subtreeHasDueUserMove(repertoire, move.id, now, memo));
@@ -431,6 +477,9 @@ export function summarizeRepertoire(
   let nextDueAt: string | undefined;
 
   for (const line of enumerateLines(repertoire)) {
+    if (isLineDisabled(repertoire, line)) {
+      continue;
+    }
     const userMoveIds = line.filter((id) => isUserMove(repertoire, repertoire.nodes[id]));
     if (userMoveIds.length === 0) {
       continue;
@@ -454,4 +503,79 @@ export function summarizeRepertoire(
   }
 
   return { totalLines, dueLines, newLines, learnedLines, nextDueAt };
+}
+
+/**
+ * Pause or re-activate a single line, identified by its leaf node id. The flag
+ * lives on the leaf's stats entry (created if absent) so it rides cloud sync with
+ * the rest of `stats`. Returns a new repertoire; the input is never mutated.
+ */
+export function setLineDisabled(
+  repertoire: OpeningRepertoire,
+  leafId: string,
+  disabled: boolean,
+): OpeningRepertoire {
+  const current = statFor(repertoire, leafId);
+  return {
+    ...repertoire,
+    updatedAt: new Date().toISOString(),
+    stats: {
+      ...repertoire.stats,
+      [leafId]: { ...current, disabled },
+    },
+  };
+}
+
+/**
+ * Permanently remove the line ending at `leafId`. Walks from the leaf up toward
+ * the root, pruning each node from its parent's children and dropping its
+ * nodes/stats entries, and stops at the first ancestor that still has other
+ * children (a branch point) so shared moves survive. Returns a new repertoire;
+ * the input is never mutated.
+ */
+export function deleteLine(repertoire: OpeningRepertoire, leafId: string): OpeningRepertoire {
+  const nodes: Record<string, OpeningMoveNode> = {};
+  for (const [id, node] of Object.entries(repertoire.nodes)) {
+    nodes[id] = { ...node, children: [...node.children] };
+  }
+  const stats = { ...repertoire.stats };
+
+  let nodeId: string | null = leafId;
+  while (nodeId && nodeId !== repertoire.rootNodeId && nodes[nodeId]) {
+    const parentId: string | null = nodes[nodeId].parentId;
+    const parent = parentId ? nodes[parentId] : undefined;
+    delete nodes[nodeId];
+    delete stats[nodeId];
+    if (!parent) {
+      break;
+    }
+    parent.children = parent.children.filter((id) => id !== nodeId);
+    if (parent.children.length > 0) {
+      break; // branch point: shared moves continue on other lines
+    }
+    nodeId = parentId;
+  }
+
+  return { ...repertoire, updatedAt: new Date().toISOString(), nodes, stats };
+}
+
+/**
+ * Render a line as SAN with move numbers (e.g. "1.e4 e5 2.Nf3 Nc6 3.Bc4") for the
+ * line-management list. `line` is the array of move node ids from `enumerateLines`.
+ */
+export function describeLine(repertoire: OpeningRepertoire, line: string[]): string {
+  const parts: string[] = [];
+  for (const id of line) {
+    const node = repertoire.nodes[id];
+    if (!node) {
+      continue;
+    }
+    // ply 1 => move 1 white, ply 2 => move 1 black, etc.
+    if (node.ply % 2 === 1) {
+      parts.push(`${Math.ceil(node.ply / 2)}.${node.san}`);
+    } else {
+      parts.push(node.san);
+    }
+  }
+  return parts.join(' ');
 }

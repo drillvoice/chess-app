@@ -27,6 +27,7 @@ export interface OpeningMoveStats {
   intervalDays?: number; // current interval in days
   repetitions?: number; // consecutive successful SRS reviews
   dueAt?: string; // ISO; absent => new / never scheduled
+  disabled?: boolean; // line-level pause flag, set on the line's LEAF node; absent => active
 }
 
 export interface RepertoireReviewSummary {
