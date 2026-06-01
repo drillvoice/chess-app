@@ -410,9 +410,6 @@ export default function OpeningsPage() {
         <h2 className="mb-2 text-2xl font-bold text-gray-800 md:text-3xl">
           Opening Repertoire Trainer
         </h2>
-        <p className="text-sm text-gray-600">
-          Drill branches from a PGN without seeing the line name during practice.
-        </p>
       </div>
 
       {totalDueLines > 0 && (
