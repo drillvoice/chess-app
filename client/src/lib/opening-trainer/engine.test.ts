@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   applyTrainerMove,
   chooseWeightedMove,
+  deleteLine,
+  describeLine,
+  enumerateLines,
   moveWeight,
+  setLineDisabled,
   startOpeningTraining,
   summarizeRepertoire,
 } from './engine';
@@ -145,5 +149,68 @@ describe('opening trainer engine', () => {
     const moves = withStats.nodes.root.children.map((id) => withStats.nodes[id]);
     expect(chooseWeightedMove(withStats, moves, () => 0.5)?.id).toBe(d4);
     expect(chooseWeightedMove(withStats, moves, () => 0.9)?.id).toBe(d4);
+  });
+
+  // Helpers for the line-management (pause / delete) feature.
+  const leafOf = (line: string[]) => line[line.length - 1];
+
+  it('pauses a line via its leaf so it drops out of review counts', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
+    const lines = enumerateLines(repertoire);
+    expect(summarizeRepertoire(repertoire).totalLines).toBe(2);
+
+    const paused = setLineDisabled(repertoire, leafOf(lines[0]), true);
+    expect(paused.stats[leafOf(lines[0])].disabled).toBe(true);
+
+    const summary = summarizeRepertoire(paused);
+    expect(summary.totalLines).toBe(1);
+    expect(summary.dueLines).toBe(1);
+
+    // Re-activating restores it.
+    const resumed = setLineDisabled(paused, leafOf(lines[0]), false);
+    expect(summarizeRepertoire(resumed).totalLines).toBe(2);
+  });
+
+  it('never selects a paused branch and ends the drill when all lines are paused', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
+    const lines = enumerateLines(repertoire);
+    const [e4Line, d4Line] = lines;
+
+    // Pause the e4 line; selection must always pick d4 regardless of the rng draw.
+    const paused = setLineDisabled(repertoire, leafOf(e4Line), true);
+    const moves = paused.nodes.root.children.map((id) => paused.nodes[id]);
+    const d4 = paused.nodes[d4Line[0]];
+    expect(chooseWeightedMove(paused, moves, () => 0)?.id).toBe(d4.id);
+    expect(chooseWeightedMove(paused, moves, () => 0.99)?.id).toBe(d4.id);
+
+    // Pause both: nothing is selectable and a fresh drill completes immediately.
+    const allPaused = setLineDisabled(paused, leafOf(d4Line), true);
+    expect(chooseWeightedMove(allPaused, moves, () => 0.5)).toBeNull();
+    expect(startOpeningTraining(allPaused, [], () => 0).feedback).toBe('complete');
+  });
+
+  it('deletes a line while preserving sibling lines that share a prefix', () => {
+    // Two lines share 1.e4 e5 2.Nf3, then branch to Nc6 / Nf6.
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6 (2... Nf6)', 'white');
+    const lines = enumerateLines(repertoire);
+    expect(lines).toHaveLength(2);
+    const nc6Line = lines.find((line) => describeLine(repertoire, line).includes('Nc6'))!;
+    const nf6Line = lines.find((line) => describeLine(repertoire, line).includes('Nf6'))!;
+    const sharedNf3 = nc6Line[nc6Line.length - 2];
+
+    const pruned = deleteLine(repertoire, leafOf(nc6Line));
+
+    // The Nc6 leaf is gone; the shared Nf3 node and the Nf6 line survive.
+    expect(pruned.nodes[leafOf(nc6Line)]).toBeUndefined();
+    expect(pruned.stats[leafOf(nc6Line)]).toBeUndefined();
+    expect(pruned.nodes[sharedNf3]).toBeDefined();
+    expect(pruned.nodes[sharedNf3].children).toContain(leafOf(nf6Line));
+    expect(enumerateLines(pruned)).toHaveLength(1);
+  });
+
+  it('renders a line as SAN with move numbers', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
+    const [line] = enumerateLines(repertoire);
+    expect(describeLine(repertoire, line)).toBe('1.e4 e5 2.Nf3 Nc6');
   });
 });

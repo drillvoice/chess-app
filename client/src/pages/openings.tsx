@@ -1,9 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookOpen, CheckCircle2, ChevronDown, RotateCcw, Trash2, Upload } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import OtbBoard from '@/components/otb/otb-board';
@@ -15,10 +32,15 @@ import {
 } from '@/lib/firebase/repertoires';
 import {
   applyTrainerMove,
+  deleteLine,
+  describeLine,
+  enumerateLines,
   expectedMoveSan,
   getLegalDestinationsFromFen,
   getPieceMapFromFen,
+  isLineDisabled,
   moveNeedsPromotionFromFen,
+  setLineDisabled,
   startOpeningTraining,
   summarizeRepertoire,
 } from '@/lib/opening-trainer/engine';
@@ -101,6 +123,8 @@ export default function OpeningsPage() {
   const [isImportPgnOpen, setIsImportPgnOpen] = useState(false);
   const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
   const [isTrainerThinking, setIsTrainerThinking] = useState(false);
+  // Id of the repertoire whose lines are being managed in the edit dialog.
+  const [managingRepertoireId, setManagingRepertoireId] = useState<string | null>(null);
 
   const activeRepertoire = useMemo(
     () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
@@ -111,6 +135,24 @@ export default function OpeningsPage() {
     () => repertoires.find((repertoire) => repertoire.id === mergeTargetId) ?? null,
     [mergeTargetId, repertoires],
   );
+
+  const managingRepertoire = useMemo(
+    () => repertoires.find((repertoire) => repertoire.id === managingRepertoireId) ?? null,
+    [managingRepertoireId, repertoires],
+  );
+
+  // Every line of the repertoire being managed, with its display text, leaf id and
+  // paused state. Recomputed whenever the repertoire changes so edits show at once.
+  const managedLines = useMemo(() => {
+    if (!managingRepertoire) {
+      return [];
+    }
+    return enumerateLines(managingRepertoire).map((line) => ({
+      leafId: line[line.length - 1],
+      label: describeLine(managingRepertoire, line),
+      paused: isLineDisabled(managingRepertoire, line),
+    }));
+  }, [managingRepertoire]);
 
   useEffect(() => {
     const load = async () => {
@@ -264,6 +306,34 @@ export default function OpeningsPage() {
     setActiveRepertoireId(remaining[0]?.id ?? null);
     setTrainingState(null);
     clearSelection();
+  };
+
+  // After a line edit, persist and — if the edited repertoire is mid-drill —
+  // restart it from the saved copy so training can't keep walking a now-paused or
+  // deleted branch.
+  const persistLineEdit = useCallback(
+    async (updated: OpeningRepertoire) => {
+      const saved = await persistRepertoire(updated);
+      if (trainingState?.repertoire.id === saved.id) {
+        startTraining(saved);
+      }
+      return saved;
+    },
+    [persistRepertoire, startTraining, trainingState],
+  );
+
+  const handleToggleLine = async (leafId: string, nextPaused: boolean) => {
+    if (!managingRepertoire) {
+      return;
+    }
+    await persistLineEdit(setLineDisabled(managingRepertoire, leafId, nextPaused));
+  };
+
+  const handleDeleteLine = async (leafId: string, label: string) => {
+    if (!managingRepertoire || !window.confirm(`Delete the line "${label}"?`)) {
+      return;
+    }
+    await persistLineEdit(deleteLine(managingRepertoire, leafId));
   };
 
   const applyMove = async (from: Square, to: Square, promotion?: PromotionPiece) => {
@@ -570,6 +640,15 @@ export default function OpeningsPage() {
                             type="button"
                             size="sm"
                             variant="outline"
+                            onClick={() => setManagingRepertoireId(repertoire.id)}
+                            aria-label={`Edit lines in ${repertoire.name}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
                             onClick={() => void handleDelete(repertoire.id)}
                             aria-label={`Delete ${repertoire.name}`}
                           >
@@ -698,6 +777,63 @@ export default function OpeningsPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(managingRepertoire)}
+        onOpenChange={(open) => !open && setManagingRepertoireId(null)}
+      >
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Edit lines{managingRepertoire ? ` — ${managingRepertoire.name}` : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Pause a line to keep it but stop training it, or delete it to remove it for good.
+            </DialogDescription>
+          </DialogHeader>
+          {managedLines.length === 0 ? (
+            <p className="text-sm text-gray-500">This repertoire has no lines.</p>
+          ) : (
+            <ul className="space-y-2">
+              {managedLines.map((line) => (
+                <li
+                  key={line.leafId}
+                  className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3"
+                >
+                  <div className="min-w-0">
+                    <p
+                      className={`break-words font-mono text-sm ${line.paused ? 'text-gray-400' : 'text-gray-800'}`}
+                    >
+                      {line.label}
+                    </p>
+                    {line.paused && (
+                      <Badge variant="outline" className="mt-1 text-amber-700">
+                        Paused
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <Switch
+                      checked={!line.paused}
+                      onCheckedChange={(checked) => void handleToggleLine(line.leafId, !checked)}
+                      aria-label={line.paused ? 'Activate line' : 'Pause line'}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleDeleteLine(line.leafId, line.label)}
+                      aria-label={`Delete line ${line.label}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <PromotionPicker
         open={Boolean(pendingPromotion)}

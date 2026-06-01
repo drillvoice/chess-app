@@ -49,6 +49,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/Name/i), {
       target: { value: 'Caro-Kann Advance' },
     });
@@ -67,6 +69,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
       target: { value: '1. e4 e5 (1... c5 2. Qq9) 2. Nf3 Nc6' },
     });
@@ -87,6 +91,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
       target: { value: '1. e4 e5 2. Nf3 Nc6' },
     });
@@ -96,13 +102,13 @@ describe('Openings page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Square g1/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square f3/i }));
 
-    await waitFor(() => expect(screen.getByText(/Try again/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Not this branch/i)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
     await waitFor(() =>
-      expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Correct' })),
+      expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
     );
   });
 
@@ -110,6 +116,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
       target: { value: '1. e4 (1. d4 d5) e5' },
     });
@@ -120,11 +128,13 @@ describe('Openings page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
     expect(await screen.findByText(/Ready for the next branch/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Next Line/i }));
+    // On completion both the banner and the controls card expose a "Next Line"
+    // button; either advances the drill, so click the first.
+    fireEvent.click(screen.getAllByRole('button', { name: /Next Line/i })[0]);
 
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
-    await waitFor(() => expect(screen.getByText(/Try again/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Not this branch/i)).toBeInTheDocument());
   });
 });
