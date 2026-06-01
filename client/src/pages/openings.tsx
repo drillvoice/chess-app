@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookOpen, CheckCircle2, Pencil, RotateCcw, Trash2, Upload } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -112,6 +120,7 @@ export default function OpeningsPage() {
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [pgnText, setPgnText] = useState('');
   const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
+  const [isImportPgnOpen, setIsImportPgnOpen] = useState(false);
   const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
   const [isTrainerThinking, setIsTrainerThinking] = useState(false);
   // Id of the repertoire whose lines are being managed in the edit dialog.
@@ -241,7 +250,7 @@ export default function OpeningsPage() {
         const added = `${mergeSummary.addedMoves} new move${mergeSummary.addedMoves === 1 ? '' : 's'}`;
         toast({
           title: 'Repertoire updated',
-          description: `Added ${added}; ${mergeSummary.matchedMoves} already in “${saved.name}”.`,
+          description: `Added ${added}; ${mergeSummary.matchedMoves} already in "${saved.name}".`,
         });
       } else {
         toast({
@@ -472,9 +481,6 @@ export default function OpeningsPage() {
         <h2 className="mb-2 text-2xl font-bold text-gray-800 md:text-3xl">
           Opening Repertoire Trainer
         </h2>
-        <p className="text-sm text-gray-600">
-          Drill branches from a PGN without seeing the line name during practice.
-        </p>
       </div>
 
       {totalDueLines > 0 && (
@@ -508,13 +514,13 @@ export default function OpeningsPage() {
                 Next Line
               </Button>
             </div>
-          ) : boardMessage ? (
+          ) : (
             <div
-              className={`rounded-md border p-3 text-sm font-medium ${BOARD_MESSAGE_TONES[boardMessage.tone]}`}
+              className={`rounded-md border p-3 text-sm font-medium ${boardMessage ? BOARD_MESSAGE_TONES[boardMessage.tone] : 'invisible border-transparent'}`}
             >
-              {boardMessage.text}
+              {boardMessage?.text ?? ' '}
             </div>
-          ) : null}
+          )}
 
           <OtbBoard
             pieceMap={pieceMap}
@@ -569,103 +575,6 @@ export default function OpeningsPage() {
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center gap-2">
-                <Upload className="h-4 w-4 text-gray-600" />
-                <h3 className="text-base font-semibold text-gray-800">Import PGN</h3>
-              </div>
-              {repertoires.length > 0 && (
-                <div>
-                  <Label htmlFor="importTarget">Import as</Label>
-                  <select
-                    id="importTarget"
-                    className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    value={mergeTargetId}
-                    onChange={(event) => setMergeTargetId(event.target.value)}
-                  >
-                    <option value="">New repertoire</option>
-                    {repertoires.map((repertoire) => (
-                      <option key={repertoire.id} value={repertoire.id}>
-                        Merge into {repertoire.name} ({repertoire.side})
-                      </option>
-                    ))}
-                  </select>
-                  {mergeTarget && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      New lines are added to “{mergeTarget.name}”; existing lines keep their
-                      training progress.
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div>
-                  <Label htmlFor="repertoireName">Name</Label>
-                  <Input
-                    id="repertoireName"
-                    value={mergeTarget ? mergeTarget.name : importName}
-                    onChange={(event) => setImportName(event.target.value)}
-                    placeholder="Caro-Kann repertoire"
-                    disabled={Boolean(mergeTarget)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="trainingSide">Your side</Label>
-                  <select
-                    id="trainingSide"
-                    className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-                    value={mergeTarget ? mergeTarget.side : importSide}
-                    disabled={Boolean(mergeTarget)}
-                    onChange={(event) =>
-                      setImportSide(event.target.value === 'black' ? 'black' : 'white')
-                    }
-                  >
-                    <option value="white">White</option>
-                    <option value="black">Black</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="pgnFile">PGN file</Label>
-                  <Input
-                    id="pgnFile"
-                    type="file"
-                    accept=".pgn,application/x-chess-pgn,text/plain"
-                    onChange={(event) => void handleFileImport(event.target.files?.[0])}
-                  />
-                </div>
-              </div>
-              <Textarea
-                aria-label="PGN text"
-                value={pgnText}
-                onChange={(event) => setPgnText(event.target.value)}
-                placeholder="Paste a single PGN game with variations..."
-                className="min-h-36"
-              />
-              <Button type="button" onClick={() => void handleImport()} disabled={!pgnText.trim()}>
-                {mergeTarget ? 'Merge into Repertoire' : 'Import Repertoire'}
-              </Button>
-
-              {importWarnings.length > 0 && (
-                <div
-                  role="alert"
-                  className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
-                >
-                  <p className="font-medium">
-                    Imported with {importWarnings.length} skipped{' '}
-                    {importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves in your PGN
-                    and re-import to include them:
-                  </p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5">
-                    {importWarnings.map((warning, index) => (
-                      <li key={index}>{warning.message}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -753,6 +662,119 @@ export default function OpeningsPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 p-4"
+              onClick={() => setIsImportPgnOpen((open) => !open)}
+              aria-expanded={isImportPgnOpen}
+            >
+              <div className="flex items-center gap-2">
+                <Upload className="h-4 w-4 text-gray-600" />
+                <h3 className="text-base font-semibold text-gray-800">Import PGN</h3>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isImportPgnOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {isImportPgnOpen && (
+              <CardContent className="space-y-3 px-4 pb-4 pt-0">
+                {repertoires.length > 0 && (
+                  <div>
+                    <Label htmlFor="importTarget">Import as</Label>
+                    <select
+                      id="importTarget"
+                      className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={mergeTargetId}
+                      onChange={(event) => setMergeTargetId(event.target.value)}
+                    >
+                      <option value="">New repertoire</option>
+                      {repertoires.map((repertoire) => (
+                        <option key={repertoire.id} value={repertoire.id}>
+                          Merge into {repertoire.name} ({repertoire.side})
+                        </option>
+                      ))}
+                    </select>
+                    {mergeTarget && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        New lines are added to "{mergeTarget.name}"; existing lines keep their
+                        training progress.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label htmlFor="repertoireName">Name</Label>
+                    <Input
+                      id="repertoireName"
+                      value={mergeTarget ? mergeTarget.name : importName}
+                      onChange={(event) => setImportName(event.target.value)}
+                      placeholder="Caro-Kann repertoire"
+                      disabled={Boolean(mergeTarget)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="trainingSide">Your side</Label>
+                    <select
+                      id="trainingSide"
+                      className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                      value={mergeTarget ? mergeTarget.side : importSide}
+                      disabled={Boolean(mergeTarget)}
+                      onChange={(event) =>
+                        setImportSide(event.target.value === 'black' ? 'black' : 'white')
+                      }
+                    >
+                      <option value="white">White</option>
+                      <option value="black">Black</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="pgnFile">PGN file</Label>
+                    <Input
+                      id="pgnFile"
+                      type="file"
+                      accept=".pgn,application/x-chess-pgn,text/plain"
+                      onChange={(event) => void handleFileImport(event.target.files?.[0])}
+                    />
+                  </div>
+                </div>
+                <Textarea
+                  aria-label="PGN text"
+                  value={pgnText}
+                  onChange={(event) => setPgnText(event.target.value)}
+                  placeholder="Paste a single PGN game with variations..."
+                  className="min-h-36"
+                />
+                <Button
+                  type="button"
+                  onClick={() => void handleImport()}
+                  disabled={!pgnText.trim()}
+                >
+                  {mergeTarget ? 'Merge into Repertoire' : 'Import Repertoire'}
+                </Button>
+
+                {importWarnings.length > 0 && (
+                  <div
+                    role="alert"
+                    className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+                  >
+                    <p className="font-medium">
+                      Imported with {importWarnings.length} skipped{' '}
+                      {importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves in your PGN
+                      and re-import to include them:
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                      {importWarnings.map((warning, index) => (
+                        <li key={index}>{warning.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
         </div>
       </div>
 
@@ -762,7 +784,9 @@ export default function OpeningsPage() {
       >
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit lines{managingRepertoire ? ` — ${managingRepertoire.name}` : ''}</DialogTitle>
+            <DialogTitle>
+              Edit lines{managingRepertoire ? ` — ${managingRepertoire.name}` : ''}
+            </DialogTitle>
             <DialogDescription>
               Pause a line to keep it but stop training it, or delete it to remove it for good.
             </DialogDescription>

@@ -49,6 +49,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/Name/i), {
       target: { value: 'Caro-Kann Advance' },
     });
@@ -67,6 +69,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
       target: { value: '1. e4 e5 (1... c5 2. Qq9) 2. Nf3 Nc6' },
     });
@@ -87,6 +91,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
       target: { value: '1. e4 e5 2. Nf3 Nc6' },
     });
@@ -110,6 +116,8 @@ describe('Openings page', () => {
     render(<OpeningsPage />);
 
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    // Import PGN is a collapsed accordion; open it to reach its inputs.
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
       target: { value: '1. e4 (1. d4 d5) e5' },
     });
