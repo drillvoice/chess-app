@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.0] - 2 June 2026
+
+- Add per-line editing to opening repertoires: an Edit dialog lists every line in SAN, each with a pause toggle and a delete button
+- Pause a line to keep it but stop training it — it drops out of drills and review counts and can be re-activated later
+- Delete a line to remove it permanently, pruning its moves up to the nearest branch point so moves shared with other lines survive
+- Paused and deleted line state persists offline and syncs across devices with no migration
+
 ## [2.3.0] - 31 May 2026
 
 - Add Opening Repertoire Trainer: import a PGN (paste or file) and drill your lines in a randomized, hidden-label fashion with weighted move selection that resurfaces moves you miss most
