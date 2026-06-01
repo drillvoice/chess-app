@@ -443,13 +443,13 @@ export default function OpeningsPage() {
                 Next Line
               </Button>
             </div>
-          ) : boardMessage ? (
+          ) : (
             <div
-              className={`rounded-md border p-3 text-sm font-medium ${BOARD_MESSAGE_TONES[boardMessage.tone]}`}
+              className={`rounded-md border p-3 text-sm font-medium ${boardMessage ? BOARD_MESSAGE_TONES[boardMessage.tone] : 'invisible border-transparent'}`}
             >
-              {boardMessage.text}
+              {boardMessage?.text ?? ' '}
             </div>
-          ) : null}
+          )}
 
           <OtbBoard
             pieceMap={pieceMap}
