@@ -22,6 +22,7 @@ import {
   startOpeningTraining,
   summarizeRepertoire,
 } from '@/lib/opening-trainer/engine';
+import { mergeRepertoire } from '@/lib/opening-trainer/merge';
 import { parseOpeningRepertoirePgn, type OpeningParseError } from '@/lib/opening-trainer/parser';
 import type {
   OpeningRepertoire,
@@ -93,6 +94,8 @@ export default function OpeningsPage() {
   const [isBoardFlipped, setIsBoardFlipped] = useState(false);
   const [importName, setImportName] = useState('');
   const [importSide, setImportSide] = useState<OpeningTrainerSide>('white');
+  // '' = create a new repertoire; otherwise the id of the repertoire to merge into.
+  const [mergeTargetId, setMergeTargetId] = useState('');
   const [pgnText, setPgnText] = useState('');
   const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
   const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
@@ -101,6 +104,11 @@ export default function OpeningsPage() {
   const activeRepertoire = useMemo(
     () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
     [activeRepertoireId, repertoires],
+  );
+
+  const mergeTarget = useMemo(
+    () => repertoires.find((repertoire) => repertoire.id === mergeTargetId) ?? null,
+    [mergeTargetId, repertoires],
   );
 
   useEffect(() => {
@@ -169,11 +177,24 @@ export default function OpeningsPage() {
 
   const handleImport = async () => {
     try {
-      const { repertoire, errors } = parseOpeningRepertoirePgn(pgnText, importSide, importName);
-      const saved = await persistRepertoire(repertoire);
+      // When merging, the target owns the side; parse with it so move colours line up.
+      const side = mergeTarget ? mergeTarget.side : importSide;
+      const { repertoire, errors } = parseOpeningRepertoirePgn(pgnText, side, importName);
+
+      let saved: OpeningRepertoire;
+      let mergeSummary: { addedMoves: number; matchedMoves: number } | null = null;
+      if (mergeTarget) {
+        const merged = mergeRepertoire(mergeTarget, repertoire);
+        saved = await persistRepertoire(merged.repertoire);
+        mergeSummary = { addedMoves: merged.addedMoves, matchedMoves: merged.matchedMoves };
+      } else {
+        saved = await persistRepertoire(repertoire);
+      }
+
       startTraining(saved);
       setImportName('');
       setPgnText('');
+      setMergeTargetId('');
       setImportWarnings(errors);
       if (errors.length > 0) {
         const skipped = `${errors.length} line${errors.length === 1 ? '' : 's'}`;
@@ -181,6 +202,12 @@ export default function OpeningsPage() {
           title: 'Imported with warnings',
           description: `${repertoireMoveCount(saved)} moves ready; skipped ${skipped} with errors — see details below.`,
           variant: 'destructive',
+        });
+      } else if (mergeSummary) {
+        const added = `${mergeSummary.addedMoves} new move${mergeSummary.addedMoves === 1 ? '' : 's'}`;
+        toast({
+          title: 'Repertoire updated',
+          description: `Added ${added}; ${mergeSummary.matchedMoves} already in “${saved.name}”.`,
         });
       } else {
         toast({
@@ -489,22 +516,48 @@ export default function OpeningsPage() {
                 <Upload className="h-4 w-4 text-gray-600" />
                 <h3 className="text-base font-semibold text-gray-800">Import PGN</h3>
               </div>
+              {repertoires.length > 0 && (
+                <div>
+                  <Label htmlFor="importTarget">Import as</Label>
+                  <select
+                    id="importTarget"
+                    className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    value={mergeTargetId}
+                    onChange={(event) => setMergeTargetId(event.target.value)}
+                  >
+                    <option value="">New repertoire</option>
+                    {repertoires.map((repertoire) => (
+                      <option key={repertoire.id} value={repertoire.id}>
+                        Merge into {repertoire.name} ({repertoire.side})
+                      </option>
+                    ))}
+                  </select>
+                  {mergeTarget && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      New lines are added to “{mergeTarget.name}”; existing lines keep their
+                      training progress.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div>
                   <Label htmlFor="repertoireName">Name</Label>
                   <Input
                     id="repertoireName"
-                    value={importName}
+                    value={mergeTarget ? mergeTarget.name : importName}
                     onChange={(event) => setImportName(event.target.value)}
                     placeholder="Caro-Kann repertoire"
+                    disabled={Boolean(mergeTarget)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="trainingSide">Your side</Label>
                   <select
                     id="trainingSide"
-                    className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    value={importSide}
+                    className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                    value={mergeTarget ? mergeTarget.side : importSide}
+                    disabled={Boolean(mergeTarget)}
                     onChange={(event) =>
                       setImportSide(event.target.value === 'black' ? 'black' : 'white')
                     }
@@ -531,7 +584,7 @@ export default function OpeningsPage() {
                 className="min-h-36"
               />
               <Button type="button" onClick={() => void handleImport()} disabled={!pgnText.trim()}>
-                Import Repertoire
+                {mergeTarget ? 'Merge into Repertoire' : 'Import Repertoire'}
               </Button>
 
               {importWarnings.length > 0 && (
