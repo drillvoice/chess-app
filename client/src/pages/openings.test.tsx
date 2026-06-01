@@ -96,13 +96,13 @@ describe('Openings page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Square g1/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square f3/i }));
 
-    await waitFor(() => expect(screen.getByText(/Try again/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Not this branch/i)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
     await waitFor(() =>
-      expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Correct' })),
+      expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
     );
   });
 
@@ -120,11 +120,13 @@ describe('Openings page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
     expect(await screen.findByText(/Ready for the next branch/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Next Line/i }));
+    // On completion both the banner and the controls card expose a "Next Line"
+    // button; either advances the drill, so click the first.
+    fireEvent.click(screen.getAllByRole('button', { name: /Next Line/i })[0]);
 
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
-    await waitFor(() => expect(screen.getByText(/Try again/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Not this branch/i)).toBeInTheDocument());
   });
 });

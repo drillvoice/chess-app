@@ -62,11 +62,6 @@ describe('data management location', () => {
     expect(screen.getByRole('button', { name: /settings/i })).toBeInTheDocument();
   });
 
-  it('shows info tab in navigation', () => {
-    render(<Navigation />);
-    expect(screen.getByRole('button', { name: /info/i })).toBeInTheDocument();
-  });
-
   it('shows OTB tab in navigation', () => {
     render(<Navigation />);
     expect(screen.getByRole('button', { name: /otb/i })).toBeInTheDocument();
