@@ -507,7 +507,6 @@ export default function OpeningsPage() {
               </div>
             </CardContent>
           </Card>
-
         </div>
 
         <div className="tablet-side order-1 space-y-4 md:order-2 md:space-y-6">
