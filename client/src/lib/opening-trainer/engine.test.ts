@@ -5,6 +5,7 @@ import {
   deleteLine,
   describeLine,
   enumerateLines,
+  lineLabel,
   moveWeight,
   setLineDisabled,
   startOpeningTraining,
@@ -212,5 +213,18 @@ describe('opening trainer engine', () => {
     const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
     const [line] = enumerateLines(repertoire);
     expect(describeLine(repertoire, line)).toBe('1.e4 e5 2.Nf3 Nc6');
+  });
+
+  it('names a line by its deepest label and returns undefined when unlabelled', () => {
+    const { repertoire } = parseOpeningRepertoirePgn(
+      '1. e4 e5 { Open Game } 2. Nf3 Nc6 3. Bc4 Bc5 { Italian: Giuoco Piano }',
+      'white',
+    );
+    const [labelled] = enumerateLines(repertoire);
+    // Deepest label wins over the shallower "Open Game" on the same line.
+    expect(lineLabel(repertoire, labelled)).toBe('Italian: Giuoco Piano');
+
+    const { repertoire: bare } = parseOpeningRepertoirePgn('1. e4 e5', 'white');
+    expect(lineLabel(bare, enumerateLines(bare)[0])).toBeUndefined();
   });
 });

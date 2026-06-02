@@ -55,6 +55,7 @@ export function mergeRepertoire(
       promotion: source.promotion,
       ply: parent.ply + 1,
       children: [],
+      label: source.label,
     };
     parent.children.push(id);
     addedMoves += 1;
@@ -80,6 +81,11 @@ export function mergeRepertoire(
       );
       if (matchId) {
         matchedMoves += 1;
+        // Back-fill a line label from the incoming PGN onto the existing move so
+        // re-importing a labelled PGN names lines that were imported unlabelled.
+        if (incomingChild.label) {
+          nodes[matchId].label = incomingChild.label;
+        }
         mergeChildren(incomingChildId, matchId);
       } else {
         graftSubtree(incomingChildId, targetId);
