@@ -1,16 +1,10 @@
 import { cn } from '@/lib/utils';
 import type { PieceView } from '@/lib/otb/chess';
 import type { Square } from '@/lib/otb/types';
+import ChessPiece from './chess-pieces';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'] as const;
-
-const UNICODE_PIECES: Record<'w' | 'b', Record<string, string>> = {
-  // Use filled glyphs for both colors and colorize via CSS so white pieces
-  // are not rendered as hollow outlines.
-  w: { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
-  b: { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
-};
 
 function isDarkSquare(square: Square): boolean {
   const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -66,17 +60,16 @@ export default function OtbBoard({
                 onClick={() => onSquareTap(square)}
                 aria-label={`Square ${square}`}
               >
-                <span
-                  className={cn(
-                    'pointer-events-none select-none text-[2.7rem] font-semibold leading-[0.82] sm:text-[3.35rem]',
-                    rotatePiece && 'rotate-180',
-                    piece?.color === 'w'
-                      ? 'text-[#f8f8f8] [-webkit-text-stroke:0.9px_#181818]'
-                      : 'text-[#111111]',
-                  )}
-                >
-                  {piece ? UNICODE_PIECES[piece.color][piece.type] : ''}
-                </span>
+                {piece && (
+                  <div
+                    className={cn(
+                      'pointer-events-none absolute inset-[6%]',
+                      rotatePiece && 'rotate-180',
+                    )}
+                  >
+                    <ChessPiece color={piece.color} type={piece.type} />
+                  </div>
+                )}
                 {showFileCoordinate && (
                   <span
                     className={cn(
