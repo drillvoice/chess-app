@@ -38,97 +38,24 @@ function BlackPawn() {
   );
 }
 
+// cburnett knight paths — from lichess-org/lila (MIT licence)
 function WhiteKnight() {
   return (
-    <g
-      fill="none"
-      stroke="#000000"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {/* Horse head & neck */}
-      <path
-        d="M 22,10 C 32.5,11 38.5,23 34,29 L 34,29.25 C 31,23 27,26 27,26 L 22,19 L 17,25 L 14.5,25 C 14.5,22 14,19 12.5,18 C 11,17 8.5,14 10,11 C 15,9 18,9 22,10 Z"
-        fill="#ffffff"
-      />
-      {/* Base plinth */}
-      <path
-        d="M 35,37 C 35,40 25,42 22.5,42 C 20,42 10,40 10,37 L 10,34 C 10,31 20,29 22.5,29 C 25,29 35,31 35,34 Z"
-        fill="#ffffff"
-      />
-      {/* Base lines */}
-      <path d="M 10,30 C 10,34 20,35.5 22.5,35.5 C 25,35.5 35,34 35,30" />
-      <path d="M 10,37 C 10,34 20,32.5 22.5,32.5 C 25,32.5 35,34 35,37" />
-      <path d="M 11,38.5 A 35,35,1,0,0,34,38.5" />
-      <path d="M 11,29 A 35,35,1,0,1,34,29" />
-      {/* Chest / neck detail */}
-      <path
-        d="M 12.5,18 C 12.5,18 12,21 14,22 C 16,23 16.5,26 12,26 C 12,28 14,29 16,29"
-        fill="#ffffff"
-        strokeWidth="1"
-      />
-      {/* Mane */}
-      <path
-        d="M 20,8 C 24,4 32,8 28,15 C 28,15 28,16 27,17 C 26,18 24,20 24,20 C 26,22 26,26 26,26"
-        fill="#ffffff"
-        strokeWidth="1"
-      />
-      {/* Eye */}
-      <circle cx="9" cy="18" r="0.5" fill="#000000" strokeWidth="1" />
-      {/* Muzzle detail */}
-      <path
-        d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 8,20 8,18 C 8,16 6.5,15 5,14"
-        strokeWidth="1.5"
-      />
+    <g fill="none" fillRule="evenodd" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+      <path fill="#fff" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" />
+      <path fill="#fff" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" />
+      <path fill="#000" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5" />
     </g>
   );
 }
 
 function BlackKnight() {
   return (
-    <g
-      fill="none"
-      stroke="#000000"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {/* Horse head & neck */}
-      <path
-        d="M 22,10 C 32.5,11 38.5,23 34,29 L 34,29.25 C 31,23 27,26 27,26 L 22,19 L 17,25 L 14.5,25 C 14.5,22 14,19 12.5,18 C 11,17 8.5,14 10,11 C 15,9 18,9 22,10 Z"
-        fill="#000000"
-      />
-      {/* Base plinth */}
-      <path
-        d="M 35,37 C 35,40 25,42 22.5,42 C 20,42 10,40 10,37 L 10,34 C 10,31 20,29 22.5,29 C 25,29 35,31 35,34 Z"
-        fill="#000000"
-      />
-      {/* Base lines */}
-      <path d="M 10,30 C 10,34 20,35.5 22.5,35.5 C 25,35.5 35,34 35,30" stroke="#ffffff" />
-      <path d="M 10,37 C 10,34 20,32.5 22.5,32.5 C 25,32.5 35,34 35,37" stroke="#ffffff" />
-      <path d="M 11,38.5 A 35,35,1,0,0,34,38.5" stroke="#ffffff" />
-      <path d="M 11,29 A 35,35,1,0,1,34,29" stroke="#ffffff" />
-      {/* Chest / neck detail */}
-      <path
-        d="M 12.5,18 C 12.5,18 12,21 14,22 C 16,23 16.5,26 12,26 C 12,28 14,29 16,29"
-        stroke="#ffffff"
-        strokeWidth="1"
-      />
-      {/* Mane */}
-      <path
-        d="M 20,8 C 24,4 32,8 28,15 C 28,15 28,16 27,17 C 26,18 24,20 24,20 C 26,22 26,26 26,26"
-        stroke="#ffffff"
-        strokeWidth="1"
-      />
-      {/* Eye */}
-      <circle cx="9" cy="18" r="0.5" fill="#ffffff" stroke="#ffffff" strokeWidth="1.5" />
-      {/* Muzzle detail */}
-      <path
-        d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 8,20 8,18 C 8,16 6.5,15 5,14"
-        stroke="#ffffff"
-        strokeWidth="1.5"
-      />
+    <g fill="none" fillRule="evenodd" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+      <path fill="#000" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" />
+      <path fill="#000" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-1-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-2 2.5-3c1 0 1 3 1 3" />
+      <path fill="#ececec" stroke="#ececec" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.43-9.75a.5 1.5 30 1 1-.86-.5.5 1.5 30 1 1 .86.5" />
+      <path fill="#ececec" stroke="none" d="m24.55 10.4-.45 1.45.5.15c3.15 1 5.65 2.49 7.9 6.75S35.75 29.06 35.25 39l-.05.5h2.25l.05-.5c.5-10.06-.88-16.85-3.25-21.34s-5.79-6.64-9.19-7.16z" />
     </g>
   );
 }
