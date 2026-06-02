@@ -39,6 +39,7 @@ import {
   getLegalDestinationsFromFen,
   getPieceMapFromFen,
   isLineDisabled,
+  lineLabel,
   moveNeedsPromotionFromFen,
   setLineDisabled,
   startOpeningTraining,
@@ -142,14 +143,17 @@ export default function OpeningsPage() {
   );
 
   // Every line of the repertoire being managed, with its display text, leaf id and
-  // paused state. Recomputed whenever the repertoire changes so edits show at once.
+  // paused state. `name` is the authored line label from the PGN (if any); `moves`
+  // is the SAN move list. Recomputed whenever the repertoire changes so edits show
+  // at once.
   const managedLines = useMemo(() => {
     if (!managingRepertoire) {
       return [];
     }
     return enumerateLines(managingRepertoire).map((line) => ({
       leafId: line[line.length - 1],
-      label: describeLine(managingRepertoire, line),
+      name: lineLabel(managingRepertoire, line),
+      moves: describeLine(managingRepertoire, line),
       paused: isLineDisabled(managingRepertoire, line),
     }));
   }, [managingRepertoire]);
@@ -801,11 +805,26 @@ export default function OpeningsPage() {
                   className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3"
                 >
                   <div className="min-w-0">
-                    <p
-                      className={`break-words font-mono text-sm ${line.paused ? 'text-gray-400' : 'text-gray-800'}`}
-                    >
-                      {line.label}
-                    </p>
+                    {line.name ? (
+                      <>
+                        <p
+                          className={`break-words text-sm font-medium ${line.paused ? 'text-gray-400' : 'text-gray-800'}`}
+                        >
+                          {line.name}
+                        </p>
+                        <p
+                          className={`mt-0.5 break-words font-mono text-xs ${line.paused ? 'text-gray-400' : 'text-gray-500'}`}
+                        >
+                          {line.moves}
+                        </p>
+                      </>
+                    ) : (
+                      <p
+                        className={`break-words font-mono text-sm ${line.paused ? 'text-gray-400' : 'text-gray-800'}`}
+                      >
+                        {line.moves}
+                      </p>
+                    )}
                     {line.paused && (
                       <Badge variant="outline" className="mt-1 text-amber-700">
                         Paused
@@ -822,8 +841,8 @@ export default function OpeningsPage() {
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => void handleDeleteLine(line.leafId, line.label)}
-                      aria-label={`Delete line ${line.label}`}
+                      onClick={() => void handleDeleteLine(line.leafId, line.name ?? line.moves)}
+                      aria-label={`Delete line ${line.name ?? line.moves}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

@@ -579,3 +579,18 @@ export function describeLine(repertoire: OpeningRepertoire, line: string[]): str
   }
   return parts.join(' ');
 }
+
+/**
+ * The human-readable name for a line, taken from the deepest (most specific)
+ * labelled move along it. Labels come from `{...}` comments in the imported PGN
+ * (see the parser). Returns undefined when no move on the line is labelled.
+ */
+export function lineLabel(repertoire: OpeningRepertoire, line: string[]): string | undefined {
+  for (let i = line.length - 1; i >= 0; i -= 1) {
+    const label = repertoire.nodes[line[i]]?.label;
+    if (label) {
+      return label;
+    }
+  }
+  return undefined;
+}

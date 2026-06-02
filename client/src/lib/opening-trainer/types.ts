@@ -14,6 +14,9 @@ export interface OpeningMoveNode {
   promotion?: PromotionPiece;
   ply: number;
   children: string[];
+  // Human-readable line name from the PGN comment that follows this move (e.g. a
+  // `{ ... }` annotation after the first move of a sideline). Absent when none.
+  label?: string;
 }
 
 export interface OpeningMoveStats {

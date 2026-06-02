@@ -26,7 +26,7 @@ describe('opening repertoire PGN parser', () => {
     expect(d4 ? childSans(repertoire, d4) : []).toEqual(['d5', 'e6']);
   });
 
-  it('ignores comments, NAGs, and annotation suffixes', () => {
+  it('ignores NAGs and annotation suffixes, and captures comments as labels', () => {
     const { repertoire } = parseOpeningRepertoirePgn(
       '1. e4! {best by test} c5 $1 2. Nf3!? d6 *',
       'white',
@@ -38,6 +38,28 @@ describe('opening repertoire PGN parser', () => {
 
     expect(repertoire.nodes[e4].san).toBe('e4');
     expect(repertoire.nodes[nf3].san).toBe('Nf3');
+    // The comment after a move is attached to that move as its label.
+    expect(repertoire.nodes[e4].label).toBe('best by test');
+  });
+
+  it('labels the first move of a sideline with its comment', () => {
+    const { repertoire } = parseOpeningRepertoirePgn(
+      '1. e4 e5 2. Nf3 Nc6 (2... Nf6 { Petrov Defense } 3. Nxe5) 3. Bc4',
+      'white',
+    );
+
+    const nf6 = Object.values(repertoire.nodes).find((node) => node.san === 'Nf6');
+    expect(nf6?.label).toBe('Petrov Defense');
+    // Moves without a following comment carry no label.
+    const e4 = Object.values(repertoire.nodes).find((node) => node.san === 'e4');
+    expect(e4?.label).toBeUndefined();
+  });
+
+  it('keeps only the first comment after a move', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 {first} {second} c5', 'white');
+
+    const e4 = repertoire.nodes.root.children[0];
+    expect(repertoire.nodes[e4].label).toBe('first');
   });
 
   it('skips an illegal variation but keeps the rest of the repertoire', () => {

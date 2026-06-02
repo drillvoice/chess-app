@@ -30,7 +30,14 @@ interface ParseContext {
   index: number;
   nodes: Record<string, OpeningMoveNode>;
   errors: OpeningParseError[];
+  /** Comment bodies, referenced by sentinel tokens emitted during tokenization. */
+  comments: string[];
 }
+
+// Sentinel prefix marking a captured `{...}` comment in the token stream. The
+// control character cannot appear in a PGN move, so it never collides with real
+// tokens, and (having no `.`) it survives the move-number/NAG strip regexes.
+const COMMENT_SENTINEL = '\u0001';
 
 interface LastMoveStart {
   chess: Chess;
@@ -51,20 +58,42 @@ function parseHeaders(pgn: string): Record<string, string> {
   return headers;
 }
 
-function tokenizePgn(pgn: string): string[] {
+interface TokenizeResult {
+  tokens: string[];
+  comments: string[];
+}
+
+function tokenizePgn(pgn: string): TokenizeResult {
+  const comments: string[] = [];
   const withoutHeaders = pgn
     .replace(/^\s*\[[^\n]*\]\s*$/gm, ' ')
-    .replace(/\{[^}]*\}/g, ' ')
+    // Capture `{...}` comments as sentinel tokens so they survive tokenization
+    // and can be attached to the preceding move as its line label.
+    .replace(/\{([^}]*)\}/g, (_match, body: string) => {
+      const index = comments.push(body.trim()) - 1;
+      return ` ${COMMENT_SENTINEL}${index} `;
+    })
     .replace(/;[^\n\r]*/g, ' ')
     .replace(/\$\d+/g, ' ')
     .replace(/\d+\.(?:\.\.)?/g, ' ')
     .replace(/[()]/g, (value) => ` ${value} `);
 
-  return withoutHeaders
+  const tokens = withoutHeaders
     .split(/\s+/)
     .map((token) => token.trim())
     .filter(Boolean)
     .filter((token) => !RESULT_TOKENS.has(token));
+
+  return { tokens, comments };
+}
+
+/** Decode a comment sentinel token to its body, or null if it isn't one. */
+function commentFromToken(context: ParseContext, token: string): string | null {
+  if (!token.startsWith(COMMENT_SENTINEL)) {
+    return null;
+  }
+  const index = Number(token.slice(COMMENT_SENTINEL.length));
+  return context.comments[index] ?? '';
 }
 
 function cleanSan(token: string): string {
@@ -169,12 +198,26 @@ function parseLine(context: ParseContext, chess: Chess, parentId: string): void 
   let currentChess = cloneChess(chess);
   let currentParentId = parentId;
   let lastMoveStart: LastMoveStart | null = null;
+  // Node id of the most recent move played at this level, so a following comment
+  // can be attached to it as the line label.
+  let lastMoveNodeId: string | null = null;
 
   while (context.index < context.tokens.length) {
     const token = context.tokens[context.index++];
 
     if (token === ')') {
       return;
+    }
+
+    const comment = commentFromToken(context, token);
+    if (comment !== null) {
+      // Label the move this comment follows. The first non-empty comment wins so
+      // a sideline's name (placed right after its first move) is preserved.
+      const node = lastMoveNodeId ? context.nodes[lastMoveNodeId] : undefined;
+      if (node && comment && !node.label) {
+        node.label = comment;
+      }
+      continue;
     }
 
     if (token === '(') {
@@ -214,6 +257,7 @@ function parseLine(context: ParseContext, chess: Chess, parentId: string): void 
       move,
     );
     lastMoveStart = { chess: before, parentId: previousParentId };
+    lastMoveNodeId = currentParentId;
   }
 }
 
@@ -226,7 +270,7 @@ export function parseOpeningRepertoirePgn(
   side: OpeningTrainerSide,
   name?: string,
 ): OpeningImportResult {
-  const tokens = tokenizePgn(pgn);
+  const { tokens, comments } = tokenizePgn(pgn);
   if (tokens.length === 0) {
     throw new Error('PGN does not contain any moves');
   }
@@ -250,6 +294,7 @@ export function parseOpeningRepertoirePgn(
     index: 0,
     nodes: { [ROOT_NODE_ID]: root },
     errors: [],
+    comments,
   };
 
   parseLine(context, new Chess(), ROOT_NODE_ID);
