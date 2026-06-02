@@ -77,3 +77,17 @@ Client storage operations are in `client/src/lib/storage/` (IndexedDB). Firebase
 - Prettier: single quotes, semicolons, 100 char width, trailing commas
 - TypeScript strict mode enabled
 - When modifying `shared/schema.ts`, note migration/backward compatibility implications
+
+## Chess Piece SVGs
+
+The board uses inline SVG pieces from the **cburnett** set (MIT licence, lichess-org/lila).
+**Never hand-write bezier paths for chess pieces** — they will look wrong.
+Always fetch the canonical paths directly from the Lichess source:
+
+```
+https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/{color}{piece}.svg
+# e.g. wN.svg (white knight), bQ.svg (black queen)
+# color: w / b   piece: P N B R Q K
+```
+
+The piece components live in `client/src/components/otb/chess-pieces.tsx`.
