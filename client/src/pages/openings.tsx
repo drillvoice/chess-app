@@ -354,43 +354,52 @@ export default function OpeningsPage() {
       return;
     }
 
-    const saved = await persistRepertoire(result.state.repertoire);
-    const nextState = { ...result.state, repertoire: saved };
-
     if (!result.correct) {
-      setTrainingState(nextState);
-      if (nextState.feedback === 'revealed') {
+      setTrainingState(result.state);
+      if (result.state.feedback === 'revealed') {
         setBoardMessage({
-          text: `Revealed: ${expectedMoveSan(nextState) ?? 'the correct move'} — replay it on the board.`,
+          text: `Revealed: ${expectedMoveSan(result.state) ?? 'the correct move'} — replay it on the board.`,
           tone: 'negative',
         });
       } else {
         setBoardMessage({ text: 'Not this branch — try again.', tone: 'negative' });
       }
+      void persistRepertoire(result.state.repertoire).catch((err) =>
+        console.error('[openings] persist failed after incorrect move', err),
+      );
       return;
     }
 
     // Correct move. Show the user's move first, then play the trainer's reply
     // after a short pause so the change is easy to follow.
     const hasTrainerReply = Boolean(
-      result.userMoveFen && result.userMoveFen !== nextState.currentFen,
+      result.userMoveFen && result.userMoveFen !== result.state.currentFen,
     );
 
-    if (hasTrainerReply && result.userMoveFen) {
-      setTrainingState({ ...nextState, currentFen: result.userMoveFen });
-      setIsTrainerThinking(true);
-      await sleep(TRAINER_REPLY_DELAY_MS);
+    try {
+      if (hasTrainerReply && result.userMoveFen) {
+        setTrainingState({ ...result.state, currentFen: result.userMoveFen });
+        setIsTrainerThinking(true);
+        await sleep(TRAINER_REPLY_DELAY_MS);
+        setIsTrainerThinking(false);
+      }
+
+      setTrainingState(result.state);
+
+      if (result.state.feedback === 'complete') {
+        setBoardMessage(null);
+        return;
+      }
+
+      setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
+    } catch (err) {
+      console.error('[openings] applyMove error', err);
       setIsTrainerThinking(false);
+    } finally {
+      void persistRepertoire(result.state.repertoire).catch((err) =>
+        console.error('[openings] persist failed after correct move', err),
+      );
     }
-
-    setTrainingState(nextState);
-
-    if (nextState.feedback === 'complete') {
-      setBoardMessage(null);
-      return;
-    }
-
-    setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
   };
 
   const handleSquareTap = async (square: Square) => {
