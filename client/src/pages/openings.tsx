@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   CheckCircle2,
@@ -124,6 +124,7 @@ export default function OpeningsPage() {
   const [isImportPgnOpen, setIsImportPgnOpen] = useState(false);
   const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
   const [isTrainerThinking, setIsTrainerThinking] = useState(false);
+  const applyingMoveRef = useRef(false);
   // Id of the repertoire whose lines are being managed in the edit dialog.
   const [managingRepertoireId, setManagingRepertoireId] = useState<string | null>(null);
 
@@ -182,6 +183,7 @@ export default function OpeningsPage() {
   }, []);
 
   const startTraining = useCallback((repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
+    applyingMoveRef.current = false;
     setTrainingState(startOpeningTraining(repertoire, avoidLine));
     setIsBoardFlipped(repertoire.side === 'black');
     setBoardMessage(null);
@@ -341,20 +343,23 @@ export default function OpeningsPage() {
   };
 
   const applyMove = async (from: Square, to: Square, promotion?: PromotionPiece) => {
-    if (!trainingState) {
+    if (!trainingState || applyingMoveRef.current) {
       return;
     }
+    applyingMoveRef.current = true;
 
     const result = applyTrainerMove(trainingState, from, to, promotion);
     clearSelection();
 
     if (result.promotionRequired) {
       // Nothing was applied yet; wait for the promotion choice.
+      applyingMoveRef.current = false;
       setPendingPromotion({ from, to });
       return;
     }
 
     if (!result.correct) {
+      applyingMoveRef.current = false;
       setTrainingState(result.state);
       if (result.state.feedback === 'revealed') {
         setBoardMessage({
@@ -396,6 +401,7 @@ export default function OpeningsPage() {
       console.error('[openings] applyMove error', err);
       setIsTrainerThinking(false);
     } finally {
+      applyingMoveRef.current = false;
       void persistRepertoire(result.state.repertoire).catch((err) =>
         console.error('[openings] persist failed after correct move', err),
       );
@@ -407,6 +413,7 @@ export default function OpeningsPage() {
       !trainingState ||
       pendingPromotion ||
       isTrainerThinking ||
+      applyingMoveRef.current ||
       trainingState.feedback === 'complete'
     ) {
       return;

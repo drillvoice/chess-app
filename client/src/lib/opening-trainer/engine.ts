@@ -13,7 +13,6 @@ import { gradeMove, isMoveDue } from './scheduler';
 
 export { isMoveDue } from './scheduler';
 
-
 export interface TrainerMoveResult {
   state: OpeningTrainingState;
   applied: boolean;

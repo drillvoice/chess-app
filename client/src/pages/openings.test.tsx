@@ -139,10 +139,9 @@ describe('Openings page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Square f3/i }));
 
     // Trainer replies Nc6, line completes — green banner shows "Line complete!"
-    await waitFor(
-      () => expect(screen.getByText('Line complete!')).toBeInTheDocument(),
-      { timeout: 2000 },
-    );
+    await waitFor(() => expect(screen.getByText('Line complete!')).toBeInTheDocument(), {
+      timeout: 2000,
+    });
   });
 
   it('shows Next Line after completion and avoids repeating the same branch', async () => {
