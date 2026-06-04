@@ -483,6 +483,10 @@ export default function OpeningsPage() {
   }, [trainingState]);
 
   const isLineComplete = trainingState?.feedback === 'complete';
+  // True when training started but the engine found nothing due — currentLineMoveIds
+  // stays empty because no move was ever made.
+  const isNothingDue =
+    trainingState?.feedback === 'complete' && trainingState.currentLineMoveIds.length === 0;
   const remainingDueLines = useMemo(
     () => (trainingState ? summarizeRepertoire(trainingState.repertoire).dueLines : 0),
     [trainingState],
@@ -509,7 +513,21 @@ export default function OpeningsPage() {
 
       <div className="tablet-grid items-start">
         <div className="tablet-main order-2 space-y-4 md:order-1 md:space-y-6">
-          {isLineComplete ? (
+          {isNothingDue ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-gray-300 bg-gray-50 p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-6 w-6 flex-shrink-0 text-gray-500" />
+                <div>
+                  <p className="text-base font-semibold text-gray-800">All caught up!</p>
+                  <p className="text-sm text-gray-600">
+                    {activeRepertoireId && reviewSummaries.get(activeRepertoireId)?.nextDueAt
+                      ? `Next review in ${formatRelativeDue(reviewSummaries.get(activeRepertoireId)!.nextDueAt)}.`
+                      : 'No lines scheduled yet — keep drilling to build your intervals.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : isLineComplete ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-green-300 bg-green-50 p-4">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-6 w-6 flex-shrink-0 text-green-600" />
@@ -572,7 +590,7 @@ export default function OpeningsPage() {
                     disabled={!activeRepertoire}
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    {trainingState?.feedback === 'complete' ? 'Next Line' : 'Reset Drill'}
+                    {isLineComplete && !isNothingDue ? 'Next Line' : 'Reset Drill'}
                   </Button>
                   <Button
                     type="button"
