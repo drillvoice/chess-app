@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.0] - 4 June 2026
+
+- Replace Unicode chess glyphs with inline cburnett SVG pieces (MIT-licensed, from Lichess) — cleaner rendering that scales properly on all screen sizes; both the OTB board and Opening Trainer share the new pieces automatically
+- Add spaced-repetition strict due-date gating to the Opening Trainer: only lines with due moves are offered for drilling; mastered lines are never surfaced before their scheduled interval
+- Show an "All caught up!" panel with a next-due countdown when no lines are currently due, replacing the blank drill screen
+- Import line names from PGN `{...}` comments and display them as the primary identifier in the Edit Lines dialog; names are back-filled onto matching lines when merging a labelled PGN into an existing repertoire
+- Move Import PGN into a collapsed accordion below the Repertoires list — reducing clutter since it is rarely used after initial setup
+- Fix race condition in the Opening Trainer where a correct move silently failed to register after the opponent's auto-reply, requiring a deliberate wrong move to unstick the board — root cause was a missing synchronous lock on the async `applyMove` handler
+- Fix due-move counter occasionally double-counting the same move across repeated renders
+- Fix board-message area layout shift: reserve the message container height so the board stays in place when trainer feedback first appears
+
 ## [2.4.0] - 2 June 2026
 
 - Add per-line editing to opening repertoires: an Edit dialog lists every line in SAN, each with a pause toggle and a delete button
