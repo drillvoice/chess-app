@@ -35,7 +35,8 @@ export interface OpeningMoveStats {
 
 export interface RepertoireReviewSummary {
   totalLines: number;
-  dueLines: number; // due now or new
+  dueLines: number; // due now or new (line count; used for engine gating)
+  dueMoves: number; // unique due user-move nodes — stable counter for display
   newLines: number; // never reviewed
   learnedLines: number;
   nextDueAt?: string; // earliest future due across non-due lines

@@ -199,10 +199,10 @@ export default function OpeningsPage() {
     return summaries;
   }, [repertoires]);
 
-  const totalDueLines = useMemo(
+  const totalDueMoves = useMemo(
     () =>
       repertoires.reduce(
-        (sum, repertoire) => sum + (reviewSummaries.get(repertoire.id)?.dueLines ?? 0),
+        (sum, repertoire) => sum + (reviewSummaries.get(repertoire.id)?.dueMoves ?? 0),
         0,
       ),
     [repertoires, reviewSummaries],
@@ -487,8 +487,8 @@ export default function OpeningsPage() {
   // stays empty because no move was ever made.
   const isNothingDue =
     trainingState?.feedback === 'complete' && trainingState.currentLineMoveIds.length === 0;
-  const remainingDueLines = useMemo(
-    () => (trainingState ? summarizeRepertoire(trainingState.repertoire).dueLines : 0),
+  const remainingDueMoves = useMemo(
+    () => (trainingState ? summarizeRepertoire(trainingState.repertoire).dueMoves : 0),
     [trainingState],
   );
 
@@ -500,10 +500,10 @@ export default function OpeningsPage() {
         </h2>
       </div>
 
-      {totalDueLines > 0 && (
+      {totalDueMoves > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
           <p className="text-sm font-medium text-blue-900">
-            {totalDueLines} line{totalDueLines === 1 ? '' : 's'} due for review
+            {totalDueMoves} move{totalDueMoves === 1 ? '' : 's'} due for review
           </p>
           <Button type="button" size="sm" onClick={startReview}>
             Review due
@@ -534,9 +534,9 @@ export default function OpeningsPage() {
                 <div>
                   <p className="text-base font-semibold text-green-900">Line complete!</p>
                   <p className="text-sm text-green-700">
-                    {remainingDueLines > 0
-                      ? `${remainingDueLines} line${remainingDueLines === 1 ? '' : 's'} still due.`
-                      : 'All lines reviewed for now.'}
+                    {remainingDueMoves > 0
+                      ? `${remainingDueMoves} move${remainingDueMoves === 1 ? '' : 's'} still due.`
+                      : 'All moves reviewed for now.'}
                   </p>
                 </div>
               </div>
@@ -641,9 +641,9 @@ export default function OpeningsPage() {
                             {summary?.totalLines ?? 0} line
                             {(summary?.totalLines ?? 0) === 1 ? '' : 's'}
                             {' • '}
-                            {summary && summary.dueLines > 0 ? (
+                            {summary && summary.dueMoves > 0 ? (
                               <span className="font-medium text-blue-700">
-                                {summary.dueLines} due
+                                {summary.dueMoves} move{summary.dueMoves === 1 ? '' : 's'} due
                               </span>
                             ) : (
                               <span className="text-green-700">

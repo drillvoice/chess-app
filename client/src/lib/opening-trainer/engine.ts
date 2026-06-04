@@ -473,6 +473,11 @@ export function summarizeRepertoire(
   let newLines = 0;
   let learnedLines = 0;
   let nextDueAt: string | undefined;
+  // Unique user-move node IDs that are currently due. Using a Set avoids
+  // counting shared nodes (e.g. an early move shared by many lines) multiple
+  // times, which is what caused the displayed count to jump by large amounts
+  // when a single shared node got scheduled.
+  const dueMoveIds = new Set<string>();
 
   for (const line of enumerateLines(repertoire)) {
     if (isLineDisabled(repertoire, line)) {
@@ -487,6 +492,11 @@ export function summarizeRepertoire(
     const due = stats.some((stat) => isMoveDue(stat, now));
     if (due) {
       dueLines += 1;
+      for (const id of userMoveIds) {
+        if (isMoveDue(repertoire.stats[id], now)) {
+          dueMoveIds.add(id);
+        }
+      }
       if (stats.every((stat) => !stat?.dueAt)) {
         newLines += 1;
       }
@@ -500,7 +510,7 @@ export function summarizeRepertoire(
     }
   }
 
-  return { totalLines, dueLines, newLines, learnedLines, nextDueAt };
+  return { totalLines, dueLines, dueMoves: dueMoveIds.size, newLines, learnedLines, nextDueAt };
 }
 
 /**

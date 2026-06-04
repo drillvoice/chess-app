@@ -101,6 +101,17 @@ describe('opening trainer engine', () => {
     expect(summary.nextDueAt).toBeUndefined();
   });
 
+  it('dueMoves counts unique move nodes, not lines, to avoid display jumps from shared nodes', () => {
+    // Both lines share the same first user move (e4). dueLines counts 2 lines due,
+    // but dueMoves should count only 1 unique due node — the shared e4 node —
+    // so the displayed counter does not jump by 2 when that one node is scheduled.
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 (1... e6)', 'white');
+    const summary = summarizeRepertoire(repertoire);
+
+    expect(summary.dueLines).toBe(2); // two root-to-leaf paths, both due
+    expect(summary.dueMoves).toBe(1); // e4 is the only user move; it's shared
+  });
+
   it('counts a scheduled line as learned and surfaces the next due time', () => {
     const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
     const [e4] = repertoire.nodes.root.children;
