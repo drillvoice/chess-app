@@ -13,10 +13,6 @@ import { gradeMove, isMoveDue } from './scheduler';
 
 export { isMoveDue } from './scheduler';
 
-// Weight multiplier applied to branches whose subtree contains no due/new user
-// move, when at least one sibling branch does. Keeps the existing weighted-random
-// behaviour intact while making due lines dominate the selection.
-const NOT_DUE_BRANCH_FACTOR = 0.02;
 
 export interface TrainerMoveResult {
   state: OpeningTrainingState;
@@ -155,21 +151,23 @@ export function chooseWeightedMove(
   const baseWeights = moves.map((move) => moveWeight(repertoire, move.id, now));
   const memo = new Map<string, boolean>();
   const dueFlags = moves.map((move) => subtreeHasDueUserMove(repertoire, move.id, now, memo));
-  // Only suppress not-due branches when something else is actually due; otherwise
-  // fall back to the plain weighted-random distribution.
+  // Hard-filter to due branches only when any exist; fall back to all branches
+  // when nothing is due (so free-drill still works if the caller bypasses the UI gate).
   const anyDue = dueFlags.some(Boolean);
-  const weights = baseWeights.map((weight, index) =>
-    anyDue && !dueFlags[index] ? weight * NOT_DUE_BRANCH_FACTOR : weight,
-  );
-  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const filteredMoves = anyDue ? moves.filter((_, i) => dueFlags[i]) : moves;
+  const filteredWeights = anyDue ? baseWeights.filter((_, i) => dueFlags[i]) : baseWeights;
+  if (filteredMoves.length === 0) {
+    return null;
+  }
+  const total = filteredWeights.reduce((sum, weight) => sum + weight, 0);
   let cursor = rng() * total;
-  for (let index = 0; index < moves.length; index += 1) {
-    cursor -= weights[index];
+  for (let index = 0; index < filteredMoves.length; index += 1) {
+    cursor -= filteredWeights[index];
     if (cursor <= 0) {
-      return moves[index];
+      return filteredMoves[index];
     }
   }
-  return moves[moves.length - 1];
+  return filteredMoves[filteredMoves.length - 1];
 }
 
 function hasSamePrefix(path: string[], prefix: string[]): boolean {
