@@ -165,6 +165,30 @@ describe('Openings page', () => {
     expect(screen.getByRole('button', { name: /Square e2/i }).className).not.toMatch(/ring-blue/);
   });
 
+  it('applies the next move tapped immediately after a move, during the reply pause', async () => {
+    render(<OpeningsPage />);
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 e5 2. Nf3 Nc6' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+
+    // Play e4 and then Nf3 immediately, WITHOUT waiting for the trainer's reply.
+    // Previously the reply played behind a 300ms input block, so this second move
+    // landed in a dead zone and was silently dropped; the line never completed.
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square g1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square f3/i }));
+
+    // Both user moves register; trainer replies Nc6 and the line completes.
+    await waitFor(() => expect(screen.getByText('Line complete!')).toBeInTheDocument(), {
+      timeout: 2000,
+    });
+  });
+
   it('registers the second correct move after a wrong attempt on the first', async () => {
     render(<OpeningsPage />);
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });

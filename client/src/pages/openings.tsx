@@ -83,10 +83,6 @@ const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
   info: 'border-gray-200 bg-gray-50 text-gray-700',
 };
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function repertoireMoveCount(repertoire: OpeningRepertoire): number {
   return Math.max(0, Object.keys(repertoire.nodes).length - 1);
 }
@@ -128,7 +124,13 @@ export default function OpeningsPage() {
   const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
   const [isImportPgnOpen, setIsImportPgnOpen] = useState(false);
   const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
-  const [isTrainerThinking, setIsTrainerThinking] = useState(false);
+  // Board-only override: after a correct move we briefly show the user's move
+  // before revealing the trainer's reply. `trainingState` is kept canonical
+  // (already advanced through the reply) the whole time; this FEN only affects
+  // what the board renders, and it never blocks input — so a tap-ahead during the
+  // pause is applied against canonical state instead of being silently dropped.
+  const [previewFen, setPreviewFen] = useState<string | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const applyingMoveRef = useRef(false);
   // Id of the repertoire whose lines are being managed in the edit dialog.
   const [managingRepertoireId, setManagingRepertoireId] = useState<string | null>(null);
@@ -195,6 +197,31 @@ export default function OpeningsPage() {
 
   const clearSelection = useCallback(() => applySelection(null), [applySelection]);
 
+  // Clear the board preview immediately and cancel its pending timer.
+  const cancelPreview = useCallback(() => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    setPreviewFen(null);
+  }, []);
+
+  // Show `fen` on the board for the reply delay, then fall back to canonical
+  // `trainingState`. Any new move or interaction supersedes it via cancelPreview.
+  const startPreview = useCallback((fen: string) => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+    }
+    setPreviewFen(fen);
+    previewTimerRef.current = setTimeout(() => {
+      previewTimerRef.current = null;
+      setPreviewFen(null);
+    }, TRAINER_REPLY_DELAY_MS);
+  }, []);
+
+  // Clear any pending preview timer if the page unmounts mid-pause.
+  useEffect(() => () => cancelPreview(), [cancelPreview]);
+
   const persistRepertoire = useCallback(async (repertoire: OpeningRepertoire) => {
     const saved = await saveOpeningRepertoire(repertoire);
     setRepertoires((previous) =>
@@ -213,10 +240,10 @@ export default function OpeningsPage() {
       setTrainingState(startOpeningTraining(repertoire, avoidLine));
       setIsBoardFlipped(repertoire.side === 'black');
       setBoardMessage(null);
-      setIsTrainerThinking(false);
+      cancelPreview();
       clearSelection();
     },
-    [clearSelection],
+    [cancelPreview, clearSelection],
   );
 
   // Chessable-style review counts. Recomputed whenever a drilled move re-saves a
@@ -383,11 +410,16 @@ export default function OpeningsPage() {
     await persistLineEdit(deleteLine(managingRepertoire, leafId));
   };
 
-  const applyMove = async (from: Square, to: Square, promotion?: PromotionPiece) => {
+  // Synchronous: state is always committed canonical and any "show your move"
+  // pause is a non-blocking board preview, so there is no window where input is
+  // frozen. applyingMoveRef stays purely as a same-tick re-entrancy guard.
+  const applyMove = (from: Square, to: Square, promotion?: PromotionPiece) => {
     if (!trainingState || applyingMoveRef.current) {
       return;
     }
     applyingMoveRef.current = true;
+    // A new move supersedes any reply preview still on screen.
+    cancelPreview();
 
     // persistTarget is set to whichever repertoire needs saving once a move is
     // applied (null for the promotion-pending path where nothing has been applied
@@ -418,21 +450,18 @@ export default function OpeningsPage() {
         return;
       }
 
-      // Correct move. Show the user's move first, then play the trainer's reply
-      // after a short pause so the change is easy to follow.
+      // Correct move. Commit the canonical (post-reply) state immediately so the
+      // board is never validated against a stale position, then briefly show the
+      // user's move on top via a non-blocking preview before the reply appears.
+      persistTarget = result.state.repertoire;
+      setTrainingState(result.state);
+
       const hasTrainerReply = Boolean(
         result.userMoveFen && result.userMoveFen !== result.state.currentFen,
       );
-      persistTarget = result.state.repertoire;
-
       if (hasTrainerReply && result.userMoveFen) {
-        setTrainingState({ ...result.state, currentFen: result.userMoveFen });
-        setIsTrainerThinking(true);
-        await sleep(TRAINER_REPLY_DELAY_MS);
-        setIsTrainerThinking(false);
+        startPreview(result.userMoveFen);
       }
-
-      setTrainingState(result.state);
 
       if (result.state.feedback === 'complete') {
         setBoardMessage(null);
@@ -444,7 +473,6 @@ export default function OpeningsPage() {
       console.error('[openings] applyMove error', err);
     } finally {
       applyingMoveRef.current = false;
-      setIsTrainerThinking(false);
       if (persistTarget) {
         void persistRepertoire(persistTarget).catch((err) =>
           console.error('[openings] persist failed', err),
@@ -453,16 +481,19 @@ export default function OpeningsPage() {
     }
   };
 
-  const handleSquareTap = async (square: Square) => {
+  const handleSquareTap = (square: Square) => {
     if (
       !trainingState ||
       pendingPromotion ||
-      isTrainerThinking ||
       applyingMoveRef.current ||
       trainingState.feedback === 'complete'
     ) {
       return;
     }
+
+    // Any interaction dismisses the reply preview so selection and rendering
+    // both resolve to canonical state before the tap is processed.
+    cancelPreview();
 
     const pieceMap = getPieceMapFromFen(trainingState.currentFen);
     const tappedPiece = pieceMap[square];
@@ -505,20 +536,21 @@ export default function OpeningsPage() {
       return;
     }
 
-    await applyMove(selection.square, square);
+    applyMove(selection.square, square);
   };
 
-  const handlePromotionChoice = async (piece: PromotionPiece) => {
+  const handlePromotionChoice = (piece: PromotionPiece) => {
     if (!pendingPromotion) {
       return;
     }
-    await applyMove(pendingPromotion.from, pendingPromotion.to, piece);
+    applyMove(pendingPromotion.from, pendingPromotion.to, piece);
     setPendingPromotion(null);
   };
 
+  // Render the brief reply preview when present, otherwise the canonical board.
   const pieceMap = useMemo(
-    () => (trainingState ? getPieceMapFromFen(trainingState.currentFen) : {}),
-    [trainingState],
+    () => (trainingState ? getPieceMapFromFen(previewFen ?? trainingState.currentFen) : {}),
+    [previewFen, trainingState],
   );
 
   const statusText = useMemo(() => {
@@ -614,7 +646,7 @@ export default function OpeningsPage() {
             legalTargets={legalTargets}
             isFlipped={isBoardFlipped}
             isTableMode={false}
-            onSquareTap={(square) => void handleSquareTap(square)}
+            onSquareTap={handleSquareTap}
           />
 
           <Card>
@@ -975,7 +1007,7 @@ export default function OpeningsPage() {
 
       <PromotionPicker
         open={Boolean(pendingPromotion)}
-        onSelect={(piece) => void handlePromotionChoice(piece)}
+        onSelect={handlePromotionChoice}
         onCancel={() => setPendingPromotion(null)}
       />
     </div>
