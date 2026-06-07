@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.1] - 7 June 2026
+
+- Fix Opening Trainer board lock: if the chess engine threw synchronously during move application the mutex (`applyingMoveRef`) was never released, leaving the board completely frozen — no moves, no piece selection — until Reset Drill was clicked; the fix wraps all move logic in a `try/finally` so the mutex is unconditionally released on every exit path
+
 ## [2.5.0] - 4 June 2026
 
 - Replace Unicode chess glyphs with inline cburnett SVG pieces (MIT-licensed, from Lichess) — cleaner rendering that scales properly on all screen sizes; both the OTB board and Opening Trainer share the new pieces automatically
