@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.4] - 7 June 2026
+
+- Fix Opening Trainer dropping moves deeper in a line: after a correct move the trainer's reply played behind a 300ms input freeze, so a tap on the next move (common when drilling a known line at speed) landed in a dead zone and was silently swallowed — you had to tap again. Training state is now kept canonical and that brief "show your move first" pause is rendered as a non-blocking board overlay, so input is never frozen and fast, back-to-back moves all register. Also removes a related state-consistency issue where, during the pause, the status line could show a later move number than the board
+
 ## [2.5.3] - 7 June 2026
 
 - Fix Opening Trainer dropping the first move of a drill: when the destination square was tapped before React committed the selecting tap's render (common on the first move, where a known move like `1.e4` is played fast), the move handler ran against a stale `selectedSquare` and silently discarded the tap — leaving the pawn looking selected with legal-move dots but no move registered; playing a wrong move and retrying was the only workaround. The selection is now mirrored in a ref written synchronously, so a rapid second tap always applies the move
