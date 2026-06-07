@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.2] - 7 June 2026
+
+- Add **Show Line** button to the Opening Trainer drill controls: reveals the current line's name (from PGN `{comment}` labels) and full SAN move sequence so specific lines can be identified when debugging move-registration issues; updates live as moves are played and collapses on Reset Drill or Skip Line
+- Add **Skip Line** button: immediately advances the trainer to a different line (biasing away from the current branch), with a toast confirmation on success — makes it easy to cycle through lines to isolate a problematic one
+
 ## [2.5.1] - 7 June 2026
 
 - Fix Opening Trainer board lock: if the chess engine threw synchronously during move application the mutex (`applyingMoveRef`) was never released, leaving the board completely frozen — no moves, no piece selection — until Reset Drill was clicked; the fix wraps all move logic in a `try/finally` so the mutex is unconditionally released on every exit path
