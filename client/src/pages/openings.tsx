@@ -401,9 +401,9 @@ export default function OpeningsPage() {
       setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
     } catch (err) {
       console.error('[openings] applyMove error', err);
-      setIsTrainerThinking(false);
     } finally {
       applyingMoveRef.current = false;
+      setIsTrainerThinking(false);
       if (persistTarget) {
         void persistRepertoire(persistTarget).catch((err) =>
           console.error('[openings] persist failed', err),
