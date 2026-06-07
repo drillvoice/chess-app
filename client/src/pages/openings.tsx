@@ -127,6 +127,7 @@ export default function OpeningsPage() {
   const applyingMoveRef = useRef(false);
   // Id of the repertoire whose lines are being managed in the edit dialog.
   const [managingRepertoireId, setManagingRepertoireId] = useState<string | null>(null);
+  const [showLine, setShowLine] = useState(false);
 
   const activeRepertoire = useMemo(
     () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
@@ -158,6 +159,17 @@ export default function OpeningsPage() {
       paused: isLineDisabled(managingRepertoire, line),
     }));
   }, [managingRepertoire]);
+
+  const currentLineCandidates = useMemo(() => {
+    if (!trainingState) return [];
+    const prefix = [
+      ...trainingState.currentLineMoveIds,
+      ...(trainingState.expectedMoveId ? [trainingState.expectedMoveId] : []),
+    ];
+    return enumerateLines(trainingState.repertoire).filter((line) =>
+      prefix.every((id, i) => line[i] === id),
+    );
+  }, [trainingState]);
 
   useEffect(() => {
     const load = async () => {
@@ -284,7 +296,20 @@ export default function OpeningsPage() {
     }
   };
 
+  const handleSkipLine = () => {
+    if (!trainingState) return;
+    const sourceRepertoire =
+      trainingState.repertoire.id === activeRepertoire?.id
+        ? trainingState.repertoire
+        : activeRepertoire;
+    if (!sourceRepertoire) return;
+    setShowLine(false);
+    startTraining(sourceRepertoire, trainingState.currentLineMoveIds);
+    toast({ title: 'Switched to a new line' });
+  };
+
   const handleStart = () => {
+    setShowLine(false);
     const currentTrainingState = trainingState;
     const sourceRepertoire =
       currentTrainingState && currentTrainingState.repertoire.id === activeRepertoire?.id
@@ -615,8 +640,45 @@ export default function OpeningsPage() {
                   >
                     Reveal
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowLine((v) => !v)}
+                    disabled={!trainingState}
+                  >
+                    {showLine ? 'Hide Line' : 'Show Line'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSkipLine}
+                    disabled={!trainingState || !activeRepertoire}
+                  >
+                    Skip Line
+                  </Button>
                 </div>
               </div>
+              {showLine && trainingState && (
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs">
+                  {currentLineCandidates.length === 0 ? (
+                    <p className="text-gray-500">No matching line found.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {currentLineCandidates.map((line, i) => {
+                        const label = lineLabel(trainingState.repertoire, line);
+                        return (
+                          <div key={i}>
+                            {label && <p className="font-medium text-gray-700">{label}</p>}
+                            <p className="font-mono text-gray-600">
+                              {describeLine(trainingState.repertoire, line)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
