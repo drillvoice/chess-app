@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.3] - 7 June 2026
+
+- Fix Opening Trainer dropping the first move of a drill: when the destination square was tapped before React committed the selecting tap's render (common on the first move, where a known move like `1.e4` is played fast), the move handler ran against a stale `selectedSquare` and silently discarded the tap — leaving the pawn looking selected with legal-move dots but no move registered; playing a wrong move and retrying was the only workaround. The selection is now mirrored in a ref written synchronously, so a rapid second tap always applies the move
+
 ## [2.5.2] - 7 June 2026
 
 - Add **Show Line** button to the Opening Trainer drill controls: reveals the current line's name (from PGN `{comment}` labels) and full SAN move sequence so specific lines can be identified when debugging move-registration issues; updates live as moves are played and collapses on Reset Drill or Skip Line

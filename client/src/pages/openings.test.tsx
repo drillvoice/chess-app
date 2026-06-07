@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import OpeningsPage from './openings';
 
@@ -110,6 +110,59 @@ describe('Openings page', () => {
     await waitFor(() =>
       expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
     );
+  });
+
+  it('applies the first move when the piece and target are tapped in the same tick', async () => {
+    render(<OpeningsPage />);
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 e5 2. Nf3 Nc6' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+
+    const e2 = screen.getByRole('button', { name: /Square e2/i });
+    const e4 = screen.getByRole('button', { name: /Square e4/i });
+
+    // Reproduce a fast tap: select the pawn and tap the destination in the SAME
+    // tick, so the destination tap's handler runs before React commits the
+    // selecting tap's render. Reading selection from a ref (not stale state) is
+    // what keeps the move from being silently dropped here.
+    await act(async () => {
+      e2.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      e4.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await waitFor(
+      () => expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
+      { timeout: 2000 },
+    );
+  });
+
+  it('applies a paced first move and keeps the selection state consistent', async () => {
+    render(<OpeningsPage />);
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 e5 2. Nf3 Nc6' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+
+    // Normal pace: each click flushes a render before the next, so the ref and
+    // React state must stay in agreement.
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    // Selecting the pawn highlights it (ring) — selection state is live.
+    expect(screen.getByRole('button', { name: /Square e2/i }).className).toMatch(/ring-blue/);
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+
+    await waitFor(
+      () => expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
+      { timeout: 2000 },
+    );
+    // After the move the selection is cleared (no lingering ring on e2).
+    expect(screen.getByRole('button', { name: /Square e2/i }).className).not.toMatch(/ring-blue/);
   });
 
   it('registers the second correct move after a wrong attempt on the first', async () => {

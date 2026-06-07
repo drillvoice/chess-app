@@ -113,6 +113,11 @@ export default function OpeningsPage() {
   const [trainingState, setTrainingState] = useState<OpeningTrainingState | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
+  // Mirror of the current selection, written synchronously so a second tap that
+  // lands before React commits the selecting tap's render still sees it. Without
+  // this, a fast piece-then-target tap reads a stale `selectedSquare === null`
+  // closure and silently drops the move (the reported first-move bug).
+  const selectionRef = useRef<{ square: Square; targets: Square[] } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
   const [isBoardFlipped, setIsBoardFlipped] = useState(false);
   const [importName, setImportName] = useState('');
@@ -180,10 +185,15 @@ export default function OpeningsPage() {
     void load();
   }, []);
 
-  const clearSelection = () => {
-    setSelectedSquare(null);
-    setLegalTargets([]);
-  };
+  // Single entry point for every selection mutation so the ref can never drift
+  // from the rendered state. Pass null to deselect.
+  const applySelection = useCallback((next: { square: Square; targets: Square[] } | null) => {
+    selectionRef.current = next;
+    setSelectedSquare(next?.square ?? null);
+    setLegalTargets(next?.targets ?? []);
+  }, []);
+
+  const clearSelection = useCallback(() => applySelection(null), [applySelection]);
 
   const persistRepertoire = useCallback(async (repertoire: OpeningRepertoire) => {
     const saved = await saveOpeningRepertoire(repertoire);
@@ -194,14 +204,20 @@ export default function OpeningsPage() {
     return saved;
   }, []);
 
-  const startTraining = useCallback((repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
-    applyingMoveRef.current = false;
-    setTrainingState(startOpeningTraining(repertoire, avoidLine));
-    setIsBoardFlipped(repertoire.side === 'black');
-    setBoardMessage(null);
-    setIsTrainerThinking(false);
-    clearSelection();
-  }, []);
+  const startTraining = useCallback(
+    (repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
+      applyingMoveRef.current = false;
+      // Reset the ref directly as well as via clearSelection so a fresh drill can
+      // never inherit a stale selection, independent of clearSelection's impl.
+      selectionRef.current = null;
+      setTrainingState(startOpeningTraining(repertoire, avoidLine));
+      setIsBoardFlipped(repertoire.side === 'black');
+      setBoardMessage(null);
+      setIsTrainerThinking(false);
+      clearSelection();
+    },
+    [clearSelection],
+  );
 
   // Chessable-style review counts. Recomputed whenever a drilled move re-saves a
   // repertoire, so the badges and banner stay in step with what's actually due.
@@ -452,7 +468,12 @@ export default function OpeningsPage() {
     const tappedPiece = pieceMap[square];
     const activeColor = trainingState.currentFen.split(' ')[1] as 'w' | 'b';
 
-    if (!selectedSquare) {
+    // Read the selection from the ref, not React state: a rapid second tap can
+    // fire before the selecting tap's render commits, so the state closure may
+    // still be stale while the ref is already up to date.
+    const selection = selectionRef.current;
+
+    if (!selection) {
       if (!tappedPiece || tappedPiece.color !== activeColor) {
         return;
       }
@@ -460,33 +481,31 @@ export default function OpeningsPage() {
       if (destinations.length === 0) {
         return;
       }
-      setSelectedSquare(square);
-      setLegalTargets(destinations);
+      applySelection({ square, targets: destinations });
       return;
     }
 
-    if (square === selectedSquare) {
+    if (square === selection.square) {
       clearSelection();
       return;
     }
 
-    if (!legalTargets.includes(square)) {
+    if (!selection.targets.includes(square)) {
       if (tappedPiece && tappedPiece.color === activeColor) {
         const destinations = getLegalDestinationsFromFen(trainingState.currentFen, square);
-        setSelectedSquare(destinations.length ? square : null);
-        setLegalTargets(destinations);
+        applySelection(destinations.length ? { square, targets: destinations } : null);
       } else {
         clearSelection();
       }
       return;
     }
 
-    if (moveNeedsPromotionFromFen(trainingState.currentFen, selectedSquare, square)) {
-      setPendingPromotion({ from: selectedSquare, to: square });
+    if (moveNeedsPromotionFromFen(trainingState.currentFen, selection.square, square)) {
+      setPendingPromotion({ from: selection.square, to: square });
       return;
     }
 
-    await applyMove(selectedSquare, square);
+    await applyMove(selection.square, square);
   };
 
   const handlePromotionChoice = async (piece: PromotionPiece) => {
