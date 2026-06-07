@@ -348,40 +348,42 @@ export default function OpeningsPage() {
     }
     applyingMoveRef.current = true;
 
-    const result = applyTrainerMove(trainingState, from, to, promotion);
-    clearSelection();
-
-    if (result.promotionRequired) {
-      // Nothing was applied yet; wait for the promotion choice.
-      applyingMoveRef.current = false;
-      setPendingPromotion({ from, to });
-      return;
-    }
-
-    if (!result.correct) {
-      applyingMoveRef.current = false;
-      setTrainingState(result.state);
-      if (result.state.feedback === 'revealed') {
-        setBoardMessage({
-          text: `Revealed: ${expectedMoveSan(result.state) ?? 'the correct move'} — replay it on the board.`,
-          tone: 'negative',
-        });
-      } else {
-        setBoardMessage({ text: 'Not this branch — try again.', tone: 'negative' });
-      }
-      void persistRepertoire(result.state.repertoire).catch((err) =>
-        console.error('[openings] persist failed after incorrect move', err),
-      );
-      return;
-    }
-
-    // Correct move. Show the user's move first, then play the trainer's reply
-    // after a short pause so the change is easy to follow.
-    const hasTrainerReply = Boolean(
-      result.userMoveFen && result.userMoveFen !== result.state.currentFen,
-    );
-
+    // persistTarget is set to whichever repertoire needs saving once a move is
+    // applied (null for the promotion-pending path where nothing has been applied
+    // yet). It is read in the finally block so the ref is always released even if
+    // applyTrainerMove throws before the inner try block is entered.
+    let persistTarget: OpeningRepertoire | null = null;
     try {
+      const result = applyTrainerMove(trainingState, from, to, promotion);
+      clearSelection();
+
+      if (result.promotionRequired) {
+        // Nothing was applied yet; wait for the promotion choice.
+        setPendingPromotion({ from, to });
+        return;
+      }
+
+      if (!result.correct) {
+        setTrainingState(result.state);
+        if (result.state.feedback === 'revealed') {
+          setBoardMessage({
+            text: `Revealed: ${expectedMoveSan(result.state) ?? 'the correct move'} — replay it on the board.`,
+            tone: 'negative',
+          });
+        } else {
+          setBoardMessage({ text: 'Not this branch — try again.', tone: 'negative' });
+        }
+        persistTarget = result.state.repertoire;
+        return;
+      }
+
+      // Correct move. Show the user's move first, then play the trainer's reply
+      // after a short pause so the change is easy to follow.
+      const hasTrainerReply = Boolean(
+        result.userMoveFen && result.userMoveFen !== result.state.currentFen,
+      );
+      persistTarget = result.state.repertoire;
+
       if (hasTrainerReply && result.userMoveFen) {
         setTrainingState({ ...result.state, currentFen: result.userMoveFen });
         setIsTrainerThinking(true);
@@ -402,9 +404,11 @@ export default function OpeningsPage() {
       setIsTrainerThinking(false);
     } finally {
       applyingMoveRef.current = false;
-      void persistRepertoire(result.state.repertoire).catch((err) =>
-        console.error('[openings] persist failed after correct move', err),
-      );
+      if (persistTarget) {
+        void persistRepertoire(persistTarget).catch((err) =>
+          console.error('[openings] persist failed', err),
+        );
+      }
     }
   };
 
