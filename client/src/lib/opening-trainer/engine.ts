@@ -215,30 +215,83 @@ export function advanceOpponentMoves(
 ): OpeningTrainingState {
   let next = { ...state, expectedMoveId: null, feedback: 'idle' as const };
 
-  while (getTurn(next.currentFen) !== sideToTurn(next.repertoire.side)) {
-    const move = chooseMoveForLine(next, getChildren(next.repertoire, next.currentNodeId), rng);
-    if (!move) {
-      return {
+  // FEN parsing (getTurn/chess.js) throws on a malformed node FEN. If that ever
+  // happens, end the line gracefully rather than throwing — an uncaught throw
+  // here is swallowed by the UI's applyMove and shows up as a silently dropped
+  // correct move (the board doesn't change and no feedback appears).
+  try {
+    while (getTurn(next.currentFen) !== sideToTurn(next.repertoire.side)) {
+      const move = chooseMoveForLine(next, getChildren(next.repertoire, next.currentNodeId), rng);
+      if (!move) {
+        return {
+          ...next,
+          feedback: 'complete',
+          lastCompletedLineMoveIds: next.currentLineMoveIds,
+        };
+      }
+      next = {
         ...next,
-        feedback: 'complete',
-        lastCompletedLineMoveIds: next.currentLineMoveIds,
+        currentNodeId: move.id,
+        currentFen: move.fenAfter,
+        incorrectAttempts: 0,
+        expectedMoveId: null,
+        currentLineMoveIds: [...next.currentLineMoveIds, move.id],
       };
     }
-    next = {
-      ...next,
-      currentNodeId: move.id,
-      currentFen: move.fenAfter,
-      incorrectAttempts: 0,
-      expectedMoveId: null,
-      currentLineMoveIds: [...next.currentLineMoveIds, move.id],
-    };
-  }
 
-  if (getChildren(next.repertoire, next.currentNodeId).length === 0) {
+    if (getChildren(next.repertoire, next.currentNodeId).length === 0) {
+      return { ...next, feedback: 'complete', lastCompletedLineMoveIds: next.currentLineMoveIds };
+    }
+
+    return chooseExpectedUserMove(next, rng);
+  } catch (err) {
+    console.error('[opening-trainer] advanceOpponentMoves failed; ending line', err);
     return { ...next, feedback: 'complete', lastCompletedLineMoveIds: next.currentLineMoveIds };
   }
+}
 
-  return chooseExpectedUserMove(next, rng);
+/**
+ * Return a fresh state object for the current position without touching any
+ * stats or SRS scheduling — it never calls `updateMoveStats`/`gradeMove`, so it
+ * cannot change a line's review interval. Used to "unstick" the trainer (manual
+ * Unstick button, or automatic recovery after a swallowed error) by forcing a
+ * clean re-render: a still-valid expected move is preserved, otherwise it is
+ * re-derived at the current position.
+ */
+/**
+ * Diagnostic: list nodes whose stored FENs can't be parsed by chess.js. A bad
+ * `fenAfter`/`fenBefore` makes the trainer throw while walking the line (which the
+ * UI swallows as a silently dropped move), so surfacing them points straight at a
+ * repertoire that needs re-importing. Returns an empty array for healthy data.
+ */
+export function findInvalidNodeFens(
+  repertoire: OpeningRepertoire,
+): Array<{ id: string; san: string; field: 'fenBefore' | 'fenAfter'; fen: string }> {
+  const bad: Array<{ id: string; san: string; field: 'fenBefore' | 'fenAfter'; fen: string }> = [];
+  for (const node of Object.values(repertoire.nodes)) {
+    for (const field of ['fenBefore', 'fenAfter'] as const) {
+      const fen = node[field];
+      try {
+        chessFromFen(fen);
+      } catch {
+        bad.push({ id: node.id, san: node.san, field, fen });
+      }
+    }
+  }
+  return bad;
+}
+
+export function resyncTrainingState(
+  state: OpeningTrainingState,
+  rng: () => number = Math.random,
+): OpeningTrainingState {
+  if (state.feedback === 'complete') {
+    return state;
+  }
+  if (state.expectedMoveId && state.repertoire.nodes[state.expectedMoveId]) {
+    return { ...state, feedback: 'idle' };
+  }
+  return advanceOpponentMoves({ ...state, expectedMoveId: null, feedback: 'idle' }, rng);
 }
 
 export function startOpeningTraining(

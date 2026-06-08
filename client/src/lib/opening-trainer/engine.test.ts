@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceOpponentMoves,
   applyTrainerMove,
   chooseWeightedMove,
   deleteLine,
   describeLine,
   enumerateLines,
+  findInvalidNodeFens,
   lineLabel,
   moveWeight,
+  resyncTrainingState,
   setLineDisabled,
   startOpeningTraining,
   summarizeRepertoire,
@@ -237,5 +240,70 @@ describe('opening trainer engine', () => {
 
     const { repertoire: bare } = parseOpeningRepertoirePgn('1. e4 e5', 'white');
     expect(lineLabel(bare, enumerateLines(bare)[0])).toBeUndefined();
+  });
+
+  it('resyncTrainingState yields a fresh object without touching stats', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
+    const state = startOpeningTraining(repertoire, [], () => 0);
+
+    const resynced = resyncTrainingState(state, () => 0);
+
+    // New object reference (forces a React re-render) at the same position with
+    // the same expected move, and — crucially — identical stats (SRS untouched).
+    expect(resynced).not.toBe(state);
+    expect(resynced.currentNodeId).toBe(state.currentNodeId);
+    expect(resynced.expectedMoveId).toBe(state.expectedMoveId);
+    expect(resynced.repertoire.stats).toEqual(state.repertoire.stats);
+  });
+
+  it('advanceOpponentMoves ends the line instead of throwing on a bad node FEN', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6', 'white');
+    // Corrupt the FEN of the opponent reply node so walking the line would throw.
+    const e5Id = repertoire.nodes[repertoire.rootNodeId].children
+      .flatMap((id) => repertoire.nodes[id].children)
+      .find((id) => repertoire.nodes[id].san === 'e5')!;
+    const corrupted = {
+      ...repertoire,
+      nodes: {
+        ...repertoire.nodes,
+        [e5Id]: { ...repertoire.nodes[e5Id], fenAfter: 'not a fen' },
+      },
+    };
+    const afterE4 = applyTrainerMove(
+      startOpeningTraining(corrupted, [], () => 0),
+      'e2',
+      'e4',
+      undefined,
+      () => 0,
+    );
+    // No throw; the move still counts as correct and the line ends gracefully.
+    expect(afterE4.correct).toBe(true);
+    expect(afterE4.state.feedback).toBe('complete');
+  });
+
+  it('findInvalidNodeFens flags corrupt FENs and passes healthy data', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5', 'white');
+    expect(findInvalidNodeFens(repertoire)).toEqual([]);
+
+    const [firstChild] = repertoire.nodes[repertoire.rootNodeId].children;
+    const corrupted = {
+      ...repertoire,
+      nodes: {
+        ...repertoire.nodes,
+        [firstChild]: { ...repertoire.nodes[firstChild], fenAfter: '' },
+      },
+    };
+    const bad = findInvalidNodeFens(corrupted);
+    expect(bad).toHaveLength(1);
+    expect(bad[0]).toMatchObject({ id: firstChild, field: 'fenAfter' });
+  });
+
+  it('advanceOpponentMoves is a no-op pass-through for a completed line', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5', 'white');
+    const state = startOpeningTraining(repertoire, [], () => 0);
+    // Play e4; opponent has no further reply after e5 → line completes.
+    const done = applyTrainerMove(state, 'e2', 'e4', undefined, () => 0).state;
+    expect(done.feedback).toBe('complete');
+    expect(advanceOpponentMoves(done, () => 0).feedback).toBe('complete');
   });
 });

@@ -8,11 +8,15 @@ const {
   getOpeningRepertoiresMock,
   saveOpeningRepertoireMock,
   deleteOpeningRepertoireMock,
+  throwNextApplyMove,
 } = vi.hoisted(() => ({
   toastSpy: vi.fn(),
   getOpeningRepertoiresMock: vi.fn(),
   saveOpeningRepertoireMock: vi.fn(),
   deleteOpeningRepertoireMock: vi.fn(),
+  // When `.current` is true, the next applyTrainerMove call throws once (to
+  // simulate the engine choking on a move) and then resets to real behaviour.
+  throwNextApplyMove: { current: false },
 }));
 
 vi.mock('@/hooks/use-toast', () => ({
@@ -25,6 +29,22 @@ vi.mock('@/lib/firebase/repertoires', () => ({
   deleteOpeningRepertoire: deleteOpeningRepertoireMock,
 }));
 
+// Delegate to the real engine, but allow a test to force a single throw from
+// applyTrainerMove so the self-healing catch path can be exercised.
+vi.mock('@/lib/opening-trainer/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/opening-trainer/engine')>();
+  return {
+    ...actual,
+    applyTrainerMove: (...args: Parameters<typeof actual.applyTrainerMove>) => {
+      if (throwNextApplyMove.current) {
+        throwNextApplyMove.current = false;
+        throw new Error('Invalid FEN: simulated');
+      }
+      return actual.applyTrainerMove(...args);
+    },
+  };
+});
+
 describe('Openings page', () => {
   afterEach(() => {
     cleanup();
@@ -33,6 +53,7 @@ describe('Openings page', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    throwNextApplyMove.current = false;
     getOpeningRepertoiresMock.mockResolvedValue([]);
     saveOpeningRepertoireMock.mockImplementation(async (repertoire) => repertoire);
     deleteOpeningRepertoireMock.mockResolvedValue(undefined);
@@ -187,6 +208,61 @@ describe('Openings page', () => {
     await waitFor(() => expect(screen.getByText('Line complete!')).toBeInTheDocument(), {
       timeout: 2000,
     });
+  });
+
+  it('self-heals (no stuck board) when a move throws, without recording a miss', async () => {
+    render(<OpeningsPage />);
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 e5 2. Nf3 Nc6' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    saveOpeningRepertoireMock.mockClear();
+
+    // Force the next move to throw inside the engine (simulating the silent-drop
+    // bug). Without self-healing the board would stay stuck with no feedback.
+    throwNextApplyMove.current = true;
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+
+    // The board recovers with a visible "tap again" message instead of dying
+    // silently, and nothing was persisted (so no miss / interval change).
+    await waitFor(() => expect(screen.getByText(/didn't register/i)).toBeInTheDocument());
+    expect(saveOpeningRepertoireMock).not.toHaveBeenCalled();
+
+    // Retrying the same move now works (throw flag has reset).
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
+    );
+  });
+
+  it('Unstick button refreshes the drill without changing the schedule', async () => {
+    render(<OpeningsPage />);
+    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
+    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
+    fireEvent.change(screen.getByLabelText(/PGN text/i), {
+      target: { value: '1. e4 e5 2. Nf3 Nc6' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    saveOpeningRepertoireMock.mockClear();
+
+    // Pressing Unstick must not persist anything (SRS-neutral) and must leave the
+    // drill ready on the same side.
+    fireEvent.click(screen.getByRole('button', { name: /Unstick/i }));
+    expect(saveOpeningRepertoireMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/White to train/i)).toBeInTheDocument();
+
+    // The drill is still fully functional afterwards.
+    fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
+    );
   });
 
   it('registers the second correct move after a wrong attempt on the first', async () => {
