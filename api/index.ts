@@ -2,7 +2,6 @@
 // NOTE: This is a PROXY-ONLY serverless function for the Lichess API.
 // All data storage happens client-side (IndexedDB), not on the backend.
 import express from 'express';
-import path from 'path';
 import { fetchLichessGames, LichessProxyError } from '../server/lichess';
 
 const app = express();
@@ -44,13 +43,6 @@ app.get('/api/lichess/latest', async (req, res) => {
       error: err instanceof Error ? err.message : 'Unknown error',
     });
   }
-});
-
-// SPA fallback — for any non-API, non-static route, serve index.html.
-// Vercel's static file serving happens before the serverless function, so
-// this handler only receives requests that don't match a static file.
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
 
 export default app;
