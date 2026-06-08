@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.5] - 8 June 2026
+
+- Add an **Unstick** button to the Opening Trainer drill controls: if a move ever refuses to register, one tap clears the stuck state and refreshes the board at the same position. It is spaced-repetition neutral — it records nothing and never changes a line's review interval
+- Opening Trainer moves now **self-heal** instead of silently failing: if the engine throws while applying a correct move (which previously left the board frozen with the piece still highlighted until you made some other move), the board now recovers automatically and shows a "that move didn't register — tap it again" message, with no effect on your review schedule
+- Harden the trainer so a malformed position in a stored line ends the line gracefully rather than throwing, and log a clear warning when a repertoire contains an unparseable position (so a bad import can be spotted and re-imported)
+
 ## [2.5.4] - 7 June 2026
 
 - Fix Opening Trainer dropping moves deeper in a line: after a correct move the trainer's reply played behind a 300ms input freeze, so a tap on the next move (common when drilling a known line at speed) landed in a dead zone and was silently swallowed — you had to tap again. Training state is now kept canonical and that brief "show your move first" pause is rendered as a non-blocking board overlay, so input is never frozen and fast, back-to-back moves all register. Also removes a related state-consistency issue where, during the pause, the status line could show a later move number than the board

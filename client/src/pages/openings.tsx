@@ -36,11 +36,13 @@ import {
   describeLine,
   enumerateLines,
   expectedMoveSan,
+  findInvalidNodeFens,
   getLegalDestinationsFromFen,
   getPieceMapFromFen,
   isLineDisabled,
   lineLabel,
   moveNeedsPromotionFromFen,
+  resyncTrainingState,
   setLineDisabled,
   startOpeningTraining,
   summarizeRepertoire,
@@ -233,6 +235,16 @@ export default function OpeningsPage() {
 
   const startTraining = useCallback(
     (repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
+      // Diagnostic: a node with an unparseable FEN makes the trainer throw
+      // mid-line (which surfaces as a silently dropped move). Surface any such
+      // nodes so a bad import is obvious; healthy data logs nothing.
+      const badNodes = findInvalidNodeFens(repertoire);
+      if (badNodes.length > 0) {
+        console.warn(
+          `[openings] "${repertoire.name}" has ${badNodes.length} node(s) with invalid FENs — re-import recommended`,
+          badNodes,
+        );
+      }
       applyingMoveRef.current = false;
       // Reset the ref directly as well as via clearSelection so a fresh drill can
       // never inherit a stale selection, independent of clearSelection's impl.
@@ -349,6 +361,20 @@ export default function OpeningsPage() {
     setShowLine(false);
     startTraining(sourceRepertoire, trainingState.currentLineMoveIds);
     toast({ title: 'Switched to a new line' });
+  };
+
+  // Manual escape hatch for a stuck board (a tap that won't register). Clears all
+  // transient interaction state and resyncs to a fresh state object at the SAME
+  // position, re-deriving the expected move WITHOUT touching any stats — so it
+  // never changes a line's review interval. Mirrors what making a move does to
+  // unstick the UI, minus the spaced-repetition side effects.
+  const handleUnstick = () => {
+    if (!trainingState) return;
+    applyingMoveRef.current = false;
+    cancelPreview();
+    clearSelection();
+    setBoardMessage(null);
+    setTrainingState((state) => (state ? resyncTrainingState(state) : state));
   };
 
   const handleStart = () => {
@@ -470,7 +496,31 @@ export default function OpeningsPage() {
 
       setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
     } catch (err) {
-      console.error('[openings] applyMove error', err);
+      // A throw here (e.g. chess.js choking on a position) would otherwise be
+      // swallowed silently: the board wouldn't change and the selection would
+      // stay on screen, so the move just "doesn't register" until you make some
+      // other move. Instead, self-heal — clear the selection, resync to a clean
+      // state object (which forces a re-render and re-derives the expected move
+      // WITHOUT touching any stats/intervals), and tell the user to retry. The
+      // throwing move never reached updateMoveStats, so SRS is untouched.
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[openings] move failed', {
+        message,
+        from,
+        to,
+        promotion,
+        currentFen: trainingState.currentFen,
+        currentNodeId: trainingState.currentNodeId,
+        expectedMoveId: trainingState.expectedMoveId,
+      });
+      clearSelection();
+      cancelPreview();
+      setTrainingState((state) => (state ? resyncTrainingState(state) : state));
+      setBoardMessage({
+        text: `That move didn't register — tap it again. (${message})`,
+        tone: 'negative',
+      });
+      persistTarget = null;
     } finally {
       applyingMoveRef.current = false;
       if (persistTarget) {
@@ -706,6 +756,15 @@ export default function OpeningsPage() {
                     disabled={!trainingState || !activeRepertoire}
                   >
                     Skip Line
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleUnstick}
+                    disabled={!trainingState || trainingState.feedback === 'complete'}
+                    title="If a move won't register, tap this to unstick the board (doesn't affect your review schedule)"
+                  >
+                    Unstick
                   </Button>
                 </div>
               </div>
