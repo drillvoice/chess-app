@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import {
   BookOpen,
   CheckCircle2,
@@ -23,61 +23,16 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useBoardSelection } from '@/hooks/use-board-selection';
+import { useLineManagement } from '@/hooks/use-line-management';
+import { useOpeningImport } from '@/hooks/use-opening-import';
+import { useOpeningRepertoires } from '@/hooks/use-opening-repertoires';
+import { useOpeningTrainer } from '@/hooks/use-opening-trainer';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
-import {
-  deleteOpeningRepertoire,
-  getOpeningRepertoires,
-  saveOpeningRepertoire,
-} from '@/lib/firebase/repertoires';
-import {
-  applyTrainerMove,
-  deleteLine,
-  describeLine,
-  enumerateLines,
-  expectedMoveSan,
-  findInvalidNodeFens,
-  getLegalDestinationsFromFen,
-  getPieceMapFromFen,
-  isLineDisabled,
-  lineLabel,
-  moveNeedsPromotionFromFen,
-  resyncTrainingState,
-  setLineDisabled,
-  startOpeningTraining,
-  summarizeRepertoire,
-} from '@/lib/opening-trainer/engine';
-import { mergeRepertoire } from '@/lib/opening-trainer/merge';
-import { parseOpeningRepertoirePgn, type OpeningParseError } from '@/lib/opening-trainer/parser';
-import type {
-  OpeningRepertoire,
-  OpeningTrainerSide,
-  OpeningTrainingState,
-  RepertoireReviewSummary,
-} from '@/lib/opening-trainer/types';
-import type { PromotionPiece, Square } from '@/lib/otb/types';
-
-interface PendingPromotion {
-  from: Square;
-  to: Square;
-}
-
-function sortRepertoires(repertoires: OpeningRepertoire[]): OpeningRepertoire[] {
-  return [...repertoires].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-}
-
-// Small pause between the user's move and the trainer's reply so the change on
-// the board is easy to follow.
-const TRAINER_REPLY_DELAY_MS = 300;
-
-type BoardMessageTone = 'positive' | 'negative' | 'info';
-
-interface BoardMessage {
-  text: string;
-  tone: BoardMessageTone;
-}
+import { describeLine, lineLabel } from '@/lib/opening-trainer/engine';
+import type { OpeningRepertoire } from '@/lib/opening-trainer/types';
+import type { BoardMessageTone } from '@/hooks/use-opening-trainer';
 
 const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
   positive: 'border-green-200 bg-green-50 text-green-800',
@@ -85,549 +40,144 @@ const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
   info: 'border-gray-200 bg-gray-50 text-gray-700',
 };
 
-function repertoireMoveCount(repertoire: OpeningRepertoire): number {
-  return Math.max(0, Object.keys(repertoire.nodes).length - 1);
-}
-
 function formatRelativeDue(iso: string | undefined): string {
-  if (!iso) {
-    return '';
-  }
+  if (!iso) return '';
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) {
-    return 'now';
-  }
+  if (ms <= 0) return 'now';
   const days = Math.ceil(ms / 86_400_000);
-  if (days >= 1) {
-    return `${days}d`;
-  }
+  if (days >= 1) return `${days}d`;
   return `${Math.max(1, Math.ceil(ms / 3_600_000))}h`;
 }
 
 export default function OpeningsPage() {
   const { toast } = useToast();
-  const [repertoires, setRepertoires] = useState<OpeningRepertoire[]>([]);
-  const [activeRepertoireId, setActiveRepertoireId] = useState<string | null>(null);
-  const [trainingState, setTrainingState] = useState<OpeningTrainingState | null>(null);
-  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-  const [legalTargets, setLegalTargets] = useState<Square[]>([]);
-  // Mirror of the current selection, written synchronously so a second tap that
-  // lands before React commits the selecting tap's render still sees it. Without
-  // this, a fast piece-then-target tap reads a stale `selectedSquare === null`
-  // closure and silently drops the move (the reported first-move bug).
-  const selectionRef = useRef<{ square: Square; targets: Square[] } | null>(null);
-  const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
-  const [isBoardFlipped, setIsBoardFlipped] = useState(false);
-  const [importName, setImportName] = useState('');
-  const [importSide, setImportSide] = useState<OpeningTrainerSide>('white');
-  // '' = create a new repertoire; otherwise the id of the repertoire to merge into.
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [pgnText, setPgnText] = useState('');
-  const [importWarnings, setImportWarnings] = useState<OpeningParseError[]>([]);
-  const [isImportPgnOpen, setIsImportPgnOpen] = useState(false);
-  const [boardMessage, setBoardMessage] = useState<BoardMessage | null>(null);
-  // Board-only override: after a correct move we briefly show the user's move
-  // before revealing the trainer's reply. `trainingState` is kept canonical
-  // (already advanced through the reply) the whole time; this FEN only affects
-  // what the board renders, and it never blocks input — so a tap-ahead during the
-  // pause is applied against canonical state instead of being silently dropped.
-  const [previewFen, setPreviewFen] = useState<string | null>(null);
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const applyingMoveRef = useRef(false);
-  // Id of the repertoire whose lines are being managed in the edit dialog.
-  const [managingRepertoireId, setManagingRepertoireId] = useState<string | null>(null);
-  const [showLine, setShowLine] = useState(false);
 
-  const activeRepertoire = useMemo(
-    () => repertoires.find((repertoire) => repertoire.id === activeRepertoireId) ?? null,
-    [activeRepertoireId, repertoires],
-  );
+  // ── Repertoire list (load, save, delete) ─────────────────────────────────
+  const {
+    repertoires,
+    activeRepertoireId,
+    setActiveRepertoireId,
+    activeRepertoire,
+    reviewSummaries,
+    totalDueMoves,
+    persistRepertoire,
+    deleteRepertoire,
+  } = useOpeningRepertoires();
 
-  const mergeTarget = useMemo(
-    () => repertoires.find((repertoire) => repertoire.id === mergeTargetId) ?? null,
-    [mergeTargetId, repertoires],
-  );
+  // ── Training session state machine ───────────────────────────────────────
+  const trainer = useOpeningTrainer({ persistRepertoire });
 
-  const managingRepertoire = useMemo(
-    () => repertoires.find((repertoire) => repertoire.id === managingRepertoireId) ?? null,
-    [managingRepertoireId, repertoires],
-  );
+  // ── Board interaction (squares, flip, promotion) ──────────────────────────
+  const board = useBoardSelection({
+    trainingState: trainer.trainingState,
+    applyMove: trainer.applyMove,
+    cancelPreview: trainer.cancelPreview,
+    applyingMoveRef: trainer.applyingMoveRef,
+  });
 
-  // Every line of the repertoire being managed, with its display text, leaf id and
-  // paused state. `name` is the authored line label from the PGN (if any); `moves`
-  // is the SAN move list. Recomputed whenever the repertoire changes so edits show
-  // at once.
-  const managedLines = useMemo(() => {
-    if (!managingRepertoire) {
-      return [];
-    }
-    return enumerateLines(managingRepertoire).map((line) => ({
-      leafId: line[line.length - 1],
-      name: lineLabel(managingRepertoire, line),
-      moves: describeLine(managingRepertoire, line),
-      paused: isLineDisabled(managingRepertoire, line),
-    }));
-  }, [managingRepertoire]);
-
-  const currentLineCandidates = useMemo(() => {
-    if (!trainingState) return [];
-    const prefix = [
-      ...trainingState.currentLineMoveIds,
-      ...(trainingState.expectedMoveId ? [trainingState.expectedMoveId] : []),
-    ];
-    return enumerateLines(trainingState.repertoire).filter((line) =>
-      prefix.every((id, i) => line[i] === id),
-    );
-  }, [trainingState]);
-
-  useEffect(() => {
-    const load = async () => {
-      const stored = await getOpeningRepertoires();
-      setRepertoires(stored);
-      setActiveRepertoireId(stored[0]?.id ?? null);
-    };
-    void load();
-  }, []);
-
-  // Single entry point for every selection mutation so the ref can never drift
-  // from the rendered state. Pass null to deselect.
-  const applySelection = useCallback((next: { square: Square; targets: Square[] } | null) => {
-    selectionRef.current = next;
-    setSelectedSquare(next?.square ?? null);
-    setLegalTargets(next?.targets ?? []);
-  }, []);
-
-  const clearSelection = useCallback(() => applySelection(null), [applySelection]);
-
-  // Clear the board preview immediately and cancel its pending timer.
-  const cancelPreview = useCallback(() => {
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = null;
-    }
-    setPreviewFen(null);
-  }, []);
-
-  // Show `fen` on the board for the reply delay, then fall back to canonical
-  // `trainingState`. Any new move or interaction supersedes it via cancelPreview.
-  const startPreview = useCallback((fen: string) => {
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
-    }
-    setPreviewFen(fen);
-    previewTimerRef.current = setTimeout(() => {
-      previewTimerRef.current = null;
-      setPreviewFen(null);
-    }, TRAINER_REPLY_DELAY_MS);
-  }, []);
-
-  // Clear any pending preview timer if the page unmounts mid-pause.
-  useEffect(() => () => cancelPreview(), [cancelPreview]);
-
-  const persistRepertoire = useCallback(async (repertoire: OpeningRepertoire) => {
-    const saved = await saveOpeningRepertoire(repertoire);
-    setRepertoires((previous) =>
-      sortRepertoires([saved, ...previous.filter((item) => item.id !== saved.id)]),
-    );
-    setActiveRepertoireId(saved.id);
-    return saved;
-  }, []);
-
-  const startTraining = useCallback(
-    (repertoire: OpeningRepertoire, avoidLine: string[] = []) => {
-      // Diagnostic: a node with an unparseable FEN makes the trainer throw
-      // mid-line (which surfaces as a silently dropped move). Surface any such
-      // nodes so a bad import is obvious; healthy data logs nothing.
-      const badNodes = findInvalidNodeFens(repertoire);
-      if (badNodes.length > 0) {
-        console.warn(
-          `[openings] "${repertoire.name}" has ${badNodes.length} node(s) with invalid FENs — re-import recommended`,
-          badNodes,
-        );
-      }
-      applyingMoveRef.current = false;
-      // Reset the ref directly as well as via clearSelection so a fresh drill can
-      // never inherit a stale selection, independent of clearSelection's impl.
-      selectionRef.current = null;
-      setTrainingState(startOpeningTraining(repertoire, avoidLine));
-      setIsBoardFlipped(repertoire.side === 'black');
-      setBoardMessage(null);
-      cancelPreview();
-      clearSelection();
+  // ── Coordinator: start training and reset board together ──────────────────
+  // Called whenever a new drill begins (repertoire select, import, skip line,
+  // next line, review). Clears board selection synchronously before the trainer
+  // resets applyingMoveRef so no tap-ahead can race against stale selection.
+  const handleStartTraining = useCallback(
+    (repertoire: OpeningRepertoire, avoidLine?: string[]) => {
+      board.clearSelection();
+      trainer.startTraining(repertoire, avoidLine ?? []);
+      board.setIsBoardFlipped(repertoire.side === 'black');
     },
-    [cancelPreview, clearSelection],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [board.clearSelection, board.setIsBoardFlipped, trainer.startTraining],
   );
 
-  // Chessable-style review counts. Recomputed whenever a drilled move re-saves a
-  // repertoire, so the badges and banner stay in step with what's actually due.
-  const reviewSummaries = useMemo(() => {
-    const summaries = new Map<string, RepertoireReviewSummary>();
-    for (const repertoire of repertoires) {
-      summaries.set(repertoire.id, summarizeRepertoire(repertoire));
-    }
-    return summaries;
-  }, [repertoires]);
+  // ── PGN import ───────────────────────────────────────────────────────────
+  const importHook = useOpeningImport({
+    repertoires,
+    persistRepertoire,
+    onImported: handleStartTraining,
+  });
 
-  const totalDueMoves = useMemo(
-    () =>
-      repertoires.reduce(
-        (sum, repertoire) => sum + (reviewSummaries.get(repertoire.id)?.dueMoves ?? 0),
-        0,
-      ),
-    [repertoires, reviewSummaries],
+  // ── Line editing (pause / delete individual lines) ───────────────────────
+  const onLineEdited = useCallback(
+    (saved: OpeningRepertoire) => {
+      // If the edited repertoire is currently being drilled, restart from the
+      // saved copy so training can't walk a now-paused or deleted branch.
+      if (trainer.trainingState?.repertoire.id === saved.id) {
+        handleStartTraining(saved);
+      }
+    },
+    [trainer.trainingState, handleStartTraining],
   );
+
+  const lineManagement = useLineManagement({
+    repertoires,
+    persistRepertoire,
+    trainingState: trainer.trainingState,
+    onLineEdited,
+  });
+
+  // ── Page-level handlers ───────────────────────────────────────────────────
 
   const startReview = useCallback(() => {
     const target = repertoires
-      .map((repertoire) => ({
-        repertoire,
-        due: reviewSummaries.get(repertoire.id)?.dueLines ?? 0,
-      }))
-      .filter((entry) => entry.due > 0)
+      .map((r) => ({ repertoire: r, due: reviewSummaries.get(r.id)?.dueLines ?? 0 }))
+      .filter((e) => e.due > 0)
       .sort((a, b) => b.due - a.due)[0]?.repertoire;
     if (target) {
       setActiveRepertoireId(target.id);
-      startTraining(target);
+      handleStartTraining(target);
     }
-  }, [repertoires, reviewSummaries, startTraining]);
+  }, [repertoires, reviewSummaries, setActiveRepertoireId, handleStartTraining]);
 
-  const handleImport = async () => {
-    try {
-      // When merging, the target owns the side; parse with it so move colours line up.
-      const side = mergeTarget ? mergeTarget.side : importSide;
-      const { repertoire, errors } = parseOpeningRepertoirePgn(pgnText, side, importName);
-
-      let saved: OpeningRepertoire;
-      let mergeSummary: { addedMoves: number; matchedMoves: number } | null = null;
-      if (mergeTarget) {
-        const merged = mergeRepertoire(mergeTarget, repertoire);
-        saved = await persistRepertoire(merged.repertoire);
-        mergeSummary = { addedMoves: merged.addedMoves, matchedMoves: merged.matchedMoves };
-      } else {
-        saved = await persistRepertoire(repertoire);
-      }
-
-      startTraining(saved);
-      setImportName('');
-      setPgnText('');
-      setMergeTargetId('');
-      setImportWarnings(errors);
-      if (errors.length > 0) {
-        const skipped = `${errors.length} line${errors.length === 1 ? '' : 's'}`;
-        toast({
-          title: 'Imported with warnings',
-          description: `${repertoireMoveCount(saved)} moves ready; skipped ${skipped} with errors — see details below.`,
-          variant: 'destructive',
-        });
-      } else if (mergeSummary) {
-        const added = `${mergeSummary.addedMoves} new move${mergeSummary.addedMoves === 1 ? '' : 's'}`;
-        toast({
-          title: 'Repertoire updated',
-          description: `Added ${added}; ${mergeSummary.matchedMoves} already in "${saved.name}".`,
-        });
-      } else {
-        toast({
-          title: 'Repertoire imported',
-          description: `${repertoireMoveCount(saved)} moves are ready for training.`,
-        });
-      }
-    } catch (error) {
-      setImportWarnings([]);
-      toast({
-        title: 'Import failed',
-        description: error instanceof Error ? error.message : 'Unable to import that PGN.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleFileImport = async (file: File | undefined) => {
-    if (!file) {
-      return;
-    }
-    setPgnText(await file.text());
-    if (!importName.trim()) {
-      setImportName(file.name.replace(/\.pgn$/i, ''));
-    }
-  };
-
-  const handleSkipLine = () => {
-    if (!trainingState) return;
+  const handleSkipLine = useCallback(() => {
+    if (!trainer.trainingState) return;
     const sourceRepertoire =
-      trainingState.repertoire.id === activeRepertoire?.id
-        ? trainingState.repertoire
+      trainer.trainingState.repertoire.id === activeRepertoire?.id
+        ? trainer.trainingState.repertoire
         : activeRepertoire;
     if (!sourceRepertoire) return;
-    setShowLine(false);
-    startTraining(sourceRepertoire, trainingState.currentLineMoveIds);
+    lineManagement.setShowLine(false);
+    handleStartTraining(sourceRepertoire, trainer.trainingState.currentLineMoveIds);
     toast({ title: 'Switched to a new line' });
-  };
+  }, [trainer.trainingState, activeRepertoire, lineManagement, handleStartTraining, toast]);
 
-  // Manual escape hatch for a stuck board (a tap that won't register). Clears all
-  // transient interaction state and resyncs to a fresh state object at the SAME
-  // position, re-deriving the expected move WITHOUT touching any stats — so it
-  // never changes a line's review interval. Mirrors what making a move does to
-  // unstick the UI, minus the spaced-repetition side effects.
-  const handleUnstick = () => {
-    if (!trainingState) return;
-    applyingMoveRef.current = false;
-    cancelPreview();
-    clearSelection();
-    setBoardMessage(null);
-    setTrainingState((state) => (state ? resyncTrainingState(state) : state));
-  };
+  const handleUnstick = useCallback(() => {
+    if (!trainer.trainingState) return;
+    trainer.resync();
+    board.clearSelection();
+  }, [trainer, board]);
 
-  const handleStart = () => {
-    setShowLine(false);
-    const currentTrainingState = trainingState;
+  const handleStart = useCallback(() => {
+    lineManagement.setShowLine(false);
+    const currentTrainingState = trainer.trainingState;
     const sourceRepertoire =
       currentTrainingState && currentTrainingState.repertoire.id === activeRepertoire?.id
         ? currentTrainingState.repertoire
         : activeRepertoire;
     if (sourceRepertoire) {
-      startTraining(
+      handleStartTraining(
         sourceRepertoire,
         currentTrainingState?.feedback === 'complete'
           ? currentTrainingState.lastCompletedLineMoveIds
           : [],
       );
     }
-  };
+  }, [trainer.trainingState, activeRepertoire, lineManagement, handleStartTraining]);
 
-  const handleDelete = async (id: string) => {
-    const target = repertoires.find((repertoire) => repertoire.id === id);
-    if (!target || !window.confirm(`Delete "${target.name}"?`)) {
-      return;
-    }
-
-    await deleteOpeningRepertoire(id);
-    const remaining = repertoires.filter((repertoire) => repertoire.id !== id);
-    setRepertoires(remaining);
-    setActiveRepertoireId(remaining[0]?.id ?? null);
-    setTrainingState(null);
-    clearSelection();
-  };
-
-  // After a line edit, persist and — if the edited repertoire is mid-drill —
-  // restart it from the saved copy so training can't keep walking a now-paused or
-  // deleted branch.
-  const persistLineEdit = useCallback(
-    async (updated: OpeningRepertoire) => {
-      const saved = await persistRepertoire(updated);
-      if (trainingState?.repertoire.id === saved.id) {
-        startTraining(saved);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const deleted = await deleteRepertoire(id);
+      if (deleted) {
+        trainer.clearTraining();
+        board.clearSelection();
       }
-      return saved;
     },
-    [persistRepertoire, startTraining, trainingState],
+    [deleteRepertoire, trainer, board],
   );
 
-  const handleToggleLine = async (leafId: string, nextPaused: boolean) => {
-    if (!managingRepertoire) {
-      return;
-    }
-    await persistLineEdit(setLineDisabled(managingRepertoire, leafId, nextPaused));
-  };
-
-  const handleDeleteLine = async (leafId: string, label: string) => {
-    if (!managingRepertoire || !window.confirm(`Delete the line "${label}"?`)) {
-      return;
-    }
-    await persistLineEdit(deleteLine(managingRepertoire, leafId));
-  };
-
-  // Synchronous: state is always committed canonical and any "show your move"
-  // pause is a non-blocking board preview, so there is no window where input is
-  // frozen. applyingMoveRef stays purely as a same-tick re-entrancy guard.
-  const applyMove = (from: Square, to: Square, promotion?: PromotionPiece) => {
-    if (!trainingState || applyingMoveRef.current) {
-      return;
-    }
-    applyingMoveRef.current = true;
-    // A new move supersedes any reply preview still on screen.
-    cancelPreview();
-
-    // persistTarget is set to whichever repertoire needs saving once a move is
-    // applied (null for the promotion-pending path where nothing has been applied
-    // yet). It is read in the finally block so the ref is always released even if
-    // applyTrainerMove throws before the inner try block is entered.
-    let persistTarget: OpeningRepertoire | null = null;
-    try {
-      const result = applyTrainerMove(trainingState, from, to, promotion);
-      clearSelection();
-
-      if (result.promotionRequired) {
-        // Nothing was applied yet; wait for the promotion choice.
-        setPendingPromotion({ from, to });
-        return;
-      }
-
-      if (!result.correct) {
-        setTrainingState(result.state);
-        if (result.state.feedback === 'revealed') {
-          setBoardMessage({
-            text: `Revealed: ${expectedMoveSan(result.state) ?? 'the correct move'} — replay it on the board.`,
-            tone: 'negative',
-          });
-        } else {
-          setBoardMessage({ text: 'Not this branch — try again.', tone: 'negative' });
-        }
-        persistTarget = result.state.repertoire;
-        return;
-      }
-
-      // Correct move. Commit the canonical (post-reply) state immediately so the
-      // board is never validated against a stale position, then briefly show the
-      // user's move on top via a non-blocking preview before the reply appears.
-      persistTarget = result.state.repertoire;
-      setTrainingState(result.state);
-
-      const hasTrainerReply = Boolean(
-        result.userMoveFen && result.userMoveFen !== result.state.currentFen,
-      );
-      if (hasTrainerReply && result.userMoveFen) {
-        startPreview(result.userMoveFen);
-      }
-
-      if (result.state.feedback === 'complete') {
-        setBoardMessage(null);
-        return;
-      }
-
-      setBoardMessage({ text: 'Correct — your move to continue.', tone: 'positive' });
-    } catch (err) {
-      // A throw here (e.g. chess.js choking on a position) would otherwise be
-      // swallowed silently: the board wouldn't change and the selection would
-      // stay on screen, so the move just "doesn't register" until you make some
-      // other move. Instead, self-heal — clear the selection, resync to a clean
-      // state object (which forces a re-render and re-derives the expected move
-      // WITHOUT touching any stats/intervals), and tell the user to retry. The
-      // throwing move never reached updateMoveStats, so SRS is untouched.
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[openings] move failed', {
-        message,
-        from,
-        to,
-        promotion,
-        currentFen: trainingState.currentFen,
-        currentNodeId: trainingState.currentNodeId,
-        expectedMoveId: trainingState.expectedMoveId,
-      });
-      clearSelection();
-      cancelPreview();
-      setTrainingState((state) => (state ? resyncTrainingState(state) : state));
-      setBoardMessage({
-        text: `That move didn't register — tap it again. (${message})`,
-        tone: 'negative',
-      });
-      persistTarget = null;
-    } finally {
-      applyingMoveRef.current = false;
-      if (persistTarget) {
-        void persistRepertoire(persistTarget).catch((err) =>
-          console.error('[openings] persist failed', err),
-        );
-      }
-    }
-  };
-
-  const handleSquareTap = (square: Square) => {
-    if (
-      !trainingState ||
-      pendingPromotion ||
-      applyingMoveRef.current ||
-      trainingState.feedback === 'complete'
-    ) {
-      return;
-    }
-
-    // Any interaction dismisses the reply preview so selection and rendering
-    // both resolve to canonical state before the tap is processed.
-    cancelPreview();
-
-    const pieceMap = getPieceMapFromFen(trainingState.currentFen);
-    const tappedPiece = pieceMap[square];
-    const activeColor = trainingState.currentFen.split(' ')[1] as 'w' | 'b';
-
-    // Read the selection from the ref, not React state: a rapid second tap can
-    // fire before the selecting tap's render commits, so the state closure may
-    // still be stale while the ref is already up to date.
-    const selection = selectionRef.current;
-
-    if (!selection) {
-      if (!tappedPiece || tappedPiece.color !== activeColor) {
-        return;
-      }
-      const destinations = getLegalDestinationsFromFen(trainingState.currentFen, square);
-      if (destinations.length === 0) {
-        return;
-      }
-      applySelection({ square, targets: destinations });
-      return;
-    }
-
-    if (square === selection.square) {
-      clearSelection();
-      return;
-    }
-
-    if (!selection.targets.includes(square)) {
-      if (tappedPiece && tappedPiece.color === activeColor) {
-        const destinations = getLegalDestinationsFromFen(trainingState.currentFen, square);
-        applySelection(destinations.length ? { square, targets: destinations } : null);
-      } else {
-        clearSelection();
-      }
-      return;
-    }
-
-    if (moveNeedsPromotionFromFen(trainingState.currentFen, selection.square, square)) {
-      setPendingPromotion({ from: selection.square, to: square });
-      return;
-    }
-
-    applyMove(selection.square, square);
-  };
-
-  const handlePromotionChoice = (piece: PromotionPiece) => {
-    if (!pendingPromotion) {
-      return;
-    }
-    applyMove(pendingPromotion.from, pendingPromotion.to, piece);
-    setPendingPromotion(null);
-  };
-
-  // Render the brief reply preview when present, otherwise the canonical board.
-  const pieceMap = useMemo(
-    () => (trainingState ? getPieceMapFromFen(previewFen ?? trainingState.currentFen) : {}),
-    [previewFen, trainingState],
-  );
-
-  const statusText = useMemo(() => {
-    if (!trainingState) {
-      return 'Import or select a repertoire to start.';
-    }
-    if (trainingState.feedback === 'complete') {
-      return 'Line complete. Ready for the next branch.';
-    }
-    if (trainingState.feedback === 'revealed') {
-      return `Replay: ${expectedMoveSan(trainingState) ?? 'the revealed move'}`;
-    }
-    if (trainingState.feedback === 'incorrect') {
-      return 'Try again.';
-    }
-    return `${trainingState.repertoire.side === 'white' ? 'White' : 'Black'} to train.`;
-  }, [trainingState]);
-
-  const isLineComplete = trainingState?.feedback === 'complete';
-  // True when training started but the engine found nothing due — currentLineMoveIds
-  // stays empty because no move was ever made.
-  const isNothingDue =
-    trainingState?.feedback === 'complete' && trainingState.currentLineMoveIds.length === 0;
-  const remainingDueMoves = useMemo(
-    () => (trainingState ? summarizeRepertoire(trainingState.repertoire).dueMoves : 0),
-    [trainingState],
-  );
+  // ── Derived render values ─────────────────────────────────────────────────
+  const { trainingState, boardMessage, pieceMap, statusText, isLineComplete, isNothingDue, remainingDueMoves } = trainer;
+  const { selectedSquare, legalTargets, isBoardFlipped, pendingPromotion } = board;
+  const { managingRepertoire, managedLines, showLine, currentLineCandidates } = lineManagement;
 
   return (
     <div className="page-stack">
@@ -686,7 +236,7 @@ export default function OpeningsPage() {
             <div
               className={`rounded-md border p-3 text-sm font-medium ${boardMessage ? BOARD_MESSAGE_TONES[boardMessage.tone] : 'invisible border-transparent'}`}
             >
-              {boardMessage?.text ?? ' '}
+              {boardMessage?.text ?? ' '}
             </div>
           )}
 
@@ -696,7 +246,7 @@ export default function OpeningsPage() {
             legalTargets={legalTargets}
             isFlipped={isBoardFlipped}
             isTableMode={false}
-            onSquareTap={handleSquareTap}
+            onSquareTap={board.handleSquareTap}
           />
 
           <Card>
@@ -716,7 +266,7 @@ export default function OpeningsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsBoardFlipped((value) => !value)}
+                    onClick={() => board.setIsBoardFlipped((v) => !v)}
                   >
                     Flip Board
                   </Button>
@@ -732,11 +282,7 @@ export default function OpeningsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      if (trainingState) {
-                        setTrainingState({ ...trainingState, feedback: 'revealed' });
-                      }
-                    }}
+                    onClick={trainer.reveal}
                     disabled={!trainingState || trainingState.feedback === 'complete'}
                   >
                     Reveal
@@ -744,7 +290,7 @@ export default function OpeningsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowLine((v) => !v)}
+                    onClick={() => lineManagement.setShowLine((v) => !v)}
                     disabled={!trainingState}
                   >
                     {showLine ? 'Hide Line' : 'Show Line'}
@@ -813,7 +359,7 @@ export default function OpeningsPage() {
                           className="w-full text-left"
                           onClick={() => {
                             setActiveRepertoireId(repertoire.id);
-                            startTraining(repertoire);
+                            handleStartTraining(repertoire);
                           }}
                         >
                           <span className="block text-sm font-medium text-gray-800">
@@ -845,7 +391,7 @@ export default function OpeningsPage() {
                             variant={activeRepertoireId === repertoire.id ? 'default' : 'outline'}
                             onClick={() => {
                               setActiveRepertoireId(repertoire.id);
-                              startTraining(repertoire);
+                              handleStartTraining(repertoire);
                             }}
                           >
                             Train
@@ -854,7 +400,7 @@ export default function OpeningsPage() {
                             type="button"
                             size="sm"
                             variant="outline"
-                            onClick={() => setManagingRepertoireId(repertoire.id)}
+                            onClick={() => lineManagement.setManagingRepertoireId(repertoire.id)}
                             aria-label={`Edit lines in ${repertoire.name}`}
                           >
                             <Pencil className="h-4 w-4" />
@@ -881,18 +427,18 @@ export default function OpeningsPage() {
             <button
               type="button"
               className="flex w-full items-center justify-between gap-2 p-4"
-              onClick={() => setIsImportPgnOpen((open) => !open)}
-              aria-expanded={isImportPgnOpen}
+              onClick={() => importHook.setIsImportPgnOpen((open) => !open)}
+              aria-expanded={importHook.isImportPgnOpen}
             >
               <div className="flex items-center gap-2">
                 <Upload className="h-4 w-4 text-gray-600" />
                 <h3 className="text-base font-semibold text-gray-800">Import PGN</h3>
               </div>
               <ChevronDown
-                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isImportPgnOpen ? 'rotate-180' : ''}`}
+                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${importHook.isImportPgnOpen ? 'rotate-180' : ''}`}
               />
             </button>
-            {isImportPgnOpen && (
+            {importHook.isImportPgnOpen && (
               <CardContent className="space-y-3 px-4 pb-4 pt-0">
                 {repertoires.length > 0 && (
                   <div>
@@ -900,8 +446,8 @@ export default function OpeningsPage() {
                     <select
                       id="importTarget"
                       className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={mergeTargetId}
-                      onChange={(event) => setMergeTargetId(event.target.value)}
+                      value={importHook.mergeTargetId}
+                      onChange={(event) => importHook.setMergeTargetId(event.target.value)}
                     >
                       <option value="">New repertoire</option>
                       {repertoires.map((repertoire) => (
@@ -910,10 +456,10 @@ export default function OpeningsPage() {
                         </option>
                       ))}
                     </select>
-                    {mergeTarget && (
+                    {importHook.mergeTarget && (
                       <p className="mt-1 text-xs text-gray-500">
-                        New lines are added to "{mergeTarget.name}"; existing lines keep their
-                        training progress.
+                        New lines are added to "{importHook.mergeTarget.name}"; existing lines keep
+                        their training progress.
                       </p>
                     )}
                   </div>
@@ -923,10 +469,10 @@ export default function OpeningsPage() {
                     <Label htmlFor="repertoireName">Name</Label>
                     <Input
                       id="repertoireName"
-                      value={mergeTarget ? mergeTarget.name : importName}
-                      onChange={(event) => setImportName(event.target.value)}
+                      value={importHook.mergeTarget ? importHook.mergeTarget.name : importHook.importName}
+                      onChange={(event) => importHook.setImportName(event.target.value)}
                       placeholder="Caro-Kann repertoire"
-                      disabled={Boolean(mergeTarget)}
+                      disabled={Boolean(importHook.mergeTarget)}
                     />
                   </div>
                   <div>
@@ -934,10 +480,10 @@ export default function OpeningsPage() {
                     <select
                       id="trainingSide"
                       className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-                      value={mergeTarget ? mergeTarget.side : importSide}
-                      disabled={Boolean(mergeTarget)}
+                      value={importHook.mergeTarget ? importHook.mergeTarget.side : importHook.importSide}
+                      disabled={Boolean(importHook.mergeTarget)}
                       onChange={(event) =>
-                        setImportSide(event.target.value === 'black' ? 'black' : 'white')
+                        importHook.setImportSide(event.target.value === 'black' ? 'black' : 'white')
                       }
                     >
                       <option value="white">White</option>
@@ -950,37 +496,37 @@ export default function OpeningsPage() {
                       id="pgnFile"
                       type="file"
                       accept=".pgn,application/x-chess-pgn,text/plain"
-                      onChange={(event) => void handleFileImport(event.target.files?.[0])}
+                      onChange={(event) => void importHook.handleFileImport(event.target.files?.[0])}
                     />
                   </div>
                 </div>
                 <Textarea
                   aria-label="PGN text"
-                  value={pgnText}
-                  onChange={(event) => setPgnText(event.target.value)}
+                  value={importHook.pgnText}
+                  onChange={(event) => importHook.setPgnText(event.target.value)}
                   placeholder="Paste a single PGN game with variations..."
                   className="min-h-36"
                 />
                 <Button
                   type="button"
-                  onClick={() => void handleImport()}
-                  disabled={!pgnText.trim()}
+                  onClick={() => void importHook.handleImport()}
+                  disabled={!importHook.pgnText.trim()}
                 >
-                  {mergeTarget ? 'Merge into Repertoire' : 'Import Repertoire'}
+                  {importHook.mergeTarget ? 'Merge into Repertoire' : 'Import Repertoire'}
                 </Button>
 
-                {importWarnings.length > 0 && (
+                {importHook.importWarnings.length > 0 && (
                   <div
                     role="alert"
                     className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
                   >
                     <p className="font-medium">
-                      Imported with {importWarnings.length} skipped{' '}
-                      {importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves in your PGN
-                      and re-import to include them:
+                      Imported with {importHook.importWarnings.length} skipped{' '}
+                      {importHook.importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves
+                      in your PGN and re-import to include them:
                     </p>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {importWarnings.map((warning, index) => (
+                      {importHook.importWarnings.map((warning, index) => (
                         <li key={index}>{warning.message}</li>
                       ))}
                     </ul>
@@ -994,7 +540,7 @@ export default function OpeningsPage() {
 
       <Dialog
         open={Boolean(managingRepertoire)}
-        onOpenChange={(open) => !open && setManagingRepertoireId(null)}
+        onOpenChange={(open) => !open && lineManagement.setManagingRepertoireId(null)}
       >
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -1044,14 +590,21 @@ export default function OpeningsPage() {
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <Switch
                       checked={!line.paused}
-                      onCheckedChange={(checked) => void handleToggleLine(line.leafId, !checked)}
+                      onCheckedChange={(checked) =>
+                        void lineManagement.handleToggleLine(line.leafId, !checked)
+                      }
                       aria-label={line.paused ? 'Activate line' : 'Pause line'}
                     />
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => void handleDeleteLine(line.leafId, line.name ?? line.moves)}
+                      onClick={() =>
+                        void lineManagement.handleDeleteLine(
+                          line.leafId,
+                          line.name ?? line.moves,
+                        )
+                      }
                       aria-label={`Delete line ${line.name ?? line.moves}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -1066,8 +619,8 @@ export default function OpeningsPage() {
 
       <PromotionPicker
         open={Boolean(pendingPromotion)}
-        onSelect={handlePromotionChoice}
-        onCancel={() => setPendingPromotion(null)}
+        onSelect={board.handlePromotionChoice}
+        onCancel={board.cancelPendingPromotion}
       />
     </div>
   );
