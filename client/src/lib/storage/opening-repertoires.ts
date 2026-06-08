@@ -1,8 +1,33 @@
 import { nanoid } from 'nanoid';
 import { withStores } from './transaction';
-import type { OpeningRepertoire } from '../opening-trainer/types';
+import { moveStatsNeedRepair, sanitizeMoveStats } from '../opening-trainer/scheduler';
+import type { OpeningMoveStats, OpeningRepertoire } from '../opening-trainer/types';
 
 const OPENING_REPERTOIRES = 'opening_repertoires';
+
+// Count of move stats healed by the most recent normalisation pass. Read (and
+// reset) by getOpeningRepertoires so a one-time, low-noise warning can confirm
+// whether stored data actually carried non-finite corruption.
+let lastRepairedStatCount = 0;
+
+// Coerce every stat to finite values on the way in/out of storage, so a corrupt
+// record (a NaN/Infinity from an old build or sync round-trip) is healed the
+// moment it's read and the clean copy is persisted on the next save.
+function normalizeStats(
+  stats: Record<string, OpeningMoveStats> | undefined,
+): Record<string, OpeningMoveStats> {
+  if (!stats) {
+    return {};
+  }
+  const normalized: Record<string, OpeningMoveStats> = {};
+  for (const [id, stat] of Object.entries(stats)) {
+    if (moveStatsNeedRepair(stat)) {
+      lastRepairedStatCount += 1;
+    }
+    normalized[id] = sanitizeMoveStats(stat);
+  }
+  return normalized;
+}
 
 function normalizeRepertoire(input: Partial<OpeningRepertoire>): OpeningRepertoire {
   const now = new Date().toISOString();
@@ -14,7 +39,7 @@ function normalizeRepertoire(input: Partial<OpeningRepertoire>): OpeningRepertoi
     updatedAt: input.updatedAt || now,
     rootNodeId: input.rootNodeId || 'root',
     nodes: input.nodes || {},
-    stats: input.stats || {},
+    stats: normalizeStats(input.stats),
   };
 }
 
@@ -27,7 +52,16 @@ function sortByUpdatedDesc(repertoires: OpeningRepertoire[]): OpeningRepertoire[
 export async function getOpeningRepertoires(): Promise<OpeningRepertoire[]> {
   return withStores([OPENING_REPERTOIRES] as const, 'readonly', async ({ opening_repertoires }) => {
     const all = await opening_repertoires.getAll();
-    return sortByUpdatedDesc(all.map((repertoire) => normalizeRepertoire(repertoire)));
+    lastRepairedStatCount = 0;
+    const normalized = sortByUpdatedDesc(all.map((repertoire) => normalizeRepertoire(repertoire)));
+    if (lastRepairedStatCount > 0) {
+      // The healed copies persist the next time each repertoire is saved (after
+      // any drilled move). This warning confirms corruption actually existed.
+      console.warn(
+        `[openings] healed ${lastRepairedStatCount} corrupt move stat(s) with non-finite values`,
+      );
+    }
+    return normalized;
   });
 }
 

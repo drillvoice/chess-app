@@ -4,7 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [2.5.6] - 8 June 2026
+## [2.5.7] - 8 June 2026
+
+- Make the Opening Trainer's spaced-repetition stats robust end-to-end (post-mortem hardening of the "Invalid time value" bug): the engine now coerces every stored stat value to a safe finite number before using it, so a corrupt record can never be created or propagate, and corrupt stats are healed automatically the next time a repertoire is loaded and saved (with a one-time console note when any are found)
+- Harden a couple of error-handling rough edges surfaced by the audit: a cloud-sync retry handler no longer swallows failures silently, and Lichess game sorting guards against corrupt timestamps
+- Add an "Error handling & data robustness" section to the project guidelines (CLAUDE.md): fail loud, treat persisted/synced numbers as untrusted (`Number.isFinite`, not `??`), validate on read, and reach for diagnostics first when a bug isn't locally reproducible
 
 - Fix the actual root cause of Opening Trainer moves not registering: the spaced-repetition scheduler computed a move's next-review date from its stored interval and ease, but a corrupt (non-finite) value made `new Date(...)` invalid and threw "Invalid time value". This only happened on a clean correct rep of a well-drilled move (a wrong move took a different code path), which is why it hit the first move and why making an incorrect move "reset" it. The scheduler now coerces stored values to safe numbers and clamps the interval, so it can never produce an invalid date — and the affected move heals itself on its next review
 

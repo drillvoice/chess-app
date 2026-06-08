@@ -20,8 +20,59 @@ const MAX_INTERVAL_DAYS = 365 * 20;
 // through. A non-finite ease/interval would make `nextInterval` non-finite and
 // `new Date(...).toISOString()` throw "Invalid time value", which the trainer
 // surfaced as a move that wouldn't register. Coerce to a safe finite value.
-function finiteOr(value: number | undefined, fallback: number): number {
+export function finiteOr(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Coerce every numeric field of a move's stats to a safe finite value, so a
+ * corrupt record (a `NaN`/`Infinity` that slipped in via an old build or a sync
+ * round-trip, or a partial stat missing its counters) can never feed arithmetic
+ * or date math downstream. Pure: returns a new object, never mutates the input.
+ * Used both to harden the writer (`statFor`) and to heal stored data on load
+ * (`normalizeRepertoire`).
+ */
+export function sanitizeMoveStats(stat: OpeningMoveStats): OpeningMoveStats {
+  const sanitized: OpeningMoveStats = {
+    ...stat,
+    attempts: Math.max(0, Math.floor(finiteOr(stat.attempts, 0))),
+    misses: Math.max(0, Math.floor(finiteOr(stat.misses, 0))),
+    streak: Math.max(0, Math.floor(finiteOr(stat.streak, 0))),
+  };
+  if (stat.easeFactor !== undefined) {
+    sanitized.easeFactor = Math.max(MIN_EASE, finiteOr(stat.easeFactor, DEFAULT_EASE));
+  }
+  if (stat.repetitions !== undefined) {
+    sanitized.repetitions = Math.max(0, Math.floor(finiteOr(stat.repetitions, 0)));
+  }
+  if (stat.intervalDays !== undefined) {
+    sanitized.intervalDays = Math.min(
+      MAX_INTERVAL_DAYS,
+      Math.max(0, finiteOr(stat.intervalDays, 0)),
+    );
+  }
+  // Drop an unparseable dueAt so the move is simply treated as due/new.
+  if (stat.dueAt !== undefined && Number.isNaN(new Date(stat.dueAt).getTime())) {
+    delete sanitized.dueAt;
+  }
+  return sanitized;
+}
+
+/**
+ * True when `sanitizeMoveStats` would change `stat` — i.e. it carries a
+ * non-finite numeric field or an unparseable `dueAt`. Lets callers report how
+ * much real corruption existed without diffing whole objects.
+ */
+export function moveStatsNeedRepair(stat: OpeningMoveStats): boolean {
+  return (
+    !Number.isFinite(stat.attempts) ||
+    !Number.isFinite(stat.misses) ||
+    !Number.isFinite(stat.streak) ||
+    (stat.easeFactor !== undefined && !Number.isFinite(stat.easeFactor)) ||
+    (stat.repetitions !== undefined && !Number.isFinite(stat.repetitions)) ||
+    (stat.intervalDays !== undefined && !Number.isFinite(stat.intervalDays)) ||
+    (stat.dueAt !== undefined && Number.isNaN(new Date(stat.dueAt).getTime()))
+  );
 }
 
 /**

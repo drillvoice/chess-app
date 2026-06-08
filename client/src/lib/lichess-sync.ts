@@ -12,6 +12,14 @@ const debugLog = (...args: Parameters<typeof console.log>) => {
 
 const POLL_INTERVAL = 30 * 1000; // 30 seconds
 
+// Coerce a possibly-corrupt timestamp to a finite number for sorting. `?? 0`
+// alone would let a NaN through and scramble sort order, since NaN comparisons
+// are always false.
+function finiteTimestamp(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export interface LichessSyncStatus {
   isActive: boolean;
   username: string | null;
@@ -186,7 +194,7 @@ export function startLichessSync(username: string) {
 
       const sortedGames = payload.games
         .slice()
-        .sort((a, b) => Number(a?.lastMoveAt ?? 0) - Number(b?.lastMoveAt ?? 0));
+        .sort((a, b) => finiteTimestamp(a?.lastMoveAt) - finiteTimestamp(b?.lastMoveAt));
 
       debugLog(`🔄 [Lichess Sync Poll] Processing ${sortedGames.length} games`);
       const userLower = username.toLowerCase();
