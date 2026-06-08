@@ -298,6 +298,35 @@ describe('opening trainer engine', () => {
     expect(bad[0]).toMatchObject({ id: firstChild, field: 'fenAfter' });
   });
 
+  it('does not produce NaN stats when grading a move whose stored stat is partial', () => {
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5', 'white');
+    const e4Id = repertoire.nodes[repertoire.rootNodeId].children[0];
+    // A partial/corrupt stat missing the counter fields (e.g. one that only ever
+    // had a line-level `disabled` flag written). Previously `current.attempts + 1`
+    // produced NaN, which then rode through to gradeMove and persistence.
+    const corrupt = {
+      ...repertoire,
+      stats: { [e4Id]: { disabled: false } as unknown as OpeningMoveStats },
+    };
+
+    const result = applyTrainerMove(
+      startOpeningTraining(corrupt, [], () => 0),
+      'e2',
+      'e4',
+      undefined,
+      () => 0,
+    );
+
+    expect(result.correct).toBe(true);
+    const graded = result.state.repertoire.stats[e4Id];
+    expect(Number.isFinite(graded.attempts)).toBe(true);
+    expect(Number.isFinite(graded.misses)).toBe(true);
+    expect(Number.isFinite(graded.streak)).toBe(true);
+    expect(graded.attempts).toBe(1);
+    // dueAt must be a valid timestamp (the bug threw "Invalid time value" here).
+    expect(Number.isNaN(new Date(graded.dueAt!).getTime())).toBe(false);
+  });
+
   it('advanceOpponentMoves is a no-op pass-through for a completed line', () => {
     const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5', 'white');
     const state = startOpeningTraining(repertoire, [], () => 0);

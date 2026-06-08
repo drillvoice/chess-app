@@ -9,7 +9,7 @@ import type {
   OpeningTrainingState,
   RepertoireReviewSummary,
 } from './types';
-import { gradeMove, isMoveDue } from './scheduler';
+import { gradeMove, isMoveDue, sanitizeMoveStats } from './scheduler';
 
 export { isMoveDue } from './scheduler';
 
@@ -42,7 +42,10 @@ function getChildren(repertoire: OpeningRepertoire, nodeId: string): OpeningMove
 }
 
 function statFor(repertoire: OpeningRepertoire, moveId: string): OpeningMoveStats {
-  return repertoire.stats[moveId] ?? { attempts: 0, misses: 0, streak: 0 };
+  // Sanitise so a stored partial/corrupt stat (e.g. one with missing counters, or
+  // a non-finite ease/interval) can never feed `NaN` into the arithmetic in
+  // `updateMoveStats`/`moveWeight` or the date math in `gradeMove`.
+  return sanitizeMoveStats(repertoire.stats[moveId] ?? { attempts: 0, misses: 0, streak: 0 });
 }
 
 // A node is a "user move" — i.e. one the trainee must recall and therefore an SRS

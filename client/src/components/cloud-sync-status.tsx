@@ -26,8 +26,10 @@ export default function CloudSyncStatus() {
     setErrorCode(null);
     try {
       await retryPendingSync();
-    } catch {
-      // retry will schedule its own attempts
+    } catch (err) {
+      // retryPendingSync schedules its own follow-up attempts, so we don't
+      // re-surface the banner here — but log it so a real failure is observable.
+      console.error('[cloud-sync] manual retry failed', err);
     }
   };
 

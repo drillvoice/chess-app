@@ -71,6 +71,26 @@ Client storage operations are in `client/src/lib/storage/` (IndexedDB). Firebase
 - Lazy loading for non-critical pages (Activity, Info)
 - Custom hooks in `client/src/hooks/` for cross-cutting concerns (auth, sync, goals, PWA)
 
+### Error handling & data robustness
+
+These are hard-won from a long debugging saga (a corrupt SRS stat made
+`new Date(NaN).toISOString()` throw, and a silent `catch` hid it for days):
+
+- **Fail loud, not silent.** Never `catch` and swallow (or only `console.log`) an
+  error that represents a logic/runtime bug — surface it to the user or rethrow.
+  Best-effort network/sync paths may log-and-continue, but always log _with context_.
+- **Persisted/synced numbers are untrusted input.** `?? fallback` only guards
+  `null`/`undefined`, **not `NaN`/`Infinity`**. Use `Number.isFinite` (see `finiteOr`
+  / `sanitizeMoveStats` in `client/src/lib/opening-trainer/scheduler.ts`) before any
+  arithmetic or date math on a value from IndexedDB, Firestore, `JSON.parse`, or a
+  function param — `new Date(NaN).toISOString()` throws "Invalid time value".
+- **Validate/heal on read at storage seams.** Normalise persisted records when
+  loading so corruption can't propagate (e.g. `normalizeRepertoire` in
+  `client/src/lib/storage/opening-repertoires.ts`).
+- **Diagnostics-first when a bug isn't locally reproducible.** Make the failure
+  self-report from the user's environment (surface the real error message) _before_
+  shipping speculative fixes — that's what finally cracked the trainer bug.
+
 ## Conventions
 
 - Conventional Commits preferred (e.g., `feat(tactics): add puzzles ratio`)

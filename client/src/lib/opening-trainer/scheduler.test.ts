@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_EASE, gradeMove, isMoveDue } from './scheduler';
+import {
+  DEFAULT_EASE,
+  gradeMove,
+  isMoveDue,
+  moveStatsNeedRepair,
+  sanitizeMoveStats,
+} from './scheduler';
 import type { OpeningMoveStats } from './types';
 
 const NEW: OpeningMoveStats = { attempts: 0, misses: 0, streak: 0 };
@@ -109,5 +115,48 @@ describe('opening scheduler', () => {
     const graded = gradeMove(huge, true, now);
     expect(Number.isFinite(graded.intervalDays)).toBe(true);
     expect(Number.isNaN(new Date(graded.dueAt!).getTime())).toBe(false);
+  });
+
+  it('sanitizeMoveStats coerces non-finite fields and preserves valid ones', () => {
+    // Counters: NaN/Infinity → finite ints; SRS fields only present when set.
+    const corrupt: OpeningMoveStats = {
+      attempts: Number.NaN,
+      misses: Number.POSITIVE_INFINITY,
+      streak: -3 as unknown as number,
+      easeFactor: Number.NaN,
+      intervalDays: Number.POSITIVE_INFINITY,
+      repetitions: Number.NaN,
+      dueAt: 'not-a-date',
+    };
+    const fixed = sanitizeMoveStats(corrupt);
+    expect(Number.isFinite(fixed.attempts)).toBe(true);
+    expect(Number.isFinite(fixed.misses)).toBe(true);
+    expect(fixed.streak).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(fixed.easeFactor!)).toBe(true);
+    expect(Number.isFinite(fixed.intervalDays!)).toBe(true);
+    expect(Number.isFinite(fixed.repetitions!)).toBe(true);
+    // An unparseable dueAt is dropped (treated as due/new).
+    expect(fixed.dueAt).toBeUndefined();
+
+    // A healthy stat is returned unchanged in value (and not flagged for repair).
+    const healthy: OpeningMoveStats = {
+      attempts: 4,
+      misses: 1,
+      streak: 3,
+      easeFactor: 2.5,
+      intervalDays: 8,
+      repetitions: 3,
+      dueAt: '2026-01-08T00:00:00.000Z',
+    };
+    expect(sanitizeMoveStats(healthy)).toEqual(healthy);
+    expect(moveStatsNeedRepair(healthy)).toBe(false);
+    expect(moveStatsNeedRepair(corrupt)).toBe(true);
+  });
+
+  it('does not add SRS fields that were never set', () => {
+    const fixed = sanitizeMoveStats(NEW);
+    expect('easeFactor' in fixed).toBe(false);
+    expect('intervalDays' in fixed).toBe(false);
+    expect('repetitions' in fixed).toBe(false);
   });
 });
