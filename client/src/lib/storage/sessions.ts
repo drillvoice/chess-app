@@ -7,17 +7,32 @@ const SESSIONS = 'sessions';
 const META = 'cache_meta';
 const QUEUE = 'sync_queue';
 
+/**
+ * Deserialize a raw IndexedDB record into a TrainingSession.
+ *
+ * IndexedDB stores `date` as an ISO string (see addSession/setSessions) and
+ * `studyTags` as a JSON string. This function restores both to their runtime
+ * types and normalises `needsReview` to a proper boolean.
+ *
+ * The `as TrainingSession` cast is intentional: the stored record is
+ * structurally identical to TrainingSession for all other fields. The only
+ * persistent mismatch is `studyTags` (schema says `string | null`; the app
+ * always works with `string[]`), which parseStudyTags handles.
+ */
+function hydrateSession(raw: Record<string, unknown>): TrainingSession {
+  const id = typeof raw.id === 'number' ? raw.id : 0;
+  return {
+    ...raw,
+    date: new Date(raw.date as string),
+    needsReview: Boolean(raw.needsReview),
+    studyTags: parseStudyTags(raw.studyTags as string | null, id),
+  } as TrainingSession;
+}
+
 export async function getSessions(): Promise<TrainingSession[]> {
   return withStores([SESSIONS] as const, 'readonly', async ({ sessions }) => {
     const all = await sessions.getAll();
-    const mapped = all.map((s: any) => {
-      return {
-        ...s,
-        date: new Date(s.date),
-        needsReview: Boolean(s.needsReview),
-        studyTags: parseStudyTags(s.studyTags, s.id),
-      };
-    });
+    const mapped = (all as Record<string, unknown>[]).map(hydrateSession);
     mapped.sort((a, b) => b.date.getTime() - a.date.getTime());
     return mapped;
   });
@@ -72,7 +87,7 @@ export async function updateSession(
       updatedAt: new Date(updated.updatedAt),
       needsReview: Boolean(updated.needsReview),
       studyTags: parseStudyTags(updated.studyTags, id),
-    } as any;
+    } as TrainingSession;
   });
 }
 
@@ -81,12 +96,7 @@ export async function getSession(id: number): Promise<TrainingSession | null> {
     const result = await sessions.get(id);
     if (!result) return null;
 
-    return {
-      ...result,
-      date: new Date(result.date),
-      needsReview: Boolean(result.needsReview),
-      studyTags: parseStudyTags(result.studyTags, id),
-    } as any;
+    return hydrateSession(result as Record<string, unknown>);
   });
 }
 
