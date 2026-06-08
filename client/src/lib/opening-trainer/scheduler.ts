@@ -11,6 +11,18 @@ const EASE_LAPSE_PENALTY = 0.2;
 const FIRST_INTERVAL_DAYS = 1;
 const SECOND_INTERVAL_DAYS = 3;
 const DAY_MS = 86_400_000;
+// Cap the scheduled interval so the resulting date is always well within the
+// valid Date range (~273k years), even if a stored interval/ease ever grows
+// unbounded. 20 years is far beyond any real review cadence.
+const MAX_INTERVAL_DAYS = 365 * 20;
+
+// `?? fallback` only guards null/undefined — it lets a corrupt `NaN`/`Infinity`
+// through. A non-finite ease/interval would make `nextInterval` non-finite and
+// `new Date(...).toISOString()` throw "Invalid time value", which the trainer
+// surfaced as a move that wouldn't register. Coerce to a safe finite value.
+function finiteOr(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
 
 /**
  * A move is due when it has never been scheduled (a new card) or its `dueAt`
@@ -34,9 +46,12 @@ export function gradeMove(
   pass: boolean,
   now: Date = new Date(),
 ): OpeningMoveStats {
-  const ease = stat.easeFactor ?? DEFAULT_EASE;
-  const repetitions = stat.repetitions ?? 0;
-  const intervalDays = stat.intervalDays ?? 0;
+  // Sanitise stored values: a corrupt (non-finite) ease/interval must never reach
+  // the date arithmetic below, or `toISOString()` throws. This also heals the bad
+  // card — the returned stats are always finite.
+  const ease = Math.max(MIN_EASE, finiteOr(stat.easeFactor, DEFAULT_EASE));
+  const repetitions = Math.max(0, Math.floor(finiteOr(stat.repetitions, 0)));
+  const intervalDays = Math.max(0, finiteOr(stat.intervalDays, 0));
 
   if (!pass) {
     return {
@@ -57,6 +72,8 @@ export function gradeMove(
   } else {
     nextInterval = Math.max(1, Math.round(intervalDays * ease));
   }
+  // Clamp so the scheduled date is always valid regardless of stored history.
+  nextInterval = Math.min(nextInterval, MAX_INTERVAL_DAYS);
 
   return {
     ...stat,

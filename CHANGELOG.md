@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.6] - 8 June 2026
+
+- Fix the actual root cause of Opening Trainer moves not registering: the spaced-repetition scheduler computed a move's next-review date from its stored interval and ease, but a corrupt (non-finite) value made `new Date(...)` invalid and threw "Invalid time value". This only happened on a clean correct rep of a well-drilled move (a wrong move took a different code path), which is why it hit the first move and why making an incorrect move "reset" it. The scheduler now coerces stored values to safe numbers and clamps the interval, so it can never produce an invalid date — and the affected move heals itself on its next review
+
 ## [2.5.5] - 8 June 2026
 
 - Add an **Unstick** button to the Opening Trainer drill controls: if a move ever refuses to register, one tap clears the stuck state and refreshes the board at the same position. It is spaced-repetition neutral — it records nothing and never changes a line's review interval

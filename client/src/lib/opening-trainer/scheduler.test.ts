@@ -64,4 +64,50 @@ describe('opening scheduler', () => {
     expect(graded.misses).toBe(2);
     expect(graded.streak).toBe(3);
   });
+
+  it('never throws "Invalid time value" on corrupt (non-finite) SRS fields', () => {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    // A corrupt card whose interval/ease are NaN previously made the pass branch
+    // compute `new Date(NaN).toISOString()` and throw, which the trainer surfaced
+    // as a move that wouldn't register (only on a clean correct move, since the
+    // lapse branch doesn't multiply interval × ease).
+    const corrupt: OpeningMoveStats = {
+      attempts: 9,
+      misses: 1,
+      streak: 4,
+      repetitions: 5,
+      intervalDays: Number.NaN,
+      easeFactor: Number.NaN,
+    };
+
+    for (const fields of [
+      { intervalDays: Number.NaN, easeFactor: Number.NaN },
+      { intervalDays: Number.POSITIVE_INFINITY, easeFactor: 2.5 },
+      { intervalDays: 10, easeFactor: Number.NaN },
+    ] as const) {
+      const graded = gradeMove({ ...corrupt, ...fields }, true, now);
+      expect(Number.isFinite(graded.intervalDays)).toBe(true);
+      expect(Number.isFinite(graded.easeFactor)).toBe(true);
+      // dueAt is a valid, parseable timestamp — the bug produced an exception here.
+      expect(Number.isNaN(new Date(graded.dueAt!).getTime())).toBe(false);
+    }
+
+    // The lapse branch heals a corrupt card too (no throw, finite fields).
+    const lapsed = gradeMove(corrupt, false, now);
+    expect(Number.isFinite(lapsed.easeFactor)).toBe(true);
+    expect(Number.isNaN(new Date(lapsed.dueAt!).getTime())).toBe(false);
+  });
+
+  it('clamps the interval so the scheduled date stays valid', () => {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const huge: OpeningMoveStats = {
+      ...NEW,
+      repetitions: 5,
+      intervalDays: 1e12,
+      easeFactor: 2.5,
+    };
+    const graded = gradeMove(huge, true, now);
+    expect(Number.isFinite(graded.intervalDays)).toBe(true);
+    expect(Number.isNaN(new Date(graded.dueAt!).getTime())).toBe(false);
+  });
 });
