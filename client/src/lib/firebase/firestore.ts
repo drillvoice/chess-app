@@ -7,6 +7,7 @@ import { safeDatabaseOperation } from '../query-timeout';
 import { migrateStudySessions, getMigrationStats } from '../migration';
 import { sessionEvents } from '../session-events';
 import '../session-event-bridge';
+import { logger } from '../logger';
 import { getCurrentUserId } from './core';
 import {
   fetchSessionsFromCloudForVerification,
@@ -30,19 +31,19 @@ export async function getAllSessions(): Promise<TrainingSession[]> {
           // Check if migration is needed
           const migrationStats = getMigrationStats(cachedSessions);
           if (migrationStats.migrationNeeded) {
-            console.log('Migration needed:', migrationStats);
+            logger.info('Migration needed:', migrationStats);
             const migratedSessions = migrateStudySessions(cachedSessions);
             // Save migrated sessions back to cache
             await offlineStorage.setSessions(migratedSessions);
             sessionEvents.emit('sessionsReplaced', migratedSessions);
-            console.log(`Migrated ${migrationStats.needsMigration} study sessions`);
+            logger.info(`Migrated ${migrationStats.needsMigration} study sessions`);
             return migratedSessions;
           }
           return cachedSessions;
         }
         return [];
       } catch (error) {
-        console.warn('Failed to read sessions from offline storage:', error);
+        logger.warn('Failed to read sessions from offline storage:', error);
         return [];
       }
     },
@@ -56,17 +57,17 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
     const allSessions = await getAllSessions();
     return allSessions.filter((session) => session.type === type);
   } catch (error) {
-    console.error('Error getting sessions by type:', error);
+    logger.error('Error getting sessions by type:', error);
     return [];
   }
 }
 
 export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
-  console.log('getSessionsNeedingReview called');
+  logger.debug('getSessionsNeedingReview called');
   try {
     const allSessions = await getAllSessions();
     const filteredSessions = allSessions.filter((session) => {
-      console.log(
+      logger.debug(
         'Filtering session:',
         session.id,
         'needsReview:',
@@ -76,10 +77,10 @@ export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
       );
       return session.needsReview === true;
     });
-    console.log('getSessionsNeedingReview - filtered sessions:', filteredSessions);
+    logger.debug('getSessionsNeedingReview - filtered sessions:', filteredSessions);
     return filteredSessions;
   } catch (error) {
-    console.error('Error getting sessions needing review:', error);
+    logger.error('Error getting sessions needing review:', error);
     return [];
   }
 }
@@ -92,7 +93,7 @@ export async function getSessionsByDateRange(
     const allSessions = await getAllSessions();
     return allSessions.filter((session) => session.date >= startDate && session.date <= endDate);
   } catch (error) {
-    console.error('Error getting sessions by date range:', error);
+    logger.error('Error getting sessions by date range:', error);
     return [];
   }
 }
@@ -117,7 +118,7 @@ export async function createSession(
   id?: number,
   options: CreateSessionOptions = {},
 ): Promise<TrainingSession> {
-  console.log('createSession called with:', insertSession);
+  logger.debug('createSession called with:', insertSession);
   const sessionId = id ?? Date.now();
   const sessionDate = insertSession.date || new Date();
   const now = new Date();
@@ -134,7 +135,7 @@ export async function createSession(
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
 
-  console.log('createSession - new session created:', newSession);
+  logger.debug('createSession - new session created:', newSession);
 
   // Save locally FIRST - this is always the source of truth
   try {
@@ -153,19 +154,19 @@ export async function createSession(
         try {
           await upsertSessionToCloud(newSession);
         } catch (error) {
-          console.warn('Synchronous cloud sync failed for created session:', error);
+          logger.warn('Synchronous cloud sync failed for created session:', error);
           throw new Error('Failed to sync created session to cloud');
         }
       } else {
         queueMicrotask(() => {
           upsertSessionToCloud(newSession).catch((error) => {
-            console.warn('Background cloud sync failed for created session:', error);
+            logger.warn('Background cloud sync failed for created session:', error);
           });
         });
       }
     }
   } catch (error) {
-    console.error('Failed to save session locally:', error);
+    logger.error('Failed to save session locally:', error);
     throw new Error('Failed to save session offline');
   }
 
@@ -180,14 +181,14 @@ export async function updateSession(
   id: number,
   updateData: Partial<InsertTrainingSession>,
 ): Promise<TrainingSession | null> {
-  console.log('updateSession called with id:', id, 'updateData:', updateData);
+  logger.debug('updateSession called with id:', id, 'updateData:', updateData);
   try {
     // Prepare update data for storage (convert arrays to JSON)
     const preparedUpdateData = prepareSessionForStorage(updateData);
 
     // Update locally first - this is the source of truth
     const updatedSession = await offlineStorage.updateSession(id, preparedUpdateData);
-    console.log('updateSession - updated session from offline storage:', updatedSession);
+    logger.debug('updateSession - updated session from offline storage:', updatedSession);
     if (!updatedSession) {
       throw new Error('Session not found locally');
     }
@@ -202,7 +203,7 @@ export async function updateSession(
     if (canSyncToCloud()) {
       queueMicrotask(() => {
         upsertSessionToCloud(updatedSession).catch((error) => {
-          console.warn('Background cloud sync failed for updated session:', error);
+          logger.warn('Background cloud sync failed for updated session:', error);
         });
       });
     }
@@ -213,7 +214,7 @@ export async function updateSession(
 
     return updatedSession;
   } catch (error) {
-    console.error('Error updating session locally:', error);
+    logger.error('Error updating session locally:', error);
     throw new Error('Failed to update session');
   }
 }
@@ -235,10 +236,10 @@ export async function deleteSession(id: number): Promise<boolean> {
     if (canSyncToCloud()) {
       queueMicrotask(() => {
         markSessionDeletedInCloud(id).catch((error) => {
-          console.warn('Background cloud tombstone sync failed:', error);
+          logger.warn('Background cloud tombstone sync failed:', error);
           if (existingSession) {
             upsertSessionToCloud(existingSession).catch((restoreError) => {
-              console.warn('Failed to re-upsert session after delete sync failure:', restoreError);
+              logger.warn('Failed to re-upsert session after delete sync failure:', restoreError);
             });
           }
         });
@@ -250,7 +251,7 @@ export async function deleteSession(id: number): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('Error deleting session locally:', error);
+    logger.error('Error deleting session locally:', error);
     throw new Error('Failed to delete session');
   }
 }
@@ -267,7 +268,7 @@ export async function getStatistics() {
           return cachedStats;
         }
       } catch (error) {
-        console.warn('Failed to get cached statistics:', error);
+        logger.warn('Failed to get cached statistics:', error);
       }
 
       // If no cache, calculate from sessions
@@ -346,7 +347,7 @@ async function calculateStatistics() {
   // Cache the results in both storages
   StatisticsCache.set(stats);
   offlineStorage.setStatistics(stats).catch((error) => {
-    console.warn('Failed to cache statistics in IndexedDB:', error);
+    logger.warn('Failed to cache statistics in IndexedDB:', error);
   });
 
   return stats;
@@ -397,7 +398,7 @@ async function updateStatisticsInBackground(): Promise<void> {
     await calculateStatistics();
     // Cache will be updated in calculateStatistics
   } catch (error) {
-    console.error('Statistics background update failed:', error);
+    logger.error('Statistics background update failed:', error);
   }
 }
 
@@ -408,7 +409,7 @@ export async function getDailyGoalSettings(): Promise<DailyGoalSettings | null> 
     const cachedSettings = await offlineStorage.getDailyGoalSettings();
     return cachedSettings;
   } catch (error) {
-    console.warn('Failed to get daily goal settings:', error);
+    logger.warn('Failed to get daily goal settings:', error);
     return null;
   }
 }
@@ -421,12 +422,12 @@ export async function setDailyGoalSettings(settings: DailyGoalSettings): Promise
     if (canSyncToCloud()) {
       queueMicrotask(() => {
         syncDailyGoalsToCloud(settings).catch((error) => {
-          console.warn('Daily goals cloud sync failed:', error);
+          logger.warn('Daily goals cloud sync failed:', error);
         });
       });
     }
   } catch (error) {
-    console.error('Error setting daily goal settings locally:', error);
+    logger.error('Error setting daily goal settings locally:', error);
     throw new Error('Failed to set daily goal settings');
   }
 }

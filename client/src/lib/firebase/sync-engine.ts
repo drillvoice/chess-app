@@ -37,6 +37,7 @@ import {
   reconcileRepertoireSnapshot,
   serializeRepertoireForCloud,
 } from './sync/repertoire-sync';
+import { logger } from '../logger';
 import type { OpeningRepertoire } from '../opening-trainer/types';
 
 export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
@@ -290,7 +291,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
       await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
       uploadedCount += 1;
     } catch (error) {
-      console.warn(`Failed uploading merged session ${session.id} to cloud`, error);
+      logger.warn(`Failed uploading merged session ${session.id} to cloud`, error);
     }
     processedCount = inFlightIndex;
 
@@ -508,12 +509,12 @@ export async function startRealtimeSync(): Promise<() => void> {
         queueMicrotask(() => {
           backfillLocalOnlySessionsToCloud(localOnlyToUpload).then(
             ({ uploadedCount, failedCount }) => {
-              console.info(
+              logger.info(
                 `Cloud sync backfilled ${uploadedCount}/${localOnlyToUpload.length} local-only sessions after reconciliation`,
               );
               publishStatus({ backfilledCount: uploadedCount });
               if (failedCount > 0) {
-                console.warn(
+                logger.warn(
                   `Cloud sync failed to backfill ${failedCount} local-only sessions after reconciliation`,
                 );
               }
@@ -522,7 +523,7 @@ export async function startRealtimeSync(): Promise<() => void> {
         });
       }
       if (tombstonedIds.length > 0) {
-        console.info(
+        logger.info(
           `Cloud sync applied ${tombstonedIds.length} tombstones from cloud snapshot`,
           tombstonedIds,
         );
@@ -574,7 +575,7 @@ export async function startRealtimeSync(): Promise<() => void> {
           try {
             await setDoc(settingsRef, mergedSettings, { merge: true });
           } catch (error) {
-            console.warn('Failed to backfill merged study tags to cloud settings', error);
+            logger.warn('Failed to backfill merged study tags to cloud settings', error);
           }
         });
       }
@@ -627,7 +628,7 @@ export async function startRealtimeSync(): Promise<() => void> {
           Promise.all(
             localOnlyToUpload.map((repertoire) =>
               upsertRepertoireToCloud(repertoire).catch((error) => {
-                console.warn(`Failed to backfill repertoire ${repertoire.id} to cloud`, error);
+                logger.warn(`Failed to backfill repertoire ${repertoire.id} to cloud`, error);
               }),
             ),
           ).catch(() => {});
@@ -637,7 +638,7 @@ export async function startRealtimeSync(): Promise<() => void> {
     async (error) => {
       // Keep repertoire sync failures isolated from the primary session status.
       const message = error instanceof Error ? error.message : 'Repertoire sync failed';
-      console.warn('Cloud repertoire sync error:', message);
+      logger.warn('Cloud repertoire sync error:', message);
     },
   );
 
@@ -646,18 +647,18 @@ export async function startRealtimeSync(): Promise<() => void> {
       backfillMissingLocalSessionsToCloud()
         .then(({ candidateCount, uploadedCount, failedCount }) => {
           if (candidateCount === 0) return;
-          console.info(
+          logger.info(
             `Cloud sync backfilled ${uploadedCount}/${candidateCount} sessions after a local bulk replace`,
           );
           publishStatus({ backfilledCount: uploadedCount });
           if (failedCount > 0) {
-            console.warn(
+            logger.warn(
               `Cloud sync failed to backfill ${failedCount} local sessions after a local bulk replace`,
             );
           }
         })
         .catch((error) => {
-          console.warn('Cloud sync bulk-replace backfill failed:', error);
+          logger.warn('Cloud sync bulk-replace backfill failed:', error);
         });
     });
   });
@@ -666,16 +667,16 @@ export async function startRealtimeSync(): Promise<() => void> {
     backfillMissingLocalSessionsToCloud()
       .then(({ candidateCount, uploadedCount, failedCount }) => {
         if (candidateCount === 0) return;
-        console.info(
+        logger.info(
           `Cloud sync startup backfill uploaded ${uploadedCount}/${candidateCount} local-only sessions`,
         );
         publishStatus({ backfilledCount: uploadedCount });
         if (failedCount > 0) {
-          console.warn(`Cloud sync startup backfill failed for ${failedCount} sessions`);
+          logger.warn(`Cloud sync startup backfill failed for ${failedCount} sessions`);
         }
       })
       .catch((error) => {
-        console.warn('Cloud sync startup backfill failed:', error);
+        logger.warn('Cloud sync startup backfill failed:', error);
       });
   });
 
