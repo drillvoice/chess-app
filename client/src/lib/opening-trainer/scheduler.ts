@@ -46,7 +46,10 @@ export function sanitizeMoveStats(stat: OpeningMoveStats): OpeningMoveStats {
     sanitized.repetitions = Math.max(0, Math.floor(finiteOr(stat.repetitions, 0)));
   }
   if (stat.intervalDays !== undefined) {
-    sanitized.intervalDays = Math.min(MAX_INTERVAL_DAYS, Math.max(0, finiteOr(stat.intervalDays, 0)));
+    sanitized.intervalDays = Math.min(
+      MAX_INTERVAL_DAYS,
+      Math.max(0, finiteOr(stat.intervalDays, 0)),
+    );
   }
   // Drop an unparseable dueAt so the move is simply treated as due/new.
   if (stat.dueAt !== undefined && Number.isNaN(new Date(stat.dueAt).getTime())) {
