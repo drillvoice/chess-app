@@ -115,7 +115,15 @@ export function useBoardSelection({
 
       applyMove(selection.square, square, undefined, clearSelection);
     },
-    [trainingState, pendingPromotion, applyingMoveRef, cancelPreview, applySelection, clearSelection, applyMove],
+    [
+      trainingState,
+      pendingPromotion,
+      applyingMoveRef,
+      cancelPreview,
+      applySelection,
+      clearSelection,
+      applyMove,
+    ],
   );
 
   const handlePromotionChoice = useCallback(

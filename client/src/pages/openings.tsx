@@ -175,7 +175,15 @@ export default function OpeningsPage() {
   );
 
   // ── Derived render values ─────────────────────────────────────────────────
-  const { trainingState, boardMessage, pieceMap, statusText, isLineComplete, isNothingDue, remainingDueMoves } = trainer;
+  const {
+    trainingState,
+    boardMessage,
+    pieceMap,
+    statusText,
+    isLineComplete,
+    isNothingDue,
+    remainingDueMoves,
+  } = trainer;
   const { selectedSquare, legalTargets, isBoardFlipped, pendingPromotion } = board;
   const { managingRepertoire, managedLines, showLine, currentLineCandidates } = lineManagement;
 
@@ -469,7 +477,9 @@ export default function OpeningsPage() {
                     <Label htmlFor="repertoireName">Name</Label>
                     <Input
                       id="repertoireName"
-                      value={importHook.mergeTarget ? importHook.mergeTarget.name : importHook.importName}
+                      value={
+                        importHook.mergeTarget ? importHook.mergeTarget.name : importHook.importName
+                      }
                       onChange={(event) => importHook.setImportName(event.target.value)}
                       placeholder="Caro-Kann repertoire"
                       disabled={Boolean(importHook.mergeTarget)}
@@ -480,7 +490,9 @@ export default function OpeningsPage() {
                     <select
                       id="trainingSide"
                       className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-                      value={importHook.mergeTarget ? importHook.mergeTarget.side : importHook.importSide}
+                      value={
+                        importHook.mergeTarget ? importHook.mergeTarget.side : importHook.importSide
+                      }
                       disabled={Boolean(importHook.mergeTarget)}
                       onChange={(event) =>
                         importHook.setImportSide(event.target.value === 'black' ? 'black' : 'white')
@@ -496,7 +508,9 @@ export default function OpeningsPage() {
                       id="pgnFile"
                       type="file"
                       accept=".pgn,application/x-chess-pgn,text/plain"
-                      onChange={(event) => void importHook.handleFileImport(event.target.files?.[0])}
+                      onChange={(event) =>
+                        void importHook.handleFileImport(event.target.files?.[0])
+                      }
                     />
                   </div>
                 </div>
@@ -600,10 +614,7 @@ export default function OpeningsPage() {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        void lineManagement.handleDeleteLine(
-                          line.leafId,
-                          line.name ?? line.moves,
-                        )
+                        void lineManagement.handleDeleteLine(line.leafId, line.name ?? line.moves)
                       }
                       aria-label={`Delete line ${line.name ?? line.moves}`}
                     >
