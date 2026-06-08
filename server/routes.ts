@@ -1,10 +1,7 @@
 import type { Express } from 'express';
 import { createServer, type Server } from 'http';
 import { asyncHandler } from './asyncHandler';
-
-interface LichessLatestResponse {
-  games: unknown[];
-}
+import { fetchLichessGames, LichessProxyError } from './lichess';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
@@ -27,80 +24,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sinceTimestamp = parsed;
       }
 
-      const params = new URLSearchParams({
-        max: '50',
-        clocks: 'false',
-        moves: 'false',
-        opening: 'false',
-        format: 'json',
-      });
-
-      if (sinceTimestamp !== undefined) {
-        params.set('since', sinceTimestamp.toString());
-      }
-
-      const lichessUrl = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?${params.toString()}`;
-
-      const lichessResponse = await fetch(lichessUrl, {
-        headers: {
-          Accept: 'application/x-ndjson',
-          'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
-        },
-      });
-
-      if (lichessResponse.status === 404) {
-        res.status(404).json({ message: 'Lichess user not found' });
-        return;
-      }
-
-      if (!lichessResponse.ok) {
-        res.status(502).json({
-          message: `Failed to fetch data from Lichess (status ${lichessResponse.status})`,
-        });
-        return;
-      }
-
-      const rawText = await lichessResponse.text();
-      const lines = rawText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-
-      res.setHeader('Cache-Control', 'no-store');
-
-      if (lines.length === 0) {
-        res.json({ games: [] } satisfies LichessLatestResponse);
-        return;
-      }
-
-      const parsedGames: unknown[] = [];
-      for (const line of lines) {
-        try {
-          parsedGames.push(JSON.parse(line));
-        } catch (_error) {
-          res.status(502).json({ message: 'Received malformed data from Lichess' });
+      try {
+        const result = await fetchLichessGames(username, sinceTimestamp);
+        res.setHeader('Cache-Control', 'no-store');
+        res.json(result);
+      } catch (err) {
+        if (err instanceof LichessProxyError) {
+          res.status(err.statusCode).json({ message: err.message });
           return;
         }
+        throw err; // unexpected — let asyncHandler pass to Express error handler
       }
-
-      const gamesWithTimestamps = parsedGames
-        .map((game) => {
-          const record = game as Record<string, unknown> | undefined;
-          const lastMove = Number(record?.lastMoveAt);
-          const created = Number(record?.createdAt);
-          const timestamp = Number.isFinite(lastMove)
-            ? lastMove
-            : Number.isFinite(created)
-              ? created
-              : null;
-
-          return { game, timestamp };
-        })
-        .filter((entry): entry is { game: unknown; timestamp: number } => entry.timestamp !== null)
-        .sort((a, b) => a.timestamp - b.timestamp)
-        .map((entry) => entry.game);
-
-      res.json({ games: gamesWithTimestamps } satisfies LichessLatestResponse);
     }),
   );
 
