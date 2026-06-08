@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.5.8] - 8 June 2026
+
+Internal code-quality pass — no user-facing behaviour changes.
+
+- Split the 1,074-line Opening Trainer page into five focused custom hooks (`useOpeningRepertoires`, `useOpeningTrainer`, `useBoardSelection`, `useOpeningImport`, `useLineManagement`), each with a single clearly-named responsibility; the page is now a thin coordinator
+- Extract the Lichess API proxy logic shared between the dev server and the Vercel serverless function into `server/lichess.ts` so both always behave identically — removes a drift risk and a diverging error-handling path
+- Route all `console.log/warn/error` calls in the Firebase data layer (`firestore.ts`, `sync-engine.ts`) through the existing `logger` wrapper; debug traces are now silent in production builds automatically
+- Replace two `as any` escape hatches in `client/src/lib/storage/sessions.ts` with a typed `hydrateSession` helper that documents the one genuine schema/runtime mismatch (`studyTags` stored as a string, used at runtime as `string[]`)
+
 ## [2.5.7] - 8 June 2026
 
 - Make the Opening Trainer's spaced-repetition stats robust end-to-end (post-mortem hardening of the "Invalid time value" bug): the engine now coerces every stored stat value to a safe finite number before using it, so a corrupt record can never be created or propagate, and corrupt stats are healed automatically the next time a repertoire is loaded and saved (with a one-time console note when any are found)
