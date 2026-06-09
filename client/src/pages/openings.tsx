@@ -30,7 +30,7 @@ import { useOpeningRepertoires } from '@/hooks/use-opening-repertoires';
 import { useOpeningTrainer } from '@/hooks/use-opening-trainer';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
-import { describeLine, lineLabel } from '@/lib/opening-trainer/engine';
+import { describeLine, lineLabel, setLineDisabled } from '@/lib/opening-trainer/engine';
 import type { OpeningRepertoire } from '@/lib/opening-trainer/types';
 import type { BoardMessageTone } from '@/hooks/use-opening-trainer';
 
@@ -128,23 +128,17 @@ export default function OpeningsPage() {
     }
   }, [repertoires, reviewSummaries, setActiveRepertoireId, handleStartTraining]);
 
-  const handleSkipLine = useCallback(() => {
+  const handlePauseLine = useCallback(async () => {
     if (!trainer.trainingState) return;
-    const sourceRepertoire =
-      trainer.trainingState.repertoire.id === activeRepertoire?.id
-        ? trainer.trainingState.repertoire
-        : activeRepertoire;
-    if (!sourceRepertoire) return;
+    const { currentLineMoveIds, repertoire } = trainer.trainingState;
+    const leafId = currentLineMoveIds[currentLineMoveIds.length - 1];
+    if (!leafId) return;
     lineManagement.setShowLine(false);
-    handleStartTraining(sourceRepertoire, trainer.trainingState.currentLineMoveIds);
-    toast({ title: 'Switched to a new line' });
-  }, [trainer.trainingState, activeRepertoire, lineManagement, handleStartTraining, toast]);
-
-  const handleUnstick = useCallback(() => {
-    if (!trainer.trainingState) return;
-    trainer.resync();
-    board.clearSelection();
-  }, [trainer, board]);
+    const updated = setLineDisabled(repertoire, leafId, true);
+    const saved = await persistRepertoire(updated);
+    onLineEdited(saved);
+    toast({ title: 'Line paused' });
+  }, [trainer.trainingState, lineManagement, persistRepertoire, onLineEdited, toast]);
 
   const handleStart = useCallback(() => {
     lineManagement.setShowLine(false);
@@ -306,19 +300,10 @@ export default function OpeningsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleSkipLine}
-                    disabled={!trainingState || !activeRepertoire}
-                  >
-                    Skip Line
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleUnstick}
+                    onClick={() => void handlePauseLine()}
                     disabled={!trainingState || trainingState.feedback === 'complete'}
-                    title="If a move won't register, tap this to unstick the board (doesn't affect your review schedule)"
                   >
-                    Unstick
+                    Pause line
                   </Button>
                 </div>
               </div>
