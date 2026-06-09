@@ -126,8 +126,12 @@ export default function Home() {
       const result = await triggerManualSync();
       if (result.success) {
         toast({
-          title: result.gamesImported > 0 ? `Imported ${result.gamesImported} game(s)` : 'Up to date',
-          description: result.gamesImported > 0 ? 'New Lichess games added to your log.' : 'No new games found.',
+          title:
+            result.gamesImported > 0 ? `Imported ${result.gamesImported} game(s)` : 'Up to date',
+          description:
+            result.gamesImported > 0
+              ? 'New Lichess games added to your log.'
+              : 'No new games found.',
         });
       } else {
         toast({
