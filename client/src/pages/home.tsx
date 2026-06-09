@@ -151,6 +151,9 @@ export default function Home() {
                 {session.opponentUsername && (
                   <span className="text-xs text-gray-500">vs {session.opponentUsername}</span>
                 )}
+                {session.openingName && (
+                  <span className="text-xs italic text-gray-400">{session.openingName}</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button

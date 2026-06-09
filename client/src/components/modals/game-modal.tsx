@@ -186,6 +186,8 @@ export default function GameModal({
           platform: newSession.platform ?? editingSession.platform, // Preserve existing platform if not changed
           timeControl: newSession.timeControl ?? editingSession.timeControl, // Preserve existing timeControl if not changed
           opponentUsername: newSession.opponentUsername || editingSession.opponentUsername || null,
+          openingName: editingSession.openingName ?? null,
+          openingEco: editingSession.openingEco ?? null,
           studyType: null,
           studyTags: null,
           studyNotes: null,
@@ -221,6 +223,8 @@ export default function GameModal({
           platform: newSession.platform ?? null,
           timeControl: newSession.timeControl ?? null,
           opponentUsername: newSession.opponentUsername || null,
+          openingName: null,
+          openingEco: null,
           studyType: null,
           studyTags: null,
           studyNotes: null,
@@ -497,6 +501,15 @@ export default function GameModal({
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto p-2">
+            {editingSession?.openingName && (
+              <div>
+                <Label className="mb-1 block text-sm font-medium text-gray-700">Opening</Label>
+                <p className="text-sm text-gray-600">
+                  {editingSession.openingEco ? `${editingSession.openingEco} · ` : ''}
+                  {editingSession.openingName}
+                </p>
+              </div>
+            )}
             <div>
               <Label className="mb-2 block text-sm font-medium text-gray-700">Colour</Label>
               <div className="grid grid-cols-2 gap-3">
