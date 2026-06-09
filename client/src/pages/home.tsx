@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, Suspense, useEffect } from 'react';
-import { Puzzle, Crown, Book, Target, Archive, X } from 'lucide-react';
+import { Puzzle, Crown, Book, Target, Archive, X, RefreshCw } from 'lucide-react';
 import { TacticsModal, GameModal, StudyModal, GoalModal } from '@/components/lazy-components';
 import DailyGoalsMVP from '@/components/daily-goals-mvp';
 import InstallPrompt from '@/components/install-prompt';
@@ -8,6 +8,7 @@ import CloudBackupReminder from '@/components/cloud-backup-reminder';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import type { TrainingSession } from '@shared/schema';
 import { formatSessionDate, getGoalProperties } from '@/lib/utils';
 
@@ -105,6 +106,40 @@ export default function Home() {
       // The optimistic update should be sufficient for immediate UI feedback
     },
   });
+
+  const { toast } = useToast();
+  const [isImporting, setIsImporting] = useState(false);
+
+  const { data: userSettings } = useQuery({
+    queryKey: ['user-settings'],
+    queryFn: async () => {
+      const { getUserSettings } = await import('@/lib/firebase');
+      return await getUserSettings();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const handleLichessImport = async () => {
+    setIsImporting(true);
+    try {
+      const { triggerManualSync } = await import('@/lib/lichess-sync');
+      const result = await triggerManualSync();
+      if (result.success) {
+        toast({
+          title: result.gamesImported > 0 ? `Imported ${result.gamesImported} game(s)` : 'Up to date',
+          description: result.gamesImported > 0 ? 'New Lichess games added to your log.' : 'No new games found.',
+        });
+      } else {
+        toast({
+          title: 'Import failed',
+          description: result.error || 'Could not reach Lichess.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const goalProperties = weeklyGoal ? getGoalProperties(weeklyGoal) : null;
   const isGoalOld = goalProperties?.goalWeekStart
@@ -403,6 +438,24 @@ export default function Home() {
 
       {/* Version Control Note */}
       <div className="mt-8 border-t border-gray-200 pt-4 text-center">
+        {userSettings?.lichessUsername && (
+          <div className="mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLichessImport}
+              disabled={isImporting}
+              className="text-xs text-gray-500"
+            >
+              {isImporting ? (
+                <RefreshCw className="mr-1.5 h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3 w-3" />
+              )}
+              Import from Lichess
+            </Button>
+          </div>
+        )}
         <p className="text-xs text-gray-500">Pawn Star Chess Log v{appVersion}</p>
       </div>
     </div>

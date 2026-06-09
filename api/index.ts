@@ -2,7 +2,7 @@
 // NOTE: This is a PROXY-ONLY serverless function for the Lichess API.
 // All data storage happens client-side (IndexedDB), not on the backend.
 import express from 'express';
-import { fetchLichessGames, LichessProxyError } from '../server/lichess';
+import { fetchLichessGames, LichessProxyError } from './lichess';
 
 const app = express();
 app.use(express.json());
