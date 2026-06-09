@@ -1,48 +1,61 @@
 // Vercel serverless function entry point
 // NOTE: This is a PROXY-ONLY serverless function for the Lichess API.
 // All data storage happens client-side (IndexedDB), not on the backend.
-import express from 'express';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { fetchLichessGames, LichessProxyError } from './lichess';
 
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+function sendJson(
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): void {
+  const payload = JSON.stringify(body);
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(payload),
+    ...extraHeaders,
+  });
+  res.end(payload);
+}
 
-// Lichess API proxy — delegates to the shared fetchLichessGames handler so
-// dev-server and Vercel behaviour cannot silently diverge.
-app.get('/api/lichess/latest', async (req, res) => {
-  try {
-    const { username, since } = req.query;
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { message: 'Method not allowed' });
+    return;
+  }
 
-    if (typeof username !== 'string' || username.trim() === '') {
-      res.status(400).json({ message: 'Lichess username is required' });
+  const { searchParams } = new URL(req.url ?? '/', 'http://localhost');
+  const username = searchParams.get('username') ?? '';
+  const sinceRaw = searchParams.get('since') ?? '';
+
+  if (username.trim() === '') {
+    sendJson(res, 400, { message: 'Lichess username is required' });
+    return;
+  }
+
+  let sinceTimestamp: number | undefined;
+  if (sinceRaw.length > 0) {
+    const parsed = Number.parseInt(sinceRaw, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      sendJson(res, 400, { message: 'Invalid since parameter' });
       return;
     }
+    sinceTimestamp = parsed;
+  }
 
-    let sinceTimestamp: number | undefined;
-    if (typeof since === 'string' && since.length > 0) {
-      const parsed = Number.parseInt(since, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        res.status(400).json({ message: 'Invalid since parameter' });
-        return;
-      }
-      sinceTimestamp = parsed;
-    }
-
+  try {
     const result = await fetchLichessGames(username, sinceTimestamp);
-    res.setHeader('Cache-Control', 'no-store');
-    res.json(result);
+    sendJson(res, 200, result, { 'Cache-Control': 'no-store' });
   } catch (err) {
     if (err instanceof LichessProxyError) {
-      res.status(err.statusCode).json({ message: err.message });
+      sendJson(res, err.statusCode, { message: err.message });
       return;
     }
     console.error('[Lichess] Unexpected error:', err);
-    res.status(500).json({
+    sendJson(res, 500, {
       message: 'Internal server error',
       error: err instanceof Error ? err.message : 'Unknown error',
     });
   }
-});
-
-export default app;
+}
