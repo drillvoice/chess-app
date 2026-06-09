@@ -67,7 +67,7 @@
     "drizzle-zod": "^0.7.1",
     "express": "^4.22.1",
     "express-session": "^1.18.2",
-    "firebase": "^11.10.0",
+    "firebase": "^12.14.0",
     "idb": "^7.1.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.453.0",
