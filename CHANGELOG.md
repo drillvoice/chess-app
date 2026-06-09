@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.6.0] - 9 June 2026
+
+- Display the **opening name and ECO code** for Lichess-synced games: shown on the pending-review card and in the game review modal, pulling the data Lichess already provides in its game API
+- Add an **Import from Lichess** button to the home screen (visible when a Lichess username is configured): triggers an immediate manual sync and shows a toast with the result — a quick recovery path when the automatic 30-second poller hasn't caught up yet
+- Replace the Skip Line and Unstick buttons in the Opening Trainer drill controls with a single **Pause Line** button: pauses the current line in place and advances to the next active line — equivalent to toggling the line off in the Edit dialog without leaving the trainer
+- Fix lapsed Opening Trainer moves **reappearing in the same training session**: a lapsed move previously scheduled its next review immediately (dueAt = now), so it could re-queue within the same session; it now gets a 1-day minimum interval matching the floor already applied to correct passes
+- Fix Lichess game sync failing with `FUNCTION_INVOCATION_FAILED` on Vercel production: replaced the Express wrapper in the serverless entry point with a native Node.js HTTP handler (eliminating a CJS/ESM bundling failure point) and inlined the proxy logic so the function has no cross-directory imports that the bundler could silently drop
+- Dependency bumps: firebase 11.10.0 → 12.14.0, Radix UI group (27 packages), jsdom 26.1.0 → 29.1.1, plus dev-dep patches
+
 ## [2.5.8] - 8 June 2026
 
 Internal code-quality pass — no user-facing behaviour changes.
