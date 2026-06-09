@@ -92,7 +92,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
-    "@replit/vite-plugin-cartographer": "^0.4.7",
+    "@replit/vite-plugin-cartographer": "^0.5.5",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.13",
