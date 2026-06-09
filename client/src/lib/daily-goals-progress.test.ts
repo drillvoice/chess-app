@@ -24,6 +24,8 @@ const createSession = (
     platform: null,
     timeControl: null,
     opponentUsername: null,
+    openingName: null,
+    openingEco: null,
     needsReview: false,
     studyType: null,
     studyTags: null,

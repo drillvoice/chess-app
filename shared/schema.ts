@@ -44,6 +44,8 @@ export const gameFields = [
   'playerColor',
   'platform',
   'timeControl',
+  'openingName',
+  'openingEco',
 ] as const;
 export const studyFields = [
   'studyType',
@@ -73,6 +75,8 @@ export const trainingSessionsTable = pgTable('training_sessions', {
   platform: text('platform'), // 'lichess', 'chess.com', 'otb'
   timeControl: text('time_control'), // 'bullet', 'blitz', 'rapid', 'classical'
   opponentUsername: text('opponent_username'), // opponent's username for games
+  openingName: text('opening_name'), // e.g. "French Defense"
+  openingEco: text('opening_eco'), // e.g. "C00"
   needsReview: boolean('needs_review').notNull().default(false),
   // Study specific fields
   studyType: text('study_type'), // Legacy field - kept for backward compatibility
@@ -155,6 +159,8 @@ export const gameSessionSchema = insertTrainingSessionSchema
     platform: z.enum(['lichess', 'chess.com', 'otb']).optional(),
     timeControl: z.enum(['bullet', 'blitz', 'rapid', 'classical']).optional(),
     opponentUsername: z.string().max(50, 'Opponent name cannot exceed 50 characters').optional(),
+    openingName: z.string().optional(),
+    openingEco: z.string().optional(),
   })
   .omit(buildOmit(tacticsFields, studyFields, goalFields, ['gameType', 'duration'] as const));
 

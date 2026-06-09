@@ -40,7 +40,7 @@ export async function fetchLichessGames(
     max: '50',
     clocks: 'false',
     moves: 'false',
-    opening: 'false',
+    opening: 'true',
     format: 'json',
   });
 
