@@ -110,7 +110,7 @@ export function gradeMove(
       repetitions: 0,
       intervalDays: 0,
       easeFactor: Math.max(MIN_EASE, ease - EASE_LAPSE_PENALTY),
-      dueAt: new Date(now.getTime()).toISOString(),
+      dueAt: new Date(now.getTime() + FIRST_INTERVAL_DAYS * DAY_MS).toISOString(),
     };
   }
 

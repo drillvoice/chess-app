@@ -51,7 +51,9 @@ describe('opening scheduler', () => {
     expect(lapsed.repetitions).toBe(0);
     expect(lapsed.intervalDays).toBe(0);
     expect(lapsed.easeFactor).toBeCloseTo(DEFAULT_EASE - 0.2);
-    expect(isMoveDue(lapsed, now)).toBe(true);
+    // Lapsed moves are not immediately due — they resurface after 1 day (the floor).
+    expect(isMoveDue(lapsed, now)).toBe(false);
+    expect(isMoveDue(lapsed, new Date(now.getTime() + 2 * DAY_MS))).toBe(true);
   });
 
   it('floors the ease factor at 1.3', () => {
