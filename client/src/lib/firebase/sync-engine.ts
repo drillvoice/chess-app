@@ -1,3 +1,4 @@
+import type { QuerySnapshot } from 'firebase/firestore';
 import { type DailyGoalSettings, type TrainingSession } from '@shared/schema';
 import { offlineStorage } from '../offline-storage';
 import { sessionEvents } from '../session-events';
@@ -77,6 +78,7 @@ export interface MigrationSummary {
   cloudCount: number;
   mergedCount: number;
   uploadedCount: number;
+  failedUploadCount: number;
   downloadedCount: number;
   collisionsResolved: number;
 }
@@ -284,6 +286,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   await offlineStorage.setSessions(mergedValid);
 
   let uploadedCount = 0;
+  let failedUploadCount = 0;
   let processedCount = 0;
   const uploadTotal = Math.max(1, mergedValid.length);
   for (const session of mergedValid) {
@@ -300,6 +303,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
       await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
       uploadedCount += 1;
     } catch (error) {
+      failedUploadCount += 1;
       logger.warn(`Failed uploading merged session ${session.id} to cloud`, error);
     }
     processedCount = inFlightIndex;
@@ -335,19 +339,29 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     );
   }
 
+  // Don't silently clear the error state when some uploads failed — surface it
+  // so a partial migration is visible rather than reported as a clean sync.
+  const uploadError =
+    failedUploadCount > 0
+      ? `${failedUploadCount} of ${mergedValid.length} sessions failed to upload during migration`
+      : null;
   await Promise.all([
     offlineStorage.setSyncInitializedForUid(uid),
     offlineStorage.setSyncCurrentUid(uid),
-    offlineStorage.clearSyncLastError(),
+    uploadError ? offlineStorage.setSyncLastError(uploadError) : offlineStorage.clearSyncLastError(),
   ]);
+  if (uploadError) {
+    logger.warn(uploadError);
+  }
 
   publishStatus({
-    state: 'synced',
+    state: uploadError ? 'error' : 'synced',
     phase: 'Migration complete',
     processed: uploadTotal,
     total: uploadTotal,
     ...progressMetrics(uploadTotal, uploadTotal, migrationStart),
     lastSyncedAt: new Date(),
+    lastError: uploadError,
   });
 
   const summary: MigrationSummary = {
@@ -355,6 +369,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     cloudCount: cloudSessions.length,
     mergedCount: mergedValid.length,
     uploadedCount,
+    failedUploadCount,
     downloadedCount: cloudSessions.length,
     collisionsResolved,
   };
@@ -478,9 +493,13 @@ export async function startRealtimeSync(): Promise<() => void> {
   const settingsRef = doc(db, 'users', uid, 'settings', 'settings');
   const goalsRef = doc(db, 'users', uid, 'settings', 'dailyGoals');
 
-  const unsubscribeSessions = onSnapshot(
-    query(sessionsRef),
-    async (snapshot) => {
+  // onSnapshot can fire again before the previous async read-modify-write
+  // (getSessions → reconcile → setSessions) finishes. Without serialization the
+  // two runs interleave and the later setSessions clobbers the earlier one.
+  // Chain each snapshot so they apply strictly in order.
+  let sessionSnapshotChain: Promise<void> = Promise.resolve();
+  const applySessionsSnapshot = async (snapshot: QuerySnapshot): Promise<void> => {
+    {
       const startedAt = Date.now();
       const remoteSessions = snapshot.docs
         .map((entry) =>
@@ -549,11 +568,24 @@ export async function startRealtimeSync(): Promise<() => void> {
         elapsedMs,
         itemsPerSecond,
       });
+    }
+  };
+
+  const handleSessionsSnapshotError = async (error: unknown): Promise<void> => {
+    const message = error instanceof Error ? error.message : 'Session sync failed';
+    await offlineStorage.setSyncLastError(message);
+    publishStatus({ state: 'error', lastError: message });
+  };
+
+  const unsubscribeSessions = onSnapshot(
+    query(sessionsRef),
+    (snapshot) => {
+      sessionSnapshotChain = sessionSnapshotChain
+        .then(() => applySessionsSnapshot(snapshot))
+        .catch(handleSessionsSnapshotError);
     },
-    async (error) => {
-      const message = error instanceof Error ? error.message : 'Session sync failed';
-      await offlineStorage.setSyncLastError(message);
-      publishStatus({ state: 'error', lastError: message });
+    (error) => {
+      void handleSessionsSnapshotError(error);
     },
   );
 
