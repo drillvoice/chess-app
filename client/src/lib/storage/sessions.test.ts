@@ -37,4 +37,29 @@ describe('session hydration', () => {
     const sessions = await offlineStorage.getSessions();
     expect(sessions[0].date.toISOString()).toBe(date.toISOString());
   });
+
+  it('drops non-finite numeric fields and invalid goalWeekStart on read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = await getDB();
+    await db.put('sessions', {
+      id: 7,
+      type: 'tactics',
+      date: new Date().toISOString(),
+      duration: NaN,
+      pointsGained: Infinity,
+      puzzlesAttempted: '12',
+      finalScore: 1450,
+      goalWeekStart: 'garbage',
+      needsReview: false,
+    } as never);
+
+    const [session] = await offlineStorage.getSessions();
+    expect(session.duration).toBeUndefined();
+    expect(session.pointsGained).toBeUndefined();
+    expect(session.puzzlesAttempted).toBeUndefined();
+    expect(session.goalWeekStart).toBeUndefined();
+    // Healthy values survive untouched.
+    expect(session.finalScore).toBe(1450);
+    expect(warn).toHaveBeenCalled();
+  });
 });
