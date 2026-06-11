@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 
 export function useMobile() {
@@ -36,12 +37,12 @@ export function useNetworkStatus() {
 
     const handleOnline = () => {
       setIsOnline(true);
-      console.log('Network: Back online');
+      logger.debug('Network: Back online');
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      console.log('Network: Gone offline');
+      logger.debug('Network: Gone offline');
     };
 
     updateNetworkStatus();

@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { offlineStorage } from '../offline-storage';
 import { exportManager } from '../export/export-manager';
 import { importManager } from '../import/import-manager';
@@ -10,7 +11,7 @@ export async function verifyDataPresence(): Promise<boolean> {
     // call, avoiding unintended network/mock behavior.
     const { fetchSessionsFromFirebase } = await import('./firestore');
     await fetchSessionsFromFirebase();
-    console.log('Migration verification: cached', cached?.length || 0, 'live read successful');
+    logger.debug('Migration verification: cached', cached?.length || 0, 'live read successful');
     return true;
   } catch (error) {
     console.error('Migration verification failed:', error);

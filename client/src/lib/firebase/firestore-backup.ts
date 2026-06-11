@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { DailyGoalSettings } from '@shared/schema';
 import { offlineStorage } from '../offline-storage';
 import {
@@ -15,14 +16,14 @@ import {
 
 export async function backupAllSessionsToCloud(): Promise<void> {
   try {
-    console.log('🔄 Starting full backup to cloud...');
+    logger.debug('🔄 Starting full backup to cloud...');
 
     await waitForAuth();
     const sessions =
       typeof offlineStorage.getSessions === 'function' ? await offlineStorage.getSessions() : [];
 
     if (!sessions || sessions.length === 0) {
-      console.log('✅ No sessions to backup');
+      logger.debug('✅ No sessions to backup');
       return;
     }
 
@@ -49,7 +50,7 @@ export async function backupAllSessionsToCloud(): Promise<void> {
     // Store backup timestamp locally
     await offlineStorage.setLastBackupTimestamp(Date.now());
 
-    console.log(`✅ Backed up ${successCount}/${sessions.length} sessions to cloud`);
+    logger.debug(`✅ Backed up ${successCount}/${sessions.length} sessions to cloud`);
   } catch (error) {
     console.error('❌ Cloud backup failed:', error);
     throw new Error('Failed to backup sessions to cloud');
@@ -70,7 +71,7 @@ export async function backupDailyGoalsToCloud(settings: DailyGoalSettings): Prom
     };
 
     await setDoc(goalsRef, backupData);
-    console.log('✅ Daily goals backed up to cloud');
+    logger.debug('✅ Daily goals backed up to cloud');
   } catch (error) {
     console.error('❌ Daily goals backup failed:', error);
     // Don't throw - daily goals backup is not critical

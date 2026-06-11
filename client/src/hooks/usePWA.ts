@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -14,14 +15,14 @@ export function usePWA() {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('beforeinstallprompt event fired');
+      logger.debug('beforeinstallprompt event fired');
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setCanInstall(true);
     };
 
     const handleAppInstalled = () => {
-      console.log('PWA was installed');
+      logger.debug('PWA was installed');
       setDeferredPrompt(null);
       setCanInstall(false);
     };
@@ -32,10 +33,10 @@ export function usePWA() {
     const isInstalled = isStandalone || isInWebApk;
 
     if (isInstalled) {
-      console.log('App is already installed');
+      logger.debug('App is already installed');
       setCanInstall(false);
     } else {
-      console.log('App is not installed, listening for install prompt');
+      logger.debug('App is not installed, listening for install prompt');
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.addEventListener('appinstalled', handleAppInstalled);
     }
@@ -48,21 +49,21 @@ export function usePWA() {
 
   const installApp = async () => {
     if (!deferredPrompt) {
-      console.log('No deferred prompt available');
+      logger.debug('No deferred prompt available');
       return;
     }
 
     try {
-      console.log('Showing install prompt');
+      logger.debug('Showing install prompt');
       await deferredPrompt.prompt();
       const choiceResult = await deferredPrompt.userChoice;
 
-      console.log('User choice:', choiceResult.outcome);
+      logger.debug('User choice:', choiceResult.outcome);
 
       if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
+        logger.debug('User accepted the install prompt');
       } else {
-        console.log('User dismissed the install prompt');
+        logger.debug('User dismissed the install prompt');
       }
     } catch (error) {
       console.error('Installation failed:', error);

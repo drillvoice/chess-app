@@ -1,4 +1,5 @@
 // hooks/useServiceWorkerNotifications.ts
+import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
 
 interface NotificationState {
@@ -42,7 +43,7 @@ export function useServiceWorkerNotifications() {
     // Handler for fresh data
     const handleFreshData = (event: CustomEvent) => {
       // Could trigger data refresh in your app
-      console.log('Fresh data available for:', event.detail.endpoint);
+      logger.debug('Fresh data available for:', event.detail.endpoint);
       // Optionally show subtle notification
       // setNotification({
       //   message: 'Data updated',

@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -87,7 +88,7 @@ export async function clearAppCache(): Promise<void> {
       await Promise.all(registrations.map((registration) => registration.unregister()));
     }
 
-    console.log('App cache cleared successfully');
+    logger.debug('App cache cleared successfully');
   } catch (error) {
     console.error('Failed to clear app cache:', error);
   }

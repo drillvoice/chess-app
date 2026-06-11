@@ -1,5 +1,6 @@
 // Cache warming utilities to ensure data is available immediately
 
+import { logger } from './logger';
 import { queryClient } from './queryClient';
 
 interface CacheWarmingConfig {
@@ -69,7 +70,7 @@ export async function warmCache(config: Partial<CacheWarmingConfig> = {}) {
 
   // Wait for all warming to complete
   await Promise.allSettled(warmingPromises);
-  console.log('Cache warming completed');
+  logger.debug('Cache warming completed');
 }
 
 // Warm cache on app startup
@@ -85,7 +86,7 @@ export function initializeCacheWarming() {
 // Warm cache when coming back online
 export function setupOnlineCacheWarming() {
   const handleOnline = () => {
-    console.log('Back online - warming cache');
+    logger.debug('Back online - warming cache');
     warmCache().catch((error) => {
       console.warn('Online cache warming failed:', error);
     });

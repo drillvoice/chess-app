@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { offlineStorage } from '../offline-storage';
 import { createSession, setDailyGoalSettings } from '../firebase/firestore';
 import { TrainingSession } from '@shared/schema';
@@ -223,7 +224,7 @@ export class ImportManager {
       if ((parsedData as any).statistics && !options.dryRun) {
         try {
           await offlineStorage.setStatistics((parsedData as any).statistics);
-          console.log('Restored statistics from backup');
+          logger.debug('Restored statistics from backup');
         } catch (error) {
           console.warn('Failed to import statistics (will be recalculated):', error);
         }

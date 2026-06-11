@@ -61,9 +61,49 @@ export default function EnhancedDataManagement() {
   const [verifying, setVerifying] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
+  // Clear local data state
+  const [clearingData, setClearingData] = useState(false);
+
   const deviceFileInputRef = useRef<HTMLInputElement>(null);
   const cloudFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handleClearLocalData = async () => {
+    const shouldSkipConfirmation = import.meta.env.MODE === 'test';
+    if (
+      !shouldSkipConfirmation &&
+      typeof window !== 'undefined' &&
+      typeof window.confirm === 'function'
+    ) {
+      const confirmed = window.confirm(
+        'Are you sure? This will permanently delete all local data.',
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    try {
+      setClearingData(true);
+      const { SessionsCache } = await import('@/lib/cache-utils');
+      const { offlineStorage } = await import('@/lib/offline-storage');
+      SessionsCache.remove();
+      await offlineStorage.clear();
+      toast({
+        title: 'Cleared',
+        description: 'Local data removed from this device.',
+      });
+    } catch (error) {
+      console.error('Failed to clear local data', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to clear local data',
+        variant: 'destructive',
+      });
+    } finally {
+      setClearingData(false);
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -113,7 +153,7 @@ export default function EnhancedDataManagement() {
         } catch (saveError) {
           // User cancelled or other error, continue to other methods
           if ((saveError as Error).name !== 'AbortError') {
-            console.log('File System Access API failed:', saveError);
+            console.warn('File System Access API failed:', saveError);
           }
         }
       }
@@ -139,7 +179,7 @@ export default function EnhancedDataManagement() {
             return;
           }
         } catch (shareError) {
-          console.log('Share API failed, falling back to download:', shareError);
+          console.warn('Share API failed, falling back to download:', shareError);
         }
       }
 
@@ -628,6 +668,26 @@ export default function EnhancedDataManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Clear local data</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-sm text-gray-600">
+            Remove all locally stored training data from this device. Cloud backups will remain
+            unaffected and can be restored later.
+          </p>
+          <Button
+            onClick={handleClearLocalData}
+            className="w-full"
+            variant="destructive"
+            disabled={clearingData}
+          >
+            {clearingData ? 'Clearing...' : 'Clear local data'}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

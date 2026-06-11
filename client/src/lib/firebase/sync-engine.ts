@@ -348,7 +348,9 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
   await Promise.all([
     offlineStorage.setSyncInitializedForUid(uid),
     offlineStorage.setSyncCurrentUid(uid),
-    uploadError ? offlineStorage.setSyncLastError(uploadError) : offlineStorage.clearSyncLastError(),
+    uploadError
+      ? offlineStorage.setSyncLastError(uploadError)
+      : offlineStorage.clearSyncLastError(),
   ]);
   if (uploadError) {
     logger.warn(uploadError);
