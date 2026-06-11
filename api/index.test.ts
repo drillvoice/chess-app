@@ -70,6 +70,27 @@ describe('Vercel API serverless function', () => {
       );
     });
 
+    it('sends the exact canonical query params (format is selected via Accept header)', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '',
+      });
+
+      await request(app)
+        .get('/api/lichess/latest')
+        .query({ username: 'softtalk', since: '1700000000000' });
+
+      const url = new URL(fetchMock.mock.calls[0][0] as string);
+      expect(Object.fromEntries(url.searchParams)).toEqual({
+        max: '50',
+        clocks: 'false',
+        moves: 'false',
+        opening: 'true',
+        since: '1700000000000',
+      });
+    });
+
     it('returns games sorted by timestamp (oldest first)', async () => {
       const latestGame = { id: 'game2', lastMoveAt: 3000, createdAt: 2500 };
       const olderGame = { id: 'game1', lastMoveAt: 2000, createdAt: 1000 };
