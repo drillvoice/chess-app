@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { getFirebaseAuth, getFirestoreDb } from '../firebaseClient';
 
 export let auth: Awaited<ReturnType<typeof getFirebaseAuth>>;
@@ -110,9 +111,9 @@ export async function getDailyGoalsCollection(uid?: string) {
 
 async function ensureUserDoc(): Promise<void> {
   try {
-    console.log('🔧 ensureUserDoc called for user:', currentUserId);
+    logger.debug('🔧 ensureUserDoc called for user:', currentUserId);
     await setDoc(doc(db, 'users', currentUserId!), { createdAt: Timestamp.now() }, { merge: true });
-    console.log('✅ User document created/updated successfully');
+    logger.debug('✅ User document created/updated successfully');
   } catch (error) {
     console.error('❌ Error ensuring user document:', error);
     throw error;

@@ -1,25 +1,29 @@
-import { withStores } from './transaction';
+import { createSingleRecordStore } from './single-record-store';
 
-const STATS = 'statistics';
-const META = 'cache_meta';
-
-export async function getStatistics(): Promise<any> {
-  return withStores([STATS] as const, 'readonly', async ({ statistics }) => {
-    const res = await statistics.get('current');
-    return res?.data || null;
-  });
+/**
+ * Cached aggregate statistics computed in client/src/lib/firebase/firestore.ts.
+ * Persisted values are untrusted input — consumers doing arithmetic on these
+ * should guard with Number.isFinite (see CLAUDE.md).
+ */
+export interface Statistics {
+  totalHours: number;
+  totalSessions: number;
+  tacticsRating: number;
+  winRate: number;
+  todayTotalTime: number;
+  todaySessions: number;
 }
 
-export async function setStatistics(stats: any): Promise<void> {
-  await withStores([STATS, META] as const, 'readwrite', async ({ statistics, cache_meta }) => {
-    await statistics.put({ id: 'current', data: stats });
-    await cache_meta.put({ key: 'statistics_last_updated', value: Date.now() });
-  });
+const store = createSingleRecordStore<Statistics>('statistics', 'statistics_last_updated');
+
+export async function getStatistics(): Promise<Statistics | null> {
+  return store.get();
+}
+
+export async function setStatistics(stats: Statistics): Promise<void> {
+  await store.set(stats);
 }
 
 export async function clearStatistics(): Promise<void> {
-  await withStores([STATS, META] as const, 'readwrite', async ({ statistics, cache_meta }) => {
-    await statistics.clear();
-    await cache_meta.delete('statistics_last_updated');
-  });
+  await store.clear();
 }

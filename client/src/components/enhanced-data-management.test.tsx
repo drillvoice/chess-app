@@ -1,11 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-vi.mock('./firebase-auth', () => ({
-  default: () => <div />,
-}));
 
 vi.mock('@/lib/cache-utils', () => ({
   SessionsCache: { remove: vi.fn() },
@@ -20,18 +15,13 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-import DataManagement from './data-management';
+import EnhancedDataManagement from './enhanced-data-management';
 
-describe('DataManagement clear local data', () => {
+describe('EnhancedDataManagement clear local data', () => {
   it('clears local caches when invoked', async () => {
-    const queryClient = new QueryClient();
     const cacheModule = await import('@/lib/cache-utils');
     const offlineModule = await import('@/lib/offline-storage');
-    render(
-      <QueryClientProvider client={queryClient}>
-        <DataManagement />
-      </QueryClientProvider>,
-    );
+    render(<EnhancedDataManagement />);
     const clearButton = await screen.findByRole('button', { name: /clear local data/i });
     fireEvent.click(clearButton);
     await waitFor(() => {

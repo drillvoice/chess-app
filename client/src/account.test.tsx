@@ -4,12 +4,10 @@ import '@testing-library/jest-dom/vitest';
 
 vi.mock('@/components/lazy-components', () => ({
   WeeklyActivityChart: () => null,
-  DataManagement: () => <div>Data Management</div>,
 }));
 
-vi.mock('@/components/data-management', () => ({
-  default: () => <div>Data Management</div>,
-  DataManagementContent: () => <div>Data Management Content</div>,
+vi.mock('@/components/enhanced-data-management', () => ({
+  default: () => <div>Data Management Content</div>,
 }));
 
 vi.mock('@/components/lichess-settings', () => ({
@@ -153,7 +151,7 @@ describe('account accordion behavior', () => {
     ]);
   });
 
-  it('shows data management, enhanced backup, and debug tools only under developer options', () => {
+  it('shows data management and debug tools only under developer options', () => {
     render(<Account />);
 
     expect(screen.queryByRole('button', { name: /^data management$/i })).not.toBeInTheDocument();
@@ -161,7 +159,6 @@ describe('account accordion behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: /developer options/i }));
 
     expect(screen.getByRole('button', { name: /^data management$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /enhanced backup/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /database debug tools/i })).toBeInTheDocument();
   });
 });

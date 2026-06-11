@@ -23,9 +23,16 @@ describe('offlineStorage', () => {
   });
 
   it('stores and retrieves statistics with cache age', async () => {
-    await offlineStorage.setStatistics({ total: 1 });
-    const stats = await offlineStorage.getStatistics();
-    expect(stats).toEqual({ total: 1 });
+    const stats = {
+      totalHours: 1,
+      totalSessions: 2,
+      tacticsRating: 1500,
+      winRate: 50,
+      todayTotalTime: 30,
+      todaySessions: 1,
+    };
+    await offlineStorage.setStatistics(stats);
+    expect(await offlineStorage.getStatistics()).toEqual(stats);
     const age = await offlineStorage.getCacheAge('statistics');
     expect(typeof age).toBe('number');
   });

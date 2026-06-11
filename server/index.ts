@@ -24,7 +24,12 @@ app.use(requestLogger);
     }
 
     res.status(status).json({ message });
-    throw err;
+    // The response is already committed here; rethrowing would surface as an
+    // unhandled rejection (and "headers already sent" noise). Log with context
+    // instead so the failure is still visible.
+    if (status >= 500) {
+      logger.error(`Unhandled request error: ${err?.stack ?? message}`);
+    }
   });
 
   // importantly only setup vite in development and after

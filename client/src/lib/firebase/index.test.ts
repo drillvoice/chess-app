@@ -142,7 +142,8 @@ describe('firebase auth utilities', () => {
     vi.mocked(firestore.fetchSessionsFromFirebase).mockResolvedValue([]);
 
     const utils = await import('./index');
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    // verifyDataPresence reports through logger.debug (console.debug in dev).
+    const logSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     const result = await utils.verifyDataPresence();
 

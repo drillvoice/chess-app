@@ -1,9 +1,12 @@
 /**
- * Shared Lichess API proxy logic used by both the dev/production Express server
- * (server/routes.ts) and the Vercel serverless entry (api/index.ts).
- *
- * Keeping the implementation here means the two deployment targets can never
- * silently diverge in their fetch behaviour, error handling, or response shape.
+ * Lichess API proxy logic for the dev/production Express server
+ * (server/routes.ts). The Vercel serverless entry (api/index.ts) carries a
+ * deliberately duplicated copy: importing shared code into the serverless
+ * function has repeatedly broken the production deploy (FUNCTION_INVOCATION_FAILED;
+ * see commits 2c7c5f2 / 00d4b23 / 3b2a3b1+revert), so the two are kept inline
+ * and lichess-parity.test.ts asserts they behave identically. If you change
+ * this function, make the same change in api/index.ts — the parity test will
+ * fail until you do.
  */
 
 export interface LichessLatestResponse {
@@ -41,7 +44,6 @@ export async function fetchLichessGames(
     clocks: 'false',
     moves: 'false',
     opening: 'true',
-    format: 'json',
   });
 
   if (sinceTimestamp !== undefined) {
@@ -57,6 +59,8 @@ export async function fetchLichessGames(
         Accept: 'application/x-ndjson',
         'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
       },
+      // Bound the request so a hung Lichess connection can't block indefinitely.
+      signal: AbortSignal.timeout(15000),
     });
   } catch (fetchError) {
     throw new LichessProxyError(

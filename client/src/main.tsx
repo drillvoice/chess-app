@@ -1,4 +1,5 @@
 // Enhanced main.tsx with SW message handling
+import { logger } from '@/lib/logger';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
@@ -22,14 +23,14 @@ async function initializePersistentStorage(): Promise<boolean> {
     const isPersistent = await navigator.storage.persisted();
 
     if (isPersistent) {
-      console.log('Storage is already persistent');
+      logger.debug('Storage is already persistent');
       return true;
     }
 
     const granted = await navigator.storage.persist();
 
     if (granted) {
-      console.log('Persistent storage granted');
+      logger.debug('Persistent storage granted');
     } else {
       console.warn('Persistent storage denied - data may be evicted under storage pressure');
     }
@@ -46,7 +47,7 @@ function setupServiceWorkerMessaging() {
   if (!('serviceWorker' in navigator)) return;
 
   navigator.serviceWorker.addEventListener('message', (event) => {
-    console.log('SW Message received:', event.data);
+    logger.debug('SW Message received:', event.data);
 
     switch (event.data.type) {
       case 'BACKGROUND_SYNC_SUCCESS':
@@ -143,7 +144,7 @@ async function initializeServiceWorker(): Promise<void> {
 
     registration.update();
 
-    console.log('SW registered: ', registration);
+    logger.debug('SW registered: ', registration);
 
     // Set up messaging before the SW is active
     setupServiceWorkerMessaging();
@@ -164,7 +165,7 @@ async function initializeServiceWorker(): Promise<void> {
     // Optional: Log storage quota information
     if ('storage' in navigator && navigator.storage.estimate) {
       const estimate = await navigator.storage.estimate();
-      console.log('Storage quota:', {
+      logger.debug('Storage quota:', {
         quota: estimate.quota ? `${Math.round(estimate.quota / 1024 / 1024)}MB` : 'unknown',
         usage: estimate.usage ? `${Math.round(estimate.usage / 1024 / 1024)}MB` : 'unknown',
         usagePercentage:

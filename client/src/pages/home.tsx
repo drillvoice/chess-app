@@ -23,11 +23,14 @@ interface Statistics {
 
 export default function Home() {
   const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
-  const [tacticsModalOpen, setTacticsModalOpen] = useState(false);
-  const [gameModalOpen, setGameModalOpen] = useState(false);
-  const [studyModalOpen, setStudyModalOpen] = useState(false);
-  const [goalModalOpen, setGoalModalOpen] = useState(false);
-  const [editingSession, setEditingSession] = useState<TrainingSession | undefined>(undefined);
+  // One modal can be open at a time; editingSession only applies to 'game'.
+  const [modal, setModal] = useState<{
+    type: 'tactics' | 'game' | 'study' | 'goal' | null;
+    editingSession?: TrainingSession;
+  }>({ type: null });
+  const closeModal = (open: boolean) => {
+    if (!open) setModal((current) => ({ ...current, type: null }));
+  };
   const [weeklyGoalPromptDismissed, setWeeklyGoalPromptDismissed] = useState(false);
 
   const { data: stats, isLoading } = useQuery<Statistics>({
@@ -66,14 +69,10 @@ export default function Home() {
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      console.log('Archive mutation called for session:', sessionId);
       const { updateSession } = await import('@/lib/firebase');
-      const result = await updateSession(sessionId, { needsReview: false });
-      console.log('Archive mutation result:', result);
-      return result;
+      return updateSession(sessionId, { needsReview: false });
     },
     onMutate: async (sessionId) => {
-      console.log('Archive mutation onMutate for session:', sessionId);
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['pending-review'] });
 
@@ -81,13 +80,10 @@ export default function Home() {
       const previousPendingSessions = queryClient.getQueryData<TrainingSession[]>([
         'pending-review',
       ]);
-      console.log('Previous pending sessions:', previousPendingSessions);
 
       // Optimistically update to new value
       queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) => {
-        const filtered = old.filter((session) => session.id !== sessionId);
-        console.log('Optimistically filtered sessions:', filtered);
-        return filtered;
+        return old.filter((session) => session.id !== sessionId);
       });
 
       // Return a context object with the snapshotted value
@@ -100,8 +96,7 @@ export default function Home() {
         queryClient.setQueryData(['pending-review'], context.previousPendingSessions);
       }
     },
-    onSuccess: (data, sessionId) => {
-      console.log('Archive mutation success for session:', sessionId, 'data:', data);
+    onSuccess: () => {
       // Don't invalidate queries here as it might refetch old data before background sync completes
       // The optimistic update should be sufficient for immediate UI feedback
     },
@@ -197,10 +192,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
-                  onClick={() => {
-                    setEditingSession(session);
-                    setGameModalOpen(true);
-                  }}
+                  onClick={() => setModal({ type: 'game', editingSession: session })}
                 >
                   Review
                 </Button>
@@ -251,7 +243,7 @@ export default function Home() {
                     {isGoalOld && (
                       <div className="mt-2">
                         <Button
-                          onClick={() => setGoalModalOpen(true)}
+                          onClick={() => setModal({ type: 'goal' })}
                           size="sm"
                           className="bg-purple-600 text-white hover:bg-purple-700"
                         >
@@ -284,7 +276,7 @@ export default function Home() {
                     </p>
                     <div className="mt-3 flex flex-col gap-2 sm:flex-row md:flex-col">
                       <Button
-                        onClick={() => setGoalModalOpen(true)}
+                        onClick={() => setModal({ type: 'goal' })}
                         size="sm"
                         className="bg-purple-600 text-white hover:bg-purple-700"
                       >
@@ -367,7 +359,7 @@ export default function Home() {
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Button
-              onClick={() => setTacticsModalOpen(true)}
+              onClick={() => setModal({ type: 'tactics' })}
               className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-[#1E40AF] px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-800 active:scale-95 sm:px-6"
             >
               <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
@@ -381,7 +373,7 @@ export default function Home() {
             </Button>
 
             <Button
-              onClick={() => setGameModalOpen(true)}
+              onClick={() => setModal({ type: 'game' })}
               className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-[#059669] px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-emerald-700 active:scale-95 sm:px-6"
             >
               <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
@@ -395,7 +387,7 @@ export default function Home() {
             </Button>
 
             <Button
-              onClick={() => setStudyModalOpen(true)}
+              onClick={() => setModal({ type: 'study' })}
               className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-[#F59E0B] px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-amber-600 active:scale-95 sm:px-6"
             >
               <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
@@ -409,7 +401,7 @@ export default function Home() {
             </Button>
 
             <Button
-              onClick={() => setGoalModalOpen(true)}
+              onClick={() => setModal({ type: 'goal' })}
               className="h-auto min-h-11 w-full min-w-0 transform rounded-xl bg-purple-600 px-3 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-700 active:scale-95 sm:px-6"
             >
               <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
@@ -428,16 +420,18 @@ export default function Home() {
       </div>
 
       <Suspense fallback={<div />}>
-        <TacticsModal open={tacticsModalOpen} onOpenChange={setTacticsModalOpen} />
+        <TacticsModal open={modal.type === 'tactics'} onOpenChange={closeModal} />
         <GameModal
-          open={gameModalOpen}
-          onOpenChange={setGameModalOpen}
-          editingSession={editingSession}
-          isEditMode={!!editingSession}
-          onClearEditingSession={() => setEditingSession(undefined)}
+          open={modal.type === 'game'}
+          onOpenChange={closeModal}
+          editingSession={modal.editingSession}
+          isEditMode={!!modal.editingSession}
+          onClearEditingSession={() =>
+            setModal((current) => ({ ...current, editingSession: undefined }))
+          }
         />
-        <StudyModal open={studyModalOpen} onOpenChange={setStudyModalOpen} />
-        <GoalModal open={goalModalOpen} onOpenChange={setGoalModalOpen} />
+        <StudyModal open={modal.type === 'study'} onOpenChange={closeModal} />
+        <GoalModal open={modal.type === 'goal'} onOpenChange={closeModal} />
       </Suspense>
 
       {/* Version Control Note */}

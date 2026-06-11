@@ -3,7 +3,7 @@ import { Home, TrendingUp, User as UserIcon, Crown, BookOpen } from 'lucide-reac
 import { cn } from '@/lib/utils';
 
 export default function Navigation() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -31,18 +31,20 @@ export default function Navigation() {
                 const isActive = location === item.path;
 
                 return (
-                  <Link key={item.path} href={item.path}>
-                    <button
-                      aria-label={item.label}
-                      className={cn(
-                        'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1 py-2 text-[10px] font-medium leading-none transition-colors sm:gap-2 sm:px-3 sm:text-sm md:px-5 md:py-2.5',
-                        isActive ? 'bg-white text-[#1E40AF]' : 'text-white hover:bg-blue-700',
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="block truncate text-center sm:text-left">{item.label}</span>
-                    </button>
-                  </Link>
+                  <button
+                    key={item.path}
+                    type="button"
+                    aria-label={item.label}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => navigate(item.path)}
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1 py-2 text-[10px] font-medium leading-none transition-colors sm:gap-2 sm:px-3 sm:text-sm md:px-5 md:py-2.5',
+                      isActive ? 'bg-white text-[#1E40AF]' : 'text-white hover:bg-blue-700',
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="block truncate text-center sm:text-left">{item.label}</span>
+                  </button>
                 );
               })}
             </div>

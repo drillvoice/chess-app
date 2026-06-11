@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { AlertTriangle, Cloud, CloudOff, Loader2, UserRound } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebaseClient';
@@ -20,35 +20,102 @@ import { getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth';
 import type { MigrationSummary } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 
+type PendingAccountSwitch = ReturnType<typeof getPendingAccountSwitch>;
+
+interface RepairProgress {
+  processed: number;
+  total: number;
+  uploadedCount: number;
+  failedCount: number;
+}
+
+interface AuthState {
+  authReady: boolean;
+  currentUser: User | null;
+  isProcessing: boolean;
+  migrationSummary: MigrationSummary | null;
+  pendingSwitch: PendingAccountSwitch;
+  repairProgress: RepairProgress | null;
+}
+
+type AuthAction =
+  | { type: 'AUTH_USER_CHANGED'; user: User | null }
+  | { type: 'AUTH_INIT_FAILED' }
+  | { type: 'PROCESSING_STARTED' }
+  | { type: 'PROCESSING_FINISHED' }
+  | {
+      type: 'SYNC_INITIALIZED';
+      summary: MigrationSummary | null;
+      pendingSwitch: PendingAccountSwitch;
+    }
+  | { type: 'PENDING_SWITCH_REFRESHED'; pendingSwitch: PendingAccountSwitch }
+  | { type: 'SIGNED_OUT' }
+  | { type: 'REPAIR_PROGRESS_UPDATED'; progress: RepairProgress | null };
+
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case 'AUTH_USER_CHANGED': {
+      if (action.user) {
+        return { ...state, authReady: true, currentUser: action.user };
+      }
+      return {
+        ...state,
+        authReady: true,
+        currentUser: null,
+        migrationSummary: null,
+        pendingSwitch: null,
+      };
+    }
+    case 'AUTH_INIT_FAILED':
+      return { ...state, authReady: true };
+    case 'PROCESSING_STARTED':
+      return { ...state, isProcessing: true };
+    case 'PROCESSING_FINISHED':
+      return { ...state, isProcessing: false };
+    case 'SYNC_INITIALIZED':
+      return { ...state, migrationSummary: action.summary, pendingSwitch: action.pendingSwitch };
+    case 'PENDING_SWITCH_REFRESHED':
+      return { ...state, pendingSwitch: action.pendingSwitch };
+    case 'SIGNED_OUT':
+      return { ...state, migrationSummary: null, pendingSwitch: null };
+    case 'REPAIR_PROGRESS_UPDATED':
+      return { ...state, repairProgress: action.progress };
+    default:
+      return state;
+  }
+}
+
+function createInitialAuthState(): AuthState {
+  return {
+    authReady: false,
+    currentUser: null,
+    isProcessing: false,
+    migrationSummary: null,
+    pendingSwitch: getPendingAccountSwitch(),
+    repairProgress: null,
+  };
+}
+
 export default function FirebaseAuth() {
   const { toast } = useToast();
   const syncStatus = useSyncStatus();
 
-  const [authReady, setAuthReady] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
-  const [pendingSwitch, setPendingSwitch] = useState(getPendingAccountSwitch());
+  const [state, dispatch] = useReducer(authReducer, undefined, createInitialAuthState);
+  const { authReady, currentUser, isProcessing, migrationSummary, pendingSwitch, repairProgress } =
+    state;
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
-  const [repairProgress, setRepairProgress] = useState<{
-    processed: number;
-    total: number;
-    uploadedCount: number;
-    failedCount: number;
-  } | null>(null);
 
   const runSyncInitialization = useCallback(async () => {
     const summary = await initializeCloudSyncForCurrentUser();
-    setMigrationSummary(summary);
-    setPendingSwitch(getPendingAccountSwitch());
+    dispatch({ type: 'SYNC_INITIALIZED', summary, pendingSwitch: getPendingAccountSwitch() });
     return summary;
   }, []);
 
   const handleEnable = useCallback(
     async (forceRedirect = false) => {
       try {
-        setIsProcessing(true);
+        dispatch({ type: 'PROCESSING_STARTED' });
         await startAuthFlow(forceRedirect);
         if (forceRedirect) {
           sessionStorage.setItem('redirectAuth', 'true');
@@ -79,7 +146,7 @@ export default function FirebaseAuth() {
           variant: 'destructive',
         });
       } finally {
-        setIsProcessing(false);
+        dispatch({ type: 'PROCESSING_FINISHED' });
       }
     },
     [runSyncInitialization, toast],
@@ -91,8 +158,7 @@ export default function FirebaseAuth() {
       await signOut(auth);
       await stopSessionSync();
       await refreshAuthState();
-      setMigrationSummary(null);
-      setPendingSwitch(null);
+      dispatch({ type: 'SIGNED_OUT' });
       toast({
         title: 'Cloud sync disabled',
         description: 'Local data remains available offline on this device.',
@@ -108,16 +174,14 @@ export default function FirebaseAuth() {
 
   const handleRepairCloudData = useCallback(async () => {
     try {
-      setIsProcessing(true);
-      setRepairProgress({
-        processed: 0,
-        total: 0,
-        uploadedCount: 0,
-        failedCount: 0,
+      dispatch({ type: 'PROCESSING_STARTED' });
+      dispatch({
+        type: 'REPAIR_PROGRESS_UPDATED',
+        progress: { processed: 0, total: 0, uploadedCount: 0, failedCount: 0 },
       });
       const summary = await forceUploadAllLocalSessionsToCloud({
         onProgress: (progress) => {
-          setRepairProgress(progress);
+          dispatch({ type: 'REPAIR_PROGRESS_UPDATED', progress });
         },
       });
       if (summary.failedCount > 0) {
@@ -139,17 +203,17 @@ export default function FirebaseAuth() {
         variant: 'destructive',
       });
     } finally {
-      setRepairProgress(null);
-      setIsProcessing(false);
+      dispatch({ type: 'REPAIR_PROGRESS_UPDATED', progress: null });
+      dispatch({ type: 'PROCESSING_FINISHED' });
     }
   }, [toast]);
 
   const handleKeepSeparateProfiles = useCallback(async () => {
     try {
-      setIsProcessing(true);
+      dispatch({ type: 'PROCESSING_STARTED' });
       await acknowledgeAccountSwitch(true);
       const summary = await runSyncInitialization();
-      setPendingSwitch(getPendingAccountSwitch());
+      dispatch({ type: 'PENDING_SWITCH_REFRESHED', pendingSwitch: getPendingAccountSwitch() });
       toast({
         title: 'Account switched',
         description: summary
@@ -163,7 +227,7 @@ export default function FirebaseAuth() {
         variant: 'destructive',
       });
     } finally {
-      setIsProcessing(false);
+      dispatch({ type: 'PROCESSING_FINISHED' });
     }
   }, [runSyncInitialization, toast]);
 
@@ -171,49 +235,55 @@ export default function FirebaseAuth() {
     let mounted = true;
     let unsubscribe: (() => void) | undefined;
 
+    // Concern 1: keep component state in sync with the Firebase auth user.
+    const subscribeToAuthChanges = (auth: Awaited<ReturnType<typeof getFirebaseAuth>>) => {
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const signedInUser = user && !user.isAnonymous ? user : null;
+        dispatch({ type: 'AUTH_USER_CHANGED', user: signedInUser });
+        if (signedInUser) {
+          try {
+            await runSyncInitialization();
+          } catch (error) {
+            console.error('Failed to initialize cloud sync:', error);
+          }
+        }
+      });
+    };
+
+    // Concern 2: complete a sign-in that was started via redirect (popup blocked).
+    const completePendingRedirectSignIn = async (
+      auth: Awaited<ReturnType<typeof getFirebaseAuth>>,
+    ) => {
+      if (sessionStorage.getItem('redirectAuth') !== 'true') return;
+      try {
+        await getRedirectResult(auth);
+        await refreshAuthState();
+        await runSyncInitialization();
+        sessionStorage.removeItem('redirectAuth');
+        toast({
+          title: 'Connected',
+          description: 'Cloud sync is enabled and will keep this account updated in real time.',
+        });
+      } catch (error) {
+        console.error('Redirect authentication failed:', error);
+        toast({
+          title: 'Connection Failed',
+          description: 'Unable to complete sign-in. Please try again.',
+          variant: 'destructive',
+        });
+        sessionStorage.removeItem('redirectAuth');
+      }
+    };
+
     const setupAuth = async () => {
       try {
         const auth = await getFirebaseAuth();
         if (!mounted) return;
-
-        unsubscribe = onAuthStateChanged(auth, async (user) => {
-          setAuthReady(true);
-          setCurrentUser(user && !user.isAnonymous ? user : null);
-          if (user && !user.isAnonymous) {
-            try {
-              await runSyncInitialization();
-            } catch (error) {
-              console.error('Failed to initialize cloud sync:', error);
-            }
-          } else {
-            setMigrationSummary(null);
-            setPendingSwitch(null);
-          }
-        });
-
-        if (sessionStorage.getItem('redirectAuth') === 'true') {
-          try {
-            await getRedirectResult(auth);
-            await refreshAuthState();
-            await runSyncInitialization();
-            sessionStorage.removeItem('redirectAuth');
-            toast({
-              title: 'Connected',
-              description: 'Cloud sync is enabled and will keep this account updated in real time.',
-            });
-          } catch (error) {
-            console.error('Redirect authentication failed:', error);
-            toast({
-              title: 'Connection Failed',
-              description: 'Unable to complete sign-in. Please try again.',
-              variant: 'destructive',
-            });
-            sessionStorage.removeItem('redirectAuth');
-          }
-        }
+        subscribeToAuthChanges(auth);
+        await completePendingRedirectSignIn(auth);
       } catch (error) {
         console.error('Firebase auth initialization failed:', error);
-        setAuthReady(true);
+        dispatch({ type: 'AUTH_INIT_FAILED' });
       }
     };
 

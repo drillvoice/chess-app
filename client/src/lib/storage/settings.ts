@@ -1,25 +1,24 @@
-import { withStores } from './transaction';
+import { createSingleRecordStore } from './single-record-store';
+// Type-only import: no runtime dependency on the firebase layer.
+import type { UserSettings } from '../firebase/settings';
 
-const SETTINGS = 'settings';
-const META = 'cache_meta';
+// Settings are an open bag: cloud sync merges arbitrary keys into them (see
+// mergeSettingsForSync) and unknown keys must survive round trips, so the
+// stored shape is UserSettings plus any extra keys.
+export type StoredSettings = UserSettings & Record<string, unknown>;
 
-export async function getSettings(): Promise<any> {
-  return withStores([SETTINGS] as const, 'readonly', async ({ settings }) => {
-    const res = await settings.get('current');
-    return res?.data || null;
-  });
+const store = createSingleRecordStore<StoredSettings>('settings', 'settings_last_updated');
+
+export async function getSettings(): Promise<StoredSettings | null> {
+  return store.get();
 }
 
-export async function setSettings(settingsData: any): Promise<void> {
-  await withStores([SETTINGS, META] as const, 'readwrite', async ({ settings, cache_meta }) => {
-    await settings.put({ id: 'current', data: settingsData });
-    await cache_meta.put({ key: 'settings_last_updated', value: Date.now() });
-  });
+export async function setSettings(
+  settingsData: UserSettings | Record<string, unknown>,
+): Promise<void> {
+  await store.set(settingsData as StoredSettings);
 }
 
 export async function clearSettings(): Promise<void> {
-  await withStores([SETTINGS, META] as const, 'readwrite', async ({ settings, cache_meta }) => {
-    await settings.clear();
-    await cache_meta.delete('settings_last_updated');
-  });
+  await store.clear();
 }
