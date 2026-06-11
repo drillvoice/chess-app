@@ -49,7 +49,10 @@ function hydrateSession(raw: Record<string, unknown>): TrainingSession {
   }
   // goalWeekStart is a secondary timestamp; unlike `date` it is optional, so a
   // corrupt value is dropped rather than defaulted.
-  if (session.goalWeekStart != null && Number.isNaN(new Date(session.goalWeekStart as string).getTime())) {
+  if (
+    session.goalWeekStart != null &&
+    Number.isNaN(new Date(session.goalWeekStart as string).getTime())
+  ) {
     logger.warn(`Session ${id} has an invalid goalWeekStart; dropping it`, {
       value: session.goalWeekStart,
     });
