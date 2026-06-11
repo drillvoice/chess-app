@@ -310,6 +310,7 @@ const SessionCard = memo(function SessionCard({
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-label="Edit session"
                   className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
                   onClick={() => onEdit(session)}
                 >
@@ -320,6 +321,7 @@ const SessionCard = memo(function SessionCard({
                     <Button
                       variant="ghost"
                       size="sm"
+                      aria-label="Delete session"
                       className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -590,6 +592,7 @@ export default function Activity() {
         <Button
           variant={filter === 'all' ? 'default' : 'secondary'}
           size="sm"
+          aria-pressed={filter === 'all'}
           onClick={() => setFilter('all')}
           className={cn(
             filter === 'all'
@@ -602,6 +605,7 @@ export default function Activity() {
         <Button
           variant={filter === 'tactics' ? 'default' : 'secondary'}
           size="sm"
+          aria-pressed={filter === 'tactics'}
           onClick={() => setFilter('tactics')}
           className={cn(
             filter === 'tactics'
@@ -614,6 +618,7 @@ export default function Activity() {
         <Button
           variant={filter === 'game' ? 'default' : 'secondary'}
           size="sm"
+          aria-pressed={filter === 'game'}
           onClick={() => setFilter('game')}
           className={cn(
             filter === 'game'
@@ -626,6 +631,7 @@ export default function Activity() {
         <Button
           variant={filter === 'study' ? 'default' : 'secondary'}
           size="sm"
+          aria-pressed={filter === 'study'}
           onClick={() => setFilter('study')}
           className={cn(
             filter === 'study'
@@ -638,6 +644,7 @@ export default function Activity() {
         <Button
           variant={filter === 'goal' ? 'default' : 'secondary'}
           size="sm"
+          aria-pressed={filter === 'goal'}
           onClick={() => setFilter('goal')}
           className={cn(
             filter === 'goal'

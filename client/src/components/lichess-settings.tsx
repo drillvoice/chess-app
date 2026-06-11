@@ -77,15 +77,12 @@ function LichessSettingsContent() {
 
     const loadSettings = async () => {
       try {
-        console.log('🔄 Loading Lichess settings...');
         setLoadError(null);
         const settings = await getUserSettings();
-        console.log('✅ Settings loaded:', settings);
         if (mounted && settings?.lichessUsername) {
           const savedUsername = settings.lichessUsername.trim().toLowerCase();
           setUsername(savedUsername);
           setOriginalUsername(savedUsername);
-          console.log('📝 Username loaded:', savedUsername);
         }
       } catch (error) {
         console.error('❌ Failed to load settings:', error);
@@ -113,11 +110,8 @@ function LichessSettingsContent() {
   }, [username]);
 
   const handleSave = async () => {
-    console.log('💾 Starting save process...');
-
     // Don't save if there's a validation error
     if (validationError) {
-      console.log('❌ Validation error:', validationError);
       toast({
         title: 'Invalid Username',
         description: validationError,
@@ -127,11 +121,9 @@ function LichessSettingsContent() {
     }
 
     const trimmedValue = username.trim().toLowerCase();
-    console.log('📝 Saving username:', trimmedValue);
 
     // Don't save if nothing changed
     if (trimmedValue === originalUsername) {
-      console.log('ℹ️ No changes detected');
       toast({
         title: 'No Changes',
         description: 'Username is already saved',
@@ -140,22 +132,17 @@ function LichessSettingsContent() {
     }
 
     setIsLoading(true);
-    console.log('⏳ Setting loading state...');
 
     try {
-      console.log('🔧 Calling updateUserSettings...');
       await updateUserSettings({ lichessUsername: trimmedValue });
-      console.log('✅ Settings updated successfully');
 
       setOriginalUsername(trimmedValue);
       setUsername(trimmedValue);
 
       // Restart Lichess sync with new username
-      console.log('🔄 Restarting Lichess sync...');
       const { restartLichessSync } = await import('@/lib/lichess-sync');
       restartLichessSync(trimmedValue || undefined);
 
-      console.log('🎉 Save process completed successfully');
       toast({
         title: 'Saved',
         description: 'Lichess username updated successfully',
@@ -181,7 +168,6 @@ function LichessSettingsContent() {
         variant: 'destructive',
       });
     } finally {
-      console.log('🏁 Clearing loading state');
       setIsLoading(false);
     }
   };

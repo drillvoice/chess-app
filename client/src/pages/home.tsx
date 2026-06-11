@@ -66,14 +66,10 @@ export default function Home() {
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      console.log('Archive mutation called for session:', sessionId);
       const { updateSession } = await import('@/lib/firebase');
-      const result = await updateSession(sessionId, { needsReview: false });
-      console.log('Archive mutation result:', result);
-      return result;
+      return updateSession(sessionId, { needsReview: false });
     },
     onMutate: async (sessionId) => {
-      console.log('Archive mutation onMutate for session:', sessionId);
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['pending-review'] });
 
@@ -81,13 +77,10 @@ export default function Home() {
       const previousPendingSessions = queryClient.getQueryData<TrainingSession[]>([
         'pending-review',
       ]);
-      console.log('Previous pending sessions:', previousPendingSessions);
 
       // Optimistically update to new value
       queryClient.setQueryData<TrainingSession[]>(['pending-review'], (old = []) => {
-        const filtered = old.filter((session) => session.id !== sessionId);
-        console.log('Optimistically filtered sessions:', filtered);
-        return filtered;
+        return old.filter((session) => session.id !== sessionId);
       });
 
       // Return a context object with the snapshotted value
@@ -100,8 +93,7 @@ export default function Home() {
         queryClient.setQueryData(['pending-review'], context.previousPendingSessions);
       }
     },
-    onSuccess: (data, sessionId) => {
-      console.log('Archive mutation success for session:', sessionId, 'data:', data);
+    onSuccess: () => {
       // Don't invalidate queries here as it might refetch old data before background sync completes
       // The optimistic update should be sufficient for immediate UI feedback
     },
