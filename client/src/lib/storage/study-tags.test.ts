@@ -22,6 +22,14 @@ describe('parseStudyTags', () => {
       expect.anything(),
     );
   });
+
+  it('returns undefined and warns when valid JSON is not an array', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // A corrupt record (e.g. studyTags stored as `"3"`) parses to a non-array.
+    expect(parseStudyTags('3', 11)).toBeUndefined();
+    expect(parseStudyTags('{"a":1}', 11)).toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+  });
 });
 
 describe('serializeStudyTags', () => {

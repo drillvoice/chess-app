@@ -42,6 +42,15 @@ import type { OpeningRepertoire } from '../opening-trainer/types';
 
 export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
 
+/**
+ * Coerce a persisted/synced value to a finite number or undefined. Guards
+ * against NaN/Infinity arriving from Firestore for optional numeric fields
+ * (see CLAUDE.md: persisted numbers are untrusted input).
+ */
+function finiteOrUndefined(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 type SyncState = 'disabled' | 'initializing' | 'syncing' | 'synced' | 'error';
 
 export interface CloudSyncStatus {
@@ -595,9 +604,12 @@ export async function startRealtimeSync(): Promise<() => void> {
       const normalizedGoals: DailyGoalSettings = {
         isCustomized: Boolean(payload.isCustomized),
         autoTracking: Boolean(payload.autoTracking),
-        tacticsMinutes: payload.tacticsMinutes,
-        gamesCount: payload.gamesCount,
-        studyMinutes: payload.studyMinutes,
+        // These are optional numbers persisted in Firestore (untrusted input).
+        // `?? fallback` would let a NaN/Infinity through; coerce non-finite
+        // values to undefined so corruption can't reach goal arithmetic.
+        tacticsMinutes: finiteOrUndefined(payload.tacticsMinutes),
+        gamesCount: finiteOrUndefined(payload.gamesCount),
+        studyMinutes: finiteOrUndefined(payload.studyMinutes),
         lastModified: toDate(payload.lastModified) ?? undefined,
       };
       await offlineStorage.setDailyGoalSettings({

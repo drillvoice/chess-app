@@ -36,6 +36,8 @@ async function fetchLichessGames(
         Accept: 'application/x-ndjson',
         'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
       },
+      // Bound the request so a hung Lichess connection can't block indefinitely.
+      signal: AbortSignal.timeout(15000),
     });
   } catch (fetchError) {
     throw new LichessProxyError(

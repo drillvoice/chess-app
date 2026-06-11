@@ -23,10 +23,25 @@ function hydrateSession(raw: Record<string, unknown>): TrainingSession {
   const id = typeof raw.id === 'number' ? raw.id : 0;
   return {
     ...raw,
-    date: new Date(raw.date as string),
+    date: hydrateDate(raw.date, id),
     needsReview: Boolean(raw.needsReview),
     studyTags: parseStudyTags(raw.studyTags as string | null, id),
   } as TrainingSession;
+}
+
+/**
+ * Restore a persisted `date` to a valid Date. A corrupt value (e.g. an
+ * unparseable string) would otherwise yield an Invalid Date, and the next
+ * `.toISOString()` on it throws "Invalid time value". Heal on read by falling
+ * back to now() and logging with context so the corruption stays visible.
+ */
+function hydrateDate(value: unknown, sessionId: number): Date {
+  const parsed = new Date(value as string);
+  if (Number.isNaN(parsed.getTime())) {
+    logger.warn(`Session ${sessionId} has an invalid date; falling back to now()`, { value });
+    return new Date();
+  }
+  return parsed;
 }
 
 export async function getSessions(): Promise<TrainingSession[]> {

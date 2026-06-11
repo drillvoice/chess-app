@@ -5,7 +5,13 @@
 export function parseStudyTags<T>(value: T, sessionId?: number | string): T | string[] | undefined {
   if (typeof value !== 'string') return value;
   try {
-    return JSON.parse(value) as string[];
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      // A corrupt record (e.g. studyTags stored as `"3"`) parses to a non-array.
+      // Casting it to string[] would let the bad value propagate, so reject it.
+      throw new Error(`studyTags is not an array (got ${typeof parsed})`);
+    }
+    return parsed as string[];
   } catch (error) {
     const suffix = sessionId != null ? ` for session ${sessionId}` : '';
     console.warn(`Failed to parse studyTags${suffix}:`, error);
