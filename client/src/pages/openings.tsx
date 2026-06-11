@@ -301,7 +301,13 @@ export default function OpeningsPage() {
                     type="button"
                     variant="outline"
                     onClick={() => void handlePauseLine()}
-                    disabled={!trainingState || trainingState.feedback === 'complete'}
+                    disabled={
+                      !trainingState ||
+                      trainingState.feedback === 'complete' ||
+                      // Pausing acts on the last played move's line; before any
+                      // move there is nothing to pause and the handler no-ops.
+                      trainingState.currentLineMoveIds.length === 0
+                    }
                   >
                     Pause line
                   </Button>

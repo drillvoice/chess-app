@@ -240,7 +240,7 @@ describe('Openings page', () => {
     );
   });
 
-  it('Unstick button refreshes the drill without changing the schedule', async () => {
+  it('Pause line disables the current line and persists it', async () => {
     render(<OpeningsPage />);
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
     fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
@@ -251,18 +251,30 @@ describe('Openings page', () => {
     await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
     saveOpeningRepertoireMock.mockClear();
 
-    // Pressing Unstick must not persist anything (SRS-neutral) and must leave the
-    // drill ready on the same side.
-    fireEvent.click(screen.getByRole('button', { name: /Unstick/i }));
-    expect(saveOpeningRepertoireMock).not.toHaveBeenCalled();
-    expect(screen.getByText(/White to train/i)).toBeInTheDocument();
+    // Before any move there is no current line to pause; the button is disabled
+    // (pressing it used to silently no-op).
+    expect(screen.getByRole('button', { name: /Pause line/i })).toBeDisabled();
 
-    // The drill is still fully functional afterwards.
+    // Play the first move so a current line exists.
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
     await waitFor(() =>
       expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
     );
+    saveOpeningRepertoireMock.mockClear();
+
+    // Pausing the line marks its leaf disabled and saves the repertoire — the
+    // same effect as toggling the switch in the edit dialog, without leaving
+    // the trainer.
+    fireEvent.click(screen.getByRole('button', { name: /Pause line/i }));
+    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+
+    const saved = saveOpeningRepertoireMock.mock.calls[0][0];
+    const disabledStats = Object.values(
+      saved.stats as Record<string, { disabled?: boolean }>,
+    ).filter((stat) => stat.disabled === true);
+    expect(disabledStats).toHaveLength(1);
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Line paused' }));
   });
 
   it('registers the second correct move after a wrong attempt on the first', async () => {
