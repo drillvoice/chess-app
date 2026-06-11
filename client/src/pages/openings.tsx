@@ -1,27 +1,7 @@
 import { useCallback } from 'react';
-import {
-  BookOpen,
-  CheckCircle2,
-  ChevronDown,
-  Pencil,
-  RotateCcw,
-  Trash2,
-  Upload,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useBoardSelection } from '@/hooks/use-board-selection';
 import { useLineManagement } from '@/hooks/use-line-management';
@@ -30,6 +10,10 @@ import { useOpeningRepertoires } from '@/hooks/use-opening-repertoires';
 import { useOpeningTrainer } from '@/hooks/use-opening-trainer';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
+import { RepertoireList } from '@/components/openings/repertoire-list';
+import { ImportPgnPanel } from '@/components/openings/import-pgn-panel';
+import { EditLinesDialog } from '@/components/openings/edit-lines-dialog';
+import { formatRelativeDue } from '@/components/openings/format-relative-due';
 import { describeLine, lineLabel, setLineDisabled } from '@/lib/opening-trainer/engine';
 import type { OpeningRepertoire } from '@/lib/opening-trainer/types';
 import type { BoardMessageTone } from '@/hooks/use-opening-trainer';
@@ -39,15 +23,6 @@ const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
   negative: 'border-red-200 bg-red-50 text-red-800',
   info: 'border-gray-200 bg-gray-50 text-gray-700',
 };
-
-function formatRelativeDue(iso: string | undefined): string {
-  if (!iso) return '';
-  const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return 'now';
-  const days = Math.ceil(ms / 86_400_000);
-  if (days >= 1) return `${days}d`;
-  return `${Math.max(1, Math.ceil(ms / 3_600_000))}h`;
-}
 
 export default function OpeningsPage() {
   const { toast } = useToast();
@@ -339,285 +314,29 @@ export default function OpeningsPage() {
         </div>
 
         <div className="tablet-side order-1 space-y-4 md:order-2 md:space-y-6">
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-gray-600" />
-                <h3 className="text-base font-semibold text-gray-800">Repertoires</h3>
-              </div>
-              {repertoires.length === 0 ? (
-                <p className="text-sm text-gray-500">No repertoires imported yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {repertoires.map((repertoire) => {
-                    const summary = reviewSummaries.get(repertoire.id);
-                    return (
-                      <div key={repertoire.id} className="rounded-md border border-gray-200 p-3">
-                        <button
-                          type="button"
-                          className="w-full text-left"
-                          onClick={() => {
-                            setActiveRepertoireId(repertoire.id);
-                            handleStartTraining(repertoire);
-                          }}
-                        >
-                          <span className="block text-sm font-medium text-gray-800">
-                            {repertoire.name}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {repertoire.side === 'white' ? 'White' : 'Black'} •{' '}
-                            {summary?.totalLines ?? 0} line
-                            {(summary?.totalLines ?? 0) === 1 ? '' : 's'}
-                            {' • '}
-                            {summary && summary.dueMoves > 0 ? (
-                              <span className="font-medium text-blue-700">
-                                {summary.dueMoves} move{summary.dueMoves === 1 ? '' : 's'} due
-                              </span>
-                            ) : (
-                              <span className="text-green-700">
-                                All reviewed
-                                {summary?.nextDueAt
-                                  ? ` · next in ${formatRelativeDue(summary.nextDueAt)}`
-                                  : ''}
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                        <div className="mt-2 flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={activeRepertoireId === repertoire.id ? 'default' : 'outline'}
-                            onClick={() => {
-                              setActiveRepertoireId(repertoire.id);
-                              handleStartTraining(repertoire);
-                            }}
-                          >
-                            Train
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => lineManagement.setManagingRepertoireId(repertoire.id)}
-                            aria-label={`Edit lines in ${repertoire.name}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void handleDelete(repertoire.id)}
-                            aria-label={`Delete ${repertoire.name}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <RepertoireList
+            repertoires={repertoires}
+            reviewSummaries={reviewSummaries}
+            activeRepertoireId={activeRepertoireId}
+            onTrain={(repertoire) => {
+              setActiveRepertoireId(repertoire.id);
+              handleStartTraining(repertoire);
+            }}
+            onEditLines={(repertoireId) => lineManagement.setManagingRepertoireId(repertoireId)}
+            onDelete={(repertoireId) => void handleDelete(repertoireId)}
+          />
 
-          <Card>
-            <button
-              type="button"
-              className="flex w-full items-center justify-between gap-2 p-4"
-              onClick={() => importHook.setIsImportPgnOpen((open) => !open)}
-              aria-expanded={importHook.isImportPgnOpen}
-            >
-              <div className="flex items-center gap-2">
-                <Upload className="h-4 w-4 text-gray-600" />
-                <h3 className="text-base font-semibold text-gray-800">Import PGN</h3>
-              </div>
-              <ChevronDown
-                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${importHook.isImportPgnOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-            {importHook.isImportPgnOpen && (
-              <CardContent className="space-y-3 px-4 pb-4 pt-0">
-                {repertoires.length > 0 && (
-                  <div>
-                    <Label htmlFor="importTarget">Import as</Label>
-                    <select
-                      id="importTarget"
-                      className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={importHook.mergeTargetId}
-                      onChange={(event) => importHook.setMergeTargetId(event.target.value)}
-                    >
-                      <option value="">New repertoire</option>
-                      {repertoires.map((repertoire) => (
-                        <option key={repertoire.id} value={repertoire.id}>
-                          Merge into {repertoire.name} ({repertoire.side})
-                        </option>
-                      ))}
-                    </select>
-                    {importHook.mergeTarget && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        New lines are added to "{importHook.mergeTarget.name}"; existing lines keep
-                        their training progress.
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <Label htmlFor="repertoireName">Name</Label>
-                    <Input
-                      id="repertoireName"
-                      value={
-                        importHook.mergeTarget ? importHook.mergeTarget.name : importHook.importName
-                      }
-                      onChange={(event) => importHook.setImportName(event.target.value)}
-                      placeholder="Caro-Kann repertoire"
-                      disabled={Boolean(importHook.mergeTarget)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="trainingSide">Your side</Label>
-                    <select
-                      id="trainingSide"
-                      className="mt-1 block h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-                      value={
-                        importHook.mergeTarget ? importHook.mergeTarget.side : importHook.importSide
-                      }
-                      disabled={Boolean(importHook.mergeTarget)}
-                      onChange={(event) =>
-                        importHook.setImportSide(event.target.value === 'black' ? 'black' : 'white')
-                      }
-                    >
-                      <option value="white">White</option>
-                      <option value="black">Black</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="pgnFile">PGN file</Label>
-                    <Input
-                      id="pgnFile"
-                      type="file"
-                      accept=".pgn,application/x-chess-pgn,text/plain"
-                      onChange={(event) =>
-                        void importHook.handleFileImport(event.target.files?.[0])
-                      }
-                    />
-                  </div>
-                </div>
-                <Textarea
-                  aria-label="PGN text"
-                  value={importHook.pgnText}
-                  onChange={(event) => importHook.setPgnText(event.target.value)}
-                  placeholder="Paste a single PGN game with variations..."
-                  className="min-h-36"
-                />
-                <Button
-                  type="button"
-                  onClick={() => void importHook.handleImport()}
-                  disabled={!importHook.pgnText.trim()}
-                >
-                  {importHook.mergeTarget ? 'Merge into Repertoire' : 'Import Repertoire'}
-                </Button>
-
-                {importHook.importWarnings.length > 0 && (
-                  <div
-                    role="alert"
-                    className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
-                  >
-                    <p className="font-medium">
-                      Imported with {importHook.importWarnings.length} skipped{' '}
-                      {importHook.importWarnings.length === 1 ? 'line' : 'lines'}. Fix these moves
-                      in your PGN and re-import to include them:
-                    </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {importHook.importWarnings.map((warning, index) => (
-                        <li key={index}>{warning.message}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </CardContent>
-            )}
-          </Card>
+          <ImportPgnPanel importHook={importHook} repertoires={repertoires} />
         </div>
       </div>
 
-      <Dialog
-        open={Boolean(managingRepertoire)}
-        onOpenChange={(open) => !open && lineManagement.setManagingRepertoireId(null)}
-      >
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Edit lines{managingRepertoire ? ` — ${managingRepertoire.name}` : ''}
-            </DialogTitle>
-            <DialogDescription>
-              Pause a line to keep it but stop training it, or delete it to remove it for good.
-            </DialogDescription>
-          </DialogHeader>
-          {managedLines.length === 0 ? (
-            <p className="text-sm text-gray-500">This repertoire has no lines.</p>
-          ) : (
-            <ul className="space-y-2">
-              {managedLines.map((line) => (
-                <li
-                  key={line.leafId}
-                  className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3"
-                >
-                  <div className="min-w-0">
-                    {line.name ? (
-                      <>
-                        <p
-                          className={`break-words text-sm font-medium ${line.paused ? 'text-gray-400' : 'text-gray-800'}`}
-                        >
-                          {line.name}
-                        </p>
-                        <p
-                          className={`mt-0.5 break-words font-mono text-xs ${line.paused ? 'text-gray-400' : 'text-gray-500'}`}
-                        >
-                          {line.moves}
-                        </p>
-                      </>
-                    ) : (
-                      <p
-                        className={`break-words font-mono text-sm ${line.paused ? 'text-gray-400' : 'text-gray-800'}`}
-                      >
-                        {line.moves}
-                      </p>
-                    )}
-                    {line.paused && (
-                      <Badge variant="outline" className="mt-1 text-amber-700">
-                        Paused
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-2">
-                    <Switch
-                      checked={!line.paused}
-                      onCheckedChange={(checked) =>
-                        void lineManagement.handleToggleLine(line.leafId, !checked)
-                      }
-                      aria-label={line.paused ? 'Activate line' : 'Pause line'}
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        void lineManagement.handleDeleteLine(line.leafId, line.name ?? line.moves)
-                      }
-                      aria-label={`Delete line ${line.name ?? line.moves}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EditLinesDialog
+        managingRepertoire={managingRepertoire}
+        managedLines={managedLines}
+        onClose={() => lineManagement.setManagingRepertoireId(null)}
+        onToggleLine={(leafId, paused) => void lineManagement.handleToggleLine(leafId, paused)}
+        onDeleteLine={(leafId, label) => void lineManagement.handleDeleteLine(leafId, label)}
+      />
 
       <PromotionPicker
         open={Boolean(pendingPromotion)}

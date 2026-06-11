@@ -1,7 +1,5 @@
-import { useState, Suspense, useEffect, useMemo, memo, useCallback } from 'react';
+import { useState, Suspense, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Puzzle, Crown, Book, Clock, Target, Trash2, Edit3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -10,19 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { cn, formatStudyDisplay } from '@/lib/utils';
 import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
 import { useStudyPreferences } from '@/hooks/use-study-preferences';
 import {
@@ -32,328 +18,11 @@ import {
   GoalModal,
   WeeklyActivityChart,
 } from '@/components/lazy-components';
+import { SessionCard } from '@/components/activity/session-card';
+import { SessionFilterBar } from '@/components/activity/session-filter-bar';
+import { groupSessionsByDate } from '@/components/activity/session-display';
 
-// --- Helper functions (pure, outside component) ---
-
-function getSessionIcon(type: string) {
-  switch (type) {
-    case 'tactics':
-      return <Puzzle className="h-5 w-5 text-[#1E40AF]" />;
-    case 'game':
-      return <Crown className="h-5 w-5 text-[#059669]" />;
-    case 'study':
-      return <Book className="h-5 w-5 text-[#F59E0B]" />;
-    case 'goal':
-      return <Target className="h-5 w-5 text-purple-600" />;
-    default:
-      return <Clock className="h-5 w-5 text-gray-500" />;
-  }
-}
-
-function getSessionBgColor(type: string) {
-  switch (type) {
-    case 'tactics':
-      return 'bg-blue-100';
-    case 'game':
-      return 'bg-emerald-100';
-    case 'study':
-      return 'bg-amber-100';
-    case 'goal':
-      return 'bg-purple-100';
-    default:
-      return 'bg-gray-100';
-  }
-}
-
-function parseStudyTags(session: TrainingSession): string[] {
-  if (!session.studyTags) return [];
-  if (Array.isArray(session.studyTags)) return session.studyTags as string[];
-  if (typeof session.studyTags === 'string') {
-    try {
-      const parsed = JSON.parse(session.studyTags);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-function getStudyUnitLabel(
-  session: TrainingSession,
-  studyUnitLabelByTag: Record<string, string>,
-): string | null {
-  if (!session.primaryStudyTag) return null;
-  return studyUnitLabelByTag[normalizeStudyTagKey(session.primaryStudyTag)] || null;
-}
-
-function getSessionTitle(
-  session: TrainingSession,
-  studyUnitLabelByTag: Record<string, string> = {},
-) {
-  switch (session.type) {
-    case 'tactics':
-      return 'Tactics Practice';
-    case 'game':
-      return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
-    case 'study': {
-      const tags = parseStudyTags(session);
-      const baseTitle = tags.length > 0 ? `Study: ${tags.join(', ')}` : formatStudyDisplay(session);
-      if (typeof session.quantity === 'number' && session.quantity > 0) {
-        const unitLabel = getStudyUnitLabel(session, studyUnitLabelByTag) || 'units';
-        const tagLabel = session.primaryStudyTag ? ` · ${session.primaryStudyTag}` : '';
-        return `${baseTitle} (${session.quantity} ${unitLabel}${tagLabel})`;
-      }
-      return baseTitle;
-    }
-    case 'goal':
-      return session.goalTitle || 'Weekly Goal';
-    default:
-      return 'Training Session';
-  }
-}
-
-function getSessionSubtitle(
-  session: TrainingSession,
-  studyUnitLabelByTag: Record<string, string> = {},
-) {
-  switch (session.type) {
-    case 'tactics':
-      return session.pointsGained != null
-        ? `${session.pointsGained > 0 ? '+' : ''}${session.pointsGained} points • ${session.duration} min`
-        : `${session.duration} min`;
-    case 'game':
-      return `${session.gameResult?.charAt(0).toUpperCase()}${session.gameResult?.slice(1)} as ${session.playerColor} • ${session.platform}${session.timeControl ? ` ${session.timeControl}` : ''}`;
-    case 'study': {
-      const quantitySuffix =
-        typeof session.quantity === 'number' && session.quantity > 0
-          ? ` • ${session.quantity} ${getStudyUnitLabel(session, studyUnitLabelByTag) || 'units'}${session.primaryStudyTag ? ` (${session.primaryStudyTag})` : ''}`
-          : '';
-      return session.studyNotes
-        ? `${session.studyNotes} • ${session.duration} min${quantitySuffix}`
-        : `${session.duration} min${quantitySuffix}`;
-    }
-    case 'goal':
-      return session.goalDescription || 'Weekly focus area';
-    default:
-      return '';
-  }
-}
-
-function getSessionValue(session: TrainingSession) {
-  switch (session.type) {
-    case 'tactics':
-      return session.finalScore?.toString() || '';
-    case 'game':
-      return session.gameResult === 'win' ? 'W' : session.gameResult === 'draw' ? 'D' : 'L';
-    case 'study':
-      return '';
-    case 'goal':
-      return '🎯';
-    default:
-      return '';
-  }
-}
-
-function getSessionValueColor(session: TrainingSession) {
-  switch (session.type) {
-    case 'tactics':
-      return 'text-gray-800';
-    case 'game':
-      return session.gameResult === 'win'
-        ? 'text-green-600'
-        : session.gameResult === 'draw'
-          ? 'text-gray-600'
-          : 'text-red-600';
-    case 'study':
-      return 'text-gray-800';
-    case 'goal':
-      return 'text-purple-600';
-    default:
-      return 'text-gray-800';
-  }
-}
-
-function formatDate(date: string | Date) {
-  const d = new Date(date);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const sessionDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffTime = today.getTime() - sessionDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays <= 7) return `${diffDays} days ago`;
-  return d.toLocaleDateString();
-}
-
-export function groupSessionsByDate(sessions: TrainingSession[]) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const todaySessions: TrainingSession[] = [];
-  const yesterdaySessions: TrainingSession[] = [];
-  const last7DaysSessions: TrainingSession[] = [];
-  const last30DaysSessions: TrainingSession[] = [];
-  const earlierSessions: TrainingSession[] = [];
-
-  sessions.forEach((session) => {
-    const sessionDate = new Date(session.date);
-    const sessionDay = new Date(
-      sessionDate.getFullYear(),
-      sessionDate.getMonth(),
-      sessionDate.getDate(),
-    );
-    const diffTime = today.getTime() - sessionDay.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      todaySessions.push(session);
-    } else if (diffDays === 1) {
-      yesterdaySessions.push(session);
-    } else if (diffDays < 7) {
-      last7DaysSessions.push(session);
-    } else if (diffDays < 30) {
-      last30DaysSessions.push(session);
-    } else {
-      earlierSessions.push(session);
-    }
-  });
-
-  return {
-    todaySessions,
-    yesterdaySessions,
-    last7DaysSessions,
-    last30DaysSessions,
-    earlierSessions,
-  };
-}
-
-// --- Memoized SessionCard component ---
-
-const SessionCard = memo(function SessionCard({
-  session,
-  studyUnitLabelByTag,
-  onEdit,
-  onDelete,
-}: {
-  session: TrainingSession;
-  studyUnitLabelByTag: Record<string, string>;
-  onEdit: (session: TrainingSession) => void;
-  onDelete: (sessionId: number) => void;
-}) {
-  const isPending = (session as any)._pending;
-
-  return (
-    <Card
-      key={session.id}
-      className={cn('shadow-sm', isPending ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200')}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div
-              className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-full',
-                isPending ? 'bg-blue-100' : getSessionBgColor(session.type),
-              )}
-            >
-              {isPending ? (
-                <Clock className="h-5 w-5 animate-pulse text-blue-600" />
-              ) : (
-                getSessionIcon(session.type)
-              )}
-            </div>
-            <div>
-              <div className={cn('font-semibold', isPending ? 'text-blue-700' : 'text-gray-800')}>
-                {isPending ? 'Saving...' : getSessionTitle(session, studyUnitLabelByTag)}
-              </div>
-              <div className={cn('text-sm', isPending ? 'text-blue-600' : 'text-gray-600')}>
-                {isPending ? (
-                  `${session.duration} min study session`
-                ) : (
-                  <>
-                    {getSessionSubtitle(session, studyUnitLabelByTag)}
-                    {session.type === 'tactics' &&
-                      (() => {
-                        const attempted = session.puzzlesAttempted as any;
-                        const correct = session.puzzlesCorrect as any;
-                        const hasAttempted = attempted !== undefined && attempted !== null;
-                        const hasCorrect = correct !== undefined && correct !== null;
-                        if (hasAttempted || hasCorrect) {
-                          const left = hasCorrect ? String(correct) : '-';
-                          const right = hasAttempted ? String(attempted) : '-';
-                          return <span>{` • ${left}/${right}`}</span>;
-                        }
-                        return null;
-                      })()}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="text-right">
-              <div
-                className={cn(
-                  'text-sm font-medium',
-                  isPending ? 'text-blue-600' : getSessionValueColor(session),
-                )}
-              >
-                {isPending ? '⏳' : getSessionValue(session)}
-              </div>
-              <div className="text-xs text-gray-500">{formatDate(session.date)}</div>
-            </div>
-            {!isPending && (
-              <div className="flex space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Edit session"
-                  className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
-                  onClick={() => onEdit(session)}
-                >
-                  <Edit3 className="h-3 w-3" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Delete session"
-                      className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this {session.type} session? This action
-                        cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDelete(session.id)}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
+export { groupSessionsByDate };
 
 interface Statistics {
   totalHours: number;
@@ -481,6 +150,28 @@ export default function Activity() {
     [deleteSessionMutation],
   );
 
+  const renderSessionGroup = (value: string, title: string, groupSessions: TrainingSession[]) =>
+    groupSessions.length > 0 && (
+      <AccordionItem value={value} className="border-none">
+        <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
+          {title} ({groupSessions.length})
+        </AccordionTrigger>
+        <AccordionContent className="pt-3">
+          <div className="space-y-2">
+            {groupSessions.map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                studyUnitLabelByTag={studyUnitLabelByTag}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+
   if (statsLoading || sessionsLoading) {
     return (
       <div className="page-stack">
@@ -588,73 +279,7 @@ export default function Activity() {
         <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
       </div>
 
-      <div className="mb-2 flex flex-wrap gap-2">
-        <Button
-          variant={filter === 'all' ? 'default' : 'secondary'}
-          size="sm"
-          aria-pressed={filter === 'all'}
-          onClick={() => setFilter('all')}
-          className={cn(
-            filter === 'all'
-              ? 'bg-[#1E40AF] text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          )}
-        >
-          All
-        </Button>
-        <Button
-          variant={filter === 'tactics' ? 'default' : 'secondary'}
-          size="sm"
-          aria-pressed={filter === 'tactics'}
-          onClick={() => setFilter('tactics')}
-          className={cn(
-            filter === 'tactics'
-              ? 'bg-[#1E40AF] text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          )}
-        >
-          Tactics
-        </Button>
-        <Button
-          variant={filter === 'game' ? 'default' : 'secondary'}
-          size="sm"
-          aria-pressed={filter === 'game'}
-          onClick={() => setFilter('game')}
-          className={cn(
-            filter === 'game'
-              ? 'bg-[#1E40AF] text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          )}
-        >
-          Games
-        </Button>
-        <Button
-          variant={filter === 'study' ? 'default' : 'secondary'}
-          size="sm"
-          aria-pressed={filter === 'study'}
-          onClick={() => setFilter('study')}
-          className={cn(
-            filter === 'study'
-              ? 'bg-[#1E40AF] text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          )}
-        >
-          Study
-        </Button>
-        <Button
-          variant={filter === 'goal' ? 'default' : 'secondary'}
-          size="sm"
-          aria-pressed={filter === 'goal'}
-          onClick={() => setFilter('goal')}
-          className={cn(
-            filter === 'goal'
-              ? 'bg-[#1E40AF] text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          )}
-        >
-          Goals
-        </Button>
-      </div>
+      <SessionFilterBar filter={filter} onFilterChange={setFilter} />
 
       <div className="space-y-3 md:space-y-4">
         {filteredSessions.length === 0 ? (
@@ -668,115 +293,11 @@ export default function Activity() {
           </Card>
         ) : (
           <Accordion type="multiple" defaultValue={['today']} className="space-y-3">
-            {/* Today Section */}
-            {todaySessions.length > 0 && (
-              <AccordionItem value="today" className="border-none">
-                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
-                  Today ({todaySessions.length})
-                </AccordionTrigger>
-                <AccordionContent className="pt-3">
-                  <div className="space-y-2">
-                    {todaySessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        studyUnitLabelByTag={studyUnitLabelByTag}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-
-            {/* Yesterday Section */}
-            {yesterdaySessions.length > 0 && (
-              <AccordionItem value="yesterday" className="border-none">
-                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
-                  Yesterday ({yesterdaySessions.length})
-                </AccordionTrigger>
-                <AccordionContent className="pt-3">
-                  <div className="space-y-2">
-                    {yesterdaySessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        studyUnitLabelByTag={studyUnitLabelByTag}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-
-            {/* Last 7 days Section */}
-            {last7DaysSessions.length > 0 && (
-              <AccordionItem value="last7" className="border-none">
-                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
-                  Last 7 days ({last7DaysSessions.length})
-                </AccordionTrigger>
-                <AccordionContent className="pt-3">
-                  <div className="space-y-2">
-                    {last7DaysSessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        studyUnitLabelByTag={studyUnitLabelByTag}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-
-            {/* Last 30 days Section */}
-            {last30DaysSessions.length > 0 && (
-              <AccordionItem value="last30" className="border-none">
-                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
-                  Last 30 days ({last30DaysSessions.length})
-                </AccordionTrigger>
-                <AccordionContent className="pt-3">
-                  <div className="space-y-2">
-                    {last30DaysSessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        studyUnitLabelByTag={studyUnitLabelByTag}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-
-            {/* Earlier Section */}
-            {earlierSessions.length > 0 && (
-              <AccordionItem value="earlier" className="border-none">
-                <AccordionTrigger className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-800 hover:no-underline">
-                  Earlier ({earlierSessions.length})
-                </AccordionTrigger>
-                <AccordionContent className="pt-3">
-                  <div className="space-y-2">
-                    {earlierSessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        studyUnitLabelByTag={studyUnitLabelByTag}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
+            {renderSessionGroup('today', 'Today', todaySessions)}
+            {renderSessionGroup('yesterday', 'Yesterday', yesterdaySessions)}
+            {renderSessionGroup('last7', 'Last 7 days', last7DaysSessions)}
+            {renderSessionGroup('last30', 'Last 30 days', last30DaysSessions)}
+            {renderSessionGroup('earlier', 'Earlier', earlierSessions)}
           </Accordion>
         )}
       </div>
