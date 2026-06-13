@@ -240,40 +240,53 @@ describe('Openings page', () => {
     );
   });
 
-  it('Pause line disables the current line and persists it', async () => {
+  it('Pause line is gated on a unique line and disables that line by its leaf', async () => {
     render(<OpeningsPage />);
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
     fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
+    // Branches at White's 3rd move so the line is still ambiguous after 2.Nf3.
     fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
+      target: { value: '1. e4 e5 2. Nf3 Nc6 3. Bb5 (3. Bc4)' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
     await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
     saveOpeningRepertoireMock.mockClear();
 
-    // Before any move there is no current line to pause; the button is disabled
-    // (pressing it used to silently no-op).
+    // Before any move there is no current line to pause; the button is disabled.
     expect(screen.getByRole('button', { name: /Pause line/i })).toBeDisabled();
 
-    // Play the first move so a current line exists.
+    // Play 1.e4 (Black auto-replies ...e5). The line still branches ahead at
+    // move 3, so pausing would be ambiguous — the button stays disabled.
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
     await waitFor(() =>
       expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
     );
+    expect(screen.getByRole('button', { name: /Pause line/i })).toBeDisabled();
+
+    // Play 2.Nf3 (Black auto-replies ...Nc6). Now only one line remains
+    // (Math.random is pinned to the first child), so pausing is enabled.
+    fireEvent.click(screen.getByRole('button', { name: /Square g1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Square f3/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pause line/i })).toBeEnabled());
     saveOpeningRepertoireMock.mockClear();
 
-    // Pausing the line marks its leaf disabled and saves the repertoire — the
-    // same effect as toggling the switch in the edit dialog, without leaving
-    // the trainer.
+    // Pausing marks the line's *leaf* disabled (not the mid-drill position) and
+    // persists it — the same effect as toggling the switch in the edit dialog.
     fireEvent.click(screen.getByRole('button', { name: /Pause line/i }));
     await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
 
     const saved = saveOpeningRepertoireMock.mock.calls[0][0];
-    const disabledStats = Object.values(
-      saved.stats as Record<string, { disabled?: boolean }>,
-    ).filter((stat) => stat.disabled === true);
-    expect(disabledStats).toHaveLength(1);
+    const disabledIds = Object.entries(saved.stats as Record<string, { disabled?: boolean }>)
+      .filter(([, stat]) => stat.disabled === true)
+      .map(([id]) => id);
+    expect(disabledIds).toHaveLength(1);
+    // The disabled node must be a leaf (no children) — pausing an internal node
+    // had no effect on selection, which was the original bug.
+    expect(saved.nodes[disabledIds[0]].children).toHaveLength(0);
     expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Line paused' }));
   });
 

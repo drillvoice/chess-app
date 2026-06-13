@@ -166,6 +166,33 @@ describe('opening trainer engine', () => {
     expect(chooseWeightedMove(withStats, moves, () => 0.9)?.id).toBe(d4);
   });
 
+  it('does not start a drill once every line is scheduled into the future', () => {
+    // Both lines recalled and scheduled ahead — none is due. Starting a drill
+    // must complete immediately ("All caught up") rather than re-serving an
+    // already-scheduled line. (A committed line still plays to its leaf — that
+    // path is exercised elsewhere — but a fresh start is gated on due-ness.)
+    const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
+    const future = new Date(Date.now() + 5 * DAY_MS).toISOString();
+    const scheduledStat = (): OpeningMoveStats => ({
+      attempts: 1,
+      misses: 0,
+      streak: 1,
+      lastSeenAt: new Date().toISOString(),
+      easeFactor: 2.5,
+      intervalDays: 5,
+      repetitions: 3,
+      dueAt: future,
+    });
+    const scheduled = {
+      ...repertoire,
+      stats: Object.fromEntries(repertoire.nodes.root.children.map((id) => [id, scheduledStat()])),
+    };
+
+    const started = startOpeningTraining(scheduled, [], () => 0);
+    expect(started.feedback).toBe('complete');
+    expect(started.currentLineMoveIds).toEqual([]);
+  });
+
   // Helpers for the line-management (pause / delete) feature.
   const leafOf = (line: string[]) => line[line.length - 1];
 

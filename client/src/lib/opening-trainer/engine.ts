@@ -153,8 +153,11 @@ export function chooseWeightedMove(
   const baseWeights = moves.map((move) => moveWeight(repertoire, move.id, now));
   const memo = new Map<string, boolean>();
   const dueFlags = moves.map((move) => subtreeHasDueUserMove(repertoire, move.id, now, memo));
-  // Hard-filter to due branches only when any exist; fall back to all branches
-  // when nothing is due (so free-drill still works if the caller bypasses the UI gate).
+  // Bias toward due branches when any exist; fall back to all branches when none
+  // is due. The fallback is what lets a committed line play through to its leaf
+  // (auto-playing the opponent's final replies, which have no due card beyond
+  // them). Whether to START a drill at all is gated separately in
+  // `startOpeningTraining`, so a completed line is never re-served immediately.
   const anyDue = dueFlags.some(Boolean);
   const filteredMoves = anyDue ? moves.filter((_, i) => dueFlags[i]) : moves;
   const filteredWeights = anyDue ? baseWeights.filter((_, i) => dueFlags[i]) : baseWeights;
@@ -301,20 +304,26 @@ export function startOpeningTraining(
   repertoire: OpeningRepertoire,
   lastCompletedLineMoveIds: string[] = [],
   rng: () => number = Math.random,
+  now: Date = new Date(),
 ): OpeningTrainingState {
-  return advanceOpponentMoves(
-    {
-      repertoire,
-      currentNodeId: repertoire.rootNodeId,
-      currentFen: repertoire.nodes[repertoire.rootNodeId].fenAfter,
-      expectedMoveId: null,
-      incorrectAttempts: 0,
-      feedback: 'idle',
-      currentLineMoveIds: [],
-      lastCompletedLineMoveIds,
-    },
-    rng,
-  );
+  const base = {
+    repertoire,
+    currentNodeId: repertoire.rootNodeId,
+    currentFen: repertoire.nodes[repertoire.rootNodeId].fenAfter,
+    expectedMoveId: null,
+    incorrectAttempts: 0,
+    feedback: 'idle' as const,
+    currentLineMoveIds: [],
+    lastCompletedLineMoveIds,
+  };
+  // Don't start a drill when nothing is due: complete immediately so the UI
+  // shows "All caught up" instead of re-serving an already-scheduled line. Once
+  // a drill is underway, the line still plays through to its leaf (the
+  // `chooseWeightedMove` fallback handles the trailing opponent replies).
+  if (summarizeRepertoire(repertoire, now).dueMoves === 0) {
+    return { ...base, feedback: 'complete' };
+  }
+  return advanceOpponentMoves(base, rng);
 }
 
 function updateMoveStats(
