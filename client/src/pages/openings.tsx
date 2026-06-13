@@ -8,6 +8,7 @@ import { useLineManagement } from '@/hooks/use-line-management';
 import { useOpeningImport } from '@/hooks/use-opening-import';
 import { useOpeningRepertoires } from '@/hooks/use-opening-repertoires';
 import { useOpeningTrainer } from '@/hooks/use-opening-trainer';
+import { useTrainingTimer } from '@/hooks/use-training-timer';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
 import { RepertoireList } from '@/components/openings/repertoire-list';
@@ -16,6 +17,7 @@ import { EditLinesDialog } from '@/components/openings/edit-lines-dialog';
 import { formatRelativeDue } from '@/components/openings/format-relative-due';
 import { describeLine, lineLabel, setLineDisabled } from '@/lib/opening-trainer/engine';
 import type { OpeningRepertoire } from '@/lib/opening-trainer/types';
+import type { Square } from '@/lib/otb/types';
 import type { BoardMessageTone } from '@/hooks/use-opening-trainer';
 
 const BOARD_MESSAGE_TONES: Record<BoardMessageTone, string> = {
@@ -42,6 +44,12 @@ export default function OpeningsPage() {
   // ── Training session state machine ───────────────────────────────────────
   const trainer = useOpeningTrainer({ persistRepertoire });
 
+  // ── Background practice timer (auto-logs an "openings" study session) ──────
+  // Invisible: it accumulates active time while a drill is in progress and
+  // writes the minutes out when practice stops. markActive() is signalled from
+  // the interaction points below.
+  const timer = useTrainingTimer({ enabled: trainer.trainingState != null });
+
   // ── Board interaction (squares, flip, promotion) ──────────────────────────
   const board = useBoardSelection({
     trainingState: trainer.trainingState,
@@ -59,9 +67,10 @@ export default function OpeningsPage() {
       board.clearSelection();
       trainer.startTraining(repertoire, avoidLine ?? []);
       board.setIsBoardFlipped(repertoire.side === 'black');
+      timer.markActive();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [board.clearSelection, board.setIsBoardFlipped, trainer.startTraining],
+    [board.clearSelection, board.setIsBoardFlipped, trainer.startTraining, timer.markActive],
   );
 
   // ── PGN import ───────────────────────────────────────────────────────────
@@ -135,6 +144,17 @@ export default function OpeningsPage() {
       );
     }
   }, [trainer.trainingState, activeRepertoire, lineManagement, handleStartTraining]);
+
+  // Board taps are the highest-signal activity event (cover both selection and
+  // moves), so keep the practice timer alive from here.
+  const handleSquareTap = useCallback(
+    (square: Square) => {
+      timer.markActive();
+      board.handleSquareTap(square);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [timer.markActive, board.handleSquareTap],
+  );
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -227,7 +247,7 @@ export default function OpeningsPage() {
             legalTargets={legalTargets}
             isFlipped={isBoardFlipped}
             isTableMode={false}
-            onSquareTap={board.handleSquareTap}
+            onSquareTap={handleSquareTap}
           />
 
           <Card>
