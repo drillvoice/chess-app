@@ -271,9 +271,7 @@ describe('Openings page', () => {
     await waitFor(() =>
       expect(screen.getByText(/Correct — your move to continue/i)).toBeInTheDocument(),
     );
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Pause line/i })).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pause line/i })).toBeEnabled());
     saveOpeningRepertoireMock.mockClear();
 
     // Pausing marks the line's *leaf* disabled (not the mid-drill position) and
@@ -282,9 +280,7 @@ describe('Openings page', () => {
     await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
 
     const saved = saveOpeningRepertoireMock.mock.calls[0][0];
-    const disabledIds = Object.entries(
-      saved.stats as Record<string, { disabled?: boolean }>,
-    )
+    const disabledIds = Object.entries(saved.stats as Record<string, { disabled?: boolean }>)
       .filter(([, stat]) => stat.disabled === true)
       .map(([id]) => id);
     expect(disabledIds).toHaveLength(1);

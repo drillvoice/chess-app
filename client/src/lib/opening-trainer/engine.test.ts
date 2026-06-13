@@ -185,9 +185,7 @@ describe('opening trainer engine', () => {
     });
     const scheduled = {
       ...repertoire,
-      stats: Object.fromEntries(
-        repertoire.nodes.root.children.map((id) => [id, scheduledStat()]),
-      ),
+      stats: Object.fromEntries(repertoire.nodes.root.children.map((id) => [id, scheduledStat()])),
     };
 
     const started = startOpeningTraining(scheduled, [], () => 0);
