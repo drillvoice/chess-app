@@ -105,8 +105,12 @@ export default function OpeningsPage() {
 
   const handlePauseLine = useCallback(async () => {
     if (!trainer.trainingState) return;
-    const { currentLineMoveIds, repertoire } = trainer.trainingState;
-    const leafId = currentLineMoveIds[currentLineMoveIds.length - 1];
+    const { repertoire } = trainer.trainingState;
+    // Pause the line by its *leaf* (the unit pause/selection logic understands),
+    // not the current mid-drill position. The button is only enabled once the
+    // drill has narrowed to a single line, so there is exactly one candidate.
+    const line = lineManagement.currentLineCandidates[0];
+    const leafId = line?.[line.length - 1];
     if (!leafId) return;
     lineManagement.setShowLine(false);
     const updated = setLineDisabled(repertoire, leafId, true);
@@ -279,9 +283,11 @@ export default function OpeningsPage() {
                     disabled={
                       !trainingState ||
                       trainingState.feedback === 'complete' ||
-                      // Pausing acts on the last played move's line; before any
-                      // move there is nothing to pause and the handler no-ops.
-                      trainingState.currentLineMoveIds.length === 0
+                      // Before any move there is nothing to pause.
+                      trainingState.currentLineMoveIds.length === 0 ||
+                      // Greyed out until the drill has narrowed to a single line
+                      // (no further branching), so "pause" acts on one known leaf.
+                      currentLineCandidates.length !== 1
                     }
                   >
                     Pause line
