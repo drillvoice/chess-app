@@ -93,6 +93,62 @@ describe('opening trainer engine', () => {
     ).toBe('d4');
   });
 
+  it('clears every line in one pass without re-serving a completed line', () => {
+    // A branchy repertoire where completed lines and the remaining due line share
+    // a shallow branch (1...e5). The old avoid-the-last-line logic excluded that
+    // shallow move and re-served already-scheduled lines, so a clean session never
+    // reached "all caught up". Drilling every line cleanly via "Next Line"
+    // semantics must now converge in exactly N drills with no repeated completion.
+    const pgn =
+      '1. e4 e5 (1... c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3) (1... e6 2. d4 d5 3. Nc3 Bb4) (1... c6 2. d4 d5 3. e5) 2. Nf3 Nc6 3. Bb5 a6 (3... Nf6 4. O-O) 4. Ba4';
+    let { repertoire } = parseOpeningRepertoirePgn(pgn, 'white');
+    const totalLines = enumerateLines(repertoire).length;
+
+    // Deterministic RNG so the run is reproducible.
+    let seed = 7;
+    const rng = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0xffffffff;
+    };
+
+    const completed = new Set<string>();
+    let avoid: string[] = [];
+
+    for (let drill = 0; drill < totalLines + 5; drill += 1) {
+      let state = startOpeningTraining(repertoire, avoid, rng);
+      if (state.feedback === 'complete' && state.currentLineMoveIds.length === 0) {
+        break; // gate fired: nothing due -> "All caught up"
+      }
+      let guard = 0;
+      while (state.feedback !== 'complete' && guard < 50) {
+        guard += 1;
+        const expected = state.expectedMoveId ? state.repertoire.nodes[state.expectedMoveId] : null;
+        if (!expected) break;
+        const result = applyTrainerMove(
+          state,
+          expected.uci.slice(0, 2) as never,
+          expected.uci.slice(2, 4) as never,
+          (expected.uci.slice(4) || undefined) as never,
+          rng,
+        );
+        expect(result.correct).toBe(true);
+        state = result.state;
+      }
+      repertoire = state.repertoire;
+      avoid = state.lastCompletedLineMoveIds;
+      const key = describeLine(repertoire, state.lastCompletedLineMoveIds);
+      expect(completed.has(key)).toBe(false); // never re-serve a completed line
+      completed.add(key);
+    }
+
+    expect(completed.size).toBe(totalLines);
+    expect(summarizeRepertoire(repertoire).dueMoves).toBe(0);
+    // A fresh start now reports "all caught up" rather than re-serving a line.
+    const fresh = startOpeningTraining(repertoire, avoid, rng);
+    expect(fresh.feedback).toBe('complete');
+    expect(fresh.currentLineMoveIds).toEqual([]);
+  });
+
   it('reports every line as due and new for a freshly imported repertoire', () => {
     const { repertoire } = parseOpeningRepertoirePgn('1. e4 (1. d4) e5', 'white');
     const summary = summarizeRepertoire(repertoire);
