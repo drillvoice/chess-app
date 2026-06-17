@@ -122,9 +122,7 @@ describe('opening trainer engine', () => {
       let guard = 0;
       while (state.feedback !== 'complete' && guard < 50) {
         guard += 1;
-        const expected = state.expectedMoveId
-          ? state.repertoire.nodes[state.expectedMoveId]
-          : null;
+        const expected = state.expectedMoveId ? state.repertoire.nodes[state.expectedMoveId] : null;
         if (!expected) break;
         const result = applyTrainerMove(
           state,
