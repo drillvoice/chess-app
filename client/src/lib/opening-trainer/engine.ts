@@ -194,7 +194,19 @@ function chooseMoveForLine(
 
   const previouslyChosenMoveId = state.lastCompletedLineMoveIds[state.currentLineMoveIds.length];
   const alternatives = moves.filter((move) => move.id !== previouslyChosenMoveId);
-  return chooseWeightedMove(state.repertoire, alternatives.length > 0 ? alternatives : moves, rng);
+  if (alternatives.length === 0) {
+    return chooseWeightedMove(state.repertoire, moves, rng);
+  }
+  // Only steer away from the just-completed branch when an alternative still leads
+  // to a due card. Otherwise excluding it would push the drill onto an
+  // already-scheduled line (re-serving a line you just completed) or away from the
+  // only due branch, so keep the full set and let the due-bias decide.
+  const now = new Date();
+  const memo = new Map<string, boolean>();
+  const alternativesHaveDue = alternatives.some((move) =>
+    subtreeHasDueUserMove(state.repertoire, move.id, now, memo),
+  );
+  return chooseWeightedMove(state.repertoire, alternativesHaveDue ? alternatives : moves, rng);
 }
 
 function chooseExpectedUserMove(
