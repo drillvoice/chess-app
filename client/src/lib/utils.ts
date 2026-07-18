@@ -256,7 +256,12 @@ export function validateStudyMinutes(value: number): GoalValidationResult {
 export function hasActiveGoals(settings: any): boolean {
   if (!settings) return false;
 
-  return settings.tacticsMinutes > 0 || settings.gamesCount > 0 || settings.studyMinutes > 0;
+  return (
+    settings.tacticsMinutes > 0 ||
+    settings.gamesCount > 0 ||
+    settings.studyMinutes > 0 ||
+    (Array.isArray(settings.tagGoals) && settings.tagGoals.length > 0)
+  );
 }
 
 /**

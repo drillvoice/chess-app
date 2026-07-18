@@ -72,6 +72,7 @@ describe('useDailyGoalsSettings', () => {
         tacticsMinutes: 0,
         gamesCount: 0,
         studyMinutes: 0,
+        tagGoals: [],
       });
     });
 
@@ -101,6 +102,7 @@ describe('useDailyGoalsSettings', () => {
         tacticsMinutes: 30,
         gamesCount: 2,
         studyMinutes: 15,
+        tagGoals: [],
       });
     });
   });
@@ -160,7 +162,43 @@ describe('useDailyGoalsSettings', () => {
         tacticsMinutes: 30,
         gamesCount: 2,
         studyMinutes: 15,
+        tagGoals: [],
       });
+    });
+
+    it('should add, update, and remove tag goals', async () => {
+      mockGetDailyGoalSettings.mockResolvedValue(null);
+
+      const { result } = renderHook(() => useDailyGoalsSettings(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        expect(result.current.addTagGoal('Step Method', 3)).toBe(true);
+      });
+      expect(result.current.formData.tagGoals).toEqual([
+        { id: 'tag:step method', tag: 'Step Method', target: 3 },
+      ]);
+
+      // Duplicate (same normalized tag) is rejected
+      act(() => {
+        expect(result.current.addTagGoal('step method', 1)).toBe(false);
+      });
+      expect(result.current.formData.tagGoals).toHaveLength(1);
+
+      act(() => {
+        result.current.updateTagGoalTarget('tag:step method', 5);
+      });
+      expect(result.current.formData.tagGoals[0].target).toBe(5);
+
+      act(() => {
+        result.current.removeTagGoal('tag:step method');
+      });
+      expect(result.current.formData.tagGoals).toEqual([]);
     });
   });
 
@@ -235,6 +273,7 @@ describe('useDailyGoalsSettings', () => {
         tacticsMinutes: 30,
         gamesCount: 2,
         studyMinutes: 15,
+        tagGoals: [],
         isCustomized: true,
         autoTracking: false,
         lastModified: expect.any(Date),
@@ -293,10 +332,13 @@ describe('useDailyGoalsSettings', () => {
         await result.current.enableCustomGoals();
       });
 
+      // Disabled goals are written as explicit 0 so they propagate under
+      // Firestore merge writes.
       expect(mockSetDailyGoalSettings).toHaveBeenCalledWith({
-        tacticsMinutes: undefined,
-        gamesCount: undefined,
-        studyMinutes: undefined,
+        tacticsMinutes: 0,
+        gamesCount: 0,
+        studyMinutes: 0,
+        tagGoals: [],
         isCustomized: true,
         autoTracking: false,
         lastModified: expect.any(Date),
@@ -320,6 +362,10 @@ describe('useDailyGoalsSettings', () => {
       });
 
       expect(mockSetDailyGoalSettings).toHaveBeenCalledWith({
+        tacticsMinutes: 0,
+        gamesCount: 0,
+        studyMinutes: 0,
+        tagGoals: [],
         isCustomized: false,
         autoTracking: false,
         lastModified: expect.any(Date),

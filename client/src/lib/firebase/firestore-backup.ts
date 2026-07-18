@@ -64,8 +64,16 @@ export async function backupDailyGoalsToCloud(settings: DailyGoalSettings): Prom
     if (!currentUserId) return;
 
     const goalsRef = doc(db, 'users', currentUserId, 'settings', 'dailyGoals');
+    // Firestore rejects `undefined` field values, so drop absent optional
+    // fields (disabled built-in targets, tag-goal labels) before writing.
     const backupData = {
-      ...settings,
+      ...Object.fromEntries(Object.entries(settings).filter(([, value]) => value !== undefined)),
+      tagGoals: (settings.tagGoals ?? []).map(({ id, tag, target, label }) => ({
+        id,
+        tag,
+        target,
+        ...(label !== undefined ? { label } : {}),
+      })),
       lastModified: Timestamp.fromDate(new Date()),
       lastBackup: Timestamp.now(),
     };

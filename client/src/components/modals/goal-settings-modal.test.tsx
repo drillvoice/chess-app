@@ -11,6 +11,18 @@ vi.mock('@/hooks/use-daily-goals-settings', () => ({
   useDailyGoalsSettings: vi.fn(),
 }));
 vi.mock('@/hooks/use-toast');
+vi.mock('@/hooks/use-study-preferences', () => ({
+  useStudyPreferences: vi.fn(() => ({
+    preferences: {
+      customTags: ['reading', 'anki', 'step method'],
+      tagConfigs: { 'step method': { unitLabel: 'modules', minutesPerUnit: 10 } },
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  updateStudyPreferences: vi.fn(),
+}));
 
 const mockUseToast = vi.mocked(useToast);
 const mockUseDailyGoalsSettings = vi.mocked(dailyGoalsHook.useDailyGoalsSettings);
@@ -44,6 +56,7 @@ describe('GoalSettingsModal', () => {
       tacticsMinutes: 30,
       gamesCount: 2,
       studyMinutes: 15,
+      tagGoals: [],
     },
     setFormData: vi.fn(),
     resetForm: vi.fn(),
@@ -55,6 +68,9 @@ describe('GoalSettingsModal', () => {
     },
     isCustomized: false,
     hasAnyActiveGoals: false,
+    addTagGoal: vi.fn(() => true),
+    removeTagGoal: vi.fn(),
+    updateTagGoalTarget: vi.fn(),
     saveSettings: vi.fn(),
     enableCustomGoals: vi.fn(),
     disableCustomGoals: vi.fn(),
@@ -178,6 +194,7 @@ describe('GoalSettingsModal', () => {
         tacticsMinutes: 0,
         gamesCount: 0,
         studyMinutes: 0,
+        tagGoals: [],
       },
       setFormData: vi.fn(),
       resetForm: vi.fn(),
@@ -235,6 +252,82 @@ describe('GoalSettingsModal', () => {
     // Save button should be enabled from the start (no changes needed)
     const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
+  });
+
+  it('should render existing custom tag goals with their unit', () => {
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:step method', tag: 'step method', target: 3 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('step method')).toBeTruthy();
+    expect(screen.getByText('(modules)')).toBeTruthy();
+    const targetInput = screen.getByLabelText(/step method/, {
+      selector: 'input',
+    }) as HTMLInputElement;
+    expect(targetInput.value).toBe('3');
+  });
+
+  it('should remove a custom goal when its remove button is clicked', () => {
+    const mockRemoveTagGoal = vi.fn();
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      removeTagGoal: mockRemoveTagGoal,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:anki', tag: 'anki', target: 1 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    fireEvent.click(screen.getByLabelText('Remove anki goal'));
+    expect(mockRemoveTagGoal).toHaveBeenCalledWith('tag:anki');
+  });
+
+  it('should update a custom goal target and reject out-of-range values', async () => {
+    const mockUpdateTagGoalTarget = vi.fn();
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      updateTagGoalTarget: mockUpdateTagGoalTarget,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:anki', tag: 'anki', target: 1 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    const targetInput = screen.getByLabelText(/anki/, { selector: 'input' }) as HTMLInputElement;
+    fireEvent.change(targetInput, { target: { value: '2' } });
+    expect(mockUpdateTagGoalTarget).toHaveBeenCalledWith('tag:anki', 2);
+
+    fireEvent.change(targetInput, { target: { value: '100' } });
+    await waitFor(() => {
+      expect(screen.getByText('Target must be between 1 and 99')).toBeTruthy();
+      const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
+      expect(saveButton.disabled).toBe(true);
+    });
+    expect(mockUpdateTagGoalTarget).toHaveBeenCalledTimes(1);
+  });
+
+  it('should show a hint when a goal tag is missing from the tag list', () => {
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:chessable', tag: 'chessable', target: 2 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/no longer in your tag list/)).toBeTruthy();
   });
 
   it('should prevent saving when value exceeds 99', async () => {

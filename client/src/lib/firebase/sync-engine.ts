@@ -1,5 +1,6 @@
 import type { QuerySnapshot } from 'firebase/firestore';
 import { type DailyGoalSettings, type TrainingSession } from '@shared/schema';
+import { sanitizeDailyGoalSettings } from '../daily-goals-model';
 import { offlineStorage } from '../offline-storage';
 import { sessionEvents } from '../session-events';
 import {
@@ -42,15 +43,6 @@ import { logger } from '../logger';
 import type { OpeningRepertoire } from '../opening-trainer/types';
 
 export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
-
-/**
- * Coerce a persisted/synced value to a finite number or undefined. Guards
- * against NaN/Infinity arriving from Firestore for optional numeric fields
- * (see CLAUDE.md: persisted numbers are untrusted input).
- */
-function finiteOrUndefined(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
 
 type SyncState = 'disabled' | 'initializing' | 'syncing' | 'synced' | 'error';
 
@@ -186,9 +178,32 @@ async function fetchCloudDailyGoals(uid: string): Promise<DailyGoalSettings | nu
   if (!snapshot.exists()) return null;
   const payload = snapshot.data();
   return {
-    ...payload,
+    ...sanitizeDailyGoalSettings(payload),
     lastModified: toDate(payload.lastModified) ?? undefined,
-  } as DailyGoalSettings;
+  };
+}
+
+/**
+ * Firestore rejects `undefined` field values (the app initializes Firestore
+ * without ignoreUndefinedProperties), so drop absent optional fields before
+ * writing. Merge-writes therefore leave fields older docs already have intact.
+ */
+function serializeDailyGoalsForCloud(settings: DailyGoalSettings): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    isCustomized: settings.isCustomized,
+    autoTracking: settings.autoTracking,
+    tagGoals: (settings.tagGoals ?? []).map(({ id, tag, target, label }) => ({
+      id,
+      tag,
+      target,
+      ...(label !== undefined ? { label } : {}),
+    })),
+    lastModified: Timestamp.fromDate(toDate(settings.lastModified) ?? new Date()),
+  };
+  if (settings.tacticsMinutes !== undefined) payload.tacticsMinutes = settings.tacticsMinutes;
+  if (settings.gamesCount !== undefined) payload.gamesCount = settings.gamesCount;
+  if (settings.studyMinutes !== undefined) payload.studyMinutes = settings.studyMinutes;
+  return payload;
 }
 
 export function getCloudSyncStatus(): CloudSyncStatus {
@@ -329,14 +344,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     }
   } else if (localGoals) {
     const goalsRef = doc(db, 'users', uid, 'settings', 'dailyGoals');
-    await setDoc(
-      goalsRef,
-      {
-        ...localGoals,
-        lastModified: Timestamp.fromDate(toDate(localGoals.lastModified) ?? new Date()),
-      },
-      { merge: true },
-    );
+    await setDoc(goalsRef, serializeDailyGoalsForCloud(localGoals), { merge: true });
   }
 
   // Don't silently clear the error state when some uploads failed — surface it
@@ -635,15 +643,12 @@ export async function startRealtimeSync(): Promise<() => void> {
     async (snapshot) => {
       if (!snapshot.exists()) return;
       const payload = snapshot.data();
+      // Cloud data is untrusted input: the sanitizer coerces non-finite
+      // numbers to undefined and drops corrupt tag-goal entries so corruption
+      // can't reach goal arithmetic. lastModified needs the Firestore
+      // Timestamp-aware conversion, so it's layered on top.
       const normalizedGoals: DailyGoalSettings = {
-        isCustomized: Boolean(payload.isCustomized),
-        autoTracking: Boolean(payload.autoTracking),
-        // These are optional numbers persisted in Firestore (untrusted input).
-        // `?? fallback` would let a NaN/Infinity through; coerce non-finite
-        // values to undefined so corruption can't reach goal arithmetic.
-        tacticsMinutes: finiteOrUndefined(payload.tacticsMinutes),
-        gamesCount: finiteOrUndefined(payload.gamesCount),
-        studyMinutes: finiteOrUndefined(payload.studyMinutes),
+        ...sanitizeDailyGoalSettings(payload),
         lastModified: toDate(payload.lastModified) ?? undefined,
       };
       await offlineStorage.setDailyGoalSettings({
@@ -807,14 +812,7 @@ export async function syncDailyGoalsToCloud(settings: DailyGoalSettings): Promis
   const uid = resolveUid();
   if (!uid) return;
   const goalsRef = doc(db, 'users', uid, 'settings', 'dailyGoals');
-  await setDoc(
-    goalsRef,
-    {
-      ...settings,
-      lastModified: Timestamp.fromDate(toDate(settings.lastModified) ?? new Date()),
-    },
-    { merge: true },
-  );
+  await setDoc(goalsRef, serializeDailyGoalsForCloud(settings), { merge: true });
 }
 
 function repertoiresCollection(uid: string) {

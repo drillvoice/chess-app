@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DailyGoalSettings } from '@shared/schema';
+import { DailyGoalSettings, TagGoal } from '@shared/schema';
 import {
   validateTacticsMinutes,
   validateGamesCount,
@@ -8,6 +8,7 @@ import {
   hasActiveGoals,
   GoalValidationResult,
 } from '@/lib/utils';
+import { MAX_TAG_GOALS, tagGoalId } from '@/lib/daily-goals-model';
 import { getDailyGoalSettings, setDailyGoalSettings } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,6 +16,7 @@ export interface DailyGoalsFormData {
   tacticsMinutes: number;
   gamesCount: number;
   studyMinutes: number;
+  tagGoals: TagGoal[];
 }
 
 export interface DailyGoalsValidation {
@@ -42,6 +44,11 @@ export interface UseDailyGoalsSettingsReturn {
   isCustomized: boolean;
   hasAnyActiveGoals: boolean;
 
+  // Tag goal helpers
+  addTagGoal: (tag: string, target: number) => boolean;
+  removeTagGoal: (id: string) => void;
+  updateTagGoalTarget: (id: string, target: number) => void;
+
   // Actions
   saveSettings: () => Promise<void>;
   enableCustomGoals: () => Promise<void>;
@@ -55,6 +62,7 @@ const DEFAULT_FORM_DATA: DailyGoalsFormData = {
   tacticsMinutes: 0,
   gamesCount: 0,
   studyMinutes: 0,
+  tagGoals: [],
 };
 
 export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
@@ -84,6 +92,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
+        tagGoals: settings.tagGoals ?? [],
       });
       setAutoTrackingEnabled(settings.autoTracking ?? false);
     } else {
@@ -120,6 +129,7 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
         tacticsMinutes: settings.tacticsMinutes || 0,
         gamesCount: settings.gamesCount || 0,
         studyMinutes: settings.studyMinutes || 0,
+        tagGoals: settings.tagGoals ?? [],
       });
       setAutoTrackingEnabled(settings.autoTracking ?? false);
     } else {
@@ -127,6 +137,37 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       setAutoTrackingEnabled(false);
     }
   }, [settings]);
+
+  // Tag goal helpers. Ids are deterministic per tag, so duplicates are a
+  // simple id collision check. Returns false when the goal can't be added.
+  const addTagGoal = useCallback((tag: string, target: number) => {
+    let added = false;
+    setFormDataState((prev) => {
+      const id = tagGoalId(tag);
+      if (prev.tagGoals.length >= MAX_TAG_GOALS) return prev;
+      if (prev.tagGoals.some((goal) => goal.id === id)) return prev;
+      added = true;
+      return {
+        ...prev,
+        tagGoals: [...prev.tagGoals, { id, tag: tag.trim(), target }],
+      };
+    });
+    return added;
+  }, []);
+
+  const removeTagGoal = useCallback((id: string) => {
+    setFormDataState((prev) => ({
+      ...prev,
+      tagGoals: prev.tagGoals.filter((goal) => goal.id !== id),
+    }));
+  }, []);
+
+  const updateTagGoalTarget = useCallback((id: string, target: number) => {
+    setFormDataState((prev) => ({
+      ...prev,
+      tagGoals: prev.tagGoals.map((goal) => (goal.id === id ? { ...goal, target } : goal)),
+    }));
+  }, []);
 
   // Save settings mutation
   const saveMutation = useMutation({
@@ -168,10 +209,13 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
       return;
     }
 
+    // Write disabled built-ins as explicit 0 (not undefined) so disabling a
+    // goal propagates to the cloud doc under merge writes.
     const newSettings: DailyGoalSettings = {
-      tacticsMinutes: formData.tacticsMinutes || undefined,
-      gamesCount: formData.gamesCount || undefined,
-      studyMinutes: formData.studyMinutes || undefined,
+      tacticsMinutes: formData.tacticsMinutes || 0,
+      gamesCount: formData.gamesCount || 0,
+      studyMinutes: formData.studyMinutes || 0,
+      tagGoals: formData.tagGoals,
       isCustomized: true,
       autoTracking: autoTrackingEnabled,
       lastModified: new Date(),
@@ -182,9 +226,10 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 
   const enableCustomGoals = useCallback(async () => {
     const newSettings: DailyGoalSettings = {
-      tacticsMinutes: formData.tacticsMinutes || undefined,
-      gamesCount: formData.gamesCount || undefined,
-      studyMinutes: formData.studyMinutes || undefined,
+      tacticsMinutes: formData.tacticsMinutes || 0,
+      gamesCount: formData.gamesCount || 0,
+      studyMinutes: formData.studyMinutes || 0,
+      tagGoals: formData.tagGoals,
       isCustomized: true,
       autoTracking: autoTrackingEnabled,
       lastModified: new Date(),
@@ -195,6 +240,10 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
 
   const disableCustomGoals = useCallback(async () => {
     const newSettings: DailyGoalSettings = {
+      tacticsMinutes: 0,
+      gamesCount: 0,
+      studyMinutes: 0,
+      tagGoals: [],
       isCustomized: false,
       autoTracking: false,
       lastModified: new Date(),
@@ -221,6 +270,11 @@ export function useDailyGoalsSettings(): UseDailyGoalsSettingsReturn {
     // State helpers
     isCustomized,
     hasAnyActiveGoals,
+
+    // Tag goal helpers
+    addTagGoal,
+    removeTagGoal,
+    updateTagGoalTarget,
 
     // Actions
     saveSettings,
