@@ -144,7 +144,9 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         autoTracking: autoTrackingEnabled,
       });
       setActiveBuiltins(
-        new Set(BUILTIN_GOALS.filter(({ field }) => (formData[field] || 0) > 0).map((g) => g.field)),
+        new Set(
+          BUILTIN_GOALS.filter(({ field }) => (formData[field] || 0) > 0).map((g) => g.field),
+        ),
       );
 
       // Reset validation
