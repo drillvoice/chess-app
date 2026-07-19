@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.7.0] - 19 July 2026
+
+- **Customizable daily goals**: daily goals are no longer limited to the three built-in types. Add custom goals tied to "Other study" tags (e.g. Chessable, Anki, step method) — pick an existing tag or create a new one right from the goal settings dialog (new tags are registered in your study-tag list automatically)
+- Custom goal progress uses the tag's configured unit where one is set (Account → Tag configuration): e.g. "3 modules" sums the logged quantity of sessions recorded against that tag; tags without a unit count sessions instead ("Anki 1×" = one logged session with the tag). Works in both auto-tracking and manual checklist modes
+- **Built-in goals are now removable**: the goal settings dialog shows one row per active goal (built-in or custom), each with a remove button; removed built-ins can be re-added any time from the "Add a goal" picker. Removal syncs across devices
+- Fix newly created study tags not appearing in other open views (e.g. the goal settings tag picker) until a full page reload — tag-list changes now propagate live to every part of the app
+- Data-robustness hardening along the way: daily-goal settings are now validated and healed when read from IndexedDB, Firestore, imports, and backups (non-finite numbers and corrupt goal entries are dropped instead of propagating), and the backup import validator checked a goals field that no longer exists
+- Backward compatible: existing goal settings carry over unchanged, and older app versions sharing the same account can't clobber the new custom goals during sync
+
 ## [2.6.0] - 9 June 2026
 
 - Display the **opening name and ECO code** for Lichess-synced games: shown on the pending-review card and in the game review modal, pulling the data Lichess already provides in its game API
