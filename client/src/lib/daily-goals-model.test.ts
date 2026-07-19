@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveGoals, sanitizeDailyGoalSettings, tagGoalId } from './daily-goals-model';
+import {
+  areDailyGoalsEquivalent,
+  resolveGoals,
+  sanitizeDailyGoalSettings,
+  tagGoalId,
+} from './daily-goals-model';
 
 describe('sanitizeDailyGoalSettings', () => {
   it('returns disabled defaults for non-object input', () => {
@@ -126,5 +131,109 @@ describe('resolveGoals', () => {
 describe('tagGoalId', () => {
   it('normalizes case and whitespace', () => {
     expect(tagGoalId(' Anki ')).toBe('tag:anki');
+  });
+});
+
+describe('cloud serialize round-trip', () => {
+  // Mirrors serializeDailyGoalsForCloud in sync-engine: built-ins as plain
+  // numbers, tagGoals as {id,tag,target,label?}, lastModified as a date. This
+  // locks the contract so a future field can't be dropped on one side.
+  it('sanitizes a cloud-shaped payload back to equivalent settings', () => {
+    const settings = sanitizeDailyGoalSettings({
+      tacticsMinutes: 10,
+      gamesCount: 2,
+      studyMinutes: 0,
+      tagGoals: [
+        { tag: 'anki', target: 1 },
+        { tag: 'chessable', target: 2 },
+      ],
+      isCustomized: true,
+      autoTracking: true,
+      lastModified: '2026-07-19T00:00:00.000Z',
+    });
+
+    const cloudPayload = {
+      isCustomized: settings.isCustomized,
+      autoTracking: settings.autoTracking,
+      tacticsMinutes: settings.tacticsMinutes,
+      gamesCount: settings.gamesCount,
+      studyMinutes: settings.studyMinutes,
+      tagGoals: (settings.tagGoals ?? []).map(({ id, tag, target, label }) => ({
+        id,
+        tag,
+        target,
+        ...(label !== undefined ? { label } : {}),
+      })),
+      lastModified: settings.lastModified,
+    };
+
+    expect(areDailyGoalsEquivalent(sanitizeDailyGoalSettings(cloudPayload), settings)).toBe(true);
+  });
+});
+
+describe('areDailyGoalsEquivalent', () => {
+  const settings = (overrides: object) =>
+    sanitizeDailyGoalSettings({ isCustomized: true, autoTracking: true, ...overrides });
+
+  it('treats null/undefined consistently', () => {
+    expect(areDailyGoalsEquivalent(null, null)).toBe(true);
+    expect(areDailyGoalsEquivalent(null, settings({}))).toBe(false);
+  });
+
+  it('ignores lastModified and tag-goal ordering', () => {
+    const a = settings({
+      tacticsMinutes: 10,
+      tagGoals: [
+        { tag: 'anki', target: 1 },
+        { tag: 'chessable', target: 2 },
+      ],
+      lastModified: '2026-01-01T00:00:00.000Z',
+    });
+    const b = settings({
+      tacticsMinutes: 10,
+      tagGoals: [
+        { tag: 'chessable', target: 2 },
+        { tag: 'anki', target: 1 },
+      ],
+      lastModified: '2026-07-19T00:00:00.000Z',
+    });
+    expect(areDailyGoalsEquivalent(a, b)).toBe(true);
+  });
+
+  it('treats 0 and undefined built-in targets as equal', () => {
+    const a = settings({ gamesCount: 0 });
+    const b = settings({});
+    expect(areDailyGoalsEquivalent(a, b)).toBe(true);
+  });
+
+  it('detects added, removed, and retargeted tag goals', () => {
+    const base = settings({ tagGoals: [{ tag: 'anki', target: 1 }] });
+    expect(
+      areDailyGoalsEquivalent(
+        base,
+        settings({
+          tagGoals: [
+            { tag: 'anki', target: 1 },
+            { tag: 'chessable', target: 2 },
+          ],
+        }),
+      ),
+    ).toBe(false);
+    expect(areDailyGoalsEquivalent(base, settings({ tagGoals: [] }))).toBe(false);
+    expect(
+      areDailyGoalsEquivalent(base, settings({ tagGoals: [{ tag: 'anki', target: 3 }] })),
+    ).toBe(false);
+  });
+
+  it('detects built-in target and flag differences', () => {
+    expect(
+      areDailyGoalsEquivalent(settings({ tacticsMinutes: 10 }), settings({ tacticsMinutes: 20 })),
+    ).toBe(false);
+    expect(
+      areDailyGoalsEquivalent(
+        settings({ autoTracking: true }),
+        sanitizeDailyGoalSettings({ isCustomized: true, autoTracking: false }),
+      ),
+    ).toBe(false);
   });
 });

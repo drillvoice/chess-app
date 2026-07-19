@@ -1,6 +1,6 @@
 import { offlineStorage } from '../offline-storage';
 import { getAllSessions, getDailyGoalSettings } from '../firebase/firestore';
-import { TrainingSession, DailyGoalSettings } from '@shared/schema';
+import { TrainingSession, DailyGoalSettings, dailyGoalSettingsSchema } from '@shared/schema';
 
 export interface ExportOptions {
   includeTrainingSessions: boolean;
@@ -316,26 +316,15 @@ export class ExportManager {
       }
     }
 
-    // Validate daily goals
+    // Validate daily goals against the shared schema (covers built-in targets
+    // and custom tagGoals, and stays in sync as the schema evolves).
     if (exportData.dailyGoals) {
-      const goals = exportData.dailyGoals;
-      if (
-        goals.tacticsMinutes !== undefined &&
-        (typeof goals.tacticsMinutes !== 'number' || goals.tacticsMinutes < 0)
-      ) {
-        errors.push('Invalid daily goals: tacticsMinutes must be a positive number');
-      }
-      if (
-        goals.gamesCount !== undefined &&
-        (typeof goals.gamesCount !== 'number' || goals.gamesCount < 0)
-      ) {
-        errors.push('Invalid daily goals: gamesCount must be a positive number');
-      }
-      if (
-        goals.studyMinutes !== undefined &&
-        (typeof goals.studyMinutes !== 'number' || goals.studyMinutes < 0)
-      ) {
-        errors.push('Invalid daily goals: studyMinutes must be a positive number');
+      const parsed = dailyGoalSettingsSchema.safeParse(exportData.dailyGoals);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        errors.push(
+          `Invalid daily goals: ${issue ? `${issue.path.join('.') || 'value'} ${issue.message}` : 'failed validation'}`,
+        );
       }
     }
 

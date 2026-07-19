@@ -15,7 +15,7 @@ import {
   Timestamp,
 } from '../firebase/core';
 import { TrainingSession, DailyGoalSettings } from '@shared/schema';
-import { sanitizeDailyGoalSettings } from '../daily-goals-model';
+import { areDailyGoalsEquivalent, sanitizeDailyGoalSettings } from '../daily-goals-model';
 
 export interface BackupVerificationResult {
   status: 'healthy' | 'partial' | 'corrupted' | 'missing';
@@ -112,6 +112,21 @@ export class BackupVerificationManager {
           description: 'Cloud backup has daily goals that are missing locally',
           affectedItems: ['daily_goals'],
           suggestedFix: 'Restore from cloud backup to retrieve daily goals',
+        });
+      } else if (
+        localDailyGoals &&
+        cloudDailyGoals &&
+        !areDailyGoalsEquivalent(localDailyGoals, cloudDailyGoals)
+      ) {
+        // Both exist but differ (e.g. custom tag goals added locally haven't
+        // reached the cloud backup yet).
+        issues.push({
+          type: 'data_mismatch',
+          severity: 'medium',
+          description:
+            'Daily goal settings differ between this device and the cloud backup (custom goals may be out of date)',
+          affectedItems: ['daily_goals'],
+          suggestedFix: 'Run manual backup to sync daily goals',
         });
       }
 

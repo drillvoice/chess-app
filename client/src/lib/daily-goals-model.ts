@@ -81,6 +81,44 @@ export function sanitizeDailyGoalSettings(raw: unknown): DailyGoalSettings {
   };
 }
 
+// Treat 0 and undefined (both "disabled") as equal for a built-in target.
+function builtinsEqual(a: number | undefined, b: number | undefined): boolean {
+  return (a ?? 0) === (b ?? 0);
+}
+
+/**
+ * Compare two daily goal settings for meaningful equivalence, ignoring
+ * `lastModified` and tag-goal ordering. Used by backup verification to detect
+ * when the cloud copy has drifted from local (e.g. missing custom goals).
+ * Inputs are sanitized first so unsaved corruption doesn't cause false diffs.
+ */
+export function areDailyGoalsEquivalent(
+  a: DailyGoalSettings | null | undefined,
+  b: DailyGoalSettings | null | undefined,
+): boolean {
+  if (!a || !b) return !a && !b;
+  const sa = sanitizeDailyGoalSettings(a);
+  const sb = sanitizeDailyGoalSettings(b);
+
+  if (
+    !builtinsEqual(sa.tacticsMinutes, sb.tacticsMinutes) ||
+    !builtinsEqual(sa.gamesCount, sb.gamesCount) ||
+    !builtinsEqual(sa.studyMinutes, sb.studyMinutes) ||
+    Boolean(sa.autoTracking) !== Boolean(sb.autoTracking) ||
+    Boolean(sa.isCustomized) !== Boolean(sb.isCustomized)
+  ) {
+    return false;
+  }
+
+  const goalsA = sa.tagGoals ?? [];
+  const goalsB = sb.tagGoals ?? [];
+  if (goalsA.length !== goalsB.length) return false;
+
+  // Compare by deterministic id + target, order-insensitive.
+  const targetsById = new Map(goalsA.map((goal) => [goal.id, goal.target]));
+  return goalsB.every((goal) => targetsById.get(goal.id) === goal.target);
+}
+
 export type ResolvedGoalKind = 'tactics' | 'study' | 'game' | 'tag';
 
 export interface ResolvedGoal {
