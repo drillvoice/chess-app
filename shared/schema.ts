@@ -266,10 +266,26 @@ export const userStudyPreferencesSchema = z.object({
 });
 
 // Daily Goals Schema
+// A custom daily goal tied to an "Other study" tag. Progress is measured in the
+// tag's configured unit (sum of logged quantity) when a tag config exists,
+// otherwise in sessions logged with the tag.
+export const tagGoalSchema = z.object({
+  // Deterministic id: `tag:${normalizeStudyTagKey(tag)}` — stable across devices
+  // so sync merges and checklist state dedupe naturally.
+  id: z.string().min(1).max(60),
+  tag: studyTagSchema,
+  target: z.number().int().min(1).max(99),
+  label: z.string().min(1).max(40).optional(),
+});
+
+// `tagGoals` is additive: docs written by older clients simply lack the field,
+// and old clients merge-write only the three legacy numeric fields, so they
+// never clobber it in Firestore.
 export const dailyGoalSettingsSchema = z.object({
   tacticsMinutes: z.number().min(0).max(99).optional(),
   gamesCount: z.number().min(0).max(99).optional(),
   studyMinutes: z.number().min(0).max(99).optional(),
+  tagGoals: z.array(tagGoalSchema).max(10).optional(),
   isCustomized: z.boolean().default(false),
   autoTracking: z.boolean().default(false),
   lastModified: isoDateOptional,
@@ -282,6 +298,7 @@ export type StudySession = z.infer<typeof studySessionSchema>;
 export type GoalSession = z.infer<typeof goalSessionSchema>;
 export type TrainingSession = typeof trainingSessionsTable.$inferSelect;
 export type DailyGoalSettings = z.infer<typeof dailyGoalSettingsSchema>;
+export type TagGoal = z.infer<typeof tagGoalSchema>;
 export type StudyTag = z.infer<typeof studyTagSchema>;
 export type StudyTagConfig = z.infer<typeof studyTagConfigSchema>;
 export type UserStudyPreferences = z.infer<typeof userStudyPreferencesSchema>;

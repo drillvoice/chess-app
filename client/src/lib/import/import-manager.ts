@@ -1,7 +1,8 @@
 import { logger } from '../logger';
 import { offlineStorage } from '../offline-storage';
 import { createSession, setDailyGoalSettings } from '../firebase/firestore';
-import { TrainingSession } from '@shared/schema';
+import { TrainingSession, dailyGoalSettingsSchema } from '@shared/schema';
+import { sanitizeDailyGoalSettings } from '../daily-goals-model';
 import { ExportData } from '../export/export-manager';
 
 export interface ImportOptions {
@@ -204,7 +205,8 @@ export class ImportManager {
 
       if (parsedData.dailyGoals && !options.dryRun) {
         try {
-          await setDailyGoalSettings(parsedData.dailyGoals);
+          // Imported JSON is untrusted input — heal corruption before persisting.
+          await setDailyGoalSettings(sanitizeDailyGoalSettings(parsedData.dailyGoals));
           result.imported.dailyGoals = 1;
         } catch (error) {
           result.errors.push(`Failed to import daily goals: ${error}`);
@@ -510,9 +512,7 @@ export class ImportManager {
    * Validate daily goals data
    */
   private isValidDailyGoals(dailyGoals: any): boolean {
-    return (
-      dailyGoals && typeof dailyGoals.targetMinutes === 'number' && dailyGoals.targetMinutes >= 0
-    );
+    return dailyGoalSettingsSchema.safeParse(dailyGoals).success;
   }
 
   /**

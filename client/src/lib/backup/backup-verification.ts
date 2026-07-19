@@ -15,6 +15,7 @@ import {
   Timestamp,
 } from '../firebase/core';
 import { TrainingSession, DailyGoalSettings } from '@shared/schema';
+import { sanitizeDailyGoalSettings } from '../daily-goals-model';
 
 export interface BackupVerificationResult {
   status: 'healthy' | 'partial' | 'corrupted' | 'missing';
@@ -362,7 +363,8 @@ export class BackupVerificationManager {
       if (options.includeDailyGoals && restoreData.dailyGoals) {
         onProgress?.({ phase: 'Restoring daily goals', percent: 85 });
         try {
-          await setDailyGoalSettings(restoreData.dailyGoals);
+          // Backup payloads are untrusted input — heal corruption before persisting.
+          await setDailyGoalSettings(sanitizeDailyGoalSettings(restoreData.dailyGoals));
           restored.dailyGoals = 1;
         } catch (error) {
           errors.push(`Failed to restore daily goals: ${error}`);
@@ -429,7 +431,8 @@ export class BackupVerificationManager {
         const dailyGoalsRef = await getDailyGoalsCollection();
         const dailyGoalsSnapshot = await getDocs(dailyGoalsRef);
         if (!dailyGoalsSnapshot.empty) {
-          dailyGoals = dailyGoalsSnapshot.docs[0].data() as DailyGoalSettings;
+          // Cloud data is untrusted input — heal corruption on read.
+          dailyGoals = sanitizeDailyGoalSettings(dailyGoalsSnapshot.docs[0].data());
         }
       } catch (error) {
         console.warn('Failed to fetch daily goals from cloud:', error);

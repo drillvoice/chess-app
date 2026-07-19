@@ -1,37 +1,29 @@
-import type { TrainingSession, DailyGoalSettings } from '@shared/schema';
+import type { TrainingSession } from '@shared/schema';
+import { normalizeStudyTagKey } from '@shared/schema';
+import { parseStudyTags } from './storage/study-tags';
+import type { ResolvedGoal } from './daily-goals-model';
 
 /**
- * Progress tracking data model for daily goals
+ * Progress for a single resolved daily goal.
  */
-export interface DailyGoalProgress {
-  tactics: {
-    completed: number;
-    target: number;
-    unit: 'minutes';
-    isComplete: boolean;
-  };
-  study: {
-    completed: number;
-    target: number;
-    unit: 'minutes';
-    isComplete: boolean;
-  };
-  game: {
-    completed: number;
-    target: number;
-    unit: 'count';
-    isComplete: boolean;
-  };
+export interface GoalProgress {
+  goalId: string;
+  completed: number;
+  target: number;
+  unitLabel: string;
+  isComplete: boolean;
 }
 
-/**
- * Extended progress with metadata
- */
-export interface DailyGoalProgressData {
-  progress: DailyGoalProgress;
-  date: string;
-  lastUpdated: Date;
-  autoTracking: boolean;
+export type GoalProgressMap = Map<string, GoalProgress>;
+
+function finiteOrZero(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function sessionHasTag(session: TrainingSession, tagKey: string): boolean {
+  const tags = parseStudyTags(session.studyTags, session.id);
+  if (!Array.isArray(tags)) return false;
+  return tags.some((tag) => typeof tag === 'string' && normalizeStudyTagKey(tag) === tagKey);
 }
 
 /**
@@ -53,71 +45,59 @@ export class SessionAnalyzer {
   }
 
   /**
-   * Aggregate daily training session metrics in a single pass
+   * Measure today's progress toward a single goal.
    */
-  static summarizeSessions(todaysSessions: TrainingSession[]): {
-    tacticsMinutes: number;
-    studyMinutes: number;
-    gamesCount: number;
-  } {
-    return todaysSessions.reduce(
-      (totals, session) => {
-        switch (session.type) {
-          case 'tactics':
-            totals.tacticsMinutes += session.duration || 0;
-            break;
-          case 'study':
-            totals.studyMinutes += session.duration || 0;
-            break;
-          case 'game':
-            totals.gamesCount += 1;
-            break;
-          default:
-            break;
+  static measureGoal(todaysSessions: TrainingSession[], goal: ResolvedGoal): number {
+    switch (goal.kind) {
+      case 'tactics':
+      case 'study':
+        return todaysSessions.reduce(
+          (total, session) =>
+            session.type === goal.kind ? total + finiteOrZero(session.duration) : total,
+          0,
+        );
+      case 'game':
+        return todaysSessions.filter((session) => session.type === 'game').length;
+      case 'tag': {
+        const tagKey = normalizeStudyTagKey(goal.tag ?? '');
+        const studySessions = todaysSessions.filter((session) => session.type === 'study');
+        if (goal.useQuantity) {
+          // The tag has a configured unit: sum the logged quantity of sessions
+          // recorded against it (quantity always pairs with primaryStudyTag).
+          return studySessions.reduce(
+            (total, session) =>
+              session.primaryStudyTag && normalizeStudyTagKey(session.primaryStudyTag) === tagKey
+                ? total + finiteOrZero(session.quantity)
+                : total,
+            0,
+          );
         }
-
-        return totals;
-      },
-      { tacticsMinutes: 0, studyMinutes: 0, gamesCount: 0 },
-    );
+        // No unit config: count sessions logged with the tag.
+        return studySessions.filter((session) => sessionHasTag(session, tagKey)).length;
+      }
+    }
   }
 
   /**
-   * Calculate complete progress from sessions and settings
+   * Calculate progress for each resolved goal from all sessions.
    */
-  static calculateProgress(
-    allSessions: TrainingSession[],
-    settings: DailyGoalSettings | null,
-  ): DailyGoalProgress {
+  static calculateProgress(allSessions: TrainingSession[], goals: ResolvedGoal[]): GoalProgress[] {
     const todaysSessions = this.getTodaysSessions(allSessions);
 
-    const { tacticsMinutes, studyMinutes, gamesCount } = this.summarizeSessions(todaysSessions);
+    return goals.map((goal) => {
+      const completed = this.measureGoal(todaysSessions, goal);
+      return {
+        goalId: goal.id,
+        completed,
+        target: goal.target,
+        unitLabel: goal.unitLabel,
+        isComplete: goal.target > 0 && completed >= goal.target,
+      };
+    });
+  }
 
-    // Default targets if no settings
-    const tacticsTarget = settings?.tacticsMinutes || 0;
-    const studyTarget = settings?.studyMinutes || 0;
-    const gamesTarget = settings?.gamesCount || 0;
-
-    return {
-      tactics: {
-        completed: tacticsMinutes,
-        target: tacticsTarget,
-        unit: 'minutes',
-        isComplete: tacticsTarget > 0 && tacticsMinutes >= tacticsTarget,
-      },
-      study: {
-        completed: studyMinutes,
-        target: studyTarget,
-        unit: 'minutes',
-        isComplete: studyTarget > 0 && studyMinutes >= studyTarget,
-      },
-      game: {
-        completed: gamesCount,
-        target: gamesTarget,
-        unit: 'count',
-        isComplete: gamesTarget > 0 && gamesCount >= gamesTarget,
-      },
-    };
+  static toProgressMap(progress: GoalProgress[]): GoalProgressMap {
+    return new Map(progress.map((entry) => [entry.goalId, entry]));
   }
 }
 
@@ -126,42 +106,18 @@ export class SessionAnalyzer {
  */
 export class ProgressFormatter {
   /**
-   * Format progress for display (e.g., "15/30 minutes", "2/3 games")
+   * Format progress for display (e.g., "15/30 min", "2/3 modules")
    */
-  static formatProgress(progress: DailyGoalProgress[keyof DailyGoalProgress]): string {
+  static formatProgress(progress: GoalProgress): string {
     if (progress.target === 0) return 'No goal set';
-
-    const unit = progress.unit === 'minutes' ? 'min' : progress.unit === 'count' ? 'games' : '';
-    return `${progress.completed}/${progress.target} ${unit}`;
+    return `${progress.completed}/${progress.target} ${progress.unitLabel}`;
   }
 
   /**
    * Calculate completion percentage (0-100)
    */
-  static getCompletionPercentage(progress: DailyGoalProgress[keyof DailyGoalProgress]): number {
+  static getCompletionPercentage(progress: GoalProgress): number {
     if (progress.target === 0) return 0;
     return Math.min(100, Math.round((progress.completed / progress.target) * 100));
-  }
-
-  /**
-   * Generate user-friendly goal label
-   */
-  static getGoalLabel(
-    goalType: keyof DailyGoalProgress,
-    progress: DailyGoalProgress[keyof DailyGoalProgress],
-    showProgress: boolean = true,
-  ): string {
-    if (progress.target === 0) return '';
-
-    const baseLabels = {
-      tactics: `Practice tactics for ${progress.target} minutes`,
-      study: `Study for ${progress.target} minutes`,
-      game: `Play ${progress.target} game${progress.target !== 1 ? 's' : ''}`,
-    };
-
-    if (!showProgress) return baseLabels[goalType];
-
-    const progressText = this.formatProgress(progress);
-    return `${baseLabels[goalType]} (${progressText})`;
   }
 }

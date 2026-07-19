@@ -11,6 +11,18 @@ vi.mock('@/hooks/use-daily-goals-settings', () => ({
   useDailyGoalsSettings: vi.fn(),
 }));
 vi.mock('@/hooks/use-toast');
+vi.mock('@/hooks/use-study-preferences', () => ({
+  useStudyPreferences: vi.fn(() => ({
+    preferences: {
+      customTags: ['reading', 'anki', 'step method'],
+      tagConfigs: { 'step method': { unitLabel: 'modules', minutesPerUnit: 10 } },
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  updateStudyPreferences: vi.fn(),
+}));
 
 const mockUseToast = vi.mocked(useToast);
 const mockUseDailyGoalsSettings = vi.mocked(dailyGoalsHook.useDailyGoalsSettings);
@@ -44,6 +56,7 @@ describe('GoalSettingsModal', () => {
       tacticsMinutes: 30,
       gamesCount: 2,
       studyMinutes: 15,
+      tagGoals: [],
     },
     setFormData: vi.fn(),
     resetForm: vi.fn(),
@@ -55,6 +68,9 @@ describe('GoalSettingsModal', () => {
     },
     isCustomized: false,
     hasAnyActiveGoals: false,
+    addTagGoal: vi.fn(() => true),
+    removeTagGoal: vi.fn(),
+    updateTagGoalTarget: vi.fn(),
     saveSettings: vi.fn(),
     enableCustomGoals: vi.fn(),
     disableCustomGoals: vi.fn(),
@@ -67,6 +83,10 @@ describe('GoalSettingsModal', () => {
     vi.clearAllMocks();
     mockUseToast.mockReturnValue({ toast: vi.fn(), dismiss: vi.fn(), toasts: [] });
     mockUseDailyGoalsSettings.mockReturnValue(defaultMockHook);
+    // jsdom lacks these; Radix Select needs them when opening the dropdown
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+    window.HTMLElement.prototype.releasePointerCapture = vi.fn();
   });
 
   afterEach(() => {
@@ -170,28 +190,52 @@ describe('GoalSettingsModal', () => {
     expect(mockClose).toHaveBeenCalled();
   });
 
-  it('should enable save button when study time changes from 0 to non-zero', async () => {
-    const mockSaveSettings = vi.fn().mockResolvedValue(undefined);
+  it('should hide zeroed built-ins and offer them in the add-goal select', async () => {
+    const mockSetFormData = vi.fn();
     mockUseDailyGoalsSettings.mockReturnValue({
       ...defaultMockHook,
       formData: {
         tacticsMinutes: 0,
         gamesCount: 0,
         studyMinutes: 0,
+        tagGoals: [],
       },
-      setFormData: vi.fn(),
-      resetForm: vi.fn(),
-      saveSettings: mockSaveSettings,
+      setFormData: mockSetFormData,
     });
 
     render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
 
-    // Change study time from 0 to 15
-    const studyInput = screen.getByLabelText('Study time (minutes)');
-    fireEvent.change(studyInput, { target: { value: '15' } });
+    // No goal rows are shown, just the empty state
+    expect(screen.queryByLabelText('Study time (minutes)')).toBeNull();
+    expect(screen.getByText(/No goals yet/)).toBeTruthy();
 
-    const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
+    // Re-add "Study time" via the add-goal select
+    fireEvent.click(screen.getByLabelText('Goal to add'));
+    fireEvent.click(await screen.findByText('Study time (minutes)'));
+    fireEvent.change(screen.getByLabelText('Target for new goal'), { target: { value: '15' } });
+    fireEvent.click(screen.getByLabelText('Add goal'));
+
+    expect(mockSetFormData).toHaveBeenCalledWith({ studyMinutes: 15 });
+    // The row is now visible with the chosen target
+    const studyInput = screen.getByLabelText('Study time (minutes)') as HTMLInputElement;
+    expect(studyInput.value).toBe('15');
+  });
+
+  it('should remove a built-in goal by zeroing it and hiding the row', () => {
+    const mockSetFormData = vi.fn();
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      setFormData: mockSetFormData,
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    fireEvent.click(screen.getByLabelText('Remove Tactics training (minutes) goal'));
+
+    expect(mockSetFormData).toHaveBeenCalledWith({ tacticsMinutes: 0 });
+    expect(screen.queryByLabelText('Tactics training (minutes)')).toBeNull();
+    // The other goals stay
+    expect(screen.getByLabelText('Games played (count)')).toBeTruthy();
   });
 
   it('should call resetForm and close when cancel is clicked', () => {
@@ -224,7 +268,9 @@ describe('GoalSettingsModal', () => {
   it('should show help text', () => {
     render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('• Set goals to 0 to disable that goal type')).toBeTruthy();
+    expect(
+      screen.getByText('• Remove a goal with the × button to hide it from your daily list'),
+    ).toBeTruthy();
     expect(screen.getByText('• Maximum value for any goal is 99')).toBeTruthy();
     expect(screen.getByText('• Goals persist across days until changed')).toBeTruthy();
   });
@@ -235,6 +281,82 @@ describe('GoalSettingsModal', () => {
     // Save button should be enabled from the start (no changes needed)
     const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
+  });
+
+  it('should render existing custom tag goals with their unit', () => {
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:step method', tag: 'step method', target: 3 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('step method')).toBeTruthy();
+    expect(screen.getByText('(modules)')).toBeTruthy();
+    const targetInput = screen.getByLabelText(/step method/, {
+      selector: 'input',
+    }) as HTMLInputElement;
+    expect(targetInput.value).toBe('3');
+  });
+
+  it('should remove a custom goal when its remove button is clicked', () => {
+    const mockRemoveTagGoal = vi.fn();
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      removeTagGoal: mockRemoveTagGoal,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:anki', tag: 'anki', target: 1 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    fireEvent.click(screen.getByLabelText('Remove anki goal'));
+    expect(mockRemoveTagGoal).toHaveBeenCalledWith('tag:anki');
+  });
+
+  it('should update a custom goal target and reject out-of-range values', async () => {
+    const mockUpdateTagGoalTarget = vi.fn();
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      updateTagGoalTarget: mockUpdateTagGoalTarget,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:anki', tag: 'anki', target: 1 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    const targetInput = screen.getByLabelText(/anki/, { selector: 'input' }) as HTMLInputElement;
+    fireEvent.change(targetInput, { target: { value: '2' } });
+    expect(mockUpdateTagGoalTarget).toHaveBeenCalledWith('tag:anki', 2);
+
+    fireEvent.change(targetInput, { target: { value: '100' } });
+    await waitFor(() => {
+      expect(screen.getByText('Target must be between 1 and 99')).toBeTruthy();
+      const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
+      expect(saveButton.disabled).toBe(true);
+    });
+    expect(mockUpdateTagGoalTarget).toHaveBeenCalledTimes(1);
+  });
+
+  it('should show a hint when a goal tag is missing from the tag list', () => {
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      formData: {
+        ...defaultMockHook.formData,
+        tagGoals: [{ id: 'tag:chessable', tag: 'chessable', target: 2 }],
+      },
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/no longer in your tag list/)).toBeTruthy();
   });
 
   it('should prevent saving when value exceeds 99', async () => {

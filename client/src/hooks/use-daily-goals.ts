@@ -1,35 +1,71 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { SessionAnalyzer, DailyGoalProgress, ProgressFormatter } from '@/lib/daily-goals-progress';
+import {
+  SessionAnalyzer,
+  ProgressFormatter,
+  type GoalProgress,
+  type GoalProgressMap,
+} from '@/lib/daily-goals-progress';
+import { resolveGoals, type ResolvedGoal } from '@/lib/daily-goals-model';
 import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
+import { useStudyPreferences } from '@/hooks/use-study-preferences';
 
 interface DailyChecklist {
-  tactics: boolean;
-  study: boolean;
-  game: boolean;
   date: string;
+  items: Record<string, boolean>;
 }
 
 interface UseDailyGoalsOptions {
   autoCompleteFromSessions?: boolean;
-  onGoalComplete?: (goalType: keyof Omit<DailyChecklist, 'date'>) => void;
+  onGoalComplete?: (goalId: string) => void;
 }
 
 const STORAGE_KEY = 'dailyChecklist';
 
+const freshChecklist = (): DailyChecklist => ({
+  date: new Date().toDateString(),
+  items: {},
+});
+
+// The checklist used to be a flat `{ tactics, study, game, date }` record.
+// Built-in goal ids are unchanged, so the old booleans lift directly into the
+// new `items` map.
+function parseStoredChecklist(saved: string): DailyChecklist {
+  const parsed = JSON.parse(saved) as Record<string, unknown>;
+  if (parsed && typeof parsed === 'object' && typeof parsed.date === 'string') {
+    if (parsed.items && typeof parsed.items === 'object') {
+      const items: Record<string, boolean> = {};
+      for (const [key, value] of Object.entries(parsed.items as Record<string, unknown>)) {
+        if (typeof value === 'boolean') items[key] = value;
+      }
+      return { date: parsed.date, items };
+    }
+    return {
+      date: parsed.date,
+      items: {
+        tactics: Boolean(parsed.tactics),
+        study: Boolean(parsed.study),
+        game: Boolean(parsed.game),
+      },
+    };
+  }
+  return freshChecklist();
+}
+
 export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
   const { autoCompleteFromSessions = false, onGoalComplete } = options;
 
-  // Get settings to determine auto-tracking mode
+  // Get settings to determine goals and auto-tracking mode
   const { settings } = useDailyGoalsSettings();
+  const { preferences } = useStudyPreferences();
   const isAutoTrackingEnabled = settings?.autoTracking || false;
 
-  const [checklist, setChecklist] = useState<DailyChecklist>({
-    tactics: false,
-    study: false,
-    game: false,
-    date: new Date().toDateString(),
-  });
+  const goals: ResolvedGoal[] = useMemo(
+    () => resolveGoals(settings ?? null, preferences?.tagConfigs ?? {}),
+    [settings, preferences],
+  );
+
+  const [checklist, setChecklist] = useState<DailyChecklist>(freshChecklist);
 
   // Fetch all sessions for progress calculation
   const { data: allSessions = [] } = useQuery({
@@ -45,10 +81,15 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
   });
 
   // Calculate progress when auto-tracking is enabled
-  const progress: DailyGoalProgress | null = useMemo(() => {
+  const progress: GoalProgress[] | null = useMemo(() => {
     if (!isAutoTrackingEnabled || !settings) return null;
-    return SessionAnalyzer.calculateProgress(allSessions, settings);
-  }, [isAutoTrackingEnabled, allSessions, settings]);
+    return SessionAnalyzer.calculateProgress(allSessions, goals);
+  }, [isAutoTrackingEnabled, allSessions, settings, goals]);
+
+  const progressById: GoalProgressMap | null = useMemo(
+    () => (progress ? SessionAnalyzer.toProgressMap(progress) : null),
+    [progress],
+  );
 
   // Get today's sessions for backward compatibility
   const todaySessions = useMemo(() => {
@@ -58,149 +99,108 @@ export function useDailyGoals(options: UseDailyGoalsOptions = {}) {
 
   // Load from localStorage on mount
   useEffect(() => {
-    const loadChecklist = () => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved) as DailyChecklist;
-          const today = new Date().toDateString();
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
 
-          // If it's a new day, reset the checklist
-          if (parsed.date !== today) {
-            const fresh: DailyChecklist = {
-              tactics: false,
-              study: false,
-              game: false,
-              date: today,
-            };
-            setChecklist(fresh);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-          } else {
-            setChecklist(parsed);
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to load daily checklist:', error);
-        // Reset to default state on error
-        const fresh: DailyChecklist = {
-          tactics: false,
-          study: false,
-          game: false,
-          date: new Date().toDateString(),
-        };
+      const parsed = parseStoredChecklist(saved);
+      const today = new Date().toDateString();
+
+      // If it's a new day, reset the checklist
+      if (parsed.date !== today) {
+        const fresh = freshChecklist();
         setChecklist(fresh);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+      } else {
+        setChecklist(parsed);
       }
-    };
-
-    loadChecklist();
+    } catch (error) {
+      console.warn('Failed to load daily checklist:', error);
+      // Reset to default state on error
+      setChecklist(freshChecklist());
+    }
   }, []);
 
-  // Auto-complete goals based on today's sessions or progress
+  // Auto-complete goals based on progress or today's sessions
   useEffect(() => {
-    if (isAutoTrackingEnabled && progress) {
+    const completeItems = (isComplete: (goal: ResolvedGoal) => boolean) => {
+      setChecklist((prev) => {
+        const updated = { ...prev, items: { ...prev.items } };
+        let changed = false;
+
+        for (const goal of goals) {
+          if (isComplete(goal) && !prev.items[goal.id]) {
+            updated.items[goal.id] = true;
+            changed = true;
+            onGoalComplete?.(goal.id);
+          }
+        }
+
+        return changed ? updated : prev;
+      });
+    };
+
+    if (isAutoTrackingEnabled && progressById) {
       // Use progress-based completion for auto-tracking mode
-      setChecklist((prev) => {
-        const updated = { ...prev };
-        let changed = false;
-
-        if (progress.tactics.isComplete && !prev.tactics) {
-          updated.tactics = true;
-          changed = true;
-          onGoalComplete?.('tactics');
-        }
-        if (progress.study.isComplete && !prev.study) {
-          updated.study = true;
-          changed = true;
-          onGoalComplete?.('study');
-        }
-        if (progress.game.isComplete && !prev.game) {
-          updated.game = true;
-          changed = true;
-          onGoalComplete?.('game');
-        }
-
-        return changed ? updated : prev;
-      });
+      completeItems((goal) => progressById.get(goal.id)?.isComplete ?? false);
     } else if (autoCompleteFromSessions && todaySessions.length > 0) {
-      // Use basic session detection for manual mode
-      const hasTactics = todaySessions.some((s) => s.type === 'tactics');
-      const hasStudy = todaySessions.some((s) => s.type === 'study');
-      const hasGame = todaySessions.some((s) => s.type === 'game');
-
-      setChecklist((prev) => {
-        const updated = { ...prev };
-        let changed = false;
-
-        if (hasTactics && !prev.tactics) {
-          updated.tactics = true;
-          changed = true;
-        }
-        if (hasStudy && !prev.study) {
-          updated.study = true;
-          changed = true;
-        }
-        if (hasGame && !prev.game) {
-          updated.game = true;
-          changed = true;
-        }
-
-        return changed ? updated : prev;
-      });
+      // Use basic session detection for manual mode (built-in goals only)
+      completeItems(
+        (goal) => goal.kind !== 'tag' && todaySessions.some((s) => s.type === goal.kind),
+      );
     }
-  }, [todaySessions, autoCompleteFromSessions, isAutoTrackingEnabled, progress, onGoalComplete]);
+  }, [
+    todaySessions,
+    autoCompleteFromSessions,
+    isAutoTrackingEnabled,
+    progressById,
+    goals,
+    onGoalComplete,
+  ]);
 
   // Save to localStorage when checklist changes
   useEffect(() => {
-    const saveChecklist = () => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(checklist));
-      } catch (error) {
-        console.warn('Failed to save daily checklist:', error);
-      }
-    };
-
-    saveChecklist();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(checklist));
+    } catch (error) {
+      console.warn('Failed to save daily checklist:', error);
+    }
   }, [checklist]);
 
   const toggleItem = useCallback(
-    (item: keyof Omit<DailyChecklist, 'date'>) => {
+    (goalId: string) => {
       setChecklist((prev) => {
-        const newValue = !prev[item];
-        const updated = {
-          ...prev,
-          [item]: newValue,
-        };
+        const newValue = !prev.items[goalId];
 
         // Call callback if provided
         if (newValue && onGoalComplete) {
-          onGoalComplete(item);
+          onGoalComplete(goalId);
         }
 
-        return updated;
+        return { ...prev, items: { ...prev.items, [goalId]: newValue } };
       });
     },
     [onGoalComplete],
   );
 
-  const completedCount = [checklist.tactics, checklist.study, checklist.game].filter(
-    Boolean,
-  ).length;
-  const allComplete = completedCount === 3;
+  const completedCount = goals.filter((goal) => checklist.items[goal.id]).length;
+  const allComplete = goals.length > 0 && completedCount === goals.length;
 
   return {
+    goals,
     checklist,
     toggleItem,
     completedCount,
     allComplete,
     todaySessions,
-    // New progress data for auto-tracking
+    // Progress data for auto-tracking
     progress,
+    progressById,
     isAutoTrackingEnabled,
     // Utility functions for components
     formatters: {
       formatProgress: ProgressFormatter.formatProgress,
       getCompletionPercentage: ProgressFormatter.getCompletionPercentage,
-      getGoalLabel: ProgressFormatter.getGoalLabel,
     },
   };
 }

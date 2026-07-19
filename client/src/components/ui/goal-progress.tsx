@@ -1,37 +1,35 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import type { DailyGoalProgress } from '@/lib/daily-goals-progress';
+import type { GoalProgress } from '@/lib/daily-goals-progress';
+
+export interface GoalProgressColors {
+  bg: string;
+  fill: string;
+  text: string;
+}
+
+const DEFAULT_COLORS: GoalProgressColors = {
+  bg: 'bg-gray-100',
+  fill: 'bg-gray-500',
+  text: 'text-gray-600',
+};
 
 interface GoalProgressBarProps {
-  progress: DailyGoalProgress[keyof DailyGoalProgress];
-  goalType: keyof DailyGoalProgress;
+  progress: GoalProgress;
+  colors?: GoalProgressColors;
   className?: string;
 }
 
-export function GoalProgressBar({ progress, goalType, className }: GoalProgressBarProps) {
-  const percentage = Math.min(100, Math.round((progress.completed / progress.target) * 100));
+export function GoalProgressBar({
+  progress,
+  colors = DEFAULT_COLORS,
+  className,
+}: GoalProgressBarProps) {
+  const percentage =
+    progress.target > 0
+      ? Math.min(100, Math.round((progress.completed / progress.target) * 100))
+      : 0;
   const isComplete = progress.isComplete;
-
-  // Color mapping for different goal types
-  const colorMap = {
-    tactics: {
-      bg: 'bg-blue-100',
-      fill: 'bg-blue-500',
-      text: 'text-blue-600',
-    },
-    study: {
-      bg: 'bg-amber-100',
-      fill: 'bg-amber-500',
-      text: 'text-amber-600',
-    },
-    game: {
-      bg: 'bg-emerald-100',
-      fill: 'bg-emerald-500',
-      text: 'text-emerald-600',
-    },
-  };
-
-  const colors = colorMap[goalType];
 
   return (
     <div className={cn('space-y-1', className)}>
@@ -48,13 +46,11 @@ export function GoalProgressBar({ progress, goalType, className }: GoalProgressB
       {/* Progress text */}
       <div className={`flex justify-between text-xs ${colors.text}`}>
         <span>
-          {progress.completed}
-          {progress.unit === 'minutes' ? 'min' : progress.unit === 'count' ? ' games' : ''}
+          {progress.completed} {progress.unitLabel}
         </span>
         <span className={isComplete ? 'font-medium text-green-600' : ''}>{percentage}%</span>
         <span>
-          {progress.target}
-          {progress.unit === 'minutes' ? 'min' : progress.unit === 'count' ? ' games' : ''}
+          {progress.target} {progress.unitLabel}
         </span>
       </div>
     </div>
@@ -62,16 +58,16 @@ export function GoalProgressBar({ progress, goalType, className }: GoalProgressB
 }
 
 interface GoalProgressDisplayProps {
-  progress: DailyGoalProgress[keyof DailyGoalProgress];
-  goalType: keyof DailyGoalProgress;
+  progress: GoalProgress;
   label: string;
+  colors?: GoalProgressColors;
   isManualMode?: boolean;
 }
 
 export function GoalProgressDisplay({
   progress,
-  goalType,
   label,
+  colors = DEFAULT_COLORS,
   isManualMode = false,
 }: GoalProgressDisplayProps) {
   const isComplete = progress.isComplete;
@@ -84,9 +80,7 @@ export function GoalProgressDisplay({
   }
 
   // In auto mode, show progress details
-  const progressText = `${progress.completed}/${progress.target} ${
-    progress.unit === 'minutes' ? 'min' : progress.unit === 'count' ? 'games' : ''
-  }`;
+  const progressText = `${progress.completed}/${progress.target} ${progress.unitLabel}`;
 
   return (
     <div className="flex-1">
@@ -96,7 +90,7 @@ export function GoalProgressDisplay({
           {progressText}
         </span>
       </div>
-      <GoalProgressBar progress={progress} goalType={goalType} className="mt-1" />
+      <GoalProgressBar progress={progress} colors={colors} className="mt-1" />
     </div>
   );
 }

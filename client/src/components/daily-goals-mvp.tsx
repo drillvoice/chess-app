@@ -1,19 +1,66 @@
-import React, { useMemo, useState } from 'react';
-import { CheckCircle, Circle, Puzzle, Crown, Book, Target, Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, Circle, Puzzle, Crown, Book, Target, Settings, Tag } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDailyGoals } from '@/hooks/use-daily-goals';
-import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
 import { GoalSettingsModal } from '@/components/modals/goal-settings-modal';
-import { GoalProgressDisplay } from '@/components/ui/goal-progress';
+import { GoalProgressDisplay, type GoalProgressColors } from '@/components/ui/goal-progress';
+import type { ResolvedGoal } from '@/lib/daily-goals-model';
 
 interface DailyGoalsProps {
-  // Future props for integration with training sessions
-  onGoalComplete?: (goalType: 'tactics' | 'study' | 'game') => void;
+  onGoalComplete?: (goalId: string) => void;
   autoCompleteFromSessions?: boolean;
 }
 
-const GOAL_TYPES = ['tactics', 'study', 'game'] as const;
+interface GoalAppearance {
+  icon: typeof Puzzle;
+  color: string;
+  progressColors: GoalProgressColors;
+}
+
+const BUILTIN_APPEARANCE: Record<'tactics' | 'study' | 'game', GoalAppearance> = {
+  tactics: {
+    icon: Puzzle,
+    color: 'text-blue-600',
+    progressColors: { bg: 'bg-blue-100', fill: 'bg-blue-500', text: 'text-blue-600' },
+  },
+  study: {
+    icon: Book,
+    color: 'text-amber-600',
+    progressColors: { bg: 'bg-amber-100', fill: 'bg-amber-500', text: 'text-amber-600' },
+  },
+  game: {
+    icon: Crown,
+    color: 'text-emerald-600',
+    progressColors: { bg: 'bg-emerald-100', fill: 'bg-emerald-500', text: 'text-emerald-600' },
+  },
+};
+
+// Tag goals cycle through a small palette by their position in the goal list
+// so each custom goal gets a stable, distinct colour.
+const TAG_PALETTE: Omit<GoalAppearance, 'icon'>[] = [
+  {
+    color: 'text-purple-600',
+    progressColors: { bg: 'bg-purple-100', fill: 'bg-purple-500', text: 'text-purple-600' },
+  },
+  {
+    color: 'text-rose-600',
+    progressColors: { bg: 'bg-rose-100', fill: 'bg-rose-500', text: 'text-rose-600' },
+  },
+  {
+    color: 'text-cyan-600',
+    progressColors: { bg: 'bg-cyan-100', fill: 'bg-cyan-500', text: 'text-cyan-600' },
+  },
+  {
+    color: 'text-orange-600',
+    progressColors: { bg: 'bg-orange-100', fill: 'bg-orange-500', text: 'text-orange-600' },
+  },
+];
+
+function goalAppearance(goal: ResolvedGoal, tagIndex: number): GoalAppearance {
+  if (goal.kind !== 'tag') return BUILTIN_APPEARANCE[goal.kind];
+  return { icon: Tag, ...TAG_PALETTE[tagIndex % TAG_PALETTE.length] };
+}
 
 export default function DailyGoalsMVP({
   onGoalComplete,
@@ -21,87 +68,21 @@ export default function DailyGoalsMVP({
 }: DailyGoalsProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  const { checklist, toggleItem, completedCount, allComplete, progress, isAutoTrackingEnabled } =
-    useDailyGoals({
-      autoCompleteFromSessions,
-      onGoalComplete,
-    });
+  const {
+    goals,
+    checklist,
+    toggleItem,
+    completedCount,
+    allComplete,
+    progressById,
+    isAutoTrackingEnabled,
+  } = useDailyGoals({
+    autoCompleteFromSessions,
+    onGoalComplete,
+  });
 
-  const { settings, isCustomized } = useDailyGoalsSettings();
-
-  // Generate dynamic goal configuration based on custom settings
-  const goalConfig = useMemo(() => {
-    const baseConfig = {
-      tactics: {
-        icon: Puzzle,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-300',
-      },
-      game: {
-        icon: Crown,
-        color: 'text-emerald-600',
-        bgColor: 'bg-emerald-50',
-        borderColor: 'border-emerald-300',
-      },
-      study: {
-        icon: Book,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-        borderColor: 'border-amber-300',
-      },
-    };
-
-    // If user has customized goals, use their values
-    if (isCustomized && settings) {
-      return {
-        tactics: {
-          ...baseConfig.tactics,
-          label:
-            (settings.tacticsMinutes || 0) > 0
-              ? `Practice tactics for ${settings.tacticsMinutes || 0} minutes`
-              : null, // Will be filtered out
-        },
-        game: {
-          ...baseConfig.game,
-          label:
-            (settings.gamesCount || 0) > 0
-              ? `Play ${settings.gamesCount || 0} game${(settings.gamesCount || 0) !== 1 ? 's' : ''}`
-              : null, // Will be filtered out
-        },
-        study: {
-          ...baseConfig.study,
-          label:
-            (settings.studyMinutes || 0) > 0
-              ? `Study for ${settings.studyMinutes || 0} minutes`
-              : null, // Will be filtered out
-        },
-      };
-    }
-
-    // Default goals (simple format)
-    return {
-      tactics: {
-        ...baseConfig.tactics,
-        label: 'Practice tactics',
-      },
-      game: {
-        ...baseConfig.game,
-        label: 'Play a game',
-      },
-      study: {
-        ...baseConfig.study,
-        label: 'Study chess',
-      },
-    };
-  }, [isCustomized, settings]);
-
-  // Check if there are any active goals to show
-  const activeGoals = Object.values(goalConfig).filter((config) => config.label !== null);
-  const hasActiveGoals = activeGoals.length > 0;
-
-  // Don't render the component if there are no active goals
-  if (!hasActiveGoals) {
+  // Don't render the full card if there are no active goals
+  if (goals.length === 0) {
     return (
       <>
         <Card className="border-gray-200 bg-gray-50">
@@ -135,6 +116,8 @@ export default function DailyGoalsMVP({
     );
   }
 
+  let tagIndex = -1;
+
   return (
     <>
       <Card
@@ -152,7 +135,7 @@ export default function DailyGoalsMVP({
             </div>
             <div className="flex items-center space-x-2">
               <div className="text-sm text-gray-600">
-                {completedCount}/{activeGoals.length}
+                {completedCount}/{goals.length}
               </div>
               {isAutoTrackingEnabled && (
                 <div className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
@@ -172,69 +155,65 @@ export default function DailyGoalsMVP({
           </div>
 
           <div className="space-y-2">
-            {GOAL_TYPES.map((goalType) => {
-              const config = goalConfig[goalType];
-
-              // Skip goals that are set to 0 (null label)
-              if (config.label === null) {
-                return null;
-              }
-
-              const IconComponent = config.icon;
-              const isCompleted = checklist[goalType];
+            {goals.map((goal) => {
+              if (goal.kind === 'tag') tagIndex += 1;
+              const appearance = goalAppearance(goal, tagIndex);
+              const IconComponent = appearance.icon;
+              const isCompleted = Boolean(checklist.items[goal.id]);
+              const goalProgress = progressById?.get(goal.id);
 
               // Render differently based on auto-tracking mode
-              if (isAutoTrackingEnabled && progress && progress[goalType]) {
+              if (isAutoTrackingEnabled && goalProgress) {
                 // Auto-tracking mode: Show progress bar
                 return (
-                  <div key={goalType} className="flex items-center space-x-3 rounded-lg p-2">
-                    {progress[goalType].isComplete ? (
+                  <div key={goal.id} className="flex items-center space-x-3 rounded-lg p-2">
+                    {goalProgress.isComplete ? (
                       <CheckCircle className="h-5 w-5 text-green-600" />
                     ) : (
                       <Circle className="h-5 w-5 text-gray-400" />
                     )}
-                    <IconComponent className={`h-4 w-4 ${config.color}`} />
+                    <IconComponent className={`h-4 w-4 ${appearance.color}`} />
                     <GoalProgressDisplay
-                      progress={progress[goalType]}
-                      goalType={goalType}
-                      label={config.label}
+                      progress={goalProgress}
+                      colors={appearance.progressColors}
+                      label={goal.label}
                       isManualMode={false}
                     />
                   </div>
                 );
-              } else {
-                // Manual mode: Show traditional checkboxes
-                return (
-                  <div
-                    key={goalType}
-                    className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
-                    onClick={() => toggleItem(goalType)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggleItem(goalType);
-                      }
-                    }}
-                    aria-label={`${isCompleted ? 'Uncheck' : 'Check'} ${config.label}`}
-                  >
-                    {isCompleted ? (
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-gray-400" />
-                    )}
-                    <IconComponent className={`h-4 w-4 ${config.color}`} />
-                    <span
-                      className={`flex-1 ${
-                        isCompleted ? 'text-green-700 line-through' : 'text-gray-700'
-                      }`}
-                    >
-                      {config.label}
-                    </span>
-                  </div>
-                );
               }
+
+              // Manual mode: Show traditional checkboxes
+              return (
+                <div
+                  key={goal.id}
+                  className="flex cursor-pointer items-center space-x-3 rounded-lg p-2 transition-colors hover:bg-white/50"
+                  onClick={() => toggleItem(goal.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleItem(goal.id);
+                    }
+                  }}
+                  aria-label={`${isCompleted ? 'Uncheck' : 'Check'} ${goal.label}`}
+                >
+                  {isCompleted ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-gray-400" />
+                  )}
+                  <IconComponent className={`h-4 w-4 ${appearance.color}`} />
+                  <span
+                    className={`flex-1 ${
+                      isCompleted ? 'text-green-700 line-through' : 'text-gray-700'
+                    }`}
+                  >
+                    {goal.label}
+                  </span>
+                </div>
+              );
             })}
           </div>
 
