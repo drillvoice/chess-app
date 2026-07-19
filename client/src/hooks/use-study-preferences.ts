@@ -13,10 +13,29 @@ interface UseStudyPreferencesReturn {
 let globalPreferences: UserStudyPreferences | null = null;
 let globalLoadingPromise: Promise<UserStudyPreferences> | null = null;
 
+// Mounted hook instances subscribe here so a preferences update from one
+// component (e.g. adding a tag in the study modal) propagates to every other
+// consumer (e.g. the goal-settings tag dropdown) without a page reload.
+const listeners = new Set<(prefs: UserStudyPreferences | null) => void>();
+
+function setGlobalPreferences(prefs: UserStudyPreferences | null): void {
+  globalPreferences = prefs;
+  listeners.forEach((listener) => listener(prefs));
+}
+
 export function useStudyPreferences(): UseStudyPreferencesReturn {
   const [preferences, setPreferences] = useState<UserStudyPreferences | null>(globalPreferences);
   const [isLoading, setIsLoading] = useState(!globalPreferences);
   const [error, setError] = useState<string | null>(null);
+
+  // Stay in sync with cache updates made by other components
+  useEffect(() => {
+    const listener = (prefs: UserStudyPreferences | null) => setPreferences(prefs);
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -49,8 +68,8 @@ export function useStudyPreferences(): UseStudyPreferencesReturn {
         const result = await globalLoadingPromise;
 
         // Update global cache
-        globalPreferences = result;
         globalLoadingPromise = null;
+        setGlobalPreferences(result);
 
         setPreferences(result);
         setIsLoading(false);
@@ -74,7 +93,7 @@ export function useStudyPreferences(): UseStudyPreferencesReturn {
       globalLoadingPromise = null;
 
       const result = await getUserStudyPreferences();
-      globalPreferences = result;
+      setGlobalPreferences(result);
       setPreferences(result);
       setIsLoading(false);
     } catch (err) {
@@ -99,8 +118,9 @@ export async function preloadStudyPreferences(): Promise<void> {
 
   try {
     globalLoadingPromise = getUserStudyPreferences();
-    globalPreferences = await globalLoadingPromise;
+    const result = await globalLoadingPromise;
     globalLoadingPromise = null;
+    setGlobalPreferences(result);
   } catch (error) {
     globalLoadingPromise = null;
     console.warn('Failed to preload study preferences:', error);
@@ -111,6 +131,6 @@ export async function preloadStudyPreferences(): Promise<void> {
 export async function updateStudyPreferences(preferences: UserStudyPreferences): Promise<void> {
   await updateUserStudyPreferences(preferences);
 
-  // Update global cache
-  globalPreferences = preferences;
+  // Update global cache and notify all mounted consumers
+  setGlobalPreferences(preferences);
 }

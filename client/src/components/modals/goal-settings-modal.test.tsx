@@ -83,6 +83,10 @@ describe('GoalSettingsModal', () => {
     vi.clearAllMocks();
     mockUseToast.mockReturnValue({ toast: vi.fn(), dismiss: vi.fn(), toasts: [] });
     mockUseDailyGoalsSettings.mockReturnValue(defaultMockHook);
+    // jsdom lacks these; Radix Select needs them when opening the dropdown
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+    window.HTMLElement.prototype.releasePointerCapture = vi.fn();
   });
 
   afterEach(() => {
@@ -186,8 +190,8 @@ describe('GoalSettingsModal', () => {
     expect(mockClose).toHaveBeenCalled();
   });
 
-  it('should enable save button when study time changes from 0 to non-zero', async () => {
-    const mockSaveSettings = vi.fn().mockResolvedValue(undefined);
+  it('should hide zeroed built-ins and offer them in the add-goal select', async () => {
+    const mockSetFormData = vi.fn();
     mockUseDailyGoalsSettings.mockReturnValue({
       ...defaultMockHook,
       formData: {
@@ -196,19 +200,42 @@ describe('GoalSettingsModal', () => {
         studyMinutes: 0,
         tagGoals: [],
       },
-      setFormData: vi.fn(),
-      resetForm: vi.fn(),
-      saveSettings: mockSaveSettings,
+      setFormData: mockSetFormData,
     });
 
     render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
 
-    // Change study time from 0 to 15
-    const studyInput = screen.getByLabelText('Study time (minutes)');
-    fireEvent.change(studyInput, { target: { value: '15' } });
+    // No goal rows are shown, just the empty state
+    expect(screen.queryByLabelText('Study time (minutes)')).toBeNull();
+    expect(screen.getByText(/No goals yet/)).toBeTruthy();
 
-    const saveButton = screen.getByText('Save Goals') as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
+    // Re-add "Study time" via the add-goal select
+    fireEvent.click(screen.getByLabelText('Goal to add'));
+    fireEvent.click(await screen.findByText('Study time (minutes)'));
+    fireEvent.change(screen.getByLabelText('Target for new goal'), { target: { value: '15' } });
+    fireEvent.click(screen.getByLabelText('Add goal'));
+
+    expect(mockSetFormData).toHaveBeenCalledWith({ studyMinutes: 15 });
+    // The row is now visible with the chosen target
+    const studyInput = screen.getByLabelText('Study time (minutes)') as HTMLInputElement;
+    expect(studyInput.value).toBe('15');
+  });
+
+  it('should remove a built-in goal by zeroing it and hiding the row', () => {
+    const mockSetFormData = vi.fn();
+    mockUseDailyGoalsSettings.mockReturnValue({
+      ...defaultMockHook,
+      setFormData: mockSetFormData,
+    });
+
+    render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
+
+    fireEvent.click(screen.getByLabelText('Remove Tactics training (minutes) goal'));
+
+    expect(mockSetFormData).toHaveBeenCalledWith({ tacticsMinutes: 0 });
+    expect(screen.queryByLabelText('Tactics training (minutes)')).toBeNull();
+    // The other goals stay
+    expect(screen.getByLabelText('Games played (count)')).toBeTruthy();
   });
 
   it('should call resetForm and close when cancel is clicked', () => {
@@ -241,7 +268,9 @@ describe('GoalSettingsModal', () => {
   it('should show help text', () => {
     render(<GoalSettingsModal isOpen={true} onClose={mockClose} />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('• Set goals to 0 to disable that goal type')).toBeTruthy();
+    expect(
+      screen.getByText('• Remove a goal with the × button to hide it from your daily list'),
+    ).toBeTruthy();
     expect(screen.getByText('• Maximum value for any goal is 99')).toBeTruthy();
     expect(screen.getByText('• Goals persist across days until changed')).toBeTruthy();
   });

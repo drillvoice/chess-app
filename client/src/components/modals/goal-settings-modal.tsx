@@ -26,10 +26,24 @@ interface GoalSettingsModalProps {
 
 const NEW_TAG_OPTION = '__create-new-tag__';
 
+type BuiltinField = 'tacticsMinutes' | 'gamesCount' | 'studyMinutes';
+
+const BUILTIN_GOALS: { field: BuiltinField; inputId: string; label: string }[] = [
+  { field: 'tacticsMinutes', inputId: 'tactics-minutes', label: 'Tactics training (minutes)' },
+  { field: 'gamesCount', inputId: 'games-count', label: 'Games played (count)' },
+  { field: 'studyMinutes', inputId: 'study-minutes', label: 'Study time (minutes)' },
+];
+
+// Select option values for adding a built-in goal back
+const builtinOption = (field: BuiltinField) => `__builtin-${field}__`;
+const BUILTIN_OPTION_FIELDS = new Map<string, BuiltinField>(
+  BUILTIN_GOALS.map(({ field }) => [builtinOption(field), field]),
+);
+
 // Validation function
 function validateGoalInput(
   value: string,
-  type: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes',
+  type: BuiltinField,
 ): { isValid: boolean; numericValue: number; error?: string } {
   // Allow empty string (will be treated as 0)
   if (value === '') {
@@ -87,7 +101,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     updateTagGoalTarget,
   } = useDailyGoalsSettings();
 
-  const { preferences, refetch: refetchPreferences } = useStudyPreferences();
+  const { preferences } = useStudyPreferences();
 
   // Local form state
   const [localFormData, setLocalFormData] = useState({
@@ -96,6 +110,11 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     studyMinutes: '',
     autoTracking: false,
   });
+
+  // Which built-in goals are shown as rows. Removal hides the row and zeroes
+  // the value; membership (not the live input value) drives visibility so a
+  // row doesn't vanish while the user is clearing the input to retype.
+  const [activeBuiltins, setActiveBuiltins] = useState<Set<BuiltinField>>(new Set());
 
   // Local validation state
   const [localValidation, setLocalValidation] = useState({
@@ -108,8 +127,8 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
   const [tagTargetDrafts, setTagTargetDrafts] = useState<Record<string, string>>({});
   const [tagTargetErrors, setTagTargetErrors] = useState<Record<string, string | undefined>>({});
 
-  // "Add custom goal" state
-  const [selectedTag, setSelectedTag] = useState('');
+  // "Add goal" state
+  const [selectedOption, setSelectedOption] = useState('');
   const [newTagName, setNewTagName] = useState('');
   const [newGoalTarget, setNewGoalTarget] = useState('1');
   const [addGoalError, setAddGoalError] = useState<string | undefined>(undefined);
@@ -124,6 +143,9 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         studyMinutes: (formData.studyMinutes || 0).toString(),
         autoTracking: autoTrackingEnabled,
       });
+      setActiveBuiltins(
+        new Set(BUILTIN_GOALS.filter(({ field }) => (formData[field] || 0) > 0).map((g) => g.field)),
+      );
 
       // Reset validation
       setLocalValidation({
@@ -133,7 +155,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
       });
       setTagTargetDrafts({});
       setTagTargetErrors({});
-      setSelectedTag('');
+      setSelectedOption('');
       setNewTagName('');
       setNewGoalTarget('1');
       setAddGoalError(undefined);
@@ -141,10 +163,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
   }, [isOpen, isLoading, formData, autoTrackingEnabled]);
 
   // Handle input changes
-  const handleInputChange = (
-    field: 'tacticsMinutes' | 'gamesCount' | 'studyMinutes',
-    value: string,
-  ) => {
+  const handleInputChange = (field: BuiltinField, value: string) => {
     setLocalFormData((prev) => ({ ...prev, [field]: value }));
 
     // Validate input
@@ -163,6 +182,19 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     if (validationResult.isValid) {
       setFormData({ [field]: validationResult.numericValue });
     }
+  };
+
+  const handleRemoveBuiltin = (field: BuiltinField) => {
+    // 0 is persisted explicitly, which both hides the goal from the widget
+    // and propagates the removal to the cloud under merge writes.
+    setFormData({ [field]: 0 });
+    setLocalFormData((prev) => ({ ...prev, [field]: '0' }));
+    setLocalValidation((prev) => ({ ...prev, [field]: { isValid: true, error: undefined } }));
+    setActiveBuiltins((prev) => {
+      const next = new Set(prev);
+      next.delete(field);
+      return next;
+    });
   };
 
   // Handle auto-tracking toggle
@@ -196,6 +228,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     [formData.tagGoals],
   );
   const availableTags = customTags.filter((tag) => !usedTagKeys.has(normalizeStudyTagKey(tag)));
+  const inactiveBuiltins = BUILTIN_GOALS.filter(({ field }) => !activeBuiltins.has(field));
 
   const unitLabelFor = (tag: string): string =>
     tagConfigs[normalizeStudyTagKey(tag)]?.unitLabel ?? 'sessions';
@@ -209,10 +242,21 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
       return;
     }
 
-    const isCreatingTag = selectedTag === NEW_TAG_OPTION;
-    const tag = isCreatingTag ? newTagName.trim() : selectedTag;
+    // Re-adding a built-in goal
+    const builtinField = BUILTIN_OPTION_FIELDS.get(selectedOption);
+    if (builtinField) {
+      setFormData({ [builtinField]: target });
+      setLocalFormData((prev) => ({ ...prev, [builtinField]: target.toString() }));
+      setActiveBuiltins((prev) => new Set(prev).add(builtinField));
+      setSelectedOption('');
+      setNewGoalTarget('1');
+      return;
+    }
+
+    const isCreatingTag = selectedOption === NEW_TAG_OPTION;
+    const tag = isCreatingTag ? newTagName.trim() : selectedOption;
     if (!tag) {
-      setAddGoalError(isCreatingTag ? 'Enter a name for the new tag' : 'Choose a tag');
+      setAddGoalError(isCreatingTag ? 'Enter a name for the new tag' : 'Choose a goal');
       return;
     }
 
@@ -250,7 +294,6 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
             customTags: [...customTags, tag],
             lastModified: new Date(),
           });
-          await refetchPreferences();
         }
       }
 
@@ -259,7 +302,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         return;
       }
 
-      setSelectedTag('');
+      setSelectedOption('');
       setNewTagName('');
       setNewGoalTarget('1');
     } catch (error) {
@@ -296,6 +339,8 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
     onClose();
   };
 
+  const hasAnyGoalRows = activeBuiltins.size > 0 || formData.tagGoals.length > 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="mobile-modal max-h-[90vh] overflow-y-auto sm:max-w-md">
@@ -307,169 +352,150 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Tactics Goal */}
-          <div className="flex items-center space-x-3">
-            <Label htmlFor="tactics-minutes" className="min-w-0 flex-1 text-sm font-medium">
-              Tactics training (minutes)
-            </Label>
-            <Input
-              id="tactics-minutes"
-              type="number"
-              min="0"
-              max="99"
-              placeholder="0"
-              value={localFormData.tacticsMinutes}
-              onChange={(e) => handleInputChange('tacticsMinutes', e.target.value)}
-              className={`w-20 ${localValidation.tacticsMinutes.isValid ? '' : 'border-red-500'}`}
-            />
-          </div>
-          {!localValidation.tacticsMinutes.isValid && (
-            <p className="-mt-2 text-sm text-red-500">{localValidation.tacticsMinutes.error}</p>
+          {!hasAnyGoalRows && (
+            <p className="text-sm text-muted-foreground">
+              No goals yet — add one below. Goals can be built-in (tactics, games, study time) or
+              tied to an &quot;Other study&quot; tag (e.g. Chessable, Anki).
+            </p>
           )}
 
-          {/* Games Goal */}
-          <div className="flex items-center space-x-3">
-            <Label htmlFor="games-count" className="min-w-0 flex-1 text-sm font-medium">
-              Games played (count)
-            </Label>
-            <Input
-              id="games-count"
-              type="number"
-              min="0"
-              max="99"
-              placeholder="0"
-              value={localFormData.gamesCount}
-              onChange={(e) => handleInputChange('gamesCount', e.target.value)}
-              className={`w-20 ${localValidation.gamesCount.isValid ? '' : 'border-red-500'}`}
-            />
-          </div>
-          {!localValidation.gamesCount.isValid && (
-            <p className="-mt-2 text-sm text-red-500">{localValidation.gamesCount.error}</p>
-          )}
-
-          {/* Study Goal */}
-          <div className="flex items-center space-x-3">
-            <Label htmlFor="study-minutes" className="min-w-0 flex-1 text-sm font-medium">
-              Study time (minutes)
-            </Label>
-            <Input
-              id="study-minutes"
-              type="number"
-              min="0"
-              max="99"
-              placeholder="0"
-              value={localFormData.studyMinutes}
-              onChange={(e) => handleInputChange('studyMinutes', e.target.value)}
-              className={`w-20 ${localValidation.studyMinutes.isValid ? '' : 'border-red-500'}`}
-            />
-          </div>
-          {!localValidation.studyMinutes.isValid && (
-            <p className="-mt-2 text-sm text-red-500">{localValidation.studyMinutes.error}</p>
-          )}
-
-          {/* Custom tag goals */}
-          <div className="space-y-3 border-t pt-4">
-            <div>
-              <div className="font-medium">Custom goals</div>
-              <div className="text-sm text-muted-foreground">
-                Track a daily goal against an &quot;Other study&quot; tag (e.g. Chessable, Anki).
-              </div>
-            </div>
-
-            {formData.tagGoals.map((goal) => {
-              const tagKey = normalizeStudyTagKey(goal.tag);
-              const isMissingTag = !customTags.some((tag) => normalizeStudyTagKey(tag) === tagKey);
-              const error = tagTargetErrors[goal.id];
-              return (
-                <div key={goal.id} className="space-y-1">
-                  <div className="flex items-center space-x-3">
-                    <Label
-                      htmlFor={`tag-goal-${goal.id}`}
-                      className="min-w-0 flex-1 text-sm font-medium"
-                    >
-                      {goal.tag}{' '}
-                      <span className="font-normal text-muted-foreground">
-                        ({unitLabelFor(goal.tag)})
-                      </span>
-                    </Label>
-                    <Input
-                      id={`tag-goal-${goal.id}`}
-                      type="number"
-                      min="1"
-                      max="99"
-                      value={tagTargetDrafts[goal.id] ?? goal.target.toString()}
-                      onChange={(e) => handleTagTargetChange(goal.id, e.target.value)}
-                      className={`w-20 ${error ? 'border-red-500' : ''}`}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveTagGoal(goal.id)}
-                      className="h-8 w-8 p-0"
-                      aria-label={`Remove ${goal.tag} goal`}
-                    >
-                      <X className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </div>
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  {isMissingTag && (
-                    <p className="text-xs text-muted-foreground">
-                      This tag is no longer in your tag list — sessions logged with it still count.
-                    </p>
-                  )}
+          {/* Built-in goal rows */}
+          {BUILTIN_GOALS.filter(({ field }) => activeBuiltins.has(field)).map(
+            ({ field, inputId, label }) => (
+              <React.Fragment key={field}>
+                <div className="flex items-center space-x-3">
+                  <Label htmlFor={inputId} className="min-w-0 flex-1 text-sm font-medium">
+                    {label}
+                  </Label>
+                  <Input
+                    id={inputId}
+                    type="number"
+                    min="0"
+                    max="99"
+                    placeholder="0"
+                    value={localFormData[field]}
+                    onChange={(e) => handleInputChange(field, e.target.value)}
+                    className={`w-20 ${localValidation[field].isValid ? '' : 'border-red-500'}`}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveBuiltin(field)}
+                    className="h-8 w-8 p-0"
+                    aria-label={`Remove ${label} goal`}
+                  >
+                    <X className="h-4 w-4 text-gray-500" />
+                  </Button>
                 </div>
-              );
-            })}
+                {!localValidation[field].isValid && (
+                  <p className="-mt-2 text-sm text-red-500">{localValidation[field].error}</p>
+                )}
+              </React.Fragment>
+            ),
+          )}
 
-            {/* Add goal controls */}
-            {formData.tagGoals.length < MAX_TAG_GOALS && (
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Select value={selectedTag} onValueChange={setSelectedTag}>
-                    <SelectTrigger className="flex-1" aria-label="Tag for new goal">
-                      <SelectValue placeholder="Choose a tag…" />
-                    </SelectTrigger>
-                    <SelectContent>
+          {/* Custom tag goal rows */}
+          {formData.tagGoals.map((goal) => {
+            const tagKey = normalizeStudyTagKey(goal.tag);
+            const isMissingTag = !customTags.some((tag) => normalizeStudyTagKey(tag) === tagKey);
+            const error = tagTargetErrors[goal.id];
+            return (
+              <div key={goal.id} className="space-y-1">
+                <div className="flex items-center space-x-3">
+                  <Label
+                    htmlFor={`tag-goal-${goal.id}`}
+                    className="min-w-0 flex-1 text-sm font-medium"
+                  >
+                    {goal.tag}{' '}
+                    <span className="font-normal text-muted-foreground">
+                      ({unitLabelFor(goal.tag)})
+                    </span>
+                  </Label>
+                  <Input
+                    id={`tag-goal-${goal.id}`}
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={tagTargetDrafts[goal.id] ?? goal.target.toString()}
+                    onChange={(e) => handleTagTargetChange(goal.id, e.target.value)}
+                    className={`w-20 ${error ? 'border-red-500' : ''}`}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveTagGoal(goal.id)}
+                    className="h-8 w-8 p-0"
+                    aria-label={`Remove ${goal.tag} goal`}
+                  >
+                    <X className="h-4 w-4 text-gray-500" />
+                  </Button>
+                </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                {isMissingTag && (
+                  <p className="text-xs text-muted-foreground">
+                    This tag is no longer in your tag list — sessions logged with it still count.
+                  </p>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add goal controls */}
+          <div className="space-y-2 border-t pt-4">
+            <div className="font-medium">Add a goal</div>
+            <div className="flex items-center space-x-2">
+              <Select value={selectedOption} onValueChange={setSelectedOption}>
+                <SelectTrigger className="flex-1" aria-label="Goal to add">
+                  <SelectValue placeholder="Choose a goal…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inactiveBuiltins.map(({ field, label }) => (
+                    <SelectItem key={field} value={builtinOption(field)}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                  {formData.tagGoals.length < MAX_TAG_GOALS && (
+                    <>
                       {availableTags.map((tag) => (
                         <SelectItem key={tag} value={tag}>
                           {tag} ({unitLabelFor(tag)})
                         </SelectItem>
                       ))}
                       <SelectItem value={NEW_TAG_OPTION}>+ New tag…</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="99"
-                    value={newGoalTarget}
-                    onChange={(e) => setNewGoalTarget(e.target.value)}
-                    className="w-20"
-                    aria-label="Target for new goal"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddGoal}
-                    disabled={!selectedTag || isAddingGoal}
-                    className="h-9 px-2"
-                    aria-label="Add custom goal"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {selectedTag === NEW_TAG_OPTION && (
-                  <Input
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder="New tag name (e.g. step method)"
-                    maxLength={25}
-                    aria-label="New tag name"
-                  />
-                )}
-                {addGoalError && <p className="text-sm text-red-500">{addGoalError}</p>}
-              </div>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min="1"
+                max="99"
+                value={newGoalTarget}
+                onChange={(e) => setNewGoalTarget(e.target.value)}
+                className="w-20"
+                aria-label="Target for new goal"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddGoal}
+                disabled={!selectedOption || isAddingGoal}
+                className="h-9 px-2"
+                aria-label="Add goal"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {selectedOption === NEW_TAG_OPTION && (
+              <Input
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="New tag name (e.g. step method)"
+                maxLength={25}
+                aria-label="New tag name"
+              />
             )}
+            {addGoalError && <p className="text-sm text-red-500">{addGoalError}</p>}
           </div>
 
           {/* Auto-tracking Toggle */}
@@ -491,12 +517,12 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
           {/* Help Text */}
           <div className="space-y-1 text-xs text-muted-foreground">
-            <p>• Set goals to 0 to disable that goal type</p>
+            <p>• Remove a goal with the × button to hide it from your daily list</p>
             <p>• Maximum value for any goal is 99</p>
             <p>• Goals persist across days until changed</p>
             <p>
-              • Custom goals use the tag&apos;s configured unit (set in Account → Tag
-              configuration), or count sessions
+              • Tag goals use the tag&apos;s configured unit (set in Account → Tag configuration),
+              or count sessions
             </p>
             {localFormData.autoTracking && (
               <p>• Auto-tracking will show progress and mark goals complete automatically</p>
