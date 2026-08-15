@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import OpeningsPage from './openings';
 
@@ -47,7 +47,6 @@ vi.mock('@/lib/opening-trainer/engine', async (importOriginal) => {
 
 describe('Openings page', () => {
   afterEach(() => {
-    cleanup();
     vi.restoreAllMocks();
   });
 

@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { format } from 'date-fns';
 
 import GameModal from './game-modal';
@@ -91,10 +91,6 @@ function renderWithClient(ui: React.ReactNode) {
 
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
-
-// The suite runs without vitest globals, so RTL's automatic cleanup is never
-// registered and dialogs would otherwise pile up across tests.
-afterEach(cleanup);
 
 describe('GameModal date selection', () => {
   beforeEach(() => {

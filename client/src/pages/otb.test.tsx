@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import OtbPage from './otb';
 import { START_FEN } from '@/lib/otb/constants';
@@ -90,10 +90,6 @@ function pieceGlyphFor(square: string): HTMLElement {
 }
 
 describe('OTB page', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     getOtbGamesMock.mockResolvedValue([]);

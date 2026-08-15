@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { TagManager } from './tag-manager';
 import {
@@ -38,8 +38,6 @@ beforeEach(() => {
     refetch: vi.fn(),
   });
 });
-
-afterEach(cleanup);
 
 describe('TagManager vocabularies', () => {
   it('shows the study vocabulary by default', () => {
