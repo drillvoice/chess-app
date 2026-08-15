@@ -1,66 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { stubFirebase } from './firebase-stubs';
 
 test.beforeEach(async ({ page }) => {
-  const handleAuth = (route) => {
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/javascript',
-      body: `
-        const auth = globalThis.__mockAuth || (globalThis.__mockAuth = { currentUser: null });
-        let authChange;
-        export class GoogleAuthProvider { static credentialFromResult() { return null; } }
-        export async function signInWithPopup() {
-          auth.currentUser = { uid: 'mock', isAnonymous: false };
-          authChange && authChange(auth.currentUser);
-          return { user: auth.currentUser };
-        }
-        export async function linkWithCredential(user, credential) { auth.currentUser = user; return { user }; }
-        export function onAuthStateChanged(_auth, cb) { authChange = cb; cb(auth.currentUser); return () => {}; }
-        export async function signOut() {
-          auth.currentUser = null;
-          authChange && authChange(auth.currentUser);
-        }
-      `,
-    });
-  };
-
-  await page.route('**/*firebase_auth*', handleAuth);
-  await page.route('**/*firebase-auth*', handleAuth);
-
-  await page.route('**/*firebaseClient*', (route) => {
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/javascript',
-      body: `
-        const auth = globalThis.__mockAuth || (globalThis.__mockAuth = { currentUser: null });
-        export async function getFirebaseAuth() { return auth; }
-        export async function getFirestoreDb() { return {}; }
-      `,
-    });
-  });
-
-  const handleFirestore = (route) => {
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/javascript',
-      body: `
-        export const collection = () => {};
-        export const doc = () => ({});
-        export const getDocs = async () => ({ docs: [] });
-        export const getDoc = async () => ({ exists: () => false });
-        export const deleteDoc = async () => {};
-        export const setDoc = async () => {};
-        export const query = () => {};
-        export const where = () => {};
-        export const orderBy = () => {};
-        export const onSnapshot = () => {};
-        export const Timestamp = { now: () => new Date(), fromDate: () => new Date() };
-      `,
-    });
-  };
-
-  await page.route('**/*firebase_firestore*', handleFirestore);
-  await page.route('**/*firebase-firestore*', handleFirestore);
+  await stubFirebase(page);
 });
 
 const viewports = [
