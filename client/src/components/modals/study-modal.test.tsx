@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrainingSession } from '@shared/schema';
 import '@testing-library/jest-dom/vitest';
 import StudyModal from './study-modal';
@@ -52,10 +52,6 @@ function renderWithClient(ui: React.ReactNode) {
 }
 
 describe('StudyModal quantity inputs', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     createSessionMock.mockResolvedValue({});

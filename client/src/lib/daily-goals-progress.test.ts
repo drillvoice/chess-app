@@ -21,6 +21,7 @@ const createSession = (
     gameResult: null,
     gameType: null,
     gameComments: null,
+    mistakeTags: null,
     playerColor: null,
     platform: null,
     timeControl: null,

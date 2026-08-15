@@ -1,6 +1,6 @@
 import type { TrainingSession } from '@shared/schema';
 import { normalizeStudyTagKey } from '@shared/schema';
-import { parseStudyTags } from './storage/study-tags';
+import { parseTagList } from './storage/study-tags';
 import type { ResolvedGoal } from './daily-goals-model';
 
 /**
@@ -21,7 +21,7 @@ function finiteOrZero(value: unknown): number {
 }
 
 function sessionHasTag(session: TrainingSession, tagKey: string): boolean {
-  const tags = parseStudyTags(session.studyTags, session.id);
+  const tags = parseTagList(session.studyTags, session.id, 'studyTags');
   if (!Array.isArray(tags)) return false;
   return tags.some((tag) => typeof tag === 'string' && normalizeStudyTagKey(tag) === tagKey);
 }

@@ -22,6 +22,7 @@ import {
   getSessionSubtitle,
   getSessionValue,
   getSessionValueColor,
+  getSessionMistakeTags,
   formatDate,
 } from './session-display';
 
@@ -37,6 +38,7 @@ export const SessionCard = memo(function SessionCard({
   onDelete: (sessionId: number) => void;
 }) {
   const isPending = (session as any)._pending;
+  const mistakeTags = getSessionMistakeTags(session);
 
   return (
     <Card
@@ -84,6 +86,18 @@ export const SessionCard = memo(function SessionCard({
                   </>
                 )}
               </div>
+              {!isPending && mistakeTags.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {mistakeTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2">

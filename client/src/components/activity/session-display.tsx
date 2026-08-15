@@ -1,5 +1,6 @@
 import { Puzzle, Crown, Book, Clock, Target } from 'lucide-react';
 import { formatStudyDisplay } from '@/lib/utils';
+import { toTagList } from '@/lib/storage/study-tags';
 import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
 
 // --- Helper functions (pure) ---
@@ -34,18 +35,14 @@ export function getSessionBgColor(type: string) {
   }
 }
 
-function parseStudyTags(session: TrainingSession): string[] {
-  if (!session.studyTags) return [];
-  if (Array.isArray(session.studyTags)) return session.studyTags as string[];
-  if (typeof session.studyTags === 'string') {
-    try {
-      const parsed = JSON.parse(session.studyTags);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
+function getStudyTags(session: TrainingSession): string[] {
+  return toTagList(session.studyTags, session.id, 'studyTags');
+}
+
+/** User-recorded mistakes for a game session; empty for every other session type. */
+export function getSessionMistakeTags(session: TrainingSession): string[] {
+  if (session.type !== 'game') return [];
+  return toTagList(session.mistakeTags, session.id, 'mistakeTags');
 }
 
 function getStudyUnitLabel(
@@ -66,7 +63,7 @@ export function getSessionTitle(
     case 'game':
       return session.opponentUsername ? `Game v ${session.opponentUsername}` : 'Chess Game';
     case 'study': {
-      const tags = parseStudyTags(session);
+      const tags = getStudyTags(session);
       const baseTitle = tags.length > 0 ? `Study: ${tags.join(', ')}` : formatStudyDisplay(session);
       if (typeof session.quantity === 'number' && session.quantity > 0) {
         const unitLabel = getStudyUnitLabel(session, studyUnitLabelByTag) || 'units';

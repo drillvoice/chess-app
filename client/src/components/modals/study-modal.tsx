@@ -92,9 +92,9 @@ export default function StudyModal({
     mutationFn: async (data: StudySession) => {
       const { createSession, updateSession } = await import('@/lib/firebase');
       if (isEditMode && editingSession) {
-        return await updateSession(editingSession.id, data as any);
+        return await updateSession(editingSession.id, data);
       }
-      return await createSession(data as any);
+      return await createSession(data);
     },
     onMutate: async (newSession) => {
       // Close modal immediately for better UX
@@ -129,6 +129,7 @@ export default function StudyModal({
           gameResult: null,
           gameType: null,
           gameComments: null,
+          mistakeTags: null,
           playerColor: null,
           platform: null,
           timeControl: null,
@@ -167,6 +168,7 @@ export default function StudyModal({
           gameResult: null,
           gameType: null,
           gameComments: null,
+          mistakeTags: null,
           playerColor: null,
           platform: null,
           timeControl: null,

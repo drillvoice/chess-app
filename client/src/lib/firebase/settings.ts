@@ -182,6 +182,8 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
 const DEFAULT_STUDY_PREFERENCES: UserStudyPreferences = {
   customTags: ['reading', 'videos', 'coaching'],
   tagConfigs: {},
+  // Deliberately empty: the mistake vocabulary is entirely user-defined.
+  customMistakeTags: [],
   lastModified: new Date(),
 };
 
@@ -433,5 +435,68 @@ export async function removeCustomStudyTag(tagName: string): Promise<void> {
       throw new SettingsError('Failed to remove custom study tag', error);
     }
     throw new SettingsError('Failed to remove custom study tag');
+  }
+}
+
+// Add a mistake tag to the user's game-mistake vocabulary
+export async function addCustomMistakeTag(tagName: string): Promise<void> {
+  logger.debug('🆕 Adding custom mistake tag:', tagName);
+
+  try {
+    const currentPreferences = await getUserStudyPreferences();
+    const currentTags = currentPreferences.customMistakeTags ?? [];
+
+    // Check if tag already exists (case-insensitive)
+    const existingTag = currentTags.find((tag) => tag.toLowerCase() === tagName.toLowerCase());
+
+    if (existingTag) {
+      logger.debug('Mistake tag already exists:', existingTag);
+      return; // No need to add
+    }
+
+    // Add new tag (alphabetically sorted)
+    const updatedTags = [...currentTags, tagName].sort();
+
+    await updateUserStudyPreferences({
+      ...currentPreferences,
+      customMistakeTags: updatedTags,
+    });
+    logger.debug('✅ Custom mistake tag added successfully');
+  } catch (error) {
+    console.error('❌ Error adding custom mistake tag:', error);
+    if (error instanceof Error) {
+      throw new SettingsError('Failed to add custom mistake tag', error);
+    }
+    throw new SettingsError('Failed to add custom mistake tag');
+  }
+}
+
+// Remove a mistake tag from the user's game-mistake vocabulary
+export async function removeCustomMistakeTag(tagName: string): Promise<void> {
+  logger.debug('🗑️ Removing custom mistake tag:', tagName);
+
+  try {
+    const currentPreferences = await getUserStudyPreferences();
+    const currentTags = currentPreferences.customMistakeTags ?? [];
+
+    // Remove the tag (case-sensitive match)
+    const updatedTags = currentTags.filter((tag) => tag !== tagName);
+
+    if (updatedTags.length === currentTags.length) {
+      logger.debug('Mistake tag not found:', tagName);
+      return; // Tag wasn't found, no change needed
+    }
+
+    await updateUserStudyPreferences({
+      ...currentPreferences,
+      customMistakeTags: updatedTags,
+    });
+    logger.debug('✅ Custom mistake tag removed successfully');
+  } catch (error) {
+    console.error('❌ Error removing custom mistake tag:', error);
+    if (error instanceof Error) {
+      throw new SettingsError('Failed to remove custom mistake tag', error);
+    }
+    throw new SettingsError('Failed to remove custom mistake tag');
   }
 }

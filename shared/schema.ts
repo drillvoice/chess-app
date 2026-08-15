@@ -41,6 +41,7 @@ export const gameFields = [
   'gameResult',
   'gameType',
   'gameComments',
+  'mistakeTags',
   'playerColor',
   'platform',
   'timeControl',
@@ -71,6 +72,7 @@ export const trainingSessionsTable = pgTable('training_sessions', {
   gameResult: text('game_result'), // 'win', 'loss', 'draw'
   gameType: text('game_type'), // 'blitz', 'rapid', 'classical', 'bullet'
   gameComments: text('game_comments'),
+  mistakeTags: text('mistake_tags'), // JSON array of user-defined mistake tags (e.g. "hung a piece")
   playerColor: text('player_color'), // 'white', 'black'
   platform: text('platform'), // 'lichess', 'chess.com', 'otb'
   timeControl: text('time_control'), // 'bullet', 'blitz', 'rapid', 'classical'
@@ -98,6 +100,17 @@ export const insertTrainingSessionSchema = createInsertSchema(trainingSessionsTa
     needsReview: z.boolean().optional(),
     date: isoDateOptional,
   });
+
+// Tag validation. Despite the `study` prefix (kept for backward compatibility with
+// existing imports) this is the generic tag-string rule, shared by study tags and
+// game mistake tags. Declared here because gameSessionSchema below depends on it.
+export const studyTagSchema = z
+  .string()
+  .min(1, 'Tag cannot be empty')
+  .max(25, 'Tag cannot exceed 25 characters')
+  .refine((tag) => !/[<>&"']/.test(tag), 'Tag cannot contain special characters < > & " \'');
+
+export const normalizeStudyTagKey = (tag: string): string => tag.trim().toLowerCase();
 
 export const tacticsSessionSchema = insertTrainingSessionSchema
   .extend({
@@ -153,6 +166,13 @@ export const gameSessionSchema = insertTrainingSessionSchema
       required_error: 'Game result is required',
     }),
     gameComments: z.string().optional(),
+    // Recorded on every game (not just losses) so mistake frequency can later be
+    // sliced by gameResult — e.g. "which mistakes show up mostly in my losses?".
+    mistakeTags: z
+      .array(studyTagSchema)
+      .max(10, 'Cannot select more than 10 mistake tags')
+      .optional()
+      .default([]),
     playerColor: z.enum(['white', 'black'], {
       required_error: 'Player colour is required',
     }),
@@ -163,15 +183,6 @@ export const gameSessionSchema = insertTrainingSessionSchema
     openingEco: z.string().optional(),
   })
   .omit(buildOmit(tacticsFields, studyFields, goalFields, ['gameType', 'duration'] as const));
-
-// Study tag validation schema
-export const studyTagSchema = z
-  .string()
-  .min(1, 'Tag cannot be empty')
-  .max(25, 'Tag cannot exceed 25 characters')
-  .refine((tag) => !/[<>&"']/.test(tag), 'Tag cannot contain special characters < > & " \'');
-
-export const normalizeStudyTagKey = (tag: string): string => tag.trim().toLowerCase();
 
 const studyUnitLabelSchema = z
   .string()
@@ -262,6 +273,14 @@ export const userStudyPreferencesSchema = z.object({
     .max(10, 'Cannot have more than 10 custom tags')
     .default(['reading', 'videos', 'coaching']), // Default tags
   tagConfigs: studyTagConfigsSchema,
+  // The user's mistake-tag vocabulary for game sessions. Starts empty — unlike
+  // customTags there is no seeded list, the user builds their own vocabulary.
+  // Additive: docs written by older clients simply lack the field and `.default([])`
+  // fills it in on read, the same pattern as `tagGoals` on dailyGoalSettingsSchema.
+  customMistakeTags: z
+    .array(studyTagSchema)
+    .max(20, 'Cannot have more than 20 mistake tags')
+    .default([]),
   lastModified: isoDateOptional,
 });
 
@@ -292,6 +311,16 @@ export const dailyGoalSettingsSchema = z.object({
 });
 
 export type InsertTrainingSession = z.infer<typeof insertTrainingSessionSchema>;
+/**
+ * A session as the app hands it to the storage layer. The persisted schema
+ * declares the tag-list fields as JSON strings, but callers (the modals, the
+ * importers) still hold them as arrays at this point — createSession /
+ * updateSession serialize them on the way in.
+ */
+export type SessionInput = Omit<InsertTrainingSession, 'studyTags' | 'mistakeTags'> & {
+  studyTags?: string[] | string | null;
+  mistakeTags?: string[] | string | null;
+};
 export type TacticsSession = z.infer<typeof tacticsSessionSchema>;
 export type GameSession = z.infer<typeof gameSessionSchema>;
 export type StudySession = z.infer<typeof studySessionSchema>;

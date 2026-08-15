@@ -7,6 +7,24 @@ import GameModal from './game-modal';
 import { createSession } from '@/lib/firebase';
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+// Stand in for the tag picker so tests drive selection directly, the same way
+// study-modal.test.tsx does.
+vi.mock('@/components/ui/tag-manager', () => ({
+  TagManager: ({
+    selectedTags,
+    onTagsChange,
+  }: {
+    selectedTags: string[];
+    onTagsChange: (tags: string[]) => void;
+  }) => (
+    <div>
+      <span data-testid="selected-mistake-tags">{selectedTags.join(',')}</span>
+      <button type="button" onClick={() => onTagsChange(['hung a piece', 'time trouble'])}>
+        Select mistakes
+      </button>
+    </div>
+  ),
+}));
 vi.mock('@/lib/firebase', () => ({
   createSession: vi.fn(),
   updateSession: vi.fn(),
@@ -114,6 +132,80 @@ describe('GameModal date selection', () => {
     expect(saveButton.disabled).toBe(true);
     fireEvent.click(saveButton);
     expect(createSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('GameModal mistake tags', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('records selected mistake tags on the created session', async () => {
+    renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Black' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Loss' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select mistakes' }));
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled());
+    expect(vi.mocked(createSession).mock.calls[0][0].mistakeTags).toEqual([
+      'hung a piece',
+      'time trouble',
+    ]);
+  });
+
+  it('records mistake tags on wins too, so frequency can be sliced by result', async () => {
+    renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'White' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Win' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select mistakes' }));
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled());
+    const submitted = vi.mocked(createSession).mock.calls[0][0];
+    expect(submitted.gameResult).toBe('win');
+    expect(submitted.mistakeTags).toEqual(['hung a piece', 'time trouble']);
+  });
+
+  it('sends an empty list when no mistakes are selected', async () => {
+    renderWithClient(<GameModal open={true} onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'White' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draw' }));
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled());
+    expect(vi.mocked(createSession).mock.calls[0][0].mistakeTags).toEqual([]);
+  });
+
+  it('hydrates stored mistake tags when editing an existing game', async () => {
+    const editingSession = {
+      id: 42,
+      type: 'game',
+      date: new Date('2024-10-01'),
+      gameResult: 'loss',
+      playerColor: 'black',
+      platform: 'lichess',
+      mistakeTags: '["missed a pin"]',
+    } as any;
+
+    renderWithClient(
+      <GameModal
+        open={true}
+        onOpenChange={() => {}}
+        editingSession={editingSession}
+        isEditMode={true}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('selected-mistake-tags').textContent).toBe('missed a pin'),
+    );
   });
 });
 

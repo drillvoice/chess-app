@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -53,8 +53,6 @@ import Activity from '@/pages/activity';
 import Account from '@/pages/account';
 
 describe('data management location', () => {
-  afterEach(() => cleanup());
-
   it('shows account tab in navigation', () => {
     render(<Navigation />);
     expect(screen.getByRole('button', { name: /settings/i })).toBeInTheDocument();
@@ -87,8 +85,6 @@ describe('data management location', () => {
 });
 
 describe('account accordion behavior', () => {
-  afterEach(() => cleanup());
-
   it('allows multiple sections open and independent collapse', async () => {
     render(<Account />);
 

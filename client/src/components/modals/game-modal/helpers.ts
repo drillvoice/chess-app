@@ -18,6 +18,8 @@ export function buildEditOptimisticSession(
     gameResult: newSession.gameResult,
     gameType: null,
     gameComments: newSession.gameComments || null,
+    // Serialized here so the optimistic row matches the shape read back from storage.
+    mistakeTags: JSON.stringify(newSession.mistakeTags ?? []),
     playerColor: newSession.playerColor,
     platform: newSession.platform ?? editingSession.platform, // Preserve existing platform if not changed
     timeControl: newSession.timeControl ?? editingSession.timeControl, // Preserve existing timeControl if not changed
@@ -54,6 +56,8 @@ export function buildCreateOptimisticSession(
     gameResult: newSession.gameResult,
     gameType: null,
     gameComments: newSession.gameComments || null,
+    // Serialized here so the optimistic row matches the shape read back from storage.
+    mistakeTags: JSON.stringify(newSession.mistakeTags ?? []),
     playerColor: newSession.playerColor,
     platform: newSession.platform ?? null,
     timeControl: newSession.timeControl ?? null,
