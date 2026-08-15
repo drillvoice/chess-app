@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.8.0] - 15 August 2026
+
+- **Mistake tags on logged games**: the Log game modal has a tag picker under Comments, so a recurring error ("hung a piece", "bad time management") can be recorded as a tag instead of being buried in free text. Tags are your own vocabulary — type a new one and it's saved for next time
+- Mistake tags are recorded on **every** game, not just losses, so a future breakdown can compare which mistakes show up in wins vs losses. The tags appear as chips on activity cards and carry through CSV export, import and backup restore
+- The tag picker behind study tags and mistake tags is now one component with two vocabularies, and its selection cap is configurable per use (it previously hardcoded 10 and ignored the caller's limit)
+- Custom daily goals are now **verified**, not just synced: backup verification compares the actual goal content on each side instead of merely checking that a settings document exists (a cloud backup missing your custom goals used to report healthy), and export validation runs the full goal schema rather than hand-checking the three built-in numeric fields
+- Backward compatible: `mistakeTags` and the custom-tag vocabulary are additive and default to empty, so sessions and preference documents written by older clients read fine, and a partial session update can no longer blank stored tags
+
+### Fixed the CI pipeline (no user-facing change)
+
+CI had been red on every run for months, which meant nothing downstream of the
+unit tests ever ran. The causes were all in the test setup, not the app:
+
+- Several page tests treated "the save mock was called" as "the page has finished
+  loading" and then queried or tapped the board synchronously. That gap is empty
+  on a fast dev machine and real on a CI runner, so the taps landed before there
+  was any state to act on. The openings and OTB page tests now wait for the drill
+  (or the loaded game) to actually be on screen — reproduced by delaying the
+  mocked storage calls, which turns the flake into a deterministic failure
+- The end-to-end suite had never been reached, and had rotted: its Firebase stub
+  was missing exports the app imports (blanking the page), its module glob also
+  matched the app's own `firebase-auth.tsx` component, and it looked for an
+  "Account" nav button and a top-level "Data management" section that had both
+  since moved. Stubs are now shared from `tests/firebase-stubs.ts` instead of
+  being copy-pasted per spec
+- CI runs every check even when an earlier one fails, so a red build reports all
+  the problems at once; it also caches npm, runs on Node 22, cancels superseded
+  PR runs, and uploads the Playwright report on failure
+
 ## [2.7.0] - 19 July 2026
 
 - **Customizable daily goals**: daily goals are no longer limited to the three built-in types. Add custom goals tied to "Other study" tags (e.g. Chessable, Anki, step method) — pick an existing tag or create a new one right from the goal settings dialog (new tags are registered in your study-tag list automatically)
