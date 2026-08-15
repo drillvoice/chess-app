@@ -15,26 +15,73 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-import { addCustomStudyTag, removeCustomStudyTag } from '@/lib/firebase/settings';
+import {
+  addCustomStudyTag,
+  removeCustomStudyTag,
+  addCustomMistakeTag,
+  removeCustomMistakeTag,
+} from '@/lib/firebase/settings';
 import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
+import type { UserStudyPreferences } from '@shared/schema';
+
+/**
+ * Which persisted tag vocabulary this picker edits. Both live on the same
+ * preferences document, so they share the offline-first read/write and the
+ * cross-component cache in use-study-preferences.
+ */
+export type TagVocabulary = 'study' | 'mistake';
+
+const VOCABULARIES: Record<
+  TagVocabulary,
+  {
+    read: (prefs: UserStudyPreferences) => string[];
+    write: (prefs: UserStudyPreferences, tags: string[]) => UserStudyPreferences;
+    add: (tag: string) => Promise<void>;
+    remove: (tag: string) => Promise<void>;
+  }
+> = {
+  study: {
+    read: (prefs) => prefs.customTags ?? [],
+    write: (prefs, customTags) => ({ ...prefs, customTags }),
+    add: addCustomStudyTag,
+    remove: removeCustomStudyTag,
+  },
+  mistake: {
+    read: (prefs) => prefs.customMistakeTags ?? [],
+    write: (prefs, customMistakeTags) => ({ ...prefs, customMistakeTags }),
+    add: addCustomMistakeTag,
+    remove: removeCustomMistakeTag,
+  },
+};
 
 interface TagManagerProps {
   selectedTags: string[];
   onTagsChange: (tags: string[]) => void;
+  vocabulary?: TagVocabulary;
   label?: string;
   placeholder?: string;
+  emptyMessage?: string;
+  /** Cap on the size of the saved vocabulary. */
   maxTags?: number;
+  /** Cap on how many tags may be selected on a single session. */
+  maxSelected?: number;
+  selectedClassName?: string;
   disabled?: boolean;
 }
 
 export function TagManager({
   selectedTags,
   onTagsChange,
+  vocabulary = 'study',
   label = 'Study tags',
   placeholder = 'Add new tag...',
+  emptyMessage = 'No custom tags yet.',
   maxTags = 10,
+  maxSelected = 10,
+  selectedClassName = 'border-amber-300 bg-amber-50 text-amber-800',
   disabled = false,
 }: TagManagerProps) {
+  const store = VOCABULARIES[vocabulary];
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -52,10 +99,10 @@ export function TagManager({
   // Update available tags when preferences change
   useEffect(() => {
     if (preferences) {
-      setAvailableTags(preferences.customTags);
+      setAvailableTags(store.read(preferences));
       setIsLoading(false);
     }
-  }, [preferences]);
+  }, [preferences, store]);
 
   // Set loading state based on preferences loading
   useEffect(() => {
@@ -87,7 +134,7 @@ export function TagManager({
 
     try {
       setIsAddingTag(true);
-      await addCustomStudyTag(trimmedTag);
+      await store.add(trimmedTag);
 
       // Update local state immediately for better UX
       const newTags = [...availableTags, trimmedTag].sort();
@@ -96,21 +143,17 @@ export function TagManager({
       setShowAddInput(false); // Hide input after adding
 
       // Automatically select the new tag if it isn't already selected
-      // and we haven't reached the 10-tag limit
+      // and we haven't reached the selection limit
       if (
         !selectedTags.some((tag) => tag.toLowerCase() === trimmedTag.toLowerCase()) &&
-        selectedTags.length < 10
+        selectedTags.length < maxSelected
       ) {
         onTagsChange([...selectedTags, trimmedTag]);
       }
 
       // Update the global cache
       if (preferences) {
-        const updatedPreferences = {
-          ...preferences,
-          customTags: newTags,
-        };
-        await updateStudyPreferences(updatedPreferences);
+        await updateStudyPreferences(store.write(preferences, newTags));
       }
     } catch (error) {
       console.error('Failed to add tag:', error);
@@ -122,7 +165,7 @@ export function TagManager({
   const handleRemoveTag = async (tagToRemove: string) => {
     try {
       setIsDeletingTag(tagToRemove);
-      await removeCustomStudyTag(tagToRemove);
+      await store.remove(tagToRemove);
 
       // Update local state immediately
       const newTags = availableTags.filter((tag) => tag !== tagToRemove);
@@ -135,11 +178,7 @@ export function TagManager({
 
       // Update the global cache
       if (preferences) {
-        const updatedPreferences = {
-          ...preferences,
-          customTags: newTags,
-        };
-        await updateStudyPreferences(updatedPreferences);
+        await updateStudyPreferences(store.write(preferences, newTags));
       }
     } catch (error) {
       console.error('Failed to remove tag:', error);
@@ -155,8 +194,8 @@ export function TagManager({
       // Remove tag
       onTagsChange(selectedTags.filter((t) => t !== tag));
     } else {
-      // Add tag (limit to 10 selected)
-      if (selectedTags.length >= 10) {
+      // Add tag (respecting the per-session selection cap)
+      if (selectedTags.length >= maxSelected) {
         return;
       }
       onTagsChange([...selectedTags, tag]);
@@ -194,7 +233,7 @@ export function TagManager({
                 key={tag}
                 className={`group relative flex items-center gap-1 rounded-md border px-2 py-1 text-sm transition-colors ${
                   selectedTags.includes(tag)
-                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    ? selectedClassName
                     : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100'
                 } ${disabled ? 'opacity-50' : 'cursor-pointer'}`}
                 onClick={() => handleTagToggle(tag)}
@@ -253,7 +292,7 @@ export function TagManager({
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-500">No custom tags yet.</p>
+            <p className="text-sm text-gray-500">{emptyMessage}</p>
             {!showAddInput && (
               <Button
                 type="button"

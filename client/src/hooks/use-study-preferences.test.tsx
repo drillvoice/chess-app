@@ -16,6 +16,7 @@ const mockUpdate = vi.mocked(updateUserStudyPreferences);
 const basePreferences: UserStudyPreferences = {
   customTags: ['reading', 'videos', 'coaching'],
   tagConfigs: {},
+  customMistakeTags: [],
 };
 
 describe('useStudyPreferences', () => {

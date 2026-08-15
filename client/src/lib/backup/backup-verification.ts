@@ -345,6 +345,7 @@ export class BackupVerificationManager {
                 gameResult: session.gameResult,
                 gameType: session.gameType,
                 gameComments: session.gameComments,
+                mistakeTags: session.mistakeTags,
                 playerColor: session.playerColor,
                 platform: session.platform,
                 timeControl: session.timeControl,

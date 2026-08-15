@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { TagManager } from '@/components/ui/tag-manager';
+import { toTagList } from '@/lib/storage/study-tags';
 // Dynamic import for firebase to maintain code splitting
 import { gameSessionSchema, type GameSession, type TrainingSession } from '@shared/schema';
 import { buildCreateOptimisticSession, buildEditOptimisticSession } from './game-modal/helpers';
@@ -44,6 +46,7 @@ export default function GameModal({
   const [selectedPlatform, setSelectedPlatform] = useState<'lichess' | 'chess.com' | 'otb' | null>(
     null,
   );
+  const [selectedMistakeTags, setSelectedMistakeTags] = useState<string[]>([]);
   const opponent = useOpponentAutocomplete();
   const { selectedDate, dateInput, isDateValid, setDate, handleDateInputChange } =
     useDateField(editingSession);
@@ -64,6 +67,7 @@ export default function GameModal({
           ? (editingSession.gameResult as 'win' | 'loss' | 'draw' | undefined)
           : undefined,
       gameComments: isEditMode && editingSession ? editingSession.gameComments || '' : '',
+      mistakeTags: [],
       playerColor:
         isEditMode && editingSession
           ? (editingSession.playerColor as 'white' | 'black' | undefined)
@@ -109,6 +113,7 @@ export default function GameModal({
       setSelectedColor(null);
       setSelectedTimeControl(null);
       setSelectedPlatform(null);
+      setSelectedMistakeTags([]);
       opponent.reset();
       setDate(new Date());
 
@@ -218,6 +223,9 @@ export default function GameModal({
       setSelectedColor(playerColor);
       setSelectedTimeControl(timeControl);
       setSelectedPlatform(platform as 'lichess' | 'chess.com' | 'otb' | null);
+      setSelectedMistakeTags(
+        toTagList(editingSession.mistakeTags, editingSession.id, 'mistakeTags'),
+      );
       opponent.reset(opponentUsername);
       setDate(new Date(editingSession.date));
 
@@ -243,10 +251,17 @@ export default function GameModal({
         setValue('opponentUsername', opponentUsername, { shouldValidate: true });
       }
     } else {
+      setSelectedMistakeTags([]);
       setDate(new Date());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingSession, isEditMode, setValue]);
+
+  // Mirror the locally-held tag selection into the form so zod validates it
+  // (same pattern the study modal uses for studyTags).
+  useEffect(() => {
+    setValue('mistakeTags', selectedMistakeTags, { shouldValidate: true });
+  }, [selectedMistakeTags, setValue]);
 
   const onSubmit = (data: GameSession) => {
     if (selectedDate > new Date()) {
@@ -258,9 +273,10 @@ export default function GameModal({
       return;
     }
 
-    // Add selected date to the session data
+    // Add selected date and mistake tags to the session data
     const sessionData = {
       ...data,
+      mistakeTags: selectedMistakeTags,
       date: selectedDate,
     };
     mutation.mutate(sessionData);
@@ -320,6 +336,7 @@ export default function GameModal({
           type: 'game',
           gameResult: undefined,
           gameComments: '',
+          mistakeTags: [],
           playerColor: undefined,
           platform: undefined,
           timeControl: undefined,
@@ -329,6 +346,7 @@ export default function GameModal({
         setSelectedColor(null);
         setSelectedTimeControl(null);
         setSelectedPlatform(null);
+        setSelectedMistakeTags([]);
         opponent.reset();
       }
       if (!mutation.isPending) {
@@ -406,6 +424,22 @@ export default function GameModal({
                 rows={2}
                 {...register('gameComments')}
               />
+            </div>
+
+            <div>
+              <TagManager
+                vocabulary="mistake"
+                selectedTags={selectedMistakeTags}
+                onTagsChange={setSelectedMistakeTags}
+                label="Mistakes"
+                placeholder="e.g. hung a piece"
+                emptyMessage="No mistake tags yet."
+                maxTags={20}
+                selectedClassName="border-rose-300 bg-rose-50 text-rose-800"
+              />
+              {errors.mistakeTags && (
+                <p className="mt-1 text-sm text-red-600">{errors.mistakeTags.message}</p>
+              )}
             </div>
           </div>
 

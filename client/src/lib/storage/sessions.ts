@@ -1,5 +1,5 @@
 import { withStores } from './transaction';
-import { parseStudyTags } from './study-tags';
+import { parseTagList } from './study-tags';
 import { logger } from '../logger';
 import type { TrainingSession } from '@shared/schema';
 
@@ -11,17 +11,17 @@ const QUEUE = 'sync_queue';
  * Deserialize a raw IndexedDB record into a TrainingSession, healing
  * corruption on read (the same pattern as normalizeRepertoire for openings).
  *
- * IndexedDB stores `date` as an ISO string (see addSession/setSessions) and
- * `studyTags` as a JSON string. This function restores both to their runtime
- * types, normalises `needsReview` to a proper boolean, and coerces any
- * non-finite numeric field to undefined — persisted/synced numbers are
- * untrusted input, and a NaN reaching date math or aggregation is the bug
- * class CLAUDE.md warns about.
+ * IndexedDB stores `date` as an ISO string (see addSession/setSessions) and the
+ * tag-list fields (`studyTags`, `mistakeTags`) as JSON strings. This function
+ * restores them to their runtime types, normalises `needsReview` to a proper
+ * boolean, and coerces any non-finite numeric field to undefined —
+ * persisted/synced numbers are untrusted input, and a NaN reaching date math or
+ * aggregation is the bug class CLAUDE.md warns about.
  *
  * The `as TrainingSession` cast is intentional: the stored record is
  * structurally identical to TrainingSession for all other fields. The only
- * persistent mismatch is `studyTags` (schema says `string | null`; the app
- * always works with `string[]`), which parseStudyTags handles.
+ * persistent mismatches are the tag lists (schema says `string | null`; the app
+ * always works with `string[]`), which parseTagList handles.
  */
 const NUMERIC_SESSION_FIELDS = [
   'duration',
@@ -38,7 +38,8 @@ function hydrateSession(raw: Record<string, unknown>): TrainingSession {
     ...raw,
     date: hydrateDate(raw.date, id),
     needsReview: Boolean(raw.needsReview),
-    studyTags: parseStudyTags(raw.studyTags as string | null, id),
+    studyTags: parseTagList(raw.studyTags as string | null, id, 'studyTags'),
+    mistakeTags: parseTagList(raw.mistakeTags as string | null, id, 'mistakeTags'),
   };
   for (const field of NUMERIC_SESSION_FIELDS) {
     const value = session[field];
@@ -133,7 +134,8 @@ export async function updateSession(
       date: new Date(updated.date),
       updatedAt: new Date(updated.updatedAt),
       needsReview: Boolean(updated.needsReview),
-      studyTags: parseStudyTags(updated.studyTags, id),
+      studyTags: parseTagList(updated.studyTags, id, 'studyTags'),
+      mistakeTags: parseTagList(updated.mistakeTags, id, 'mistakeTags'),
     } as TrainingSession;
   });
 }

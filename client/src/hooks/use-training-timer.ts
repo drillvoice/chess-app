@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createSession, getSessionsByDateRange, updateSession } from '@/lib/firebase/firestore';
 import { addCustomStudyTag } from '@/lib/firebase/settings';
-import { parseStudyTags } from '@/lib/storage/study-tags';
+import { parseTagList } from '@/lib/storage/study-tags';
 import type { InsertTrainingSession, StudySession } from '@shared/schema';
 
 // Stop counting after this long with no interaction, so a forgotten screen
@@ -51,7 +51,7 @@ async function defaultFlushSession(minutes: number): Promise<void> {
     (s) =>
       s.type === 'study' &&
       s.studyNotes === AUTO_LOG_NOTE &&
-      (parseStudyTags(s.studyTags) ?? []).includes(STUDY_TAG),
+      (parseTagList(s.studyTags) ?? []).includes(STUDY_TAG),
   );
 
   if (existing) {

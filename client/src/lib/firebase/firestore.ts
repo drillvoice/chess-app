@@ -1,7 +1,12 @@
-import { TrainingSession, InsertTrainingSession, DailyGoalSettings } from '@shared/schema';
+import {
+  TrainingSession,
+  InsertTrainingSession,
+  SessionInput,
+  DailyGoalSettings,
+} from '@shared/schema';
 import { SessionsCache, StatisticsCache, WeeklyGoalCache } from '../cache-utils';
 import { offlineStorage } from '../offline-storage';
-import { serializeStudyTags } from '../storage/study-tags';
+import { serializeTagList } from '../storage/study-tags';
 import { queryClient } from '../queryClient';
 import { safeDatabaseOperation } from '../query-timeout';
 import { migrateStudySessions, getMigrationStats } from '../migration';
@@ -98,11 +103,19 @@ export async function getSessionsByDateRange(
   }
 }
 
-// Helper function to convert studyTags array to JSON string for storage
-function prepareSessionForStorage(
-  session: Partial<InsertTrainingSession>,
-): Partial<InsertTrainingSession> {
-  return { ...session, studyTags: serializeStudyTags(session.studyTags) };
+// Helper function to convert tag-list arrays to JSON strings for storage.
+// Only rewrites keys the caller actually supplied: this also runs on partial
+// update payloads, and emitting `mistakeTags: undefined` for a caller that never
+// mentioned it (e.g. the OTB session bridge) would blank the stored tags when
+// the update is spread over the existing record.
+function prepareSessionForStorage(session: Partial<SessionInput>): Partial<InsertTrainingSession> {
+  const prepared: Record<string, unknown> = { ...session };
+  for (const field of ['studyTags', 'mistakeTags'] as const) {
+    if (field in prepared) {
+      prepared[field] = serializeTagList(prepared[field]);
+    }
+  }
+  return prepared as Partial<InsertTrainingSession>;
 }
 
 function canSyncToCloud(): boolean {
@@ -114,7 +127,7 @@ interface CreateSessionOptions {
 }
 
 export async function createSession(
-  insertSession: InsertTrainingSession,
+  insertSession: SessionInput,
   id?: number,
   options: CreateSessionOptions = {},
 ): Promise<TrainingSession> {
@@ -179,7 +192,7 @@ export async function createSession(
 
 export async function updateSession(
   id: number,
-  updateData: Partial<InsertTrainingSession>,
+  updateData: Partial<SessionInput>,
 ): Promise<TrainingSession | null> {
   logger.debug('updateSession called with id:', id, 'updateData:', updateData);
   try {

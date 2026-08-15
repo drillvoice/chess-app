@@ -143,6 +143,37 @@ describe('session schema validation', () => {
     ).toThrow();
   });
 
+  it('validates game session mistake tags', () => {
+    const base = { type: 'game', gameResult: 'loss', playerColor: 'black' };
+
+    // Recorded regardless of result, so frequency can later be sliced by gameResult
+    expect(
+      gameSessionSchema.parse({ ...base, mistakeTags: ['hung a piece', 'time trouble'] } as any),
+    ).toMatchObject({ mistakeTags: ['hung a piece', 'time trouble'] });
+    expect(
+      gameSessionSchema.parse({
+        ...base,
+        gameResult: 'win',
+        mistakeTags: ['missed a pin'],
+      } as any),
+    ).toMatchObject({ mistakeTags: ['missed a pin'] });
+
+    // Absent on legacy records → empty list, never undefined
+    expect(gameSessionSchema.parse(base as any).mistakeTags).toEqual([]);
+
+    // Same character rules as study tags
+    expect(() => gameSessionSchema.parse({ ...base, mistakeTags: ['<bad>'] } as any)).toThrow();
+    expect(() => gameSessionSchema.parse({ ...base, mistakeTags: [''] } as any)).toThrow();
+
+    // Capped at 10 per game
+    expect(() =>
+      gameSessionSchema.parse({
+        ...base,
+        mistakeTags: Array.from({ length: 11 }, (_, i) => `tag ${i}`),
+      } as any),
+    ).toThrow();
+  });
+
   it('validates goal sessions', () => {
     const valid = { type: 'goal', goalTitle: 'Win' } as any;
     expect(goalSessionSchema.parse(valid)).toMatchObject(valid);
@@ -187,6 +218,28 @@ describe('date preprocessing', () => {
     });
 
     expect(parsed.tagConfigs).toEqual({});
+  });
+
+  it('defaults customMistakeTags for preference docs written by older clients', () => {
+    const parsed = userStudyPreferencesSchema.parse({ customTags: ['reading'] });
+
+    expect(parsed.customMistakeTags).toEqual([]);
+  });
+
+  it('validates the mistake tag vocabulary', () => {
+    expect(
+      userStudyPreferencesSchema.parse({
+        customTags: ['reading'],
+        customMistakeTags: ['hung a piece', 'missed a pin'],
+      }).customMistakeTags,
+    ).toEqual(['hung a piece', 'missed a pin']);
+
+    expect(() =>
+      userStudyPreferencesSchema.parse({
+        customTags: ['reading'],
+        customMistakeTags: Array.from({ length: 21 }, (_, i) => `tag ${i}`),
+      }),
+    ).toThrow();
   });
 
   it('validates tagConfigs structure and normalized keys', () => {
