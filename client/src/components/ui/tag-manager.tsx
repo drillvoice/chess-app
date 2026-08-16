@@ -22,7 +22,8 @@ import {
   removeCustomMistakeTag,
 } from '@/lib/firebase/settings';
 import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
-import type { UserStudyPreferences } from '@shared/schema';
+import { useToast } from '@/hooks/use-toast';
+import { studyTagSchema, type UserStudyPreferences } from '@shared/schema';
 
 /**
  * Which persisted tag vocabulary this picker edits. Both live on the same
@@ -88,6 +89,8 @@ export function TagManager({
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isDeletingTag, setIsDeletingTag] = useState<string | null>(null);
   const [showAddInput, setShowAddInput] = useState(false);
+  const [inputError, setInputError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Use the optimized hook for study preferences
   const {
@@ -114,23 +117,27 @@ export function TagManager({
 
     if (!trimmedTag) return;
 
-    // Validation
-    if (trimmedTag.length > 25) {
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9\s\-']+$/.test(trimmedTag)) {
+    // Validate against the schema itself rather than a parallel rule: the two used
+    // to disagree (this input accepted apostrophes, the schema rejects them), so a
+    // tag could pass here and then fail on save with nothing shown to the user.
+    const validation = studyTagSchema.safeParse(trimmedTag);
+    if (!validation.success) {
+      setInputError(validation.error.issues[0]?.message ?? 'That tag is not allowed');
       return;
     }
 
     if (availableTags.length >= maxTags) {
+      setInputError(`You can save at most ${maxTags} tags`);
       return;
     }
 
     // Check if tag already exists (case-insensitive)
     if (availableTags.some((tag) => tag.toLowerCase() === trimmedTag.toLowerCase())) {
+      setInputError(`"${trimmedTag}" is already in the list`);
       return;
     }
+
+    setInputError(null);
 
     try {
       setIsAddingTag(true);
@@ -156,7 +163,14 @@ export function TagManager({
         await updateStudyPreferences(store.write(preferences, newTags));
       }
     } catch (error) {
+      // A failed save means the tag is gone on reload, so it has to be visible:
+      // the vocabulary is the only record of these tags.
       console.error('Failed to add tag:', error);
+      toast({
+        title: 'Could not save tag',
+        description: error instanceof Error ? error.message : `Failed to add "${trimmedTag}"`,
+        variant: 'destructive',
+      });
     } finally {
       setIsAddingTag(false);
     }
@@ -182,6 +196,11 @@ export function TagManager({
       }
     } catch (error) {
       console.error('Failed to remove tag:', error);
+      toast({
+        title: 'Could not delete tag',
+        description: error instanceof Error ? error.message : `Failed to remove "${tagToRemove}"`,
+        variant: 'destructive',
+      });
     } finally {
       setIsDeletingTag(null);
     }
@@ -312,45 +331,52 @@ export function TagManager({
 
       {/* Add new tag input (only shown when adding) */}
       {showAddInput && (
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder={placeholder}
-            value={newTagInput}
-            onChange={(e) => setNewTagInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={isAddingTag || disabled || availableTags.length >= maxTags}
-            className="flex-1 text-sm"
-            maxLength={25}
-          />
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleAddTag}
-            disabled={
-              !newTagInput.trim() || isAddingTag || disabled || availableTags.length >= maxTags
-            }
-            className="flex items-center gap-1 px-3"
-          >
-            {isAddingTag ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            {isAddingTag ? 'Adding...' : 'Add'}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setShowAddInput(false);
-              setNewTagInput('');
-            }}
-            disabled={isAddingTag}
-          >
-            Cancel
-          </Button>
+        <div className="space-y-1">
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder={placeholder}
+              value={newTagInput}
+              onChange={(e) => {
+                setNewTagInput(e.target.value);
+                setInputError(null);
+              }}
+              onKeyPress={handleKeyPress}
+              disabled={isAddingTag || disabled || availableTags.length >= maxTags}
+              className="flex-1 text-sm"
+              maxLength={25}
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddTag}
+              disabled={
+                !newTagInput.trim() || isAddingTag || disabled || availableTags.length >= maxTags
+              }
+              className="flex items-center gap-1 px-3"
+            >
+              {isAddingTag ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {isAddingTag ? 'Adding...' : 'Add'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setShowAddInput(false);
+                setNewTagInput('');
+                setInputError(null);
+              }}
+              disabled={isAddingTag}
+            >
+              Cancel
+            </Button>
+          </div>
+          {inputError && <p className="text-sm text-red-600">{inputError}</p>}
         </div>
       )}
     </div>

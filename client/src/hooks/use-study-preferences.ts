@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getUserStudyPreferences, updateUserStudyPreferences } from '@/lib/firebase/settings';
+import {
+  DEFAULT_STUDY_PREFERENCES,
+  getUserStudyPreferences,
+  updateUserStudyPreferences,
+} from '@/lib/firebase/settings';
+import { repairTagVocabularies } from '@/lib/tag-vocabulary';
 import type { UserStudyPreferences } from '@shared/schema';
 
 interface UseStudyPreferencesReturn {
@@ -112,19 +117,50 @@ export function useStudyPreferences(): UseStudyPreferencesReturn {
 
 // Function to preload preferences (call this early in app initialization)
 export async function preloadStudyPreferences(): Promise<void> {
-  if (globalPreferences || globalLoadingPromise) {
-    return; // Already loading or loaded
-  }
-
   try {
-    globalLoadingPromise = getUserStudyPreferences();
-    const result = await globalLoadingPromise;
-    globalLoadingPromise = null;
-    setGlobalPreferences(result);
+    if (globalLoadingPromise) {
+      await globalLoadingPromise;
+    } else if (!globalPreferences) {
+      globalLoadingPromise = getUserStudyPreferences();
+      const result = await globalLoadingPromise;
+      globalLoadingPromise = null;
+      setGlobalPreferences(result);
+    }
+
+    await recoverTagVocabularies();
   } catch (error) {
     globalLoadingPromise = null;
     console.warn('Failed to preload study preferences:', error);
   }
+}
+
+// Recovery runs once per app load: a vocabulary that survived one check has
+// nothing to recover on the next, and repeating it would re-read every session.
+let vocabularyRecovery: Promise<void> | null = null;
+
+/**
+ * Restore tag vocabularies that were reset by a bad preferences read, using the
+ * tags recorded on logged sessions. A no-op for healthy accounts.
+ */
+async function recoverTagVocabularies(): Promise<void> {
+  if (vocabularyRecovery) return vocabularyRecovery;
+
+  vocabularyRecovery = (async () => {
+    const current = globalPreferences;
+    if (!current) return;
+
+    const repaired = await repairTagVocabularies(current, DEFAULT_STUDY_PREFERENCES.customTags);
+    if (repaired === current) return;
+
+    await updateUserStudyPreferences(repaired);
+    setGlobalPreferences(repaired);
+  })().catch((error) => {
+    // Best-effort recovery: the app is fully usable without it, and the user can
+    // always re-add tags by hand — but log with context so it stays diagnosable.
+    console.warn('Failed to recover tag vocabularies from sessions:', error);
+  });
+
+  return vocabularyRecovery;
 }
 
 // Function to update preferences and invalidate cache

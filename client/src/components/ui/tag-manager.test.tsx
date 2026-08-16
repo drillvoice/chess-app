@@ -23,6 +23,12 @@ vi.mock('@/hooks/use-study-preferences', () => ({
   updateStudyPreferences: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { toastSpy } = vi.hoisted(() => ({ toastSpy: vi.fn() }));
+
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: toastSpy, dismiss: vi.fn(), toasts: [] }),
+}));
+
 const preferences: UserStudyPreferences = {
   customTags: ['reading', 'videos'],
   tagConfigs: {},
@@ -75,6 +81,39 @@ describe('TagManager vocabularies', () => {
         }),
       ),
     );
+  });
+
+  it('surfaces a failed save instead of losing it silently', async () => {
+    vi.mocked(addCustomMistakeTag).mockRejectedValueOnce(new Error('Failed to add custom tag'));
+
+    render(
+      <TagManager vocabulary="mistake" selectedTags={[]} onTagsChange={vi.fn()} maxTags={20} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add/i }));
+    fireEvent.change(screen.getByPlaceholderText('Add new tag...'), {
+      target: { value: 'missed a pin' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    await waitFor(() => expect(toastSpy).toHaveBeenCalled());
+    expect(toastSpy.mock.calls[0][0]).toMatchObject({
+      title: 'Could not save tag',
+      variant: 'destructive',
+    });
+  });
+
+  it('explains why a tag was rejected rather than ignoring the click', async () => {
+    render(<TagManager vocabulary="mistake" selectedTags={[]} onTagsChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /add/i }));
+    fireEvent.change(screen.getByPlaceholderText('Add new tag...'), {
+      target: { value: 'hung a piece' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(await screen.findByText('"hung a piece" is already in the list')).toBeTruthy();
+    expect(addCustomMistakeTag).not.toHaveBeenCalled();
   });
 
   it('deletes from the vocabulary it is editing', async () => {

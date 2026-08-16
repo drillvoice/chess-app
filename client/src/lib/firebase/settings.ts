@@ -1,14 +1,19 @@
 import { logger } from '../logger';
 import {
+  MAX_CUSTOM_MISTAKE_TAGS,
+  MAX_CUSTOM_STUDY_TAGS,
   TrainingSession,
   UserStudyPreferences,
   normalizeStudyTagKey,
   userStudyPreferencesSchema,
 } from '@shared/schema';
 import { WeeklyGoalCache } from '../cache-utils';
+import { normalizeTagVocabulary } from '../tag-vocabulary';
 import { offlineStorage } from '../offline-storage';
 import { db, waitForAuth, doc, getDoc, setDoc, getCurrentUserId } from './core';
 import { getAllSessions } from './firestore';
+import { mergeSettingsForSync, normalizeTagConfigs } from './sync/reconciliation';
+import { toDate } from './sync/serialization';
 
 export class SettingsError extends Error {
   constructor(
@@ -91,12 +96,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 
   // No cached data, try to fetch from Firestore (with timeout)
   try {
-    logger.debug('☁️ Attempting to fetch from Firestore...');
-    await waitForAuth();
-    const settingsRef = doc(db, 'users', getCurrentUserId()!, 'settings', 'settings');
-    const snapshot = await getDoc(settingsRef);
-    const settings = snapshot.exists() ? (snapshot.data() as UserSettings) : {};
-    logger.debug('✅ Firestore settings loaded:', settings);
+    const settings = await fetchSettingsFromFirestore();
 
     // Cache the result
     try {
@@ -114,6 +114,22 @@ export async function getUserSettings(): Promise<UserSettings> {
       error instanceof Error ? error : undefined,
     );
   }
+}
+
+/**
+ * Read the cloud settings document, bypassing the offline cache that
+ * getUserSettings prefers. Callers that exist to reconcile with the cloud need
+ * the real remote copy — reading through the cache would just hand them back
+ * what they already have.
+ */
+async function fetchSettingsFromFirestore(): Promise<UserSettings> {
+  logger.debug('☁️ Attempting to fetch from Firestore...');
+  await waitForAuth();
+  const settingsRef = doc(db, 'users', getCurrentUserId()!, 'settings', 'settings');
+  const snapshot = await getDoc(settingsRef);
+  const settings = snapshot.exists() ? (snapshot.data() as UserSettings) : {};
+  logger.debug('✅ Firestore settings loaded:', settings);
+  return settings;
 }
 
 // Update user settings in Firestore and offline storage
@@ -179,7 +195,7 @@ export async function updateUserSettings(settings: UserSettings): Promise<void> 
 }
 
 // Default study preferences for new users
-const DEFAULT_STUDY_PREFERENCES: UserStudyPreferences = {
+export const DEFAULT_STUDY_PREFERENCES: UserStudyPreferences = {
   customTags: ['reading', 'videos', 'coaching'],
   tagConfigs: {},
   // Deliberately empty: the mistake vocabulary is entirely user-defined.
@@ -198,6 +214,60 @@ function pruneTagConfigs(
   return pruned;
 }
 
+/**
+ * Heal a persisted preferences record instead of discarding it.
+ *
+ * The tag vocabularies are the only copy of the user's tags — nothing else in the
+ * app can reconstruct `customMistakeTags` — so a single bad field must never cost
+ * the whole document. The realistic offender is `lastModified`: cloud payloads
+ * carry a Firestore `Timestamp`, and structured-cloning one into IndexedDB strips
+ * its prototype, leaving `{seconds, nanoseconds}` that `isoDateOptional` rejects.
+ * Before this healer that failed the whole `safeParse`, and the caller fell back to
+ * DEFAULT_STUDY_PREFERENCES — wiping the mistake vocabulary and resetting the study
+ * tags to the seeded three. Returns null only when there is genuinely nothing usable.
+ */
+export function normalizeStudyPreferences(raw: unknown): UserStudyPreferences | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const record = raw as Record<string, unknown>;
+  const candidate: Record<string, unknown> = { ...record };
+
+  if ('lastModified' in candidate) {
+    const lastModified = toDate(candidate.lastModified);
+    if (lastModified) {
+      candidate.lastModified = lastModified;
+    } else {
+      logger.warn('Dropping unreadable study preferences lastModified', {
+        value: record.lastModified,
+      });
+      delete candidate.lastModified;
+    }
+  }
+
+  // Only rewrite keys the record actually has: an older document that predates a
+  // field must keep getting the schema default rather than an empty list.
+  if (candidate.customTags !== undefined) {
+    candidate.customTags = normalizeTagVocabulary(candidate.customTags, MAX_CUSTOM_STUDY_TAGS);
+  }
+  if (candidate.customMistakeTags !== undefined) {
+    candidate.customMistakeTags = normalizeTagVocabulary(
+      candidate.customMistakeTags,
+      MAX_CUSTOM_MISTAKE_TAGS,
+    );
+  }
+  if (candidate.tagConfigs !== undefined) {
+    candidate.tagConfigs = normalizeTagConfigs(candidate.tagConfigs);
+  }
+
+  const parsed = userStudyPreferencesSchema.safeParse(candidate);
+  if (!parsed.success) {
+    console.warn('Study preferences could not be healed, falling back to defaults:', parsed.error);
+    return null;
+  }
+
+  return parsed.data;
+}
+
 // Retrieve user study preferences, with smart defaults for new users (OFFLINE-FIRST)
 export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
   logger.debug('🏷️ getUserStudyPreferences - starting offline-first load');
@@ -212,17 +282,16 @@ export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
         '📱 Found study preferences in offline storage:',
         cachedSettings.studyPreferences,
       );
-      const parsed = userStudyPreferencesSchema.safeParse(cachedSettings.studyPreferences);
-      if (parsed.success) {
-        logger.debug('✅ Offline study preferences valid, returning immediately');
+      const healed = normalizeStudyPreferences(cachedSettings.studyPreferences);
+      if (healed) {
+        logger.debug('✅ Offline study preferences usable, returning immediately');
 
         // Background sync from Firestore (non-blocking)
         queueMicrotask(() => syncStudyPreferencesFromFirestore());
 
-        return parsed.data;
-      } else {
-        console.warn('❌ Invalid offline study preferences, will try Firestore:', parsed.error);
+        return healed;
       }
+      console.warn('❌ Unusable offline study preferences, will try Firestore');
     } else {
       logger.debug('📱 No study preferences in offline storage');
     }
@@ -237,12 +306,13 @@ export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
     ]);
 
     if (firestoreSettings?.studyPreferences) {
-      const parsed = userStudyPreferencesSchema.safeParse(firestoreSettings.studyPreferences);
-      if (parsed.success) {
+      const healed = normalizeStudyPreferences(firestoreSettings.studyPreferences);
+      if (healed) {
         logger.debug('✅ Got study preferences from Firestore');
-        // Cache for next time
-        await offlineStorage.setSettings(firestoreSettings);
-        return parsed.data;
+        // Cache the healed preferences, not the raw doc: writing the raw
+        // `lastModified` back would re-poison the cache on the next read.
+        await offlineStorage.setSettings({ ...firestoreSettings, studyPreferences: healed });
+        return healed;
       }
     }
 
@@ -250,10 +320,12 @@ export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
     logger.debug('🎯 Using default study preferences');
     const defaults = DEFAULT_STUDY_PREFERENCES;
 
-    // Save defaults to offline storage for next time
+    // Save defaults to offline storage for next time, merging into the existing
+    // record — the settings store holds one document, so writing only
+    // `studyPreferences` would drop lichessUsername and every synced key with it.
     try {
-      const defaultSettings = { studyPreferences: defaults };
-      await offlineStorage.setSettings(defaultSettings);
+      const currentSettings = (await offlineStorage.getSettings()) || {};
+      await offlineStorage.setSettings({ ...currentSettings, studyPreferences: defaults });
       logger.debug('💾 Saved default preferences to offline storage');
     } catch (cacheError) {
       console.warn('Failed to cache default preferences:', cacheError);
@@ -271,15 +343,16 @@ export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
 async function syncStudyPreferencesFromFirestore(): Promise<void> {
   try {
     logger.debug('🔄 Background sync: checking Firestore for updated study preferences...');
-    const settings = await getUserSettings();
+    const cloudSettings = await fetchSettingsFromFirestore();
 
-    if (settings.studyPreferences) {
-      const parsed = userStudyPreferencesSchema.safeParse(settings.studyPreferences);
-      if (parsed.success) {
-        // Update offline cache with latest from Firestore
-        await offlineStorage.setSettings(settings);
-        logger.debug('🔄 Background sync: updated offline cache with Firestore data');
-      }
+    if (cloudSettings.studyPreferences) {
+      // Merge rather than overwrite: the cloud copy may be missing tags this
+      // device added while offline, and mergeSettingsForSync also unions the tag
+      // vocabularies and converts Firestore Timestamps before they reach IndexedDB.
+      const localSettings = (await offlineStorage.getSettings()) || {};
+      const merged = mergeSettingsForSync(localSettings, cloudSettings);
+      await offlineStorage.setSettings(merged);
+      logger.debug('🔄 Background sync: merged Firestore study preferences into offline cache');
     }
   } catch (error) {
     logger.debug(
