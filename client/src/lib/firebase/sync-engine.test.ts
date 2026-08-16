@@ -288,6 +288,126 @@ describe('mergeSettingsForSync', () => {
     });
   });
 
+  it('unions mistake tags instead of letting the newer document win', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        customMistakeTags: ['hung a piece', 'time trouble'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading'],
+        customMistakeTags: ['missed a pin'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
+
+    expect(studyPreferences.customMistakeTags).toEqual([
+      'hung a piece',
+      'missed a pin',
+      'time trouble',
+    ]);
+  });
+
+  it('keeps local mistake tags when the cloud document predates the field', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        customMistakeTags: ['hung a piece'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
+
+    expect(studyPreferences.customMistakeTags).toEqual(['hung a piece']);
+  });
+
+  it('leaves the mistake field absent when neither side has one', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-20T10:00:00.000Z'),
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+
+    expect(merged.studyPreferences).not.toHaveProperty('customMistakeTags');
+  });
+
+  it('converts Firestore timestamps to Dates before the merged record is cached', () => {
+    // A Timestamp survives the merge as a plain {seconds, nanoseconds} once
+    // structured-cloned into IndexedDB, which the preferences schema rejects.
+    const cloudTimestamp = {
+      seconds: 1771581600,
+      nanoseconds: 0,
+      toDate: () => new Date('2026-02-20T10:00:00.000Z'),
+    };
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        customMistakeTags: ['hung a piece'],
+        tagConfigs: {},
+        lastModified: new Date('2026-02-18T10:00:00.000Z'),
+      },
+    };
+    const cloud = {
+      lastModified: cloudTimestamp,
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {},
+        lastModified: cloudTimestamp,
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, cloud);
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
+
+    expect(merged.lastModified).toBeInstanceOf(Date);
+    expect(studyPreferences.lastModified).toBeInstanceOf(Date);
+    expect((studyPreferences.lastModified as Date).toISOString()).toBe('2026-02-20T10:00:00.000Z');
+  });
+
+  it('drops an unreadable timestamp rather than caching it', () => {
+    const local = {
+      studyPreferences: {
+        customTags: ['reading'],
+        tagConfigs: {},
+        lastModified: { seconds: 1771581600, nanoseconds: 0 },
+      },
+    };
+
+    const merged = mergeSettingsForSync(local, {});
+    const studyPreferences = merged.studyPreferences as Record<string, unknown>;
+
+    expect(studyPreferences).not.toHaveProperty('lastModified');
+  });
+
   it('prunes tag configs for removed tags after merge', () => {
     const local = {
       studyPreferences: {

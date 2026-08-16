@@ -1,4 +1,9 @@
-import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
+import {
+  MAX_CUSTOM_MISTAKE_TAGS,
+  MAX_CUSTOM_STUDY_TAGS,
+  normalizeStudyTagKey,
+  type TrainingSession,
+} from '@shared/schema';
 import { normalizeSessionForSync, sessionRecency, toDate } from './serialization';
 
 export function mergeSessionCollections(
@@ -113,6 +118,21 @@ function studyPreferencesTimestamp(value: unknown): number {
   return toDate(asRecord(value).lastModified)?.getTime() ?? Number.NEGATIVE_INFINITY;
 }
 
+/**
+ * Cloud payloads carry `lastModified` as a Firestore `Timestamp`, whose prototype
+ * (and therefore its `toDate()`) is stripped by the structured clone into IndexedDB —
+ * leaving a bare `{seconds, nanoseconds}` that `isoDateOptional` rejects on the next
+ * read. Merged records go straight into the offline cache, so the timestamp has to be
+ * a real `Date` before it leaves here or the whole preferences object gets discarded.
+ */
+function withNormalizedTimestamp(record: LooseRecord): LooseRecord {
+  if (!('lastModified' in record)) return record;
+  const normalized = toDate(record.lastModified);
+  if (normalized) return { ...record, lastModified: normalized };
+  const { lastModified: _dropped, ...rest } = record;
+  return rest;
+}
+
 function normalizeCustomTags(tags: unknown): string[] {
   if (!Array.isArray(tags)) return [];
 
@@ -137,7 +157,7 @@ interface TagConfig {
   minutesPerUnit: number;
 }
 
-function normalizeTagConfigs(tagConfigs: unknown): Record<string, TagConfig> {
+export function normalizeTagConfigs(tagConfigs: unknown): Record<string, TagConfig> {
   if (!tagConfigs || typeof tagConfigs !== 'object') return {};
 
   const normalized: Record<string, TagConfig> = {};
@@ -167,6 +187,25 @@ function pruneTagConfigsByTags(
   );
 }
 
+function unionTagLists(a: unknown, b: unknown, limit: number): string[] {
+  return normalizeCustomTags([
+    ...(Array.isArray(a) ? a : []),
+    ...(Array.isArray(b) ? b : []),
+  ]).slice(0, limit);
+}
+
+/**
+ * Union the mistake vocabulary rather than letting the newer document win: the
+ * vocabulary is the only record of these tags — sessions store their own copy,
+ * never the list — so a device that has not yet seen a tag would otherwise
+ * clobber it on the next write. Absent on both sides stays absent; inventing an
+ * empty list would write the field into documents that never had one.
+ */
+function mergeMistakeTags(a: unknown, b: unknown): { customMistakeTags?: string[] } {
+  if (!Array.isArray(a) && !Array.isArray(b)) return {};
+  return { customMistakeTags: unionTagLists(a, b, MAX_CUSTOM_MISTAKE_TAGS) };
+}
+
 function mergeStudyPreferencesForSync(
   localStudy: unknown,
   cloudStudy: unknown,
@@ -174,21 +213,23 @@ function mergeStudyPreferencesForSync(
   if (!localStudy && !cloudStudy) return undefined;
   if (localStudy && !cloudStudy) {
     const local = asRecord(localStudy);
-    const customTags = normalizeCustomTags(local.customTags);
-    return {
+    const customTags = unionTagLists(local.customTags, [], MAX_CUSTOM_STUDY_TAGS);
+    return withNormalizedTimestamp({
       ...local,
       customTags,
+      ...mergeMistakeTags(local.customMistakeTags, undefined),
       tagConfigs: pruneTagConfigsByTags(normalizeTagConfigs(local.tagConfigs), customTags),
-    };
+    });
   }
   if (!localStudy && cloudStudy) {
     const cloud = asRecord(cloudStudy);
-    const customTags = normalizeCustomTags(cloud.customTags);
-    return {
+    const customTags = unionTagLists(cloud.customTags, [], MAX_CUSTOM_STUDY_TAGS);
+    return withNormalizedTimestamp({
       ...cloud,
       customTags,
+      ...mergeMistakeTags(cloud.customMistakeTags, undefined),
       tagConfigs: pruneTagConfigsByTags(normalizeTagConfigs(cloud.tagConfigs), customTags),
-    };
+    });
   }
 
   const local = asRecord(localStudy);
@@ -197,17 +238,15 @@ function mergeStudyPreferencesForSync(
 
   const primary = preferCloud ? cloud : local;
   const secondary = preferCloud ? local : cloud;
-  const customTags = normalizeCustomTags([
-    ...(Array.isArray(local.customTags) ? local.customTags : []),
-    ...(Array.isArray(cloud.customTags) ? cloud.customTags : []),
-  ]);
+  const customTags = unionTagLists(local.customTags, cloud.customTags, MAX_CUSTOM_STUDY_TAGS);
   const primaryTagConfigs = normalizeTagConfigs(primary.tagConfigs);
   const secondaryTagConfigs = normalizeTagConfigs(secondary.tagConfigs);
 
-  return {
+  return withNormalizedTimestamp({
     ...secondary,
     ...primary,
     customTags,
+    ...mergeMistakeTags(local.customMistakeTags, cloud.customMistakeTags),
     // Merge tag configs by normalized key; newer prefs win conflicts via spread order.
     tagConfigs: pruneTagConfigsByTags(
       {
@@ -216,7 +255,7 @@ function mergeStudyPreferencesForSync(
       },
       customTags,
     ),
-  };
+  });
 }
 
 export function areSameTagSet(a: unknown, b: unknown): boolean {
@@ -249,7 +288,9 @@ export function mergeSettingsForSync(localSettings: unknown, cloudSettings: unkn
   const local = asRecord(localSettings);
   const cloud = asRecord(cloudSettings);
   const preferCloud = settingsTimestamp(cloud) >= settingsTimestamp(local);
-  const merged: LooseRecord = preferCloud ? { ...local, ...cloud } : { ...cloud, ...local };
+  const merged: LooseRecord = withNormalizedTimestamp(
+    preferCloud ? { ...local, ...cloud } : { ...cloud, ...local },
+  );
 
   const localStudyPreferences =
     local.studyPreferences && typeof local.studyPreferences === 'object'

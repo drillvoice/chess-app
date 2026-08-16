@@ -266,11 +266,16 @@ export const goalSessionSchema = insertTrainingSessionSchema
   })
   .omit(buildOmit(tacticsFields, gameFields, studyFields, ['duration'] as const));
 
+// Vocabulary size caps, shared with the sync merge and the storage-seam healer so
+// they cannot drift from the schema and silently reject a preferences document.
+export const MAX_CUSTOM_STUDY_TAGS = 10;
+export const MAX_CUSTOM_MISTAKE_TAGS = 20;
+
 // User Study Preferences Schema
 export const userStudyPreferencesSchema = z.object({
   customTags: z
     .array(studyTagSchema)
-    .max(10, 'Cannot have more than 10 custom tags')
+    .max(MAX_CUSTOM_STUDY_TAGS, `Cannot have more than ${MAX_CUSTOM_STUDY_TAGS} custom tags`)
     .default(['reading', 'videos', 'coaching']), // Default tags
   tagConfigs: studyTagConfigsSchema,
   // The user's mistake-tag vocabulary for game sessions. Starts empty — unlike
@@ -279,7 +284,7 @@ export const userStudyPreferencesSchema = z.object({
   // fills it in on read, the same pattern as `tagGoals` on dailyGoalSettingsSchema.
   customMistakeTags: z
     .array(studyTagSchema)
-    .max(20, 'Cannot have more than 20 mistake tags')
+    .max(MAX_CUSTOM_MISTAKE_TAGS, `Cannot have more than ${MAX_CUSTOM_MISTAKE_TAGS} mistake tags`)
     .default([]),
   lastModified: isoDateOptional,
 });
