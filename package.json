@@ -59,7 +59,7 @@
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.55.0",
     "serve": "^14.2.6",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "wouter": "^3.3.5",
     "ws": "^8.18.3",
