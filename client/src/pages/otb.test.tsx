@@ -112,6 +112,20 @@ describe('OTB page', () => {
     (URL.revokeObjectURL as any) = vi.fn();
   });
 
+  /**
+   * Render the page and wait until the loaded game is actually on screen.
+   *
+   * The heading renders immediately, before `getOtbGames` resolves — awaiting it
+   * says nothing about whether a game is loaded, so taps and queries that follow
+   * can land on the "Loading OTB games..." placeholder. The board only exists
+   * once there is an active game, so wait for a square instead.
+   */
+  async function renderLoadedPage() {
+    render(<OtbPage />);
+    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await screen.findByRole('button', { name: /Square a1/i });
+  }
+
   it('bootstraps a new game when none exist', async () => {
     render(<OtbPage />);
     await waitFor(() => expect(createOtbGameMock).toHaveBeenCalled());
@@ -120,9 +134,7 @@ describe('OTB page', () => {
 
   it('updates move list after tap-to-move', async () => {
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
@@ -134,9 +146,7 @@ describe('OTB page', () => {
 
   it('handles promotion flow through picker', async () => {
     getOtbGamesMock.mockResolvedValue([promotionReadyGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
     fireEvent.click(screen.getByRole('button', { name: /Square b7/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square a8/i }));
 
@@ -157,9 +167,7 @@ describe('OTB page', () => {
     });
 
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
     fireEvent.click(screen.getByRole('button', { name: /Copy PGN/i }));
     fireEvent.click(screen.getByRole('button', { name: /Download PGN/i }));
 
@@ -175,9 +183,7 @@ describe('OTB page', () => {
     getOtbGamesMock.mockResolvedValue([
       { ...baseGame(), playerColor: 'white', result: '1-0', blackName: 'Opponent' },
     ]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
 
     fireEvent.click(screen.getByRole('button', { name: /Create Activity Session/i }));
     await waitFor(() => expect(upsertOtbSessionMock).toHaveBeenCalledTimes(1));
@@ -191,9 +197,7 @@ describe('OTB page', () => {
 
   it('flips board orientation on demand', async () => {
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
     expect(screen.getByText(/View: White/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Flip Board/i }));
@@ -205,18 +209,14 @@ describe('OTB page', () => {
 
   it('renders h1 as a light square in the default orientation', async () => {
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
 
     expect(screen.getByRole('button', { name: /Square h1/i })).toHaveClass('bg-[#f0d9b5]');
   });
 
   it('toggles table mode on and off', async () => {
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
 
     expect(screen.getByRole('button', { name: /Table Mode: Off/i })).toHaveAttribute(
       'aria-pressed',
@@ -238,9 +238,7 @@ describe('OTB page', () => {
 
   it('rotates pieces on the top half of the board in table mode', async () => {
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
     fireEvent.click(screen.getByRole('button', { name: /Table Mode: Off/i }));
 
     expect(pieceGlyphFor('a8')).toHaveClass('rotate-180');
@@ -249,9 +247,7 @@ describe('OTB page', () => {
 
   it('keeps table mode rotation tied to the top visible rows after flipping', async () => {
     getOtbGamesMock.mockResolvedValue([baseGame()]);
-    render(<OtbPage />);
-
-    await screen.findByRole('heading', { name: /OTB Board Logger/i });
+    await renderLoadedPage();
     fireEvent.click(screen.getByRole('button', { name: /Table Mode: Off/i }));
     fireEvent.click(screen.getByRole('button', { name: /Flip Board/i }));
 

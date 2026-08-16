@@ -65,41 +65,42 @@ describe('Openings page', () => {
     );
   });
 
-  it('imports a PGN and starts a hidden-label drill', async () => {
+  /**
+   * Render the page, import `pgn`, and wait until the drill is actually running.
+   *
+   * `saveOpeningRepertoire` resolving is only the *start* of the import chain:
+   * the repertoire is stored in page state and the drill is started after that
+   * await. A board tap landing inside that window is dropped on the floor (there
+   * is no training state yet to select against), which made every board test
+   * racy on a slow CI runner. The trainer's status line is the real "the drill
+   * is live" signal, so wait for that before touching the board.
+   */
+  async function importAndStartDrill(pgn: string, name?: string) {
     render(<OpeningsPage />);
-
     await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
     // Import PGN is a collapsed accordion; open it to reach its inputs.
     fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/Name/i), {
-      target: { value: 'Caro-Kann Advance' },
-    });
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 c6 2. d4 d5 3. e5' },
-    });
+    if (name !== undefined) {
+      fireEvent.change(screen.getByLabelText(/Name/i), { target: { value: name } });
+    }
+    fireEvent.change(screen.getByLabelText(/PGN text/i), { target: { value: pgn } });
     fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
 
     await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await screen.findByText(/White to train/i);
+  }
+
+  it('imports a PGN and starts a hidden-label drill', async () => {
+    await importAndStartDrill('1. e4 c6 2. d4 d5 3. e5', 'Caro-Kann Advance');
+
     expect(screen.getByText('Caro-Kann Advance')).toBeInTheDocument();
     expect(screen.getByText(/White to train/i)).toBeInTheDocument();
     expect(screen.queryByText(/Caro-Kann Advance to train/i)).not.toBeInTheDocument();
   });
 
   it('imports the legal moves and warns about a skipped line on a typo', async () => {
-    render(<OpeningsPage />);
-
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    // Import PGN is a collapsed accordion; open it to reach its inputs.
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 (1... c5 2. Qq9) 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
-
-    // The repertoire still imports and starts training.
-    expect(screen.getByText(/White to train/i)).toBeInTheDocument();
+    // The repertoire still imports and starts training despite the typo.
+    await importAndStartDrill('1. e4 e5 (1... c5 2. Qq9) 2. Nf3 Nc6');
 
     // The skipped line is surfaced with enough detail to fix it.
     const alert = await screen.findByRole('alert');
@@ -108,17 +109,8 @@ describe('Openings page', () => {
   });
 
   it('handles correct and incorrect board moves', async () => {
-    render(<OpeningsPage />);
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6');
 
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    // Import PGN is a collapsed accordion; open it to reach its inputs.
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: /Square g1/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square f3/i }));
 
@@ -133,14 +125,7 @@ describe('Openings page', () => {
   });
 
   it('applies the first move when the piece and target are tapped in the same tick', async () => {
-    render(<OpeningsPage />);
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6');
 
     const e2 = screen.getByRole('button', { name: /Square e2/i });
     const e4 = screen.getByRole('button', { name: /Square e4/i });
@@ -161,14 +146,7 @@ describe('Openings page', () => {
   });
 
   it('applies a paced first move and keeps the selection state consistent', async () => {
-    render(<OpeningsPage />);
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6');
 
     // Normal pace: each click flushes a render before the next, so the ref and
     // React state must stay in agreement.
@@ -186,14 +164,7 @@ describe('Openings page', () => {
   });
 
   it('applies the next move tapped immediately after a move, during the reply pause', async () => {
-    render(<OpeningsPage />);
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6');
 
     // Play e4 and then Nf3 immediately, WITHOUT waiting for the trainer's reply.
     // Previously the reply played behind a 300ms input block, so this second move
@@ -210,14 +181,7 @@ describe('Openings page', () => {
   });
 
   it('self-heals (no stuck board) when a move throws, without recording a miss', async () => {
-    render(<OpeningsPage />);
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6');
     saveOpeningRepertoireMock.mockClear();
 
     // Force the next move to throw inside the engine (simulating the silent-drop
@@ -240,15 +204,8 @@ describe('Openings page', () => {
   });
 
   it('Pause line is gated on a unique line and disables that line by its leaf', async () => {
-    render(<OpeningsPage />);
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
     // Branches at White's 3rd move so the line is still ambiguous after 2.Nf3.
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6 3. Bb5 (3. Bc4)' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6 3. Bb5 (3. Bc4)');
     saveOpeningRepertoireMock.mockClear();
 
     // Before any move there is no current line to pause; the button is disabled.
@@ -290,14 +247,7 @@ describe('Openings page', () => {
   });
 
   it('registers the second correct move after a wrong attempt on the first', async () => {
-    render(<OpeningsPage />);
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 e5 2. Nf3 Nc6' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
+    await importAndStartDrill('1. e4 e5 2. Nf3 Nc6');
 
     // Wrong first move (Nf3 before e4)
     fireEvent.click(screen.getByRole('button', { name: /Square g1/i }));
@@ -322,17 +272,8 @@ describe('Openings page', () => {
   });
 
   it('shows Next Line after completion and avoids repeating the same branch', async () => {
-    render(<OpeningsPage />);
+    await importAndStartDrill('1. e4 (1. d4 d5) e5');
 
-    await screen.findByRole('heading', { name: /Opening Repertoire Trainer/i });
-    // Import PGN is a collapsed accordion; open it to reach its inputs.
-    fireEvent.click(screen.getByRole('button', { name: /Import PGN/i }));
-    fireEvent.change(screen.getByLabelText(/PGN text/i), {
-      target: { value: '1. e4 (1. d4 d5) e5' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Import Repertoire/i }));
-
-    await waitFor(() => expect(saveOpeningRepertoireMock).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: /Square e2/i }));
     fireEvent.click(screen.getByRole('button', { name: /Square e4/i }));
 
