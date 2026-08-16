@@ -616,10 +616,13 @@ export async function startRealtimeSync(): Promise<() => void> {
         | undefined;
       const cloudTags = cloudStudyPreferences?.customTags;
       const mergedTags = mergedStudyPreferences?.customTags;
+      const cloudMistakeTags = cloudStudyPreferences?.customMistakeTags;
+      const mergedMistakeTags = mergedStudyPreferences?.customMistakeTags;
       const cloudTagConfigs = cloudStudyPreferences?.tagConfigs;
       const mergedTagConfigs = mergedStudyPreferences?.tagConfigs;
       if (
         !areSameTagSet(cloudTags, mergedTags) ||
+        !areSameTagSet(cloudMistakeTags, mergedMistakeTags) ||
         !areSameTagConfigs(cloudTagConfigs, mergedTagConfigs)
       ) {
         queueMicrotask(async () => {
