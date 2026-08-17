@@ -442,8 +442,15 @@ async function syncStudyPreferencesToFirestore(preferences: UserStudyPreferences
   }
 }
 
-// Add a custom tag to user preferences
-export async function addCustomStudyTag(tagName: string): Promise<void> {
+/**
+ * Add a tag to the study vocabulary and return the saved preferences.
+ *
+ * Returning the new document lets callers refresh the in-memory cache without
+ * issuing a second save of their own: the UI used to follow this with a full
+ * updateStudyPreferences write, which repeated the whole validate → read →
+ * write cycle and queued a second Firestore round trip for one added tag.
+ */
+export async function addCustomStudyTag(tagName: string): Promise<UserStudyPreferences> {
   logger.debug('🆕 Adding custom study tag:', tagName);
 
   try {
@@ -456,7 +463,7 @@ export async function addCustomStudyTag(tagName: string): Promise<void> {
 
     if (existingTag) {
       logger.debug('Tag already exists:', existingTag);
-      return; // No need to add
+      return currentPreferences; // No need to add
     }
 
     // Add new tag (alphabetically sorted)
@@ -470,6 +477,7 @@ export async function addCustomStudyTag(tagName: string): Promise<void> {
 
     await updateUserStudyPreferences(updatedPreferences);
     logger.debug('✅ Custom tag added successfully');
+    return updatedPreferences;
   } catch (error) {
     console.error('❌ Error adding custom study tag:', error);
     if (error instanceof Error) {
@@ -480,7 +488,7 @@ export async function addCustomStudyTag(tagName: string): Promise<void> {
 }
 
 // Remove a custom tag from user preferences
-export async function removeCustomStudyTag(tagName: string): Promise<void> {
+export async function removeCustomStudyTag(tagName: string): Promise<UserStudyPreferences> {
   logger.debug('🗑️ Removing custom study tag:', tagName);
 
   try {
@@ -491,7 +499,7 @@ export async function removeCustomStudyTag(tagName: string): Promise<void> {
 
     if (updatedTags.length === currentPreferences.customTags.length) {
       logger.debug('Tag not found:', tagName);
-      return; // Tag wasn't found, no change needed
+      return currentPreferences; // Tag wasn't found, no change needed
     }
 
     const updatedPreferences: UserStudyPreferences = {
@@ -502,6 +510,7 @@ export async function removeCustomStudyTag(tagName: string): Promise<void> {
 
     await updateUserStudyPreferences(updatedPreferences);
     logger.debug('✅ Custom tag removed successfully');
+    return updatedPreferences;
   } catch (error) {
     console.error('❌ Error removing custom study tag:', error);
     if (error instanceof Error) {
@@ -512,7 +521,7 @@ export async function removeCustomStudyTag(tagName: string): Promise<void> {
 }
 
 // Add a mistake tag to the user's game-mistake vocabulary
-export async function addCustomMistakeTag(tagName: string): Promise<void> {
+export async function addCustomMistakeTag(tagName: string): Promise<UserStudyPreferences> {
   logger.debug('🆕 Adding custom mistake tag:', tagName);
 
   try {
@@ -524,17 +533,19 @@ export async function addCustomMistakeTag(tagName: string): Promise<void> {
 
     if (existingTag) {
       logger.debug('Mistake tag already exists:', existingTag);
-      return; // No need to add
+      return currentPreferences; // No need to add
     }
 
     // Add new tag (alphabetically sorted)
     const updatedTags = [...currentTags, tagName].sort();
 
-    await updateUserStudyPreferences({
+    const updatedPreferences: UserStudyPreferences = {
       ...currentPreferences,
       customMistakeTags: updatedTags,
-    });
+    };
+    await updateUserStudyPreferences(updatedPreferences);
     logger.debug('✅ Custom mistake tag added successfully');
+    return updatedPreferences;
   } catch (error) {
     console.error('❌ Error adding custom mistake tag:', error);
     if (error instanceof Error) {
@@ -545,7 +556,7 @@ export async function addCustomMistakeTag(tagName: string): Promise<void> {
 }
 
 // Remove a mistake tag from the user's game-mistake vocabulary
-export async function removeCustomMistakeTag(tagName: string): Promise<void> {
+export async function removeCustomMistakeTag(tagName: string): Promise<UserStudyPreferences> {
   logger.debug('🗑️ Removing custom mistake tag:', tagName);
 
   try {
@@ -557,14 +568,16 @@ export async function removeCustomMistakeTag(tagName: string): Promise<void> {
 
     if (updatedTags.length === currentTags.length) {
       logger.debug('Mistake tag not found:', tagName);
-      return; // Tag wasn't found, no change needed
+      return currentPreferences; // Tag wasn't found, no change needed
     }
 
-    await updateUserStudyPreferences({
+    const updatedPreferences: UserStudyPreferences = {
       ...currentPreferences,
       customMistakeTags: updatedTags,
-    });
+    };
+    await updateUserStudyPreferences(updatedPreferences);
     logger.debug('✅ Custom mistake tag removed successfully');
+    return updatedPreferences;
   } catch (error) {
     console.error('❌ Error removing custom mistake tag:', error);
     if (error instanceof Error) {

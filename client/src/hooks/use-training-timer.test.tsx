@@ -39,7 +39,13 @@ describe('useTrainingTimer', () => {
       get: () => 'visible',
     });
     mockGetSessionsByDateRange.mockResolvedValue([]);
-    mockAddCustomStudyTag.mockResolvedValue();
+    // addCustomStudyTag resolves with the saved preferences; the timer ignores
+    // the value, so a minimal document is enough here.
+    mockAddCustomStudyTag.mockResolvedValue({
+      customTags: [],
+      tagConfigs: {},
+      customMistakeTags: [],
+    });
     mockCreateSession.mockResolvedValue({} as TrainingSession);
     mockUpdateSession.mockResolvedValue({} as TrainingSession);
   });
