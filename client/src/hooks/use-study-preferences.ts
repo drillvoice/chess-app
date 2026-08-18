@@ -170,3 +170,14 @@ export async function updateStudyPreferences(preferences: UserStudyPreferences):
   // Update global cache and notify all mounted consumers
   setGlobalPreferences(preferences);
 }
+
+/**
+ * Publish an already-saved preferences document to the cache without writing it
+ * again. For callers that used a dedicated mutator (addCustomMistakeTag and
+ * friends) the save has happened; re-running updateStudyPreferences on the
+ * result would only repeat the validate → read → write cycle and queue a second
+ * Firestore round trip.
+ */
+export function publishStudyPreferences(preferences: UserStudyPreferences): void {
+  setGlobalPreferences(preferences);
+}

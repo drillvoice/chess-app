@@ -331,8 +331,12 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
     });
   }
 
-  const mergedSettings = mergeSettingsForSync(localSettings, cloudSettings);
-  await offlineStorage.setSettings(mergedSettings);
+  // Re-merge against the record as it stands now, not the copy read before the
+  // session uploads above: those can take minutes, and anything saved meanwhile
+  // (a tag, a Lichess username) would otherwise be overwritten here.
+  const mergedSettings = await offlineStorage.updateSettings((currentLocalSettings) =>
+    mergeSettingsForSync(currentLocalSettings ?? localSettings, cloudSettings),
+  );
   if (Object.keys(mergedSettings).length > 0) {
     const settingsRef = doc(db, 'users', uid, 'settings', 'settings');
     await setDoc(settingsRef, mergedSettings, { merge: true });
@@ -603,10 +607,10 @@ export async function startRealtimeSync(): Promise<() => void> {
     settingsRef,
     async (snapshot) => {
       if (!snapshot.exists()) return;
-      const localSettings = await offlineStorage.getSettings();
       const cloudSettings = snapshot.data();
-      const mergedSettings = mergeSettingsForSync(localSettings, cloudSettings);
-      await offlineStorage.setSettings(mergedSettings);
+      const mergedSettings = await offlineStorage.updateSettings((localSettings) =>
+        mergeSettingsForSync(localSettings ?? {}, cloudSettings),
+      );
 
       const cloudStudyPreferences = cloudSettings?.studyPreferences as
         | Record<string, unknown>

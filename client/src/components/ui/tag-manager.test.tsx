@@ -8,19 +8,20 @@ import {
   addCustomMistakeTag,
   removeCustomMistakeTag,
 } from '@/lib/firebase/settings';
-import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
+import { useStudyPreferences, publishStudyPreferences } from '@/hooks/use-study-preferences';
 import type { UserStudyPreferences } from '@shared/schema';
 
+// The tag mutators resolve with the preferences document they saved.
 vi.mock('@/lib/firebase/settings', () => ({
-  addCustomStudyTag: vi.fn().mockResolvedValue(undefined),
-  removeCustomStudyTag: vi.fn().mockResolvedValue(undefined),
-  addCustomMistakeTag: vi.fn().mockResolvedValue(undefined),
-  removeCustomMistakeTag: vi.fn().mockResolvedValue(undefined),
+  addCustomStudyTag: vi.fn(),
+  removeCustomStudyTag: vi.fn(),
+  addCustomMistakeTag: vi.fn(),
+  removeCustomMistakeTag: vi.fn(),
 }));
 
 vi.mock('@/hooks/use-study-preferences', () => ({
   useStudyPreferences: vi.fn(),
-  updateStudyPreferences: vi.fn().mockResolvedValue(undefined),
+  publishStudyPreferences: vi.fn(),
 }));
 
 const { toastSpy } = vi.hoisted(() => ({ toastSpy: vi.fn() }));
@@ -35,8 +36,17 @@ const preferences: UserStudyPreferences = {
   customMistakeTags: ['hung a piece', 'time trouble'],
 };
 
+const savedMistakePreferences: UserStudyPreferences = {
+  ...preferences,
+  customMistakeTags: ['hung a piece', 'missed a pin', 'time trouble'],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(addCustomStudyTag).mockResolvedValue(preferences);
+  vi.mocked(removeCustomStudyTag).mockResolvedValue(preferences);
+  vi.mocked(addCustomMistakeTag).mockResolvedValue(savedMistakePreferences);
+  vi.mocked(removeCustomMistakeTag).mockResolvedValue(preferences);
   vi.mocked(useStudyPreferences).mockReturnValue({
     preferences,
     isLoading: false,
@@ -73,14 +83,18 @@ describe('TagManager vocabularies', () => {
 
     await waitFor(() => expect(addCustomMistakeTag).toHaveBeenCalledWith('missed a pin'));
     expect(addCustomStudyTag).not.toHaveBeenCalled();
+
+    // The mutator persists the document; the component only republishes it to
+    // the shared cache, so exactly one save happens per added tag.
     await waitFor(() =>
-      expect(updateStudyPreferences).toHaveBeenCalledWith(
+      expect(publishStudyPreferences).toHaveBeenCalledWith(
         expect.objectContaining({
           customMistakeTags: ['hung a piece', 'missed a pin', 'time trouble'],
           customTags: preferences.customTags,
         }),
       ),
     );
+    expect(screen.getByText('missed a pin')).toBeTruthy();
   });
 
   it('surfaces a failed save instead of losing it silently', async () => {

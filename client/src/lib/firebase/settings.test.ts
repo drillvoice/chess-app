@@ -2,15 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // vi.hoisted: the mock factories run while the module graph loads, before plain
 // top-level consts in this file are initialized.
-const { getSettings, setSettings } = vi.hoisted(() => ({
-  getSettings: vi.fn(),
-  setSettings: vi.fn(),
-}));
+const { getSettings, setSettings, updateSettings } = vi.hoisted(() => {
+  const getSettings = vi.fn();
+  const setSettings = vi.fn();
+  // Mirror the real helper: read the current record, run the mutator, write the
+  // result. Tests assert on setSettings, which is what the real one calls.
+  const updateSettings = vi.fn(async (mutate: (current: unknown) => unknown) => {
+    const next = await mutate(await getSettings());
+    await setSettings(next);
+    return next;
+  });
+  return { getSettings, setSettings, updateSettings };
+});
 
 vi.mock('../offline-storage', () => ({
   offlineStorage: {
     getSettings,
     setSettings,
+    updateSettings,
     getSessions: vi.fn().mockResolvedValue([]),
   },
 }));

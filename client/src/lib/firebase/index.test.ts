@@ -12,6 +12,18 @@ const addSession = vi.fn(async (session: any) => {
 });
 const getSessions = vi.fn(async () => mockSessions);
 
+const { getSettings, setSettings, updateSettings } = vi.hoisted(() => {
+  const getSettings = vi.fn();
+  const setSettings = vi.fn();
+  // Mirror the real helper: read the current record, run the mutator, write it.
+  const updateSettings = vi.fn(async (mutate: (current: unknown) => unknown) => {
+    const next = await mutate(await getSettings());
+    await setSettings(next);
+    return next;
+  });
+  return { getSettings, setSettings, updateSettings };
+});
+
 vi.mock('../offline-storage', () => ({
   offlineStorage: {
     getSessions,
@@ -24,8 +36,9 @@ vi.mock('../offline-storage', () => ({
     setStatistics: vi.fn().mockResolvedValue(undefined),
     clearStatistics: vi.fn(),
     getCacheAge: vi.fn(),
-    getSettings: vi.fn(),
-    setSettings: vi.fn(),
+    getSettings,
+    setSettings,
+    updateSettings,
     mergeSessions: vi.fn(),
     getLastSyncedTimestamp: vi.fn(),
     setLastSyncedTimestamp: vi.fn(),

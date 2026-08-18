@@ -37,6 +37,7 @@ export const offlineStorage = {
   // settings
   getSettings: settings.getSettings,
   setSettings: settings.setSettings,
+  updateSettings: settings.updateSettings,
   clearSettings: settings.clearSettings,
   // daily goals
   getDailyGoalSettings: dailyGoals.getDailyGoalSettings,

@@ -21,7 +21,7 @@ import {
   addCustomMistakeTag,
   removeCustomMistakeTag,
 } from '@/lib/firebase/settings';
-import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';
+import { useStudyPreferences, publishStudyPreferences } from '@/hooks/use-study-preferences';
 import { useToast } from '@/hooks/use-toast';
 import { studyTagSchema, type UserStudyPreferences } from '@shared/schema';
 
@@ -37,8 +37,8 @@ const VOCABULARIES: Record<
   {
     read: (prefs: UserStudyPreferences) => string[];
     write: (prefs: UserStudyPreferences, tags: string[]) => UserStudyPreferences;
-    add: (tag: string) => Promise<void>;
-    remove: (tag: string) => Promise<void>;
+    add: (tag: string) => Promise<UserStudyPreferences>;
+    remove: (tag: string) => Promise<UserStudyPreferences>;
   }
 > = {
   study: {
@@ -141,11 +141,10 @@ export function TagManager({
 
     try {
       setIsAddingTag(true);
-      await store.add(trimmedTag);
+      const savedPreferences = await store.add(trimmedTag);
 
       // Update local state immediately for better UX
-      const newTags = [...availableTags, trimmedTag].sort();
-      setAvailableTags(newTags);
+      setAvailableTags(store.read(savedPreferences));
       setNewTagInput('');
       setShowAddInput(false); // Hide input after adding
 
@@ -158,10 +157,9 @@ export function TagManager({
         onTagsChange([...selectedTags, trimmedTag]);
       }
 
-      // Update the global cache
-      if (preferences) {
-        await updateStudyPreferences(store.write(preferences, newTags));
-      }
+      // The mutator already persisted this document, so only the shared cache
+      // needs refreshing — saving it a second time would double the work.
+      publishStudyPreferences(savedPreferences);
     } catch (error) {
       // A failed save means the tag is gone on reload, so it has to be visible:
       // the vocabulary is the only record of these tags.
@@ -179,21 +177,19 @@ export function TagManager({
   const handleRemoveTag = async (tagToRemove: string) => {
     try {
       setIsDeletingTag(tagToRemove);
-      await store.remove(tagToRemove);
+      const savedPreferences = await store.remove(tagToRemove);
 
       // Update local state immediately
-      const newTags = availableTags.filter((tag) => tag !== tagToRemove);
-      setAvailableTags(newTags);
+      setAvailableTags(store.read(savedPreferences));
 
       // Also remove from selected tags if it was selected
       if (selectedTags.includes(tagToRemove)) {
         onTagsChange(selectedTags.filter((tag) => tag !== tagToRemove));
       }
 
-      // Update the global cache
-      if (preferences) {
-        await updateStudyPreferences(store.write(preferences, newTags));
-      }
+      // The mutator already persisted this document, so only the shared cache
+      // needs refreshing — saving it a second time would double the work.
+      publishStudyPreferences(savedPreferences);
     } catch (error) {
       console.error('Failed to remove tag:', error);
       toast({
