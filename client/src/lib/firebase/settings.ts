@@ -100,7 +100,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 
     // Cache the result
     try {
-      await offlineStorage.setSettings(settings);
+      await offlineStorage.updateSettings((existing) => ({ ...(existing ?? {}), ...settings }));
       logger.debug('✅ Settings cached to offline storage');
     } catch (cacheError) {
       console.warn('Failed to cache settings offline:', cacheError);
@@ -136,26 +136,18 @@ async function fetchSettingsFromFirestore(): Promise<UserSettings> {
 export async function updateUserSettings(settings: UserSettings): Promise<void> {
   logger.debug('🔧 updateUserSettings called with:', settings);
 
-  // Merge incoming settings with any existing ones in offline storage
-  let existingSettings: UserSettings = {};
-  try {
-    existingSettings = ((await offlineStorage.getSettings()) as UserSettings) || {};
-    logger.debug('📱 Existing settings from offline storage:', existingSettings);
-  } catch (error) {
-    console.warn('Failed to read settings from offline storage:', error);
-  }
-  const mergedSettings = { ...existingSettings, ...settings };
-  const mergedSettingsWithTimestamp: UserSettings = {
-    ...mergedSettings,
-    lastModified: new Date(),
-  };
-  logger.debug('🔄 Merged settings:', mergedSettingsWithTimestamp);
-
-  // Always save to offline storage first (offline-first approach)
+  // Always save to offline storage first (offline-first approach). The merge
+  // runs inside updateSettings so it sees whatever else has been written since
+  // this call started — concurrent writers used to overwrite each other here.
+  let mergedSettingsWithTimestamp: UserSettings = { ...settings, lastModified: new Date() };
   try {
     logger.debug('📱 Saving to offline storage first...');
-    await offlineStorage.setSettings(mergedSettingsWithTimestamp);
-    logger.debug('✅ Successfully saved to offline storage');
+    mergedSettingsWithTimestamp = (await offlineStorage.updateSettings((existing) => ({
+      ...(existing ?? {}),
+      ...settings,
+      lastModified: new Date(),
+    }))) as UserSettings;
+    logger.debug('✅ Successfully saved to offline storage', mergedSettingsWithTimestamp);
   } catch (error) {
     console.warn('❌ Failed to save to offline storage:', error);
     // Continue even if offline caching fails
@@ -311,7 +303,11 @@ export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
         logger.debug('✅ Got study preferences from Firestore');
         // Cache the healed preferences, not the raw doc: writing the raw
         // `lastModified` back would re-poison the cache on the next read.
-        await offlineStorage.setSettings({ ...firestoreSettings, studyPreferences: healed });
+        await offlineStorage.updateSettings((existing) => ({
+          ...(existing ?? {}),
+          ...firestoreSettings,
+          studyPreferences: healed,
+        }));
         return healed;
       }
     }
@@ -324,8 +320,10 @@ export async function getUserStudyPreferences(): Promise<UserStudyPreferences> {
     // record — the settings store holds one document, so writing only
     // `studyPreferences` would drop lichessUsername and every synced key with it.
     try {
-      const currentSettings = (await offlineStorage.getSettings()) || {};
-      await offlineStorage.setSettings({ ...currentSettings, studyPreferences: defaults });
+      await offlineStorage.updateSettings((current) => ({
+        ...(current ?? {}),
+        studyPreferences: defaults,
+      }));
       logger.debug('💾 Saved default preferences to offline storage');
     } catch (cacheError) {
       console.warn('Failed to cache default preferences:', cacheError);
@@ -349,9 +347,11 @@ async function syncStudyPreferencesFromFirestore(): Promise<void> {
       // Merge rather than overwrite: the cloud copy may be missing tags this
       // device added while offline, and mergeSettingsForSync also unions the tag
       // vocabularies and converts Firestore Timestamps before they reach IndexedDB.
-      const localSettings = (await offlineStorage.getSettings()) || {};
-      const merged = mergeSettingsForSync(localSettings, cloudSettings);
-      await offlineStorage.setSettings(merged);
+      // The merge runs inside updateSettings so a tag saved while the cloud read
+      // was in flight is merged in rather than overwritten by this write.
+      await offlineStorage.updateSettings((localSettings) =>
+        mergeSettingsForSync(localSettings ?? {}, cloudSettings),
+      );
       logger.debug('🔄 Background sync: merged Firestore study preferences into offline cache');
     }
   } catch (error) {
@@ -382,13 +382,10 @@ export async function updateUserStudyPreferences(preferences: UserStudyPreferenc
     // 1. Save to offline storage FIRST (instant feedback)
     logger.debug('💾 Saving to offline storage first...');
     try {
-      const currentOfflineSettings = (await offlineStorage.getSettings()) || {};
-      const updatedOfflineSettings = {
-        ...currentOfflineSettings,
+      await offlineStorage.updateSettings((currentOfflineSettings) => ({
+        ...(currentOfflineSettings ?? {}),
         studyPreferences: preferencesWithTimestamp,
-      };
-
-      await offlineStorage.setSettings(updatedOfflineSettings);
+      }));
       logger.debug('✅ Study preferences saved to offline storage');
     } catch (offlineError) {
       console.error('❌ Failed to save to offline storage:', offlineError);
