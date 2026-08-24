@@ -96,6 +96,20 @@
   max-width: 28rem;
   max-height: calc(100dvh - 1rem);
   overflow: hidden;
+
+  /* DialogContent is `display: grid`, whose auto rows size to max-content and are
+     NOT shrunk by this max-height. That left the form at its full natural height,
+     so the body's `overflow-y-auto` had nothing to scroll and the tail of the form
+     was silently clipped. Flex lets the form be height-bounded. */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Flex items default to `min-height: auto` and refuse to shrink below their
+   content — without this the form overflows again and the body still can't scroll. */
+.mobile-modal > form {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 @media (max-width: 640px) {
@@ -105,22 +119,15 @@
     border-radius: 0.75rem;
   }
 
-  /* Make buttons sticky at bottom for visibility above keyboard */
-  .mobile-modal form {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
+  /* Keep the buttons visible above the keyboard. This used to be `position: sticky`,
+     but with no scrolling ancestor it stuck to the *viewport* and painted over the
+     end of the form. Now the body scrolls, so the footer just has to not shrink. */
   .mobile-modal form > div:last-child {
-    margin-top: auto;
+    flex: 0 0 auto;
     padding-top: 1rem;
     border-top: 1px solid #e5e7eb;
-    position: sticky;
-    bottom: 0;
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     background: white;
-    z-index: 10;
   }
 }
 

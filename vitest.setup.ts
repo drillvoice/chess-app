@@ -21,3 +21,13 @@ if (process.env.CI) {
 // (reverse registration), so this runs *after* each file's own afterEach — any
 // per-file teardown still gets to run before the unmount.
 afterEach(cleanup);
+
+// jsdom implements no layout, so it ships no `scrollIntoView` at all — calling it
+// throws rather than no-opping. Components that keep a focused element in view are
+// doing the right thing in a browser, so stub it rather than guarding every call
+// site for an API that exists everywhere the app actually runs.
+// (Guarded on `Element` itself: the server/API specs run in the node environment,
+// where there is no DOM at all.)
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+}

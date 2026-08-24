@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,6 +89,7 @@ export function TagManager({
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isDeletingTag, setIsDeletingTag] = useState<string | null>(null);
   const [showAddInput, setShowAddInput] = useState(false);
+  const addInputRef = useRef<HTMLInputElement>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -111,6 +112,15 @@ export function TagManager({
   useEffect(() => {
     setIsLoading(preferencesLoading);
   }, [preferencesLoading]);
+
+  // The input renders below the whole chip row, so on a full modal it can open
+  // below the fold — and on mobile the keyboard shrinks 100dvh and pushes it down
+  // again. Focusing makes the browser keep it in view.
+  useEffect(() => {
+    if (!showAddInput) return;
+    addInputRef.current?.focus();
+    addInputRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [showAddInput]);
 
   const handleAddTag = async () => {
     const trimmedTag = newTagInput.trim();
@@ -217,7 +227,7 @@ export function TagManager({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleAddTag();
@@ -330,6 +340,7 @@ export function TagManager({
         <div className="space-y-1">
           <div className="flex gap-2">
             <Input
+              ref={addInputRef}
               type="text"
               placeholder={placeholder}
               value={newTagInput}
@@ -337,7 +348,7 @@ export function TagManager({
                 setNewTagInput(e.target.value);
                 setInputError(null);
               }}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               disabled={isAddingTag || disabled || availableTags.length >= maxTags}
               className="flex-1 text-sm"
               maxLength={25}

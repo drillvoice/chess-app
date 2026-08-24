@@ -345,7 +345,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="mobile-modal max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="mobile-modal sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -353,7 +353,7 @@ export function GoalSettingsModal({ isOpen, onClose }: GoalSettingsModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
           {!hasAnyGoalRows && (
             <p className="text-sm text-muted-foreground">
               No goals yet — add one below. Goals can be built-in (tactics, games, study time) or
