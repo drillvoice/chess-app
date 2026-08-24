@@ -6,6 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pawn Star Chess Log — a PWA for logging chess training sessions (tactics, games, studies, goals) with offline-first IndexedDB storage, optional Firebase cloud sync, and Lichess game auto-import. Built with React 19 + Vite. There is no traditional application database: all user data lives in the browser (IndexedDB) and syncs to Firebase Firestore. The Express server exists only for local dev and as a thin Lichess API proxy.
 
+## Before reading or changing code
+
+**Check the local checkout is current first.** The local clone drifts behind
+`origin/main` regularly — work often lands upstream (via PRs merged from agent
+branches) without being pulled down. Reviewing or editing a stale tree wastes a
+whole session: you will describe code that no longer exists, "discover" that a
+feature is missing when it shipped weeks ago, or write a fix on top of a file
+someone else already rewrote.
+
+```bash
+git fetch origin && git status -sb   # is main behind? is the tree dirty?
+git log --oneline HEAD..origin/main  # what landed that isn't here yet
+```
+
+If the branch is behind, pull before doing anything else, and say so. If the
+answer to a question genuinely depends on upstream code you have not pulled, read
+it with `git show origin/main:path/to/file` rather than answering from the stale
+copy.
+
 ## Commands
 
 ```bash
@@ -23,6 +42,12 @@ npm run format:check     # Prettier check only
 npm run type-check       # TypeScript type checking
 npm run validate         # type-check + lint + test (run before PRs)
 ```
+
+On macOS, **AirPlay Receiver squats on port 5000**, which is the dev server's
+default. Playwright's `reuseExistingServer` sees AirTunes answering, assumes the
+dev server is up, and every test then times out against a blank 403 page. Run
+E2E on another port (`PORT=5178 npm run test:e2e`) or turn AirPlay Receiver off
+in System Settings → General → AirDrop & Handoff.
 
 Deployment is via **Vercel** (see `vercel.json`): `vite build` produces the static client
 in `dist/public`, and all requests are rewritten to the serverless function at

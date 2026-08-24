@@ -19,6 +19,10 @@ export default [
       'coverage/',
       'public/',
       'client/public/',
+      // Agent worktrees are full checkouts of other branches living inside the
+      // repo. They are gitignored, but flat config does not read .gitignore, so
+      // without this `npm run lint` reports another branch's problems as ours.
+      '.claude/',
       '*.config.ts',
       '*.config.js',
     ],

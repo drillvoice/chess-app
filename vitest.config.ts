@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    exclude: [...configDefaults.exclude, 'tests/**'],
+    // 'tests/**' is Playwright's. '.claude/**' keeps agent worktrees — full
+    // checkouts of other branches inside the repo — from being collected as
+    // if they were this branch's tests.
+    exclude: [...configDefaults.exclude, 'tests/**', '.claude/**'],
     setupFiles: ['vitest.setup.ts'],
     coverage: {
       provider: 'v8',
