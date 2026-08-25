@@ -115,3 +115,47 @@ describe('setSessions write volume', () => {
     expect(stored.find((s) => s.id === 2)?.duration).toBe(99);
   });
 });
+
+describe('delete tombstones', () => {
+  const session = (id: number) =>
+    ({
+      id,
+      type: 'game',
+      date: new Date(2026, 0, 1, 0, id),
+      platform: 'lichess',
+      needsReview: true,
+    }) as never;
+
+  /**
+   * The cloud tombstone is written by one fire-and-forget call that is skipped
+   * outright before Firebase auth resolves. Dropping the row left nothing to
+   * retry from, so the next cloud snapshot — which still held the session —
+   * silently undid the delete.
+   */
+  it('hides a deleted session from the app but keeps it for sync', async () => {
+    await offlineStorage.setSessions([session(1), session(2)]);
+
+    await offlineStorage.deleteSession(1);
+
+    expect((await offlineStorage.getSessions()).map((s) => s.id)).toEqual([2]);
+    expect(await offlineStorage.getSession(1)).toBeNull();
+
+    const forSync = await offlineStorage.getSessionsForSync();
+    expect(forSync.map((s) => s.id).sort()).toEqual([1, 2]);
+    const tombstone = forSync.find((s) => s.id === 1) as unknown as Record<string, unknown>;
+    expect(tombstone.deletedAt).toBeTruthy();
+    // updatedAt moves with the delete so recency resolution ranks it above the
+    // copy the cloud still holds.
+    expect(tombstone.updatedAt).toBe(tombstone.deletedAt);
+  });
+
+  it('drops the tombstone row once a snapshot no longer carries it', async () => {
+    await offlineStorage.setSessions([session(1)]);
+    await offlineStorage.deleteSession(1);
+
+    // What the reconciler writes back after the cloud confirms the tombstone.
+    await offlineStorage.setSessions([]);
+
+    expect(await offlineStorage.getSessionsForSync()).toEqual([]);
+  });
+});

@@ -17,6 +17,7 @@ export const offlineStorage = {
   },
   // session methods
   getSessions: sessions.getSessions,
+  getSessionsForSync: sessions.getSessionsForSync,
   setSessions: sessions.setSessions,
   mergeSessions: sessions.mergeSessions,
   addSession: sessions.addSession,

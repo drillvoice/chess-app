@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   DEFAULT_STUDY_PREFERENCES,
   getUserStudyPreferences,
+  normalizeStudyPreferences,
   updateUserStudyPreferences,
 } from '@/lib/firebase/settings';
 import { repairTagVocabularies } from '@/lib/tag-vocabulary';
@@ -26,6 +27,23 @@ const listeners = new Set<(prefs: UserStudyPreferences | null) => void>();
 function setGlobalPreferences(prefs: UserStudyPreferences | null): void {
   globalPreferences = prefs;
   listeners.forEach((listener) => listener(prefs));
+}
+
+// The realtime settings listener merges another device's vocabulary into
+// IndexedDB, but this cache is only filled on load, so without this the tag
+// pickers would keep showing the vocabulary as it stood when the tab opened —
+// a tag added on a phone would not appear until a reload. Registered at module
+// scope rather than in the hook so the cache stays current even while no picker
+// is mounted; the next one to mount then renders the merged list immediately.
+if (typeof window !== 'undefined') {
+  window.addEventListener('cloud-sync:settings-merged', (event) => {
+    const merged = (event as CustomEvent).detail as { studyPreferences?: unknown } | undefined;
+    if (!merged?.studyPreferences) return;
+    // Same healing the load path applies: the merged record comes straight from
+    // a Firestore payload, so its lastModified may still be a raw Timestamp.
+    const healed = normalizeStudyPreferences(merged.studyPreferences);
+    if (healed) setGlobalPreferences(healed);
+  });
 }
 
 export function useStudyPreferences(): UseStudyPreferencesReturn {

@@ -80,22 +80,44 @@ describe('repertoire cloud serialization', () => {
 describe('reconcileRepertoireSnapshot', () => {
   it('downloads cloud-only repertoires', () => {
     const remote = makeRepertoire({ id: 'cloud-only' }) as RemoteRepertoire;
-    const { nextLocal, localOnlyToUpload, tombstonedIds } = reconcileRepertoireSnapshot(
+    const { nextLocal, repertoiresToUpload, tombstonedIds } = reconcileRepertoireSnapshot(
       [],
       [remote],
     );
 
     expect(nextLocal.map((r) => r.id)).toEqual(['cloud-only']);
-    expect(localOnlyToUpload).toHaveLength(0);
+    expect(repertoiresToUpload).toHaveLength(0);
     expect(tombstonedIds).toHaveLength(0);
   });
 
   it('flags local-only repertoires for upload while keeping them', () => {
     const local = makeRepertoire({ id: 'local-only' });
-    const { nextLocal, localOnlyToUpload } = reconcileRepertoireSnapshot([local], []);
+    const { nextLocal, repertoiresToUpload } = reconcileRepertoireSnapshot([local], []);
 
     expect(nextLocal.map((r) => r.id)).toEqual(['local-only']);
-    expect(localOnlyToUpload.map((r) => r.id)).toEqual(['local-only']);
+    expect(repertoiresToUpload.map((r) => r.id)).toEqual(['local-only']);
+  });
+
+  it('re-uploads a local edit the cloud never received', () => {
+    const local = makeRepertoire({ name: 'Local edit', updatedAt: '2026-05-10T00:00:00.000Z' });
+    const remote = makeRepertoire({
+      name: 'Stale cloud copy',
+      updatedAt: '2026-05-05T00:00:00.000Z',
+    }) as RemoteRepertoire;
+
+    const { nextLocal, repertoiresToUpload } = reconcileRepertoireSnapshot([local], [remote]);
+
+    expect(nextLocal[0].name).toBe('Local edit');
+    expect(repertoiresToUpload.map((r) => r.id)).toEqual([local.id]);
+  });
+
+  it('does not re-upload once the cloud has caught up', () => {
+    const local = makeRepertoire({ updatedAt: '2026-05-10T00:00:00.000Z' });
+    const remote = makeRepertoire({ updatedAt: '2026-05-10T00:00:00.000Z' }) as RemoteRepertoire;
+
+    const { repertoiresToUpload } = reconcileRepertoireSnapshot([local], [remote]);
+
+    expect(repertoiresToUpload).toHaveLength(0);
   });
 
   it('resolves conflicts with the newest updatedAt (last-write-wins)', () => {
@@ -131,12 +153,12 @@ describe('reconcileRepertoireSnapshot', () => {
       deletedAt: '2026-05-02T00:00:00.000Z',
     };
 
-    const { nextLocal, localOnlyToUpload, tombstonedIds } = reconcileRepertoireSnapshot(
+    const { nextLocal, repertoiresToUpload, tombstonedIds } = reconcileRepertoireSnapshot(
       [local],
       [tombstone],
     );
     expect(nextLocal.map((r) => r.id)).toEqual(['rep-1']);
-    expect(localOnlyToUpload.map((r) => r.id)).toEqual(['rep-1']);
+    expect(repertoiresToUpload.map((r) => r.id)).toEqual(['rep-1']);
     expect(tombstonedIds).toHaveLength(0);
   });
 });

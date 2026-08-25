@@ -37,12 +37,33 @@ export function mergeSessionCollections(
   return { merged, collisionsResolved };
 }
 
+/**
+ * Reconcile a cloud snapshot against the local store.
+ *
+ * `sessionsToUpload` covers every record whose local copy the cloud does not
+ * have yet, which is *not* the same as "sessions missing from the cloud". A
+ * local edit reaches Firestore through a single fire-and-forget write in
+ * `updateSession`, and that write is skipped outright when it runs before
+ * Firebase auth has resolved (`canSyncToCloud()` reads a uid that is still
+ * null during startup) and merely logged when it fails. Nothing retries it —
+ * `markAsUnsynced` has no callers — so the edit used to sit in IndexedDB
+ * forever: the session already exists in the cloud, so the old
+ * "missing from the cloud" test never picked it up, while recency resolution
+ * kept the newer local copy locally and quietly discarded the divergence.
+ * That is how a mistake tag added on a phone, or a game archived there, could
+ * be invisible on every other device indefinitely.
+ *
+ * Including locally-newer records makes the snapshot self-healing for a missed
+ * write whatever its cause. It cannot loop: the upload leaves both sides on the
+ * same `updatedAt`, and the comparison below is strict, so the echoing snapshot
+ * hands the record back to the cloud side and nothing further is queued.
+ */
 export function reconcileRealtimeSnapshot(
   localSessions: TrainingSession[],
   remoteSessions: TrainingSession[],
 ): {
   nextLocal: TrainingSession[];
-  localOnlyToUpload: TrainingSession[];
+  sessionsToUpload: TrainingSession[];
   tombstonedIds: number[];
 } {
   const normalizedLocalSessions = localSessions
@@ -83,12 +104,17 @@ export function reconcileRealtimeSnapshot(
   const effectiveTombstonedIdSet = new Set(tombstonedIds);
 
   const { merged } = mergeSessionCollections(localWithoutTombstones, remoteActive);
-  const remoteActiveIds = new Set(remoteActive.map((session) => session.id));
-  const localOnlyToUpload = merged.filter(
-    (session) => !remoteActiveIds.has(session.id) && !effectiveTombstonedIdSet.has(session.id),
+  const remoteActiveRecencyById = new Map(
+    remoteActive.map((session) => [session.id, sessionRecency(session)]),
   );
+  const sessionsToUpload = merged.filter((session) => {
+    if (effectiveTombstonedIdSet.has(session.id)) return false;
+    const remoteRecency = remoteActiveRecencyById.get(session.id);
+    if (remoteRecency == null) return true;
+    return sessionRecency(session) > remoteRecency;
+  });
 
-  return { nextLocal: merged, localOnlyToUpload, tombstonedIds };
+  return { nextLocal: merged, sessionsToUpload, tombstonedIds };
 }
 
 type LooseRecord = Record<string, unknown>;

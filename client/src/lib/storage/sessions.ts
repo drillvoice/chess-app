@@ -77,13 +77,43 @@ function hydrateDate(value: unknown, sessionId: number): Date {
   return parsed;
 }
 
-export async function getSessions(): Promise<TrainingSession[]> {
+function isTombstoned(session: TrainingSession): boolean {
+  return Boolean((session as Record<string, unknown>).deletedAt);
+}
+
+async function readAllSessions(): Promise<TrainingSession[]> {
   return withStores([SESSIONS] as const, 'readonly', async ({ sessions }) => {
     const all = await sessions.getAll();
     const mapped = (all as Record<string, unknown>[]).map(hydrateSession);
     mapped.sort((a, b) => b.date.getTime() - a.date.getTime());
     return mapped;
   });
+}
+
+/**
+ * Every session the app should show, aggregate or export — tombstones excluded.
+ */
+export async function getSessions(): Promise<TrainingSession[]> {
+  return (await readAllSessions()).filter((session) => !isTombstoned(session));
+}
+
+/**
+ * The store as it really stands, tombstones included, for cloud reconciliation.
+ *
+ * A delete is recorded as a `deletedAt` marker on the row rather than by
+ * dropping it, because the cloud tombstone is written by a single
+ * fire-and-forget call that is skipped entirely when it runs before Firebase
+ * auth resolves. With the row gone there was nothing left to retry from: the
+ * cloud still held the session, the next snapshot saw a record the local store
+ * lacked, and the delete was quietly undone. Keeping the marker lets the
+ * reconciler upload the tombstone like any other locally-newer record.
+ *
+ * The marker is not permanent. Once the cloud carries the same tombstone, the
+ * snapshot reconciler stops returning the row and `setSessions` deletes it for
+ * real, so the store does not accumulate them.
+ */
+export async function getSessionsForSync(): Promise<TrainingSession[]> {
+  return readAllSessions();
 }
 
 function serializeSession(session: TrainingSession): Record<string, unknown> {
@@ -204,13 +234,23 @@ export async function getSession(id: number): Promise<TrainingSession | null> {
     const result = await sessions.get(id);
     if (!result) return null;
 
-    return hydrateSession(result as Record<string, unknown>);
+    const session = hydrateSession(result as Record<string, unknown>);
+    return isTombstoned(session) ? null : session;
   });
 }
 
+/**
+ * Tombstone a session rather than dropping the row — see getSessionsForSync for
+ * why the marker has to outlive the delete. `updatedAt` moves with it so
+ * recency resolution ranks the delete above the copy the cloud still holds.
+ */
 export async function removeSession(id: number): Promise<void> {
-  await withStores([SESSIONS] as const, 'readwrite', async ({ sessions }) => {
-    await sessions.delete(id);
+  await withStores([SESSIONS, META] as const, 'readwrite', async ({ sessions, cache_meta }) => {
+    const existing = await sessions.get(id);
+    if (!existing) return;
+    const deletedAt = new Date().toISOString();
+    await sessions.put({ ...existing, deletedAt, updatedAt: deletedAt });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
   });
 }
 

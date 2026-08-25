@@ -93,7 +93,7 @@ describe('reconcileRealtimeSnapshot', () => {
     const result = reconcileRealtimeSnapshot(local, remote);
 
     expect(result.nextLocal.map((s) => s.id).sort()).toEqual([1, 2]);
-    expect(result.localOnlyToUpload.map((s) => s.id)).toEqual([1]);
+    expect(result.sessionsToUpload.map((s) => s.id)).toEqual([1]);
     expect(result.tombstonedIds).toEqual([]);
   });
 
@@ -108,7 +108,7 @@ describe('reconcileRealtimeSnapshot', () => {
     const result = reconcileRealtimeSnapshot(local, remote);
 
     expect(result.nextLocal).toEqual([]);
-    expect(result.localOnlyToUpload).toEqual([]);
+    expect(result.sessionsToUpload).toEqual([]);
     expect(result.tombstonedIds).toEqual([1]);
   });
 
@@ -124,7 +124,7 @@ describe('reconcileRealtimeSnapshot', () => {
 
     expect(result.nextLocal).toHaveLength(1);
     expect(result.nextLocal[0].id).toBe(1);
-    expect(result.localOnlyToUpload.map((s) => s.id)).toEqual([1]);
+    expect(result.sessionsToUpload.map((s) => s.id)).toEqual([1]);
     expect(result.tombstonedIds).toEqual([]);
   });
 
@@ -144,7 +144,83 @@ describe('reconcileRealtimeSnapshot', () => {
 
     expect(result.nextLocal).toHaveLength(1);
     expect(result.nextLocal[0].duration).toBe(45);
-    expect(result.localOnlyToUpload).toEqual([]);
+    expect(result.sessionsToUpload).toEqual([]);
+  });
+
+  it('re-uploads a local edit the cloud never received', () => {
+    // The mistake tag / archive case: the phone wrote the edit locally but its
+    // fire-and-forget cloud write was skipped or failed, so the cloud still
+    // holds the pre-edit copy. Recency keeps the local copy, and the snapshot
+    // has to push it or the edit never leaves the device.
+    const local = [
+      makeSession(7, '2025-01-01T10:00:00.000Z', '2025-01-05T10:00:00.000Z', {
+        mistakeTags: JSON.stringify(['hung a piece']),
+        needsReview: false,
+      }),
+    ];
+    const remote = [
+      makeSession(7, '2025-01-01T10:00:00.000Z', '2025-01-02T10:00:00.000Z', {
+        mistakeTags: JSON.stringify([]),
+        needsReview: true,
+      }),
+    ];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal[0].needsReview).toBe(false);
+    expect(result.sessionsToUpload.map((s) => s.id)).toEqual([7]);
+  });
+
+  it('does not re-upload once the cloud has caught up', () => {
+    // The echo of the upload above: both sides now carry the same updatedAt, so
+    // the comparison must be strict or every snapshot would queue another write.
+    const local = [makeSession(7, '2025-01-01T10:00:00.000Z', '2025-01-05T10:00:00.000Z')];
+    const remote = [makeSession(7, '2025-01-01T10:00:00.000Z', '2025-01-05T10:00:00.000Z')];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.sessionsToUpload).toEqual([]);
+  });
+
+  it('uploads a local tombstone the cloud has not heard about', () => {
+    // The delete's own cloud write was skipped or failed. The local row keeps a
+    // deletedAt marker precisely so this pass can push it — without that the
+    // cloud copy below would be merged straight back in and the delete undone.
+    const deletedAt = new Date('2025-01-05T10:00:00.000Z');
+    const local = [
+      makeSession(3, '2025-01-01T10:00:00.000Z', '2025-01-05T10:00:00.000Z', {
+        deletedAt,
+      } as Partial<TrainingSession>),
+    ];
+    const remote = [makeSession(3, '2025-01-01T10:00:00.000Z', '2025-01-02T10:00:00.000Z')];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.sessionsToUpload.map((s) => s.id)).toEqual([3]);
+    expect((result.sessionsToUpload[0] as { deletedAt?: Date }).deletedAt).toEqual(deletedAt);
+    expect(result.tombstonedIds).toEqual([]);
+  });
+
+  it('clears the local tombstone once the cloud carries the same one', () => {
+    // The echo of the upload above. Both sides agree, so the row drops out of
+    // nextLocal and setSessions deletes it for real — tombstones do not pile up.
+    const deletedAt = new Date('2025-01-05T10:00:00.000Z');
+    const local = [
+      makeSession(3, '2025-01-01T10:00:00.000Z', '2025-01-05T10:00:00.000Z', {
+        deletedAt,
+      } as Partial<TrainingSession>),
+    ];
+    const remote = [
+      makeSession(3, '2025-01-01T10:00:00.000Z', '2025-01-05T10:00:00.000Z', {
+        deletedAt,
+      } as Partial<TrainingSession>),
+    ];
+
+    const result = reconcileRealtimeSnapshot(local, remote);
+
+    expect(result.nextLocal).toEqual([]);
+    expect(result.sessionsToUpload).toEqual([]);
+    expect(result.tombstonedIds).toEqual([3]);
   });
 
   it('normalizes local numeric string ids before deciding what to upload', () => {
@@ -156,7 +232,7 @@ describe('reconcileRealtimeSnapshot', () => {
 
     expect(result.nextLocal).toHaveLength(1);
     expect(result.nextLocal[0].id).toBe(12);
-    expect(result.localOnlyToUpload).toHaveLength(0);
+    expect(result.sessionsToUpload).toHaveLength(0);
   });
 });
 

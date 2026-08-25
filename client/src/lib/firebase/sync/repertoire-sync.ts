@@ -100,7 +100,7 @@ function stripTombstone(repertoire: RemoteRepertoire): OpeningRepertoire {
 
 export interface RepertoireReconciliation {
   nextLocal: OpeningRepertoire[];
-  localOnlyToUpload: OpeningRepertoire[];
+  repertoiresToUpload: OpeningRepertoire[];
   tombstonedIds: string[];
 }
 
@@ -108,6 +108,13 @@ export interface RepertoireReconciliation {
  * Merge a realtime cloud snapshot with the local store. Newest `updatedAt`
  * wins; cloud tombstones remove local copies unless the local copy was edited
  * after the delete (in which case it is resurrected and re-uploaded).
+ *
+ * `repertoiresToUpload` covers the locally-newer copies as well as the ones the
+ * cloud has never seen — the same reason `reconcileRealtimeSnapshot` does. A
+ * repertoire edit reaches Firestore through one fire-and-forget write that is
+ * skipped when it runs before Firebase auth resolves, and nothing retries it;
+ * restricting the upload set to documents missing from the cloud left such an
+ * edit sitting locally forever, because the document itself was already there.
  */
 export function reconcileRepertoireSnapshot(
   localRepertoires: OpeningRepertoire[],
@@ -155,8 +162,16 @@ export function reconcileRepertoireSnapshot(
     (a, b) => repertoireRecency(b) - repertoireRecency(a),
   );
 
-  const remoteActiveIdSet = new Set(remoteActive.map((remote) => remote.id));
-  const localOnlyToUpload = nextLocal.filter((repertoire) => !remoteActiveIdSet.has(repertoire.id));
+  const remoteActiveRecencyById = new Map(
+    remoteActive.map((remote) => [remote.id, repertoireRecency(remote)]),
+  );
+  // Strictly newer, so the echo of an upload — which leaves both sides on the
+  // same updatedAt — does not queue another one.
+  const repertoiresToUpload = nextLocal.filter((repertoire) => {
+    const remoteRecency = remoteActiveRecencyById.get(repertoire.id);
+    if (remoteRecency == null) return true;
+    return repertoireRecency(repertoire) > remoteRecency;
+  });
 
-  return { nextLocal, localOnlyToUpload, tombstonedIds };
+  return { nextLocal, repertoiresToUpload, tombstonedIds };
 }

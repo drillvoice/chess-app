@@ -234,8 +234,10 @@ export async function updateSession(
 
 export async function deleteSession(id: number): Promise<boolean> {
   try {
-    const existingSession = await offlineStorage.getSession(id);
-    // Delete locally first - this is the source of truth
+    // Delete locally first - this is the source of truth. The local record is
+    // tombstoned rather than dropped (see getSessionsForSync), so the delete
+    // survives a cloud write that never happens: the snapshot reconciler
+    // uploads the tombstone on the next pass.
     await offlineStorage.deleteSession(id);
     await offlineStorage.clearStatistics();
 
@@ -247,14 +249,13 @@ export async function deleteSession(id: number): Promise<boolean> {
     queueMicrotask(() => updateStatisticsInBackground());
 
     if (canSyncToCloud()) {
+      // Only to spare the other devices a wait for the next reconciliation
+      // pass. A failure here needs no repair: it used to re-upload the session
+      // to keep the two sides consistent, which resurrected a session the user
+      // had just deleted whenever the tombstone write was the thing that failed.
       queueMicrotask(() => {
         markSessionDeletedInCloud(id).catch((error) => {
           logger.warn('Background cloud tombstone sync failed:', error);
-          if (existingSession) {
-            upsertSessionToCloud(existingSession).catch((restoreError) => {
-              logger.warn('Failed to re-upsert session after delete sync failure:', restoreError);
-            });
-          }
         });
       });
     }

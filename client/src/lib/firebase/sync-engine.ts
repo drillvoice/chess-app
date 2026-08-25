@@ -140,7 +140,7 @@ function progressMetrics(processed: number, total: number, startedAt: number) {
   };
 }
 
-async function backfillLocalOnlySessionsToCloud(
+async function uploadSessionsToCloud(
   sessionsToUpload: TrainingSession[],
   options: BackfillOptions = {},
 ): Promise<{ uploadedCount: number; failedCount: number; failureSamples: string[] }> {
@@ -280,7 +280,7 @@ export async function runInitialMergeMigration(): Promise<MigrationSummary> {
 
   const [localSessions, cloudSessions, localSettings, cloudSettings, localGoals, cloudGoals] =
     await Promise.all([
-      offlineStorage.getSessions(),
+      offlineStorage.getSessionsForSync(),
       fetchCloudSessions(uid),
       offlineStorage.getSettings(),
       fetchCloudSettings(uid),
@@ -401,16 +401,16 @@ export async function backfillMissingLocalSessionsToCloud(
   }
 
   const [localSessions, remoteSessions] = await Promise.all([
-    offlineStorage.getSessions(),
+    offlineStorage.getSessionsForSync(),
     fetchCloudSessions(uid),
   ]);
-  const { localOnlyToUpload } = reconcileRealtimeSnapshot(localSessions, remoteSessions);
-  const { uploadedCount, failedCount } = await backfillLocalOnlySessionsToCloud(localOnlyToUpload, {
+  const { sessionsToUpload } = reconcileRealtimeSnapshot(localSessions, remoteSessions);
+  const { uploadedCount, failedCount } = await uploadSessionsToCloud(sessionsToUpload, {
     concurrency,
   });
 
   return {
-    candidateCount: localOnlyToUpload.length,
+    candidateCount: sessionsToUpload.length,
     uploadedCount,
     failedCount,
   };
@@ -425,7 +425,7 @@ export async function forceUploadAllLocalSessionsToCloud(
     throw new Error('Cannot upload sessions without authenticated user');
   }
 
-  const localSessions = await offlineStorage.getSessions();
+  const localSessions = await offlineStorage.getSessionsForSync();
   const normalizedLocal = localSessions
     .map((session) => normalizeSessionForSync(session))
     .filter((session): session is TrainingSession => Boolean(session));
@@ -444,7 +444,7 @@ export async function forceUploadAllLocalSessionsToCloud(
     latestFailure: null,
     failureSamples: [],
   });
-  const { uploadedCount, failedCount, failureSamples } = await backfillLocalOnlySessionsToCloud(
+  const { uploadedCount, failedCount, failureSamples } = await uploadSessionsToCloud(
     normalizedLocal,
     {
       ...options,
@@ -524,8 +524,11 @@ export async function startRealtimeSync(): Promise<() => void> {
         )
         .map((session) => normalizeSessionForSync(session))
         .filter((session): session is TrainingSession => Boolean(session));
-      const localSessions = await offlineStorage.getSessions();
-      const { nextLocal, localOnlyToUpload, tombstonedIds } = reconcileRealtimeSnapshot(
+      // Tombstones included: a delete whose cloud write never happened is only
+      // recoverable from the local marker, and dropping it here would let the
+      // cloud copy resurrect the session on the very next snapshot.
+      const localSessions = await offlineStorage.getSessionsForSync();
+      const { nextLocal, sessionsToUpload, tombstonedIds } = reconcileRealtimeSnapshot(
         localSessions,
         remoteSessions,
       );
@@ -539,7 +542,7 @@ export async function startRealtimeSync(): Promise<() => void> {
         elapsedMs: Date.now() - startedAt,
         itemsPerSecond: null,
         lastBatchSize: nextLocal.length,
-        reconciledLocalOnlyCount: localOnlyToUpload.length,
+        reconciledLocalOnlyCount: sessionsToUpload.length,
       });
       await offlineStorage.setSessions(nextLocal);
       await Promise.all([
@@ -547,21 +550,19 @@ export async function startRealtimeSync(): Promise<() => void> {
         offlineStorage.setSyncLastSuccessAt(Date.now()),
         offlineStorage.clearSyncLastError(),
       ]);
-      if (localOnlyToUpload.length > 0) {
+      if (sessionsToUpload.length > 0) {
         queueMicrotask(() => {
-          backfillLocalOnlySessionsToCloud(localOnlyToUpload).then(
-            ({ uploadedCount, failedCount }) => {
-              logger.info(
-                `Cloud sync backfilled ${uploadedCount}/${localOnlyToUpload.length} local-only sessions after reconciliation`,
+          uploadSessionsToCloud(sessionsToUpload).then(({ uploadedCount, failedCount }) => {
+            logger.info(
+              `Cloud sync backfilled ${uploadedCount}/${sessionsToUpload.length} sessions the cloud was missing or behind on`,
+            );
+            publishStatus({ backfilledCount: uploadedCount });
+            if (failedCount > 0) {
+              logger.warn(
+                `Cloud sync failed to backfill ${failedCount} sessions after reconciliation`,
               );
-              publishStatus({ backfilledCount: uploadedCount });
-              if (failedCount > 0) {
-                logger.warn(
-                  `Cloud sync failed to backfill ${failedCount} local-only sessions after reconciliation`,
-                );
-              }
-            },
-          );
+            }
+          });
         });
       }
       if (tombstonedIds.length > 0) {
@@ -624,6 +625,16 @@ export async function startRealtimeSync(): Promise<() => void> {
       const mergedMistakeTags = mergedStudyPreferences?.customMistakeTags;
       const cloudTagConfigs = cloudStudyPreferences?.tagConfigs;
       const mergedTagConfigs = mergedStudyPreferences?.tagConfigs;
+      // The merged document is in IndexedDB now, but the tag pickers read a
+      // process-wide cache that is only ever filled on load (see
+      // use-study-preferences). Announce the new document so a vocabulary
+      // another device added shows up here without a reload — otherwise a
+      // mistake tag created on a phone stays invisible on an open desktop tab
+      // for as long as it stays open.
+      window.dispatchEvent(
+        new CustomEvent('cloud-sync:settings-merged', { detail: mergedSettings }),
+      );
+
       if (
         !areSameTagSet(cloudTags, mergedTags) ||
         !areSameTagSet(cloudMistakeTags, mergedMistakeTags) ||
@@ -676,15 +687,15 @@ export async function startRealtimeSync(): Promise<() => void> {
         deserializeRepertoireFromCloud({ ...entry.data(), id: entry.data()?.id ?? entry.id }),
       );
       const localRepertoires = await offlineStorage.getOpeningRepertoires();
-      const { nextLocal, localOnlyToUpload } = reconcileRepertoireSnapshot(
+      const { nextLocal, repertoiresToUpload } = reconcileRepertoireSnapshot(
         localRepertoires,
         remoteRepertoires,
       );
       await offlineStorage.setOpeningRepertoires(nextLocal);
-      if (localOnlyToUpload.length > 0) {
+      if (repertoiresToUpload.length > 0) {
         queueMicrotask(() => {
           Promise.all(
-            localOnlyToUpload.map((repertoire) =>
+            repertoiresToUpload.map((repertoire) =>
               upsertRepertoireToCloud(repertoire).catch((error) => {
                 logger.warn(`Failed to backfill repertoire ${repertoire.id} to cloud`, error);
               }),
@@ -726,7 +737,7 @@ export async function startRealtimeSync(): Promise<() => void> {
       .then(({ candidateCount, uploadedCount, failedCount }) => {
         if (candidateCount === 0) return;
         logger.info(
-          `Cloud sync startup backfill uploaded ${uploadedCount}/${candidateCount} local-only sessions`,
+          `Cloud sync startup backfill uploaded ${uploadedCount}/${candidateCount} sessions the cloud was missing or behind on`,
         );
         publishStatus({ backfilledCount: uploadedCount });
         if (failedCount > 0) {
