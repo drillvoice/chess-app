@@ -1,5 +1,5 @@
 import type { InsertTrainingSession } from '@shared/schema';
-import { createSession } from './firebase';
+import { createSession, getAllSessions } from './firebase';
 import { queryClient } from './queryClient';
 
 const isDebug =
@@ -92,6 +92,86 @@ export function mapLichessTimeControl(initialMinutes: number, _incrementSeconds:
 
   // Classical: anything longer than 15+10
   return 'classical';
+}
+
+/**
+ * Map one game from the Lichess API onto a session, or null when the game
+ * carries no usable timestamps. Shared by the poller and the manual import so
+ * the two cannot drift apart in what they record.
+ */
+function buildSessionFromLichessGame(game: any, userLower: string): InsertTrainingSession | null {
+  const lastMoveAt = Number(game?.lastMoveAt);
+  const createdAt = Number(game?.createdAt ?? lastMoveAt);
+  if (!Number.isFinite(lastMoveAt) || !Number.isFinite(createdAt)) {
+    return null;
+  }
+
+  const color = game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
+
+  const opponentUsername =
+    color === 'white' ? game?.players?.black?.user?.name : game?.players?.white?.user?.name;
+
+  let result: 'win' | 'loss' | 'draw';
+  if (!game?.winner) {
+    result = 'draw';
+  } else {
+    result = game.winner === color ? 'win' : 'loss';
+  }
+
+  let timeControl = '';
+  if (game?.clock) {
+    const initial = Math.round((game.clock.initial || 0) / 60);
+    const increment = game.clock.increment || 0;
+    timeControl = mapLichessTimeControl(initial, increment);
+  }
+
+  return {
+    type: 'game',
+    platform: 'lichess',
+    duration: Math.max(0, Math.round((lastMoveAt - createdAt) / 60000)),
+    playerColor: color,
+    gameResult: result,
+    timeControl,
+    opponentUsername,
+    openingName: typeof game?.opening?.name === 'string' ? game.opening.name : undefined,
+    openingEco: typeof game?.opening?.eco === 'string' ? game.opening.eco : undefined,
+    needsReview: true,
+    gameComments: '',
+    // Use the game's end time (lastMoveAt) as the session date, not the current sync time
+    date: new Date(lastMoveAt),
+  };
+}
+
+/**
+ * The end times of every Lichess game already in the log, used to skip a game
+ * on re-import.
+ *
+ * The only thing standing between a game and a second copy of it used to be the
+ * `lichess-last-game-*` watermark — which lives in localStorage, so it is per
+ * device. A desktop whose watermark has fallen behind the phone's re-imports
+ * every game the phone logged in the meantime as a *fresh* session with
+ * `needsReview: true`, dated at the original game, and cloud sync then spreads
+ * those duplicates to every device. Games the user had already reviewed and
+ * archived on the phone reappear in the review queue that way.
+ *
+ * `date` is the key because the importer sets it from the game's own
+ * `lastMoveAt` in exact milliseconds: it is chosen by Lichess rather than by
+ * the importing device, and survives the round trip through IndexedDB and
+ * Firestore unchanged. So it identifies a copy imported months ago on another
+ * device just as well as one imported a moment ago — including records written
+ * before this check existed, which is what lets it work without a schema
+ * migration. A game whose date the user has since edited by hand no longer
+ * matches; nothing else the import records is stable enough to key on.
+ */
+async function loadImportedGameKeys(): Promise<Set<number>> {
+  const sessions = await getAllSessions();
+  const keys = new Set<number>();
+  for (const session of sessions) {
+    if (session.type !== 'game' || session.platform !== 'lichess') continue;
+    const endedAt = new Date(session.date).getTime();
+    if (Number.isFinite(endedAt)) keys.add(endedAt);
+  }
+  return keys;
 }
 
 // Global sync management
@@ -198,6 +278,7 @@ export function startLichessSync(username: string) {
 
       debugLog(`🔄 [Lichess Sync Poll] Processing ${sortedGames.length} games`);
       const userLower = username.toLowerCase();
+      const importedKeys = await loadImportedGameKeys();
       let importedCount = 0;
 
       for (const game of sortedGames) {
@@ -209,53 +290,24 @@ export function startLichessSync(username: string) {
           continue;
         }
 
-        const createdAt = Number(game?.createdAt ?? lastMoveAt);
-        if (!Number.isFinite(createdAt)) {
-          console.warn('⚠️ [Lichess Sync Poll] Skipping game with invalid creation timestamp');
+        const session = buildSessionFromLichessGame(game, userLower);
+        if (!session) {
+          console.warn('⚠️ [Lichess Sync Poll] Skipping game with invalid timestamps');
+          continue;
+        }
+
+        // Already logged — by this device on an earlier run, or by another
+        // device whose games arrived over cloud sync. Advance the watermark
+        // past it, but leave the existing session alone: it may carry mistake
+        // tags and an archived review state that a fresh import would not.
+        if (importedKeys.has(lastMoveAt)) {
+          debugLog(`⏭️ [Lichess Sync Poll] Skipping already-logged game: id=${game?.id}`);
+          lastTimestamp = lastMoveAt;
+          localStorage.setItem(key, String(lastTimestamp));
           continue;
         }
 
         debugLog(`📥 [Lichess Sync Poll] Importing game: id=${game?.id}, lastMoveAt=${lastMoveAt}`);
-
-        const color =
-          game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
-
-        const opponentUsername =
-          color === 'white' ? game?.players?.black?.user?.name : game?.players?.white?.user?.name;
-
-        let result: 'win' | 'loss' | 'draw';
-        if (!game?.winner) {
-          result = 'draw';
-        } else {
-          result = game.winner === color ? 'win' : 'loss';
-        }
-
-        const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
-
-        let timeControl = '';
-        if (game?.clock) {
-          const initial = Math.round((game.clock.initial || 0) / 60);
-          const increment = game.clock.increment || 0;
-          timeControl = mapLichessTimeControl(initial, increment);
-        }
-
-        // Use the game's end time (lastMoveAt) as the session date, not the current sync time
-        const gameEndDate = new Date(lastMoveAt);
-
-        const session: InsertTrainingSession = {
-          type: 'game',
-          platform: 'lichess',
-          duration,
-          playerColor: color,
-          gameResult: result,
-          timeControl,
-          opponentUsername,
-          openingName: typeof game?.opening?.name === 'string' ? game.opening.name : undefined,
-          openingEco: typeof game?.opening?.eco === 'string' ? game.opening.eco : undefined,
-          needsReview: true,
-          gameComments: '',
-          date: gameEndDate,
-        };
 
         try {
           debugLog(`💾 [Lichess Sync Poll] Saving session to Firebase...`);
@@ -266,6 +318,7 @@ export function startLichessSync(username: string) {
           break;
         }
 
+        importedKeys.add(lastMoveAt);
         lastTimestamp = lastMoveAt;
         localStorage.setItem(key, String(lastTimestamp));
         debugLog(`📝 [Lichess Sync Poll] Updated timestamp to: ${lastTimestamp}`);
@@ -383,6 +436,7 @@ export async function triggerManualSync(): Promise<{
       .sort((a, b) => Number(a?.lastMoveAt ?? 0) - Number(b?.lastMoveAt ?? 0));
 
     const userLower = username.toLowerCase();
+    const importedKeys = await loadImportedGameKeys();
     let importedCount = 0;
 
     for (const game of sortedGames) {
@@ -391,54 +445,24 @@ export async function triggerManualSync(): Promise<{
         continue;
       }
 
-      const createdAt = Number(game?.createdAt ?? lastMoveAt);
-      if (!Number.isFinite(createdAt)) {
-        console.warn('Skipping Lichess game with invalid creation timestamp');
+      const session = buildSessionFromLichessGame(game, userLower);
+      if (!session) {
+        console.warn('Skipping Lichess game with invalid timestamps');
         continue;
       }
 
-      const color =
-        game?.players?.white?.user?.name?.toLowerCase() === userLower ? 'white' : 'black';
-
-      const opponentUsername =
-        color === 'white' ? game?.players?.black?.user?.name : game?.players?.white?.user?.name;
-
-      let result: 'win' | 'loss' | 'draw';
-      if (!game?.winner) {
-        result = 'draw';
-      } else {
-        result = game.winner === color ? 'win' : 'loss';
+      // Already logged; see loadImportedGameKeys. This matters most here —
+      // a device with no watermark sends no `since`, so the proxy hands back
+      // the last 50 games and every one of them would otherwise be re-created.
+      if (importedKeys.has(lastMoveAt)) {
+        lastTimestamp = lastMoveAt;
+        localStorage.setItem(key, String(lastTimestamp));
+        continue;
       }
-
-      const duration = Math.max(0, Math.round((lastMoveAt - createdAt) / 60000));
-
-      let timeControl = '';
-      if (game?.clock) {
-        const initial = Math.round((game.clock.initial || 0) / 60);
-        const increment = game.clock.increment || 0;
-        timeControl = mapLichessTimeControl(initial, increment);
-      }
-
-      // Use the game's end time (lastMoveAt) as the session date, not the current sync time
-      const gameEndDate = new Date(lastMoveAt);
-
-      const session: InsertTrainingSession = {
-        type: 'game',
-        platform: 'lichess',
-        duration,
-        playerColor: color,
-        gameResult: result,
-        timeControl,
-        opponentUsername,
-        openingName: typeof game?.opening?.name === 'string' ? game.opening.name : undefined,
-        openingEco: typeof game?.opening?.eco === 'string' ? game.opening.eco : undefined,
-        needsReview: true,
-        gameComments: '',
-        date: gameEndDate,
-      };
 
       try {
         await createSession(session);
+        importedKeys.add(lastMoveAt);
         lastTimestamp = lastMoveAt;
         localStorage.setItem(key, String(lastTimestamp));
         importedCount++;

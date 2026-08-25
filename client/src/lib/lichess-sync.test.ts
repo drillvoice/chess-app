@@ -1,10 +1,12 @@
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 
 const createSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const getAllSessionsMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 const invalidateQueriesMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./firebase', () => ({
   createSession: createSessionMock,
+  getAllSessions: getAllSessionsMock,
 }));
 
 vi.mock('./queryClient', () => ({
@@ -25,6 +27,7 @@ describe('startLichessSync', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    getAllSessionsMock.mockResolvedValue([]);
     localStorage.clear();
     invalidateQueriesMock.mockClear();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -277,6 +280,59 @@ describe('startLichessSync', () => {
 
     expect(createSession).toHaveBeenCalledTimes(1);
     expect(getSyncStatus().gamesImported - initialImported).toBe(1);
+
+    stopSync?.();
+  });
+
+  it('does not re-import a game another device already logged', async () => {
+    // The desktop's watermark has fallen behind the phone's, so the proxy hands
+    // back a game the phone already imported and the user already archived.
+    // Re-creating it would put an archived game back in the review queue.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        games: [
+          {
+            id: 'alreadyLogged',
+            lastMoveAt: 3000,
+            createdAt: 1000,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'white',
+            clock: { initial: 600, increment: 0 },
+          },
+          {
+            id: 'brandNew',
+            lastMoveAt: 4000,
+            createdAt: 3500,
+            players: {
+              white: { user: { name: 'TestUser' } },
+              black: { user: { name: 'Opponent' } },
+            },
+            winner: 'black',
+            clock: { initial: 600, increment: 0 },
+          },
+        ],
+      }),
+    });
+    (globalThis as any).fetch = fetchMock;
+
+    getAllSessionsMock.mockResolvedValue([
+      { id: 1, type: 'game', platform: 'lichess', date: new Date(3000), needsReview: false },
+    ]);
+    localStorage.setItem('lichess-last-game-testuser', '1000');
+
+    const stopSync = startLichessSync('TestUser');
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(createSessionMock.mock.calls[0][0].date.getTime()).toBe(4000);
+    // The skipped game still advances the watermark, so it is not reconsidered.
+    expect(localStorage.getItem('lichess-last-game-testuser')).toBe('4000');
 
     stopSync?.();
   });
