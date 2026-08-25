@@ -103,6 +103,49 @@ export default function Home() {
   });
 
   const { toast } = useToast();
+
+  // Above a handful of pending games, archiving them one by one is tedious —
+  // and a device whose Lichess import watermark had fallen behind used to
+  // refill this queue with games that were already reviewed elsewhere.
+  const ARCHIVE_ALL_THRESHOLD = 3;
+
+  const archiveAllMutation = useMutation({
+    mutationFn: async (sessionIds: number[]) => {
+      const { updateSession } = await import('@/lib/firebase');
+      // Sequential, not Promise.all: each update is a read-modify-write on the
+      // same IndexedDB store and queues its own cloud write, so firing dozens
+      // at once only makes them contend. No optimistic clear here either —
+      // every updateSession invalidates this query itself, so the list drains
+      // as the writes land and an emptied list would just be refilled.
+      const failedIds: number[] = [];
+      for (const id of sessionIds) {
+        try {
+          await updateSession(id, { needsReview: false });
+        } catch (error) {
+          console.error('Failed to archive session', id, error);
+          failedIds.push(id);
+        }
+      }
+      return { archivedCount: sessionIds.length - failedIds.length, failedIds };
+    },
+    onSuccess: ({ archivedCount, failedIds }) => {
+      if (failedIds.length > 0) {
+        toast({
+          title: 'Some games could not be archived',
+          description: `Archived ${archivedCount}; ${failedIds.length} still need review.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: `Archived ${archivedCount} game${archivedCount === 1 ? '' : 's'}`,
+          description: 'They stay in your log — they just no longer need review.',
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-review'] });
+    },
+  });
   const [isImporting, setIsImporting] = useState(false);
 
   const { data: userSettings } = useQuery({
@@ -164,7 +207,26 @@ export default function Home() {
     return (
       <Card className="border-blue-200 bg-blue-50">
         <CardContent className="space-y-2 p-4 md:p-5">
-          <h3 className="font-semibold text-gray-800">Games needing review</h3>
+          {/* Wraps rather than squeezing: at 375px the heading and a five-game
+              button do not share a line, and shrinking the heading breaks it
+              across two. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="whitespace-nowrap font-semibold text-gray-800">Games needing review</h3>
+            {pendingSessions.length > ARCHIVE_ALL_THRESHOLD && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                disabled={archiveAllMutation.isPending}
+                onClick={() => archiveAllMutation.mutate(pendingSessions.map((s) => s.id))}
+              >
+                <Archive className="h-4 w-4" />
+                {archiveAllMutation.isPending
+                  ? 'Archiving…'
+                  : `Archive all (${pendingSessions.length})`}
+              </Button>
+            )}
+          </div>
           {pendingSessions.map((session) => (
             <div key={session.id} className="flex items-center justify-between text-sm">
               <div className="flex flex-col">

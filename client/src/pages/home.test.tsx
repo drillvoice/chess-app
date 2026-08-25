@@ -1,7 +1,24 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import type { TrainingSession } from '@shared/schema';
 import Home from './home';
+
+const pendingReview = vi.hoisted(() => ({ current: [] as TrainingSession[] }));
+// Mutations are registered in render order: the per-row archive, then archive-all.
+const mutateFns = vi.hoisted(() => [] as Array<ReturnType<typeof vi.fn>>);
+
+function pendingGame(id: number): TrainingSession {
+  return {
+    id,
+    type: 'game',
+    date: new Date(2026, 0, id),
+    gameResult: 'win',
+    playerColor: 'white',
+    platform: 'lichess',
+    needsReview: true,
+  } as unknown as TrainingSession;
+}
 
 vi.mock('@/components/lazy-components', () => ({
   TacticsModal: () => null,
@@ -38,9 +55,16 @@ vi.mock('@tanstack/react-query', () => ({
       };
     }
 
-    return { data: queryKey[0] === 'pending-review' ? [] : undefined, isLoading: false };
+    return {
+      data: queryKey[0] === 'pending-review' ? pendingReview.current : undefined,
+      isLoading: false,
+    };
   }),
-  useMutation: vi.fn(() => ({ mutate: vi.fn() })),
+  useMutation: vi.fn(() => {
+    const mutate = vi.fn();
+    mutateFns.push(mutate);
+    return { mutate, isPending: false };
+  }),
   useQueryClient: vi.fn(() => ({
     cancelQueries: vi.fn(),
     getQueryData: vi.fn(),
@@ -49,8 +73,32 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 describe('Home cards', () => {
+  beforeEach(() => {
+    pendingReview.current = [];
+    mutateFns.length = 0;
+  });
+
   it('does not render an OTB Board card on home', () => {
     render(<Home />);
     expect(screen.queryByRole('link', { name: /OTB Board/i })).not.toBeInTheDocument();
+  });
+
+  it('offers no bulk archive for a handful of pending games', () => {
+    pendingReview.current = [1, 2, 3].map(pendingGame);
+    render(<Home />);
+
+    expect(screen.queryByRole('button', { name: /Archive all/i })).not.toBeInTheDocument();
+  });
+
+  it('archives the whole queue in one click once it grows past a handful', () => {
+    pendingReview.current = [1, 2, 3, 4, 5].map(pendingGame);
+    render(<Home />);
+
+    // The card is rendered twice, once for each breakpoint's layout slot.
+    const buttons = screen.getAllByRole('button', { name: /Archive all \(5\)/i });
+    fireEvent.click(buttons[0]);
+
+    const everyCall = mutateFns.flatMap((fn) => fn.mock.calls);
+    expect(everyCall).toContainEqual([[1, 2, 3, 4, 5]]);
   });
 });
