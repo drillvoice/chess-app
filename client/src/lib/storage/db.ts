@@ -27,16 +27,6 @@ interface ChessLoggerDB extends DBSchema {
     key: string;
     value: DailyGoalSettings & { id: string; lastModified?: string };
   };
-  sync_queue: {
-    key: number;
-    value: {
-      sessionId: number;
-      operation: 'create' | 'update' | 'delete';
-      timestamp: number;
-      retries: number;
-      updateData?: any;
-    };
-  };
   account_snapshots: {
     key: string;
     value: {
@@ -65,7 +55,7 @@ interface ChessLoggerDB extends DBSchema {
 export type DB = IDBPDatabase<ChessLoggerDB>;
 
 const DB_NAME = 'chess-logger-offline';
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
@@ -86,9 +76,6 @@ export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
     if (!db.objectStoreNames.contains('daily_goals')) {
       db.createObjectStore('daily_goals', { keyPath: 'id' });
     }
-    if (!db.objectStoreNames.contains('sync_queue')) {
-      db.createObjectStore('sync_queue', { keyPath: 'sessionId' });
-    }
     if (!db.objectStoreNames.contains('account_snapshots')) {
       db.createObjectStore('account_snapshots', { keyPath: 'id' });
     }
@@ -99,6 +86,14 @@ export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
     if (!db.objectStoreNames.contains('opening_repertoires')) {
       const store = db.createObjectStore('opening_repertoires', { keyPath: 'id' });
       store.createIndex('updatedAt', 'updatedAt');
+    }
+    // v9 drops `sync_queue`: nothing has written to it since sync became
+    // snapshot-reconciled, and leftover entries in an existing database would
+    // otherwise sit there forever. The cast is needed because the store is no
+    // longer part of ChessLoggerDB, so its name is not a valid StoreName.
+    const untyped = db as unknown as IDBPDatabase;
+    if (untyped.objectStoreNames.contains('sync_queue')) {
+      untyped.deleteObjectStore('sync_queue');
     }
   },
 });

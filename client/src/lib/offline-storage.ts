@@ -26,11 +26,6 @@ export const offlineStorage = {
   removeSession: sessions.removeSession,
   deleteSession: sessions.deleteSession,
   clearSessions: sessions.clearSessions,
-  // sync queue
-  markAsUnsynced: sessions.markAsUnsynced,
-  markAsSynced: sessions.markAsSynced,
-  incrementSyncRetries: sessions.incrementSyncRetries,
-  getUnsyncedSessions: sessions.getUnsyncedSessions,
   // statistics
   getStatistics: statistics.getStatistics,
   setStatistics: statistics.setStatistics,

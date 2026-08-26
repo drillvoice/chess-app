@@ -5,7 +5,6 @@ const STORES = [
   'statistics',
   'settings',
   'cache_meta',
-  'sync_queue',
   'daily_goals',
   'account_snapshots',
   'otb_games',

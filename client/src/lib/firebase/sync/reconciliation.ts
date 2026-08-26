@@ -46,7 +46,7 @@ export function mergeSessionCollections(
  * `updateSession`, and that write is skipped outright when it runs before
  * Firebase auth has resolved (`canSyncToCloud()` reads a uid that is still
  * null during startup) and merely logged when it fails. Nothing retries it —
- * `markAsUnsynced` has no callers — so the edit used to sit in IndexedDB
+ * there is no outbound queue — so the edit used to sit in IndexedDB
  * forever: the session already exists in the cloud, so the old
  * "missing from the cloud" test never picked it up, while recency resolution
  * kept the newer local copy locally and quietly discarded the divergence.

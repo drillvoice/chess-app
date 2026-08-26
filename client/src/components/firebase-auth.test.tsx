@@ -17,7 +17,6 @@ vi.mock('@/hooks/useSyncStatus', () => ({
   __esModule: true,
   useSyncStatus: vi.fn(() => ({
     data: {
-      unsyncedCount: 0,
       lastSynced: new Date(),
       lastAttempt: null,
       state: 'synced',

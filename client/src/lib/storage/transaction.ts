@@ -8,7 +8,6 @@ export type StoreName =
   | 'sessions'
   | 'cache_meta'
   | 'daily_goals'
-  | 'sync_queue'
   | 'account_snapshots'
   | 'otb_games'
   | 'opening_repertoires';

@@ -10,7 +10,6 @@ export enum SyncState {
 }
 
 interface SyncStatus {
-  unsyncedCount: number;
   lastSynced: Date | null;
   lastAttempt: Date | null;
   state: SyncState;
@@ -34,8 +33,7 @@ export function useSyncStatus() {
     queryKey: ['sync-status'],
     queryFn: async () => {
       const { offlineStorage } = await import('@/lib/offline-storage');
-      const [unsynced, lastSyncedTs, lastAttempt] = await Promise.all([
-        offlineStorage.getUnsyncedSessions(),
+      const [lastSyncedTs, lastAttempt] = await Promise.all([
         offlineStorage.getLastSyncedTimestamp(),
         offlineStorage.getLastSyncAttempt(),
       ]);
@@ -45,22 +43,15 @@ export function useSyncStatus() {
       const user = auth.currentUser;
       let state: SyncState;
       if (!user || user.isAnonymous || cloudStatus.state === 'disabled') {
-        state = unsynced.length > 0 ? SyncState.Pending : SyncState.Disabled;
+        state = SyncState.Disabled;
       } else if (cloudStatus.state === 'error') {
         state = SyncState.Pending;
       } else if (cloudStatus.state === 'syncing' || cloudStatus.state === 'initializing') {
         state = SyncState.Syncing;
-      } else if (unsynced.length > 0) {
-        if (lastAttempt && (!lastSynced || lastAttempt > lastSynced)) {
-          state = SyncState.Syncing;
-        } else {
-          state = SyncState.Pending;
-        }
       } else {
         state = SyncState.Synced;
       }
       return {
-        unsyncedCount: unsynced.length,
         lastSynced: cloudStatus.lastSyncedAt ?? lastSynced,
         lastAttempt,
         state,

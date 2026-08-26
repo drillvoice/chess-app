@@ -5,7 +5,6 @@ import type { TrainingSession } from '@shared/schema';
 
 const SESSIONS = 'sessions';
 const META = 'cache_meta';
-const QUEUE = 'sync_queue';
 
 /**
  * Deserialize a raw IndexedDB record into a TrainingSession, healing
@@ -255,54 +254,6 @@ export async function removeSession(id: number): Promise<void> {
 }
 
 export const deleteSession = removeSession;
-
-// Sync queue helpers
-interface UnsyncedSession {
-  sessionId: number;
-  operation: 'create' | 'update' | 'delete';
-  timestamp: number;
-  retries: number;
-  updateData?: any;
-}
-
-export async function markAsUnsynced(
-  sessionId: number,
-  operation: 'create' | 'update' | 'delete',
-  updateData?: any,
-): Promise<void> {
-  await withStores([QUEUE] as const, 'readwrite', async ({ sync_queue }) => {
-    const item: UnsyncedSession = {
-      sessionId,
-      operation,
-      timestamp: Date.now(),
-      retries: 0,
-      updateData,
-    };
-    await sync_queue.put(item);
-  });
-}
-
-export async function markAsSynced(sessionId: number): Promise<void> {
-  await withStores([QUEUE] as const, 'readwrite', async ({ sync_queue }) => {
-    await sync_queue.delete(sessionId);
-  });
-}
-
-export async function incrementSyncRetries(sessionId: number): Promise<void> {
-  await withStores([QUEUE] as const, 'readwrite', async ({ sync_queue }) => {
-    const item = await sync_queue.get(sessionId);
-    if (item) {
-      item.retries += 1;
-      await sync_queue.put(item);
-    }
-  });
-}
-
-export async function getUnsyncedSessions(): Promise<UnsyncedSession[]> {
-  return withStores([QUEUE] as const, 'readonly', async ({ sync_queue }) => {
-    return (await sync_queue.getAll()) as UnsyncedSession[];
-  });
-}
 
 export async function clearSessions(): Promise<void> {
   logger.info('Clearing all sessions from offline storage');
