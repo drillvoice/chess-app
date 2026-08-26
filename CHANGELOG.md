@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.9.1] - 26 August 2026
+
+- **Fix a sync indicator that could never settle**: the badge could sit on "Pending", or flip to "Syncing" and stay there, on a device whose work was already safely in the cloud. It counted entries in an outbound queue the app stopped writing to when sync became snapshot-reconciled — and the only code that removed entries stopped running at the same time, so a device carrying a leftover entry reported unsynced work forever. Sync state is now taken from the sync engine alone, and the abandoned queue is deleted from local storage rather than left sitting there
+- Internal: removed the queue's remaining helpers, which had no callers. This bumps the local database version, so on the first load after updating the app will wait for any other open tab to close before it can upgrade
+
 ## [2.9.0] - 26 August 2026
 
 - **Fix edits made on one device never reaching the others**: a mistake tag added to a game, or a game marked as reviewed, could stay on the device that made it indefinitely. An edit was pushed to the cloud by a single fire-and-forget write that was skipped outright when it ran before sign-in had finished restoring — which on a phone is most of the time, since the app is killed and relaunched constantly and triaging games tends to happen in the first seconds. Nothing retried it: the sync pass only ever uploaded sessions the cloud had never seen, and an edited session was already there, so the newer local copy was kept on the device and quietly never shared. Every sync pass now also uploads records the cloud is behind on, which repairs a missed write whatever caused it — including edits already stranded on your devices, which go up on the next sync
