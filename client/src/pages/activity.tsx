@@ -19,6 +19,7 @@ import {
   WeeklyActivityChart,
 } from '@/components/lazy-components';
 import { SessionCard } from '@/components/activity/session-card';
+import { MistakeStatsSection } from '@/components/activity/mistake-stats-section';
 import { SessionFilterBar } from '@/components/activity/session-filter-bar';
 import { groupSessionsByDate } from '@/components/activity/session-display';
 
@@ -192,6 +193,11 @@ export default function Activity() {
         </div>
 
         <div className="py-2 text-center">
+          <h2 className="mb-1 text-2xl font-bold text-gray-800">Mistake stats</h2>
+        </div>
+        <Skeleton className="h-48 rounded-xl" />
+
+        <div className="py-2 text-center">
           <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
         </div>
         <div className="space-y-2">
@@ -274,6 +280,12 @@ export default function Activity() {
           </div>
         </div>
       </div>
+
+      <div className="py-2 text-center">
+        <h2 className="mb-1 text-2xl font-bold text-gray-800">Mistake stats</h2>
+      </div>
+
+      <MistakeStatsSection sessions={sessions} />
 
       <div className="py-2 text-center">
         <h2 className="mb-1 text-2xl font-bold text-gray-800">Training history</h2>
