@@ -35,8 +35,10 @@ import {
 } from './sync/reconciliation';
 import { backfillSessionsToCloud, type BackfillProgress } from './sync/backfill';
 import {
+  describeOversizedRepertoire,
   deserializeRepertoireFromCloud,
   reconcileRepertoireSnapshot,
+  repertoireSetSignature,
   serializeRepertoireForCloud,
 } from './sync/repertoire-sync';
 import { logger } from '../logger';
@@ -63,6 +65,11 @@ export interface CloudSyncStatus {
   backfilledCount?: number;
   latestFailure?: string | null;
   failureSamples?: string[];
+  /** Opening repertoires held locally after the last reconciled cloud snapshot. */
+  repertoireCount?: number;
+  /** Last repertoire sync/upload failure, kept separate from session status. */
+  repertoireSyncError?: string | null;
+  repertoireLastSyncedAt?: Date | null;
 }
 
 export interface MigrationSummary {
@@ -127,6 +134,22 @@ function resolveUid(): string | null {
 function publishStatus(next: Partial<CloudSyncStatus>) {
   status = { ...status, ...next };
   window.dispatchEvent(new CustomEvent('cloud-sync:status', { detail: status }));
+}
+
+/**
+ * Repertoire failures stay out of the session sync state (a failed repertoire
+ * upload must not make session sync look broken), but they are no longer
+ * swallowed: they land in the status object the troubleshooting panel reads and
+ * are logged with the context needed to identify the repertoire.
+ */
+export function reportRepertoireSyncFailure(context: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  logger.warn(`[openings] ${context}: ${message}`, error);
+  publishStatus({ repertoireSyncError: `${context}: ${message}` });
+}
+
+function announceRepertoiresMerged(repertoires: OpeningRepertoire[]): void {
+  window.dispatchEvent(new CustomEvent('cloud-sync:repertoires-merged', { detail: repertoires }));
 }
 
 function progressMetrics(processed: number, total: number, startedAt: number) {
@@ -220,25 +243,32 @@ export async function acknowledgeAccountSwitch(keepSeparate = true): Promise<voi
   pendingAccountSwitch = null;
 
   if (keepSeparate) {
-    const [sessions, settings, dailyGoals] = await Promise.all([
+    const [sessions, settings, dailyGoals, openingRepertoires] = await Promise.all([
       offlineStorage.getSessions(),
       offlineStorage.getSettings(),
       offlineStorage.getDailyGoalSettings(),
+      offlineStorage.getOpeningRepertoires(),
     ]);
 
     await offlineStorage.createAccountSnapshot(previousUid, {
       sessions,
       settings,
       dailyGoals,
+      openingRepertoires,
     });
   }
 
+  // Repertoires belong to the account that created them. Leaving them behind
+  // meant the next account's first snapshot reconciliation treated them as
+  // local-only edits and uploaded them into that account's cloud.
   await Promise.all([
     offlineStorage.clearSessions(),
     offlineStorage.clearSettings(),
     offlineStorage.clearDailyGoalSettings(),
     offlineStorage.clearStatistics(),
+    offlineStorage.setOpeningRepertoires([]),
   ]);
+  announceRepertoiresMerged([]);
 }
 
 export async function stopRealtimeSync(): Promise<void> {
@@ -683,31 +713,51 @@ export async function startRealtimeSync(): Promise<() => void> {
   const unsubscribeRepertoires = onSnapshot(
     query(repertoiresCollection(uid)),
     async (snapshot) => {
-      const remoteRepertoires = snapshot.docs.map((entry) =>
-        deserializeRepertoireFromCloud({ ...entry.data(), id: entry.data()?.id ?? entry.id }),
-      );
-      const localRepertoires = await offlineStorage.getOpeningRepertoires();
-      const { nextLocal, repertoiresToUpload } = reconcileRepertoireSnapshot(
-        localRepertoires,
-        remoteRepertoires,
-      );
-      await offlineStorage.setOpeningRepertoires(nextLocal);
-      if (repertoiresToUpload.length > 0) {
-        queueMicrotask(() => {
-          Promise.all(
-            repertoiresToUpload.map((repertoire) =>
-              upsertRepertoireToCloud(repertoire).catch((error) => {
-                logger.warn(`Failed to backfill repertoire ${repertoire.id} to cloud`, error);
-              }),
-            ),
-          ).catch(() => {});
+      try {
+        const remoteRepertoires = snapshot.docs.map((entry) =>
+          deserializeRepertoireFromCloud({ ...entry.data(), id: entry.data()?.id ?? entry.id }),
+        );
+        const localRepertoires = await offlineStorage.getOpeningRepertoires();
+        const { nextLocal, repertoiresToUpload } = reconcileRepertoireSnapshot(
+          localRepertoires,
+          remoteRepertoires,
+        );
+        const changed =
+          repertoireSetSignature(localRepertoires) !== repertoireSetSignature(nextLocal);
+        await offlineStorage.setOpeningRepertoires(nextLocal);
+        publishStatus({
+          repertoireCount: nextLocal.length,
+          repertoireLastSyncedAt: new Date(),
+          repertoireSyncError: null,
         });
+        // The openings screen reads IndexedDB once on mount, so a snapshot that
+        // lands afterwards — the usual case on a device that has just signed
+        // in — was invisible until a full reload. Announce the merged set the
+        // way settings sync does so an open tab picks it up.
+        if (changed) {
+          announceRepertoiresMerged(nextLocal);
+        }
+        if (repertoiresToUpload.length > 0) {
+          queueMicrotask(() => {
+            Promise.all(
+              repertoiresToUpload.map((repertoire) =>
+                upsertRepertoireToCloud(repertoire).catch((error) => {
+                  reportRepertoireSyncFailure(
+                    `Failed to back up repertoire "${repertoire.name}"`,
+                    error,
+                  );
+                }),
+              ),
+            ).catch(() => {});
+          });
+        }
+      } catch (error) {
+        reportRepertoireSyncFailure('Failed to apply the cloud repertoire snapshot', error);
       }
     },
     async (error) => {
       // Keep repertoire sync failures isolated from the primary session status.
-      const message = error instanceof Error ? error.message : 'Repertoire sync failed';
-      logger.warn('Cloud repertoire sync error:', message);
+      reportRepertoireSyncFailure('Cloud repertoire sync error', error);
     },
   );
 
@@ -841,8 +891,18 @@ export async function upsertRepertoireToCloud(repertoire: OpeningRepertoire): Pr
   await ensureFirebase();
   const uid = resolveUid();
   if (!uid) return;
+  const payload = serializeRepertoireForCloud(repertoire);
+
+  // Firestore answers an oversized write with a generic `invalid-argument`,
+  // which used to reach the user as nothing at all: the repertoire stayed on
+  // the device it was imported on and never appeared anywhere else.
+  const oversized = describeOversizedRepertoire(repertoire, payload);
+  if (oversized) {
+    throw new Error(oversized);
+  }
+
   const ref = doc(repertoiresCollection(uid), repertoire.id);
-  await setDoc(ref, serializeRepertoireForCloud(repertoire), { merge: true });
+  await setDoc(ref, payload, { merge: true });
 }
 
 export async function markRepertoireDeletedInCloud(id: string): Promise<void> {

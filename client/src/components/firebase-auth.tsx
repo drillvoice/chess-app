@@ -365,6 +365,9 @@ export default function FirebaseAuth() {
       `latestFailure=${(syncInfo as any)?.latestFailure ?? 'n/a'}`,
       `reconciledLocalOnlyCount=${(syncInfo as any)?.reconciledLocalOnlyCount ?? 0}`,
       `backfilledCount=${(syncInfo as any)?.backfilledCount ?? 0}`,
+      `repertoireCount=${syncInfo?.repertoireCount ?? 0}`,
+      `repertoireLastSynced=${syncInfo?.repertoireLastSynced?.toISOString?.() ?? 'n/a'}`,
+      `repertoireSyncError=${syncInfo?.repertoireSyncError ?? 'n/a'}`,
       `repairProgress=${repairProgress ? `${repairProgress.processed}/${repairProgress.total}` : 'n/a'}`,
       `repairUploaded=${repairProgress?.uploadedCount ?? 0}`,
       `repairFailed=${repairProgress?.failedCount ?? 0}`,
@@ -500,6 +503,12 @@ export default function FirebaseAuth() {
                   Sync progress: {syncInfo?.processed ?? 0}/{syncInfo?.total ?? 0}
                 </div>
                 <div>Latest failure: {(syncInfo as any)?.latestFailure || 'n/a'}</div>
+                <div>Opening repertoires synced: {syncInfo?.repertoireCount ?? 0}</div>
+                {syncInfo?.repertoireSyncError && (
+                  <div className="break-words">
+                    Repertoire sync failure: {syncInfo.repertoireSyncError}
+                  </div>
+                )}
                 {Array.isArray((syncInfo as any)?.failureSamples) &&
                   ((syncInfo as any).failureSamples as string[]).length > 0 && (
                     <div>

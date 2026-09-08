@@ -1,5 +1,6 @@
 import { withStores } from './transaction';
 import type { DailyGoalSettings, TrainingSession } from '@shared/schema';
+import type { OpeningRepertoire } from '../opening-trainer/types';
 
 const SNAPSHOTS = 'account_snapshots';
 
@@ -7,6 +8,8 @@ export interface AccountSnapshotPayload {
   sessions: TrainingSession[];
   settings: any;
   dailyGoals: DailyGoalSettings | null;
+  /** Opening repertoires are cleared on an account switch, so keep a copy. */
+  openingRepertoires?: OpeningRepertoire[];
 }
 
 export interface AccountSnapshotRecord {
@@ -17,6 +20,7 @@ export interface AccountSnapshotRecord {
     sessions: Array<TrainingSession & { date: string; updatedAt?: string; deletedAt?: string }>;
     settings: any;
     dailyGoals: (DailyGoalSettings & { id: 'current'; lastModified?: string }) | null;
+    openingRepertoires: OpeningRepertoire[];
   };
 }
 
@@ -60,6 +64,7 @@ export async function createAccountSnapshot(
         sessions,
         settings: payload.settings ?? null,
         dailyGoals,
+        openingRepertoires: payload.openingRepertoires ?? [],
       },
     });
   });

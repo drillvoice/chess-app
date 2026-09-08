@@ -26,6 +26,9 @@ interface SyncStatus {
   backfilledCount?: number;
   latestFailure?: string | null;
   failureSamples?: string[];
+  repertoireCount?: number;
+  repertoireSyncError?: string | null;
+  repertoireLastSynced?: Date | null;
 }
 
 export function useSyncStatus() {
@@ -68,6 +71,9 @@ export function useSyncStatus() {
         backfilledCount: cloudStatus.backfilledCount,
         latestFailure: cloudStatus.latestFailure ?? null,
         failureSamples: cloudStatus.failureSamples ?? [],
+        repertoireCount: cloudStatus.repertoireCount ?? 0,
+        repertoireSyncError: cloudStatus.repertoireSyncError ?? null,
+        repertoireLastSynced: cloudStatus.repertoireLastSyncedAt ?? null,
       };
     },
     refetchInterval: 30000,

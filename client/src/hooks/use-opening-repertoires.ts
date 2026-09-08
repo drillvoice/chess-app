@@ -51,9 +51,27 @@ export function useOpeningRepertoires(): UseOpeningRepertoiresResult {
     const load = async () => {
       const stored = await getOpeningRepertoires();
       setRepertoires(stored);
-      setActiveRepertoireId(stored[0]?.id ?? null);
+      setActiveRepertoireId((current) => current ?? stored[0]?.id ?? null);
     };
     void load();
+  }, []);
+
+  // Cloud sync writes the reconciled set straight into IndexedDB, which this
+  // hook only reads on mount. Without this listener a device that has just
+  // signed in shows an empty openings screen until a full reload, even though
+  // the repertoires have already arrived.
+  useEffect(() => {
+    const handleMerged = (event: Event) => {
+      const merged = (event as CustomEvent<OpeningRepertoire[]>).detail;
+      if (!Array.isArray(merged)) return;
+      const sorted = sortRepertoires(merged);
+      setRepertoires(sorted);
+      setActiveRepertoireId((current) =>
+        current && sorted.some((r) => r.id === current) ? current : (sorted[0]?.id ?? null),
+      );
+    };
+    window.addEventListener('cloud-sync:repertoires-merged', handleMerged);
+    return () => window.removeEventListener('cloud-sync:repertoires-merged', handleMerged);
   }, []);
 
   const persistRepertoire = useCallback(async (repertoire: OpeningRepertoire) => {

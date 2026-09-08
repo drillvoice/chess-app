@@ -1,7 +1,11 @@
 import { offlineStorage } from '../offline-storage';
 import type { OpeningRepertoire } from '../opening-trainer/types';
 import { getCurrentUserId } from './core';
-import { markRepertoireDeletedInCloud, upsertRepertoireToCloud } from './sync-engine';
+import {
+  markRepertoireDeletedInCloud,
+  reportRepertoireSyncFailure,
+  upsertRepertoireToCloud,
+} from './sync-engine';
 
 // Local-first access to opening repertoires with non-blocking cloud
 // write-through for signed-in users, mirroring the session data layer. Reads
@@ -24,7 +28,11 @@ export async function saveOpeningRepertoire(
   if (canSyncToCloud()) {
     queueMicrotask(() => {
       upsertRepertoireToCloud(saved).catch((error) => {
-        console.warn('Background cloud sync failed for saved repertoire:', error);
+        // Best-effort write: the realtime snapshot's backfill retries it. It is
+        // still recorded on the sync status, because a repertoire that never
+        // reaches the cloud is invisible on every other device and the user
+        // otherwise has no way to tell.
+        reportRepertoireSyncFailure(`Failed to back up repertoire "${saved.name}"`, error);
       });
     });
   }
@@ -38,7 +46,7 @@ export async function deleteOpeningRepertoire(id: string): Promise<void> {
   if (canSyncToCloud()) {
     queueMicrotask(() => {
       markRepertoireDeletedInCloud(id).catch((error) => {
-        console.warn('Background cloud tombstone sync failed for repertoire:', error);
+        reportRepertoireSyncFailure(`Failed to sync the delete of repertoire ${id}`, error);
       });
     });
   }

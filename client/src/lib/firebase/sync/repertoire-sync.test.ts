@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { OpeningRepertoire } from '../../opening-trainer/types';
 import {
+  describeOversizedRepertoire,
   deserializeRepertoireFromCloud,
+  estimateRepertoireDocumentBytes,
+  MAX_REPERTOIRE_DOCUMENT_BYTES,
   reconcileRepertoireSnapshot,
+  repertoireSetSignature,
   serializeRepertoireForCloud,
   type RemoteRepertoire,
 } from './repertoire-sync';
@@ -59,6 +63,21 @@ describe('repertoire cloud serialization', () => {
     expect(restored.nodes).toEqual(repertoire.nodes);
     expect(restored.stats).toEqual(repertoire.stats);
     expect(restored.side).toBe('black');
+    expect(restored.deletedAt).toBeUndefined();
+  });
+
+  it('clears an existing tombstone on every upload', () => {
+    // Uploads are merge-writes: without an explicit null the `deletedAt` from an
+    // earlier delete survives, and every other device keeps hiding a repertoire
+    // this one has resurrected.
+    const serialized = serializeRepertoireForCloud(makeRepertoire());
+    expect(serialized.deletedAt).toBeNull();
+
+    const restored = deserializeRepertoireFromCloud({
+      ...serialized,
+      // Firestore applies the merge over the stored document, so the null wins.
+      deletedAt: serialized.deletedAt,
+    });
     expect(restored.deletedAt).toBeUndefined();
   });
 
@@ -160,5 +179,61 @@ describe('reconcileRepertoireSnapshot', () => {
     expect(nextLocal.map((r) => r.id)).toEqual(['rep-1']);
     expect(repertoiresToUpload.map((r) => r.id)).toEqual(['rep-1']);
     expect(tombstonedIds).toHaveLength(0);
+  });
+});
+
+function makeHugeNodes(count: number): OpeningRepertoire['nodes'] {
+  const nodes: OpeningRepertoire['nodes'] = {};
+  for (let i = 0; i < count; i += 1) {
+    nodes[`n${i}`] = {
+      id: `n${i}`,
+      parentId: 'root',
+      fenBefore: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      fenAfter: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+      san: 'e4',
+      uci: 'e2e4',
+      from: 'e2',
+      to: 'e4',
+      ply: 1,
+      children: [],
+    };
+  }
+  return nodes;
+}
+
+describe('repertoire document size', () => {
+  it('stays under the limit for an ordinary repertoire', () => {
+    const bytes = estimateRepertoireDocumentBytes(serializeRepertoireForCloud(makeRepertoire()));
+    expect(bytes).toBeGreaterThan(0);
+    expect(bytes).toBeLessThan(MAX_REPERTOIRE_DOCUMENT_BYTES);
+    expect(describeOversizedRepertoire(makeRepertoire())).toBeNull();
+  });
+
+  it('reports a move tree Firestore would reject, naming the repertoire', () => {
+    const repertoire = makeRepertoire({ name: 'Everything 1.e4', nodes: makeHugeNodes(6000) });
+
+    expect(
+      estimateRepertoireDocumentBytes(serializeRepertoireForCloud(repertoire)),
+    ).toBeGreaterThan(MAX_REPERTOIRE_DOCUMENT_BYTES);
+
+    const message = describeOversizedRepertoire(repertoire);
+    expect(message).toContain('Everything 1.e4');
+    expect(message).toContain('5999 moves');
+  });
+});
+
+describe('repertoireSetSignature', () => {
+  it('ignores ordering so an unchanged snapshot echo is not announced', () => {
+    const a = makeRepertoire({ id: 'a' });
+    const b = makeRepertoire({ id: 'b' });
+    expect(repertoireSetSignature([a, b])).toBe(repertoireSetSignature([b, a]));
+  });
+
+  it('changes when a repertoire arrives or is edited', () => {
+    const a = makeRepertoire({ id: 'a' });
+    expect(repertoireSetSignature([a])).not.toBe(repertoireSetSignature([]));
+    expect(repertoireSetSignature([a])).not.toBe(
+      repertoireSetSignature([{ ...a, updatedAt: '2026-05-11T00:00:00.000Z' }]),
+    );
   });
 });
