@@ -13,6 +13,7 @@ import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
 import { RepertoireList } from '@/components/openings/repertoire-list';
 import { ImportPgnPanel } from '@/components/openings/import-pgn-panel';
+import { CloudRepertoireRecovery } from '@/components/openings/cloud-repertoire-recovery';
 import { EditLinesDialog } from '@/components/openings/edit-lines-dialog';
 import { formatRelativeDue } from '@/components/openings/format-relative-due';
 import { describeLine, lineLabel, setLineDisabled } from '@/lib/opening-trainer/engine';
@@ -353,6 +354,8 @@ export default function OpeningsPage() {
           />
 
           <ImportPgnPanel importHook={importHook} repertoires={repertoires} />
+
+          <CloudRepertoireRecovery onRestored={setActiveRepertoireId} />
         </div>
       </div>
 

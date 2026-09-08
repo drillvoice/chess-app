@@ -40,6 +40,7 @@ import {
   reconcileRepertoireSnapshot,
   repertoireSetSignature,
   serializeRepertoireForCloud,
+  type RemoteRepertoire,
 } from './sync/repertoire-sync';
 import { logger } from '../logger';
 import type { OpeningRepertoire } from '../opening-trainer/types';
@@ -148,7 +149,7 @@ export function reportRepertoireSyncFailure(context: string, error: unknown): vo
   publishStatus({ repertoireSyncError: `${context}: ${message}` });
 }
 
-function announceRepertoiresMerged(repertoires: OpeningRepertoire[]): void {
+export function announceRepertoiresMerged(repertoires: OpeningRepertoire[]): void {
   window.dispatchEvent(new CustomEvent('cloud-sync:repertoires-merged', { detail: repertoires }));
 }
 
@@ -914,7 +915,12 @@ export async function markRepertoireDeletedInCloud(id: string): Promise<void> {
   await setDoc(ref, { id, deletedAt: nowIso, updatedAt: nowIso }, { merge: true });
 }
 
-async function fetchCloudRepertoires(uid: string): Promise<OpeningRepertoire[]> {
+/**
+ * Every repertoire document the account holds, tombstones included. Callers
+ * that want only live repertoires must filter on `deletedAt` themselves — the
+ * recovery panel deliberately wants to see the deleted ones.
+ */
+export async function fetchCloudRepertoires(uid: string): Promise<RemoteRepertoire[]> {
   const snapshot = await getDocs(query(repertoiresCollection(uid)));
   return snapshot.docs.map((item) =>
     deserializeRepertoireFromCloud({ ...item.data(), id: item.data()?.id ?? item.id }),
