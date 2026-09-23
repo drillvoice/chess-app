@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { normalizeStudyTagKey } from '@shared/schema';
+import { normalizeStudyTagKey } from '@shared/settings-schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

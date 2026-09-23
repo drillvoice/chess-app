@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Settings, Plus, X } from 'lucide-react';
-import { normalizeStudyTagKey, studyTagSchema } from '@shared/schema';
+import { normalizeStudyTagKey, studyTagSchema } from '@shared/settings-schema';
 
 import { useDailyGoalsSettings } from '@/hooks/use-daily-goals-settings';
 import { useStudyPreferences, updateStudyPreferences } from '@/hooks/use-study-preferences';

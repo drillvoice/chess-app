@@ -1,7 +1,8 @@
 import { Puzzle, Crown, Book, Clock, Target } from 'lucide-react';
 import { formatStudyDisplay } from '@/lib/utils';
 import { toTagList } from '@/lib/storage/study-tags';
-import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
+import type { TrainingSession } from '@shared/schema';
+import { normalizeStudyTagKey } from '@shared/settings-schema';
 
 // --- Helper functions (pure) ---
 

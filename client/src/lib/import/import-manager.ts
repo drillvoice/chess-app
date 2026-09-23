@@ -1,7 +1,8 @@
 import { logger } from '../logger';
 import { offlineStorage } from '../offline-storage';
 import { createSession, setDailyGoalSettings } from '../firebase/firestore';
-import { TrainingSession, dailyGoalSettingsSchema } from '@shared/schema';
+import type { TrainingSession } from '@shared/schema';
+import { dailyGoalSettingsSchema } from '@shared/settings-schema';
 import { sanitizeDailyGoalSettings } from '../daily-goals-model';
 import { ExportData } from '../export/export-manager';
 

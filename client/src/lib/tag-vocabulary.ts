@@ -1,11 +1,11 @@
+import type { TrainingSession } from '@shared/schema';
 import {
   MAX_CUSTOM_MISTAKE_TAGS,
   MAX_CUSTOM_STUDY_TAGS,
   normalizeStudyTagKey,
   studyTagSchema,
-  type TrainingSession,
   type UserStudyPreferences,
-} from '@shared/schema';
+} from '@shared/settings-schema';
 import { logger } from './logger';
 import { offlineStorage } from './offline-storage';
 import { toTagList } from './storage/study-tags';

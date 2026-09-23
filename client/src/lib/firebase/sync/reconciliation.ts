@@ -1,9 +1,9 @@
+import type { TrainingSession } from '@shared/schema';
 import {
   MAX_CUSTOM_MISTAKE_TAGS,
   MAX_CUSTOM_STUDY_TAGS,
   normalizeStudyTagKey,
-  type TrainingSession,
-} from '@shared/schema';
+} from '@shared/settings-schema';
 import { normalizeSessionForSync, sessionRecency, toDate } from './serialization';
 
 export function mergeSessionCollections(

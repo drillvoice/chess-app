@@ -9,7 +9,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
+import type { TrainingSession } from '@shared/schema';
+import { normalizeStudyTagKey } from '@shared/settings-schema';
 import { useStudyPreferences } from '@/hooks/use-study-preferences';
 import {
   TacticsModal,

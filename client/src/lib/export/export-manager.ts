@@ -1,6 +1,7 @@
 import { offlineStorage } from '../offline-storage';
 import { getAllSessions, getDailyGoalSettings } from '../firebase/firestore';
-import { TrainingSession, DailyGoalSettings, dailyGoalSettingsSchema } from '@shared/schema';
+import type { TrainingSession } from '@shared/schema';
+import { type DailyGoalSettings, dailyGoalSettingsSchema } from '@shared/settings-schema';
 
 export interface ExportOptions {
   includeTrainingSessions: boolean;
