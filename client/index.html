@@ -168,27 +168,135 @@
         background-color: #1e3a8a;
       }
 
-      /* Hide initial flash */
-      .initial-loading {
-        opacity: 0;
-        transition: opacity 0.3s ease-in-out;
+      /* Static app shell: painted before any JS loads, replaced by React's first render.
+         Mirrors the navigation header (components/layout/navigation.tsx) to avoid layout shift. */
+      .shell-header {
+        background-color: #1e40af;
+        padding: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       }
-
-      .initial-loading.loaded {
-        opacity: 1;
+      .shell-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        max-width: 1240px;
+        margin: 0 auto;
+      }
+      .shell-logo {
+        display: none;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+      }
+      .shell-nav {
+        flex: 1;
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border-radius: 0.5rem;
+        background-color: #1e40af;
+      }
+      .shell-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        padding: 0.5rem 0.25rem;
+        border-radius: 0.375rem;
+        color: white;
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 1;
+      }
+      .shell-tab::before {
+        content: '';
+        width: 1rem;
+        height: 1rem;
+      }
+      .shell-tab.active {
+        background-color: white;
+        color: #1e40af;
+      }
+      .shell-main {
+        padding: 1rem;
+      }
+      .shell-card {
+        height: 6rem;
+        margin-bottom: 1rem;
+        border-radius: 0.75rem;
+        background-color: hsl(60, 4.8%, 95.9%);
+        animation: shell-pulse 1.5s ease-in-out infinite;
+      }
+      .shell-card.tall {
+        height: 12rem;
+      }
+      @keyframes shell-pulse {
+        50% {
+          opacity: 0.6;
+        }
+      }
+      @media screen and (min-width: 640px) {
+        .shell-header {
+          padding: 0.75rem;
+        }
+        .shell-logo {
+          display: block;
+        }
+        .shell-tab {
+          font-size: 0.875rem;
+          gap: 0.5rem;
+        }
+      }
+      @media screen and (min-width: 768px) {
+        .shell-header {
+          padding: 1.25rem 1.5rem;
+        }
+        .shell-nav {
+          padding: 0.375rem;
+        }
+        .shell-tab {
+          padding: 0.625rem 1.25rem;
+        }
+        .shell-main {
+          padding: 1.5rem;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .shell-card {
+          animation: none;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="root" class="initial-loading"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <!-- Development banner removed for production PWA compliance -->
-
-    <!-- Show loaded state after DOM is ready -->
+    <div id="root">
+      <div class="app-container" aria-busy="true">
+        <header class="shell-header">
+          <div class="shell-bar">
+            <img class="shell-logo" src="/icon-192x192.png" alt="" />
+            <div class="shell-nav">
+              <span class="shell-tab">Home</span><span class="shell-tab">Activity</span
+              ><span class="shell-tab">Openings</span><span class="shell-tab">OTB</span
+              ><span class="shell-tab">Settings</span>
+            </div>
+          </div>
+        </header>
+        <main class="shell-main">
+          <div class="shell-card tall"></div>
+          <div class="shell-card"></div>
+          <div class="shell-card"></div>
+        </main>
+      </div>
+    </div>
     <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('root').classList.add('loaded');
-      });
+      // Highlight the tab for the URL being loaded so the shell matches the real nav.
+      (function () {
+        var paths = ['/', '/activity', '/openings', '/otb', '/account'];
+        var i = paths.indexOf(location.pathname);
+        if (i >= 0) document.querySelectorAll('.shell-tab')[i].classList.add('active');
+      })();
     </script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
