@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { Home, TrendingUp, User as UserIcon, Crown, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { prefetchRoute } from '@/lib/route-loaders';
 
 export default function Navigation() {
   const [location, navigate] = useLocation();
@@ -37,6 +38,9 @@ export default function Navigation() {
                     aria-label={item.label}
                     aria-current={isActive ? 'page' : undefined}
                     onClick={() => navigate(item.path)}
+                    onPointerEnter={() => prefetchRoute(item.path)}
+                    onFocus={() => prefetchRoute(item.path)}
+                    onTouchStart={() => prefetchRoute(item.path)}
                     className={cn(
                       'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1 py-2 text-[10px] font-medium leading-none transition-colors sm:gap-2 sm:px-3 sm:text-sm md:px-5 md:py-2.5',
                       isActive ? 'bg-white text-[#1E40AF]' : 'text-white hover:bg-blue-700',
