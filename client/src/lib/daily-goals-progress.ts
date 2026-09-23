@@ -1,5 +1,5 @@
 import type { TrainingSession } from '@shared/schema';
-import { normalizeStudyTagKey } from '@shared/schema';
+import { normalizeStudyTagKey } from '@shared/settings-schema';
 import { parseTagList } from './storage/study-tags';
 import type { ResolvedGoal } from './daily-goals-model';
 

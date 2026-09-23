@@ -23,7 +23,7 @@ import {
 } from '@/lib/firebase/settings';
 import { useStudyPreferences, publishStudyPreferences } from '@/hooks/use-study-preferences';
 import { useToast } from '@/hooks/use-toast';
-import { studyTagSchema, type UserStudyPreferences } from '@shared/schema';
+import { studyTagSchema, type UserStudyPreferences } from '@shared/settings-schema';
 
 /**
  * Which persisted tag vocabulary this picker edits. Both live on the same

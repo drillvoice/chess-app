@@ -1,4 +1,5 @@
-import { normalizeStudyTagKey, type TrainingSession } from '@shared/schema';
+import type { TrainingSession } from '@shared/schema';
+import { normalizeStudyTagKey } from '@shared/settings-schema';
 import { toTagList } from './storage/study-tags';
 
 /** Time windows offered by the Mistake stats section. */

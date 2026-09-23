@@ -4,7 +4,7 @@ import {
   type DailyGoalSettings,
   type StudyTagConfig,
   type TagGoal,
-} from '@shared/schema';
+} from '@shared/settings-schema';
 
 export type TagConfigMap = Record<string, StudyTagConfig>;
 

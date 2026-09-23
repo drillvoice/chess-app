@@ -1,12 +1,12 @@
 import { logger } from '../logger';
+import type { TrainingSession } from '@shared/schema';
 import {
   MAX_CUSTOM_MISTAKE_TAGS,
   MAX_CUSTOM_STUDY_TAGS,
-  TrainingSession,
-  UserStudyPreferences,
+  type UserStudyPreferences,
   normalizeStudyTagKey,
   userStudyPreferencesSchema,
-} from '@shared/schema';
+} from '@shared/settings-schema';
 import { WeeklyGoalCache } from '../cache-utils';
 import { normalizeTagVocabulary } from '../tag-vocabulary';
 import { offlineStorage } from '../offline-storage';

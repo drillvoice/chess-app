@@ -3,7 +3,9 @@ import { logger } from '@/lib/logger';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { clearAppCache } from './lib/utils';
+import { purgeCachedAppShell } from './lib/utils';
+import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 // Debug monitoring in development
 if (process.env.NODE_ENV === 'development') {
@@ -110,20 +112,52 @@ function setupServiceWorkerMessaging() {
   });
 }
 
-// Check app version and refresh if changed
+async function reloadIntoLatestVersion() {
+  try {
+    await purgeCachedAppShell();
+  } catch (error) {
+    console.error('Failed to purge cached app shell before reloading:', error);
+  }
+  location.reload();
+}
+
+// A lazily-loaded page chunk from an older deploy can be gone once a new version ships. Reload
+// once into the current build instead of stranding the user on an error screen; the guard lets a
+// genuine, repeating failure surface through the error boundary instead of looping.
+const CHUNK_RELOAD_KEY = 'chunk-error-reload-at';
+window.addEventListener('vite:preloadError', (event) => {
+  try {
+    const lastReloadAt = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY)) || 0;
+    if (Date.now() - lastReloadAt < 30_000) return;
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+  } catch {
+    return; // No sessionStorage means no loop guard: let the error surface.
+  }
+  console.error('Failed to load a page chunk; reloading into the latest version:', event);
+  void reloadIntoLatestVersion();
+});
+
+// Offer an update when the deployed version differs from the one running. Non-blocking: the
+// user keeps working, and the next launch picks up the new version on its own anyway because the
+// service worker refreshes its cached copy of the page in the background.
 async function checkAppVersion() {
   try {
     const response = await fetch('/version.json', { cache: 'no-store' });
-    const data = await response.json();
-    const currentVersion = data.version;
-    const savedVersion = localStorage.getItem('app-version');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { version } = (await response.json()) as { version?: unknown };
+    const runningVersion = import.meta.env.VITE_APP_VERSION;
 
-    if (savedVersion && savedVersion !== currentVersion) {
-      await clearAppCache();
-      localStorage.setItem('app-version', currentVersion);
-      location.reload();
-    } else {
-      localStorage.setItem('app-version', currentVersion);
+    if (typeof version === 'string' && version !== runningVersion) {
+      toast({
+        title: 'Update available',
+        description: `Version ${version} is ready.`,
+        duration: Infinity,
+        action: (
+          <ToastAction altText="Reload to update" onClick={() => void reloadIntoLatestVersion()}>
+            Update
+          </ToastAction>
+        ),
+      });
     }
   } catch (error) {
     console.error('Failed to check app version:', error);
