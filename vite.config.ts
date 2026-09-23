@@ -29,8 +29,10 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
+        // No firebase chunk here: the SDK is only ever imported dynamically, and pinning it to
+        // a manual chunk also pulled in shared deps (idb) that the entry needs, which made the
+        // whole SDK a render-blocking modulepreload.
         manualChunks: {
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
           vendor: ['react', 'react-dom'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-alert-dialog', '@radix-ui/react-popover'],
         },

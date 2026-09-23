@@ -11,11 +11,11 @@ import { useAuthInit } from '@/hooks/useAuthInit';
 import { useCacheWarming } from '@/hooks/useCacheWarming';
 import { useLichessSync } from '@/hooks/useLichessSync';
 
-// Static imports for core pages (better reliability)
+// Home is the landing page, so it ships in the main bundle.
 import Home from '@/pages/home';
-import AccountPage from '@/pages/account';
 
-// Lazy imports for less critical pages
+// Everything else is split out so the Firebase SDK and chess.js stay off the critical path.
+const AccountPage = lazy(() => import('@/pages/account'));
 const Activity = lazy(() => import('@/pages/activity'));
 const Info = lazy(() => import('@/pages/info'));
 const OtbPage = lazy(() => import('@/pages/otb'));

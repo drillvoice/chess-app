@@ -1,11 +1,5 @@
 import { ensureFirebase, auth, db, doc, setDoc, Timestamp, clearCurrentUserId } from './core';
 import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  linkWithCredential,
-} from 'firebase/auth';
-import {
   initializeCloudSyncForCurrentUser,
   startRealtimeSync,
   stopRealtimeSync,
@@ -27,6 +21,9 @@ export async function refreshAuthState(): Promise<void> {
 
 export async function startAuthFlow(useRedirect = false): Promise<void> {
   await ensureFirebase();
+  // Loaded on demand so the Firebase SDK never lands in the startup bundle.
+  const { GoogleAuthProvider, signInWithPopup, signInWithRedirect, linkWithCredential } =
+    await import('firebase/auth');
 
   const provider = new GoogleAuthProvider();
   const previousUser = auth.currentUser;

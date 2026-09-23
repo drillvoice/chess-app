@@ -1,4 +1,3 @@
-import { Chess } from 'chess.js';
 import type { OtbGame, OtbResult } from './types';
 
 export const DEFAULT_EVENT_NAME = 'OTB Game';
@@ -10,4 +9,5 @@ export const DEFAULT_BLACK_NAME = '';
 export const DEFAULT_PLAYER_COLOR: OtbGame['playerColor'] = null;
 export const DEFAULT_RESULT: OtbResult = '*';
 
-export const START_FEN = new Chess().fen();
+// Literal rather than `new Chess().fen()` so chess.js stays out of the startup bundle.
+export const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';

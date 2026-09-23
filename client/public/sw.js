@@ -25,7 +25,7 @@ const CACHE_CONFIG = {
   MAX_CACHE_SIZE: {
     [RUNTIME_CACHE]: 50,
     [API_CACHE]: 100,
-    [STATIC_CACHE]: 30
+    [STATIC_CACHE]: 80
   }
 };
 
@@ -221,7 +221,22 @@ async function handleStaticAsset(request) {
   const cache = await caches.open(STATIC_CACHE);
   const isJavaScript = request.url.endsWith('.js') || request.destination === 'script';
 
-  // Use network-first for JavaScript files to avoid stale chunks from Vite builds
+  // Vite emits content-hashed files under /assets/, so a given URL never changes: serve it
+  // straight from cache and only hit the network on a miss.
+  if (new URL(request.url).pathname.startsWith('/assets/')) {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+
+    const networkResponse = await fetch(request);
+    // Missing assets are rewritten to index.html by the host; never cache that as JS/CSS.
+    const contentType = networkResponse.headers.get('content-type') || '';
+    if (networkResponse.ok && !contentType.includes('text/html')) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  }
+
+  // Use network-first for other (unhashed) JavaScript files so they never go stale
   if (isJavaScript) {
     try {
       const networkResponse = await fetch(request);
