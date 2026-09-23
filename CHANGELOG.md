@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file.
 
 - **Mistake stats**: the Activity page has a new section above Training history that counts how often each mistake tag has been recorded on your games, most frequent first, with a bar showing each tag against your most common one. Tags you've been adding since 2.8.0 finally add up to something you can read
 - The counts can be narrowed to **all time, the last 2 weeks, the last 30 days, or the last 90 days**, so a habit you've picked up this month isn't buried under a year of history. The window reshapes the stats only — the training history below it keeps its own filter
-- Each row is a count of *games*, not tag entries: a tag counts once per game even if a record somehow lists it twice, and spellings are grouped case-insensitively ("Hung a Piece" and "hung a piece" are one row, shown with the spelling you used most recently). A "mistakes tagged in N of M games" line gives the counts a denominator, since a tag appearing 12 times means something different across 20 games than across 200
+- Each row is a count of _games_, not tag entries: a tag counts once per game even if a record somehow lists it twice, and spellings are grouped case-insensitively ("Hung a Piece" and "hung a piece" are one row, shown with the spelling you used most recently). A "mistakes tagged in N of M games" line gives the counts a denominator, since a tag appearing 12 times means something different across 20 games than across 200
 - A game whose stored date can't be read still counts towards all-time — the tag really was recorded — but is left out of the bounded windows rather than being attributed to a period that can't be confirmed
 
 ## [2.9.1] - 26 August 2026
