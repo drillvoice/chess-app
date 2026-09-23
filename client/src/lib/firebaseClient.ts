@@ -48,15 +48,24 @@ export async function getFirebaseAuth(): Promise<Auth> {
 export async function getFirestoreDb(): Promise<Firestore> {
   if (!dbPromise) {
     dbPromise = Promise.all([getFirebaseApp(), import('firebase/firestore')]).then(
-      async ([app, firestore]) => {
-        const { getFirestore, enableIndexedDbPersistence } = firestore;
-        const db = getFirestore(app);
+      ([app, firestore]) => {
+        const {
+          initializeFirestore,
+          getFirestore,
+          persistentLocalCache,
+          persistentMultipleTabManager,
+        } = firestore;
         try {
-          await enableIndexedDbPersistence(db);
+          // Replaces the deprecated enableIndexedDbPersistence(), which only worked in one tab
+          // at a time. Same on-disk cache, so existing users keep their cached data.
+          return initializeFirestore(app, {
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+          });
         } catch (err) {
-          console.warn('IndexedDB persistence failed:', err);
+          // initializeFirestore throws if Firestore was already initialised (e.g. dev HMR).
+          console.warn('Firestore initialisation with persistent cache failed:', err);
+          return getFirestore(app);
         }
-        return db;
       },
     );
   }

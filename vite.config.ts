@@ -32,9 +32,15 @@ export default defineConfig({
         // No firebase chunk here: the SDK is only ever imported dynamically, and pinning it to
         // a manual chunk also pulled in shared deps (idb) that the entry needs, which made the
         // whole SDK a render-blocking modulepreload.
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-alert-dialog', '@radix-ui/react-popover'],
+        manualChunks(id) {
+          // React changes far less often than app code; its own chunk stays cached across deploys.
+          // (The object form only matched react-dom's small index, not react-dom/client.)
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor';
+          if (
+            /[\\/]node_modules[\\/]@radix-ui[\\/]react-(dialog|alert-dialog|popover)[\\/]/.test(id)
+          ) {
+            return 'ui';
+          }
         },
         // Improve chunk naming for better caching
         chunkFileNames: (chunkInfo) => {

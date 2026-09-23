@@ -1,4 +1,3 @@
-import { logger } from './logger';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -55,33 +54,25 @@ export function isNetworkError(error: Error): boolean {
   return networkErrorPatterns.some((pattern) => error.message.includes(pattern));
 }
 
-// Clears service-worker caches so a new app version loads fresh code.
-// Must never touch IndexedDB: it holds the user's data (the offline store is named
-// 'chess-logger-offline'), and this runs automatically on every version bump.
-export async function clearAppCache(): Promise<void> {
-  try {
-    // Clear service worker cache
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
+// Drops cached HTML (and cached API responses) so the next load fetches the current index.html
+// from the network. Content-hashed /assets/ files are kept: they never change, and the new build
+// simply won't reference stale ones. Must never touch IndexedDB: it holds the user's data (the
+// offline store is named 'chess-logger-offline').
+export async function purgeCachedAppShell(): Promise<void> {
+  if (!('caches' in window)) return;
+
+  const cacheNames = (await caches.keys()).filter((name) => name.includes('chess-training'));
+  await Promise.all(
+    cacheNames.map(async (name) => {
+      const cache = await caches.open(name);
+      const requests = await cache.keys();
       await Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName.includes('chess-training')) {
-            return caches.delete(cacheName);
-          }
-        }),
+        requests
+          .filter((request) => !new URL(request.url).pathname.startsWith('/assets/'))
+          .map((request) => cache.delete(request)),
       );
-    }
-
-    // Unregister service workers
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-    }
-
-    logger.debug('App cache cleared successfully');
-  } catch (error) {
-    console.error('Failed to clear app cache:', error);
-  }
+    }),
+  );
 }
 
 // Utility to check if the app is running in a PWA context

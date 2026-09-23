@@ -1,16 +1,38 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clearAppCache } from './utils';
+import { purgeCachedAppShell } from './utils';
 
-describe('clearAppCache', () => {
+function stubCache(urls: string[]) {
+  const deleted: string[] = [];
+  return {
+    deleted,
+    cache: {
+      keys: vi.fn().mockResolvedValue(urls.map((url) => ({ url }))),
+      delete: vi.fn(async (request: { url: string }) => {
+        deleted.push(request.url);
+        return true;
+      }),
+    },
+  };
+}
+
+describe('purgeCachedAppShell', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('clears app caches but never deletes IndexedDB user data', async () => {
-    const deleteCache = vi.fn().mockResolvedValue(true);
+  it('drops cached HTML but keeps hashed assets and never deletes IndexedDB user data', async () => {
+    const appCache = stubCache([
+      'https://app.test/',
+      'https://app.test/openings',
+      'https://app.test/assets/index-abc123.js',
+    ]);
+    const otherCache = stubCache(['https://app.test/unrelated']);
+    const open = vi.fn(async (name: string) =>
+      name === 'chess-training-static' ? appCache.cache : otherCache.cache,
+    );
     vi.stubGlobal('caches', {
-      keys: vi.fn().mockResolvedValue(['chess-training-v5', 'other-cache']),
-      delete: deleteCache,
+      keys: vi.fn().mockResolvedValue(['chess-training-static', 'other-cache']),
+      open,
     });
     const deleteDatabase = vi.fn();
     vi.stubGlobal('indexedDB', {
@@ -18,10 +40,10 @@ describe('clearAppCache', () => {
       deleteDatabase,
     });
 
-    await clearAppCache();
+    await purgeCachedAppShell();
 
-    expect(deleteCache).toHaveBeenCalledWith('chess-training-v5');
-    expect(deleteCache).not.toHaveBeenCalledWith('other-cache');
+    expect(appCache.deleted).toEqual(['https://app.test/', 'https://app.test/openings']);
+    expect(open).not.toHaveBeenCalledWith('other-cache');
     expect(deleteDatabase).not.toHaveBeenCalled();
   });
 });
