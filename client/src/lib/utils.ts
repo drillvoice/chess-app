@@ -55,7 +55,9 @@ export function isNetworkError(error: Error): boolean {
   return networkErrorPatterns.some((pattern) => error.message.includes(pattern));
 }
 
-// Utility to clear app cache
+// Clears service-worker caches so a new app version loads fresh code.
+// Must never touch IndexedDB: it holds the user's data (the offline store is named
+// 'chess-logger-offline'), and this runs automatically on every version bump.
 export async function clearAppCache(): Promise<void> {
   try {
     // Clear service worker cache
@@ -65,18 +67,6 @@ export async function clearAppCache(): Promise<void> {
         cacheNames.map((cacheName) => {
           if (cacheName.includes('chess-training')) {
             return caches.delete(cacheName);
-          }
-        }),
-      );
-    }
-
-    // Clear IndexedDB
-    if ('indexedDB' in window) {
-      const databases = await indexedDB.databases();
-      await Promise.all(
-        databases.map((db) => {
-          if (db.name && db.name.includes('chess')) {
-            return indexedDB.deleteDatabase(db.name);
           }
         }),
       );
