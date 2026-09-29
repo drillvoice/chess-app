@@ -54,35 +54,6 @@ function isUserMove(repertoire: OpeningRepertoire, node: OpeningMoveNode | undef
   return Boolean(node) && getTurn(node!.fenBefore) === sideToTurn(repertoire.side);
 }
 
-// True if the subtree rooted at `nodeId` contains any due/new user-move card.
-// `memo` is filled across siblings within a single selection so each subtree is
-// walked once.
-function subtreeHasDueUserMove(
-  repertoire: OpeningRepertoire,
-  nodeId: string,
-  now: Date,
-  memo: Map<string, boolean>,
-): boolean {
-  const cached = memo.get(nodeId);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const node = repertoire.nodes[nodeId];
-  if (!node) {
-    memo.set(nodeId, false);
-    return false;
-  }
-  let due = isUserMove(repertoire, node) && isMoveDue(repertoire.stats[nodeId], now);
-  for (const childId of node.children) {
-    // Traverse every child (no short-circuit) so the memo is fully populated.
-    if (subtreeHasDueUserMove(repertoire, childId, now, memo)) {
-      due = true;
-    }
-  }
-  memo.set(nodeId, due);
-  return due;
-}
-
 export function moveWeight(
   repertoire: OpeningRepertoire,
   moveId: string,
@@ -136,6 +107,45 @@ function subtreeHasActiveLeaf(
   return active;
 }
 
+// True if the subtree rooted at `nodeId` contains an active (not paused) line
+// with a due/new user-move card at or below `nodeId`. Paused lines are never
+// drilled, so their cards stay due forever; counting them here would steer the
+// drill toward a branch it can't actually enter. `memo` is filled across
+// siblings within a single selection; `activeMemo` is shared with
+// `subtreeHasActiveLeaf`.
+function subtreeHasDueActiveLine(
+  repertoire: OpeningRepertoire,
+  nodeId: string,
+  now: Date,
+  memo: Map<string, boolean>,
+  activeMemo: Map<string, boolean>,
+): boolean {
+  const cached = memo.get(nodeId);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const node = repertoire.nodes[nodeId];
+  if (!node) {
+    memo.set(nodeId, false);
+    return false;
+  }
+  let due: boolean;
+  if (isUserMove(repertoire, node) && isMoveDue(repertoire.stats[nodeId], now)) {
+    // Every line below passes through this due card, so any active leaf will do.
+    due = subtreeHasActiveLeaf(repertoire, nodeId, activeMemo);
+  } else {
+    due = false;
+    for (const childId of node.children) {
+      // Traverse every child (no short-circuit) so the memo is fully populated.
+      if (subtreeHasDueActiveLine(repertoire, childId, now, memo, activeMemo)) {
+        due = true;
+      }
+    }
+  }
+  memo.set(nodeId, due);
+  return due;
+}
+
 export function chooseWeightedMove(
   repertoire: OpeningRepertoire,
   moves: OpeningMoveNode[],
@@ -152,7 +162,9 @@ export function chooseWeightedMove(
   moves = candidates;
   const baseWeights = moves.map((move) => moveWeight(repertoire, move.id, now));
   const memo = new Map<string, boolean>();
-  const dueFlags = moves.map((move) => subtreeHasDueUserMove(repertoire, move.id, now, memo));
+  const dueFlags = moves.map((move) =>
+    subtreeHasDueActiveLine(repertoire, move.id, now, memo, activeMemo),
+  );
   // Bias toward due branches when any exist; fall back to all branches when none
   // is due. The fallback is what lets a committed line play through to its leaf
   // (auto-playing the opponent's final replies, which have no due card beyond
@@ -198,13 +210,15 @@ function chooseMoveForLine(
     return chooseWeightedMove(state.repertoire, moves, rng);
   }
   // Only steer away from the just-completed branch when an alternative still leads
-  // to a due card. Otherwise excluding it would push the drill onto an
-  // already-scheduled line (re-serving a line you just completed) or away from the
-  // only due branch, so keep the full set and let the due-bias decide.
+  // to a due card on an active (unpaused) line. Otherwise excluding it would push
+  // the drill onto an already-scheduled line (re-serving a line you just
+  // completed), away from the only due branch, or — when every alternative is
+  // paused — onto no move at all, ending the line after a single move.
   const now = new Date();
   const memo = new Map<string, boolean>();
+  const activeMemo = new Map<string, boolean>();
   const alternativesHaveDue = alternatives.some((move) =>
-    subtreeHasDueUserMove(state.repertoire, move.id, now, memo),
+    subtreeHasDueActiveLine(state.repertoire, move.id, now, memo, activeMemo),
   );
   return chooseWeightedMove(state.repertoire, alternativesHaveDue ? alternatives : moves, rng);
 }
