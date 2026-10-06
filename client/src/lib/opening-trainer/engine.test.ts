@@ -287,6 +287,72 @@ describe('opening trainer engine', () => {
     expect(startOpeningTraining(allPaused, [], () => 0).feedback).toBe('complete');
   });
 
+  it('does not end the line after one move when the other branches are paused', () => {
+    // Regression: after finishing a Sicilian line, "Next Line" steered away from
+    // 1...c5 because the paused 1...e5/1...e6 lines still held (never-drilled)
+    // due cards — but every one of those branches was paused, so no reply could
+    // be chosen and the drill reported "Line complete" right after 1.e4.
+    let { repertoire } = parseOpeningRepertoirePgn(
+      '1. e4 c5 (1... e5 2. Nf3) (1... e6 2. d4) 2. Nf3 d6 (2... Nc6 3. d4) 3. d4',
+      'white',
+    );
+    for (const line of enumerateLines(repertoire)) {
+      if (!describeLine(repertoire, line).includes('c5')) {
+        repertoire = setLineDisabled(repertoire, leafOf(line), true);
+      }
+    }
+
+    const playExpected = (state: ReturnType<typeof startOpeningTraining>) => {
+      const node = state.repertoire.nodes[state.expectedMoveId!];
+      return applyTrainerMove(state, node.from, node.to, undefined, () => 0).state;
+    };
+
+    let state = startOpeningTraining(repertoire, [], () => 0);
+    while (state.feedback !== 'complete') {
+      state = playExpected(state);
+    }
+    expect(describeLine(state.repertoire, state.lastCompletedLineMoveIds)).toBe(
+      '1.e4 c5 2.Nf3 d6 3.d4',
+    );
+
+    // "Next Line": the only remaining active, due line is 1.e4 c5 2.Nf3 Nc6 3.d4.
+    let next = startOpeningTraining(state.repertoire, state.lastCompletedLineMoveIds, () => 0);
+    next = playExpected(next);
+    expect(next.feedback).not.toBe('complete');
+    while (next.feedback !== 'complete') {
+      next = playExpected(next);
+    }
+    expect(describeLine(next.repertoire, next.lastCompletedLineMoveIds)).toBe(
+      '1.e4 c5 2.Nf3 Nc6 3.d4',
+    );
+  });
+
+  it('ignores due cards on paused lines when biasing toward due branches', () => {
+    // 1.e4: its active line is fully scheduled; its only new card (2.c3) sits on a
+    // paused line. 1.d4 is genuinely due. The drill must go to 1.d4 — biasing
+    // toward 1.e4 would re-serve the already-scheduled 1.e4 e5 2.Nf3 line.
+    const { repertoire } = parseOpeningRepertoirePgn(
+      '1. e4 (1. d4 d5 2. c4) e5 (1... c5 2. c3) 2. Nf3',
+      'white',
+    );
+    const lines = enumerateLines(repertoire);
+    const byMoves = (moves: string) => lines.find((l) => describeLine(repertoire, l) === moves)!;
+    const e5Line = byMoves('1.e4 e5 2.Nf3');
+    const c5Line = byMoves('1.e4 c5 2.c3');
+    const d4Line = byMoves('1.d4 d5 2.c4');
+    const future = new Date(Date.now() + 5 * DAY_MS).toISOString();
+    const learned: OpeningMoveStats = { attempts: 1, misses: 0, streak: 1, dueAt: future };
+    const scheduled = {
+      ...repertoire,
+      stats: { [e5Line[0]]: learned, [e5Line[2]]: learned },
+    };
+    const paused = setLineDisabled(scheduled, leafOf(c5Line), true);
+    const moves = paused.nodes.root.children.map((id) => paused.nodes[id]);
+    for (const draw of [0, 0.5, 0.99]) {
+      expect(chooseWeightedMove(paused, moves, () => draw)?.id).toBe(d4Line[0]);
+    }
+  });
+
   it('deletes a line while preserving sibling lines that share a prefix', () => {
     // Two lines share 1.e4 e5 2.Nf3, then branch to Nc6 / Nf6.
     const { repertoire } = parseOpeningRepertoirePgn('1. e4 e5 2. Nf3 Nc6 (2... Nf6)', 'white');
