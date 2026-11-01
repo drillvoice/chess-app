@@ -23,6 +23,8 @@ describe('API routes', () => {
     });
 
     afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.restoreAllMocks();
       if (originalFetch) {
         (globalThis as any).fetch = originalFetch;
       } else {
@@ -79,6 +81,44 @@ describe('API routes', () => {
       const res = await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
       expect(res.status).toBe(502);
       expect(res.body.message).toContain('Failed to fetch');
+    });
+
+    it('sends the Lichess API token as a bearer header when configured', async () => {
+      vi.stubEnv('LICHESS_API_TOKEN', '  lip_secret  ');
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, text: async () => '\n' });
+
+      await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
+
+      expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+        Authorization: 'Bearer lip_secret',
+      });
+    });
+
+    it('sends no Authorization header without a token', async () => {
+      vi.stubEnv('LICHESS_API_TOKEN', '');
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, text: async () => '\n' });
+
+      await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
+
+      expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    });
+
+    it('includes the upstream error body (HTML stripped) in the error message', async () => {
+      vi.stubEnv('LICHESS_API_TOKEN', '');
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        text: async () =>
+          '<html><head><title>Just a moment...</title><script>x()</script></head></html>',
+      });
+
+      const res = await request(app).get('/api/lichess/latest').query({ username: 'softtalk' });
+
+      expect(res.status).toBe(502);
+      expect(res.body.message).toBe(
+        'Failed to fetch data from Lichess (status 403, anonymous): Just a moment...',
+      );
     });
 
     it('validates the since parameter', async () => {

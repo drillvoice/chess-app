@@ -29,13 +29,22 @@ async function fetchLichessGames(
 
   const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?${params.toString()}`;
 
+  // Since Oct 2026 Lichess restricts anonymous game exports (and its Cloudflare
+  // bot filter is stricter on unauthenticated datacenter traffic), so send a
+  // personal API token when one is configured. The token needs no scopes.
+  const token = process.env.LICHESS_API_TOKEN?.trim();
+  const headers: Record<string, string> = {
+    Accept: 'application/x-ndjson',
+    'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   let lichessResponse: Response;
   try {
     lichessResponse = await fetch(url, {
-      headers: {
-        Accept: 'application/x-ndjson',
-        'User-Agent': 'Chess Logger Sync (+https://github.com/chess-log/chess-app)',
-      },
+      headers,
       // Bound the request so a hung Lichess connection can't block indefinitely.
       signal: AbortSignal.timeout(15000),
     });
@@ -50,9 +59,27 @@ async function fetchLichessGames(
     throw new LichessProxyError(404, 'Lichess user not found');
   }
   if (!lichessResponse.ok) {
+    // Surface what Lichess actually said: a Cloudflare challenge page and a
+    // Lichess API refusal both arrive as 403 but need different fixes.
+    let detail = '';
+    try {
+      detail = (await lichessResponse.text())
+        .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200);
+    } catch {
+      detail = '(could not read response body)';
+    }
+    const auth = token ? 'authenticated' : 'anonymous';
+    console.error(
+      `[Lichess] Upstream ${lichessResponse.status} (${auth}) for user "${username}": ${detail}`,
+    );
     throw new LichessProxyError(
       502,
-      `Failed to fetch data from Lichess (status ${lichessResponse.status})`,
+      `Failed to fetch data from Lichess (status ${lichessResponse.status}, ${auth})` +
+        (detail ? `: ${detail}` : ''),
     );
   }
 

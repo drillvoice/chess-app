@@ -25,6 +25,7 @@ interface Scenario {
   name: string;
   query: Record<string, string>;
   upstream?: MockUpstream;
+  token?: string;
 }
 
 const game = (id: string, lastMoveAt?: number, createdAt?: number) =>
@@ -61,6 +62,28 @@ const scenarios: Scenario[] = [
     upstream: { kind: 'response', ok: false, status: 500, body: '' },
   },
   {
+    name: 'upstream 403 cloudflare challenge',
+    query: { username: 'softtalk' },
+    upstream: {
+      kind: 'response',
+      ok: false,
+      status: 403,
+      body: '<html><head><title>Just a moment...</title><script>var x = 1;</script></head><body>Checking</body></html>',
+    },
+  },
+  {
+    name: 'authenticated request with token',
+    query: { username: 'softtalk' },
+    token: 'lip_test_token',
+    upstream: { kind: 'response', ok: true, status: 200, body: `${game('g', 1000)}\n` },
+  },
+  {
+    name: 'authenticated upstream 403',
+    query: { username: 'softtalk' },
+    token: 'lip_test_token',
+    upstream: { kind: 'response', ok: false, status: 403, body: '{"error":"Forbidden"}' },
+  },
+  {
     name: 'malformed ndjson',
     query: { username: 'softtalk' },
     upstream: { kind: 'response', ok: true, status: 200, body: 'not-json\n' },
@@ -86,6 +109,7 @@ describe('Lichess proxy parity (server/lichess.ts vs api/index.ts)', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     if (originalFetch) {
       (globalThis as any).fetch = originalFetch;
     } else {
@@ -106,7 +130,9 @@ describe('Lichess proxy parity (server/lichess.ts vs api/index.ts)', () => {
     }
   };
 
-  it.each(scenarios)('responds identically: $name', async ({ query, upstream }) => {
+  it.each(scenarios)('responds identically: $name', async ({ query, upstream, token }) => {
+    vi.stubEnv('LICHESS_API_TOKEN', token ?? '');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockUpstream(upstream);
     const expressRes = await request(expressApp).get('/api/lichess/latest').query(query);
     const expressFetchCalls = fetchMock.mock.calls.splice(0);
