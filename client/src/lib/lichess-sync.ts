@@ -1,6 +1,7 @@
 import type { InsertTrainingSession } from '@shared/schema';
 import { createSession, getAllSessions } from './firebase';
 import { queryClient } from './queryClient';
+import { fetchLichessGames } from './lichess-api';
 
 const isDebug =
   typeof import.meta !== 'undefined' &&
@@ -231,27 +232,24 @@ export function startLichessSync(username: string) {
       syncStatus.isSyncing = true;
       syncStatus.lastError = null;
       notifyStatusChange();
-      const params = new URLSearchParams({ username });
+      let since: number | undefined;
       if (Number.isFinite(lastTimestamp) && lastTimestamp > 0) {
         // Request games strictly after the last processed timestamp. The Lichess API
         // treats the `since` parameter as inclusive, so without bumping the value we
-        // would repeatedly receive the same last game and never see newer ones when
-        // `max=1` is used on the proxy endpoint.
-        params.set('since', Math.trunc(lastTimestamp + 1).toString());
-        debugLog(`🔄 [Lichess Sync Poll] Requesting games since: ${Math.trunc(lastTimestamp + 1)}`);
+        // would repeatedly receive the same last game and never see newer ones.
+        since = Math.trunc(lastTimestamp + 1);
+        debugLog(`🔄 [Lichess Sync Poll] Requesting games since: ${since}`);
       } else {
         debugLog(`🔄 [Lichess Sync Poll] No timestamp, fetching all recent games`);
       }
 
-      const apiUrl = `/api/lichess/latest?${params.toString()}`;
-      debugLog(`🔄 [Lichess Sync Poll] Fetching: ${apiUrl}`);
-      const res = await fetch(apiUrl);
-      debugLog(`🔄 [Lichess Sync Poll] Response status: ${res.status}`);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('[Lichess Sync Poll] API request failed:', res.status, errorText);
-        const errorMessage = `Failed to fetch games from Lichess (${res.status})`;
+      let fetchedGames: any[];
+      try {
+        fetchedGames = (await fetchLichessGames(username, since)) as any[];
+      } catch (fetchError) {
+        const detail = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        console.error('[Lichess Sync Poll] Fetch failed:', detail);
+        const errorMessage = `Failed to fetch games from Lichess: ${detail}`;
         syncStatus.lastError = errorMessage;
         notifyError(errorMessage);
         syncStatus.isSyncing = false;
@@ -259,10 +257,10 @@ export function startLichessSync(username: string) {
         return;
       }
 
-      const payload = (await res.json()) as { games?: any[] };
-      debugLog(`✅ [Lichess Sync Poll] Received ${payload.games?.length || 0} games`);
+      const payload = { games: fetchedGames };
+      debugLog(`✅ [Lichess Sync Poll] Received ${payload.games.length} games`);
 
-      if (!Array.isArray(payload.games) || payload.games.length === 0) {
+      if (payload.games.length === 0) {
         // No new games - reset syncing state and update last sync time
         debugLog(`✅ [Lichess Sync Poll] No new games, sync complete`);
         syncStatus.isSyncing = false;
@@ -410,20 +408,13 @@ export async function triggerManualSync(): Promise<{
     syncStatus.lastError = null;
     notifyStatusChange();
 
-    const params = new URLSearchParams({ username });
-    if (Number.isFinite(lastTimestamp) && lastTimestamp > 0) {
-      params.set('since', Math.trunc(lastTimestamp + 1).toString());
-    }
+    const since =
+      Number.isFinite(lastTimestamp) && lastTimestamp > 0
+        ? Math.trunc(lastTimestamp + 1)
+        : undefined;
 
-    const res = await fetch(`/api/lichess/latest?${params.toString()}`);
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Lichess proxy request failed:', res.status, errorText);
-      throw new Error(`API request failed: ${res.status} ${errorText}`);
-    }
-
-    const payload = (await res.json()) as { games?: any[] };
-    if (!Array.isArray(payload.games) || payload.games.length === 0) {
+    const payload = { games: (await fetchLichessGames(username, since)) as any[] };
+    if (payload.games.length === 0) {
       syncStatus.isSyncing = false;
       syncStatus.lastSyncTime = new Date();
       syncStatus.lastError = null;
