@@ -9,6 +9,20 @@ vi.mock('./firebase', () => ({
   getAllSessions: getAllSessionsMock,
 }));
 
+// lichess-api has its own tests (direct-then-proxy fallback). Here we stand it
+// in with the proxy path only, so these tests keep driving the sync logic via a
+// mocked global fetch of /api/lichess/latest.
+vi.mock('./lichess-api', () => ({
+  fetchLichessGames: async (username: string, since?: number) => {
+    const params = new URLSearchParams({ username });
+    if (since !== undefined) params.set('since', String(since));
+    const res = await fetch(`/api/lichess/latest?${params}`);
+    if (!res.ok) throw new Error(`status ${res.status}: ${await res.text()}`);
+    const payload = (await res.json()) as { games?: unknown[] };
+    return payload.games ?? [];
+  },
+}));
+
 vi.mock('./queryClient', () => ({
   queryClient: {
     invalidateQueries: invalidateQueriesMock,
