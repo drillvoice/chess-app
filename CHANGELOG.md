@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.10.1] - 1 November 2026
+
+- **Fix Lichess import failing with "status 403"**: imports and background sync stopped working without any change on our side. Lichess's Cloudflare protection now answers requests from Vercel's servers with a "Just a moment..." challenge page, so the app's server-side proxy can no longer fetch your games — even when it sends an API token. The app now asks Lichess for your games directly from your own device, and only falls back to the proxy if that fails
+- Lichess errors now say what actually went wrong. If both the direct request and the proxy fail, the message shows both reasons — for example a Cloudflare challenge versus a refusal from Lichess's API — rather than a bare status code
+- The proxy sends a Lichess API token when one is configured (`LICHESS_API_TOKEN` in Vercel), since Lichess has restricted anonymous game downloads since October
+- Requests made from your device are anonymous (the token stays on the server), and Lichess only lets anonymous requests download games from the last 10 days, unless the players average 2200+. Regular syncing only asks for games since the last import, so this only matters if you go more than 10 days without syncing
+
 ## [2.10.0] - 6 September 2026
 
 - **Mistake stats**: the Activity page has a new section above Training history that counts how often each mistake tag has been recorded on your games, most frequent first, with a bar showing each tag against your most common one. Tags you've been adding since 2.8.0 finally add up to something you can read
