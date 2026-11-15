@@ -194,18 +194,22 @@ export interface SubmitResultsResponse {
   rating: number | null;
 }
 
-/** Record results on the user's Lichess account (rated, like solving on the site). */
+/**
+ * Record results on the user's Lichess account. `rated` decides whether they
+ * move the user's puzzle rating; either way the puzzles are marked as played.
+ */
 export async function submitPuzzleResults(
   theme: string,
   results: PuzzleResult[],
   token: string,
+  rated: boolean,
   fetchImpl: typeof fetch = fetch,
 ): Promise<SubmitResultsResponse> {
   const body = (await lichessRequest(
     `${batchUrl(theme)}?nb=0`,
     {
       method: 'POST',
-      body: JSON.stringify({ solutions: results.map((r) => ({ ...r, rated: true })) }),
+      body: JSON.stringify({ solutions: results.map((r) => ({ ...r, rated })) }),
     },
     { token, fetchImpl },
   )) as { rounds?: unknown; glicko?: { rating?: unknown } } | null;
@@ -219,4 +223,42 @@ export async function submitPuzzleResults(
   }
   const rating = Number(body?.glicko?.rating);
   return { ratingDiffs, rating: Number.isFinite(rating) ? Math.round(rating) : null };
+}
+
+/**
+ * IDs of puzzles the user has already played on Lichess, most recent first.
+ * Used to filter fixed-level batches, which are fetched anonymously and so
+ * don't get Lichess's own "unseen only" filtering.
+ */
+export async function fetchPlayedPuzzleIds(
+  token: string,
+  max = 5000,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Set<string>> {
+  let response: Response;
+  try {
+    response = await fetchImpl(`https://lichess.org/api/puzzle/activity?max=${max}`, {
+      headers: { Accept: 'application/x-ndjson', Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (error) {
+    throw new Error(
+      `Could not reach Lichess: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (response.status === 401) throw new LichessUnauthorizedError();
+  if (!response.ok) {
+    throw new Error(`Lichess puzzle history request failed (status ${response.status})`);
+  }
+  const ids = new Set<string>();
+  for (const line of (await response.text()).split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const id = (JSON.parse(line) as { puzzle?: { id?: unknown } }).puzzle?.id;
+      if (typeof id === 'string') ids.add(id);
+    } catch {
+      // A truncated final line is harmless; skip it.
+    }
+  }
+  return ids;
 }

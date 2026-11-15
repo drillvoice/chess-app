@@ -43,15 +43,43 @@ export const FOCUS_THEMES: FocusTheme[] = [
   { key: 'equality', label: 'Equality', group: 'Goals' },
 ];
 
-export const FOCUS_DIFFICULTIES = [
-  { key: 'easiest', label: 'Easiest' },
-  { key: 'easier', label: 'Easier' },
-  { key: 'normal', label: 'Normal' },
-  { key: 'harder', label: 'Harder' },
-  { key: 'hardest', label: 'Hardest' },
-] as const;
+export type FocusDifficulty = 'easiest' | 'easier' | 'normal' | 'harder' | 'hardest';
 
-export type FocusDifficulty = (typeof FOCUS_DIFFICULTIES)[number]['key'];
+/**
+ * Lichess pitches `difficulty` relative to the requester's puzzle rating (1500
+ * when anonymous). "Fixed" levels are fetched anonymously so they land on an
+ * absolute rating band whatever the user's own rating; the ranges below were
+ * measured against the live API (Nov 2026). "Relative" levels are fetched with
+ * the user's token and track their Lichess puzzle rating.
+ */
+export interface FocusLevel {
+  key: string;
+  label: string;
+  difficulty: FocusDifficulty;
+  relative: boolean;
+}
+
+export const FOCUS_LEVELS: FocusLevel[] = [
+  { key: 'fixed-easiest', label: 'Beginner (~1000)', difficulty: 'easiest', relative: false },
+  { key: 'fixed-easier', label: 'Easy (~1100)', difficulty: 'easier', relative: false },
+  { key: 'fixed-normal', label: 'Intermediate (~1400)', difficulty: 'normal', relative: false },
+  { key: 'fixed-harder', label: 'Advanced (~1800)', difficulty: 'harder', relative: false },
+  { key: 'fixed-hardest', label: 'Expert (~2050)', difficulty: 'hardest', relative: false },
+  { key: 'relative-easiest', label: 'My rating − 600', difficulty: 'easiest', relative: true },
+  { key: 'relative-easier', label: 'My rating − 300', difficulty: 'easier', relative: true },
+  { key: 'relative-normal', label: 'My rating', difficulty: 'normal', relative: true },
+  { key: 'relative-harder', label: 'My rating + 300', difficulty: 'harder', relative: true },
+  { key: 'relative-hardest', label: 'My rating + 600', difficulty: 'hardest', relative: true },
+];
+
+export const DEFAULT_LEVEL_KEY = 'fixed-normal';
+
+export function getLevel(key: string | null | undefined): FocusLevel {
+  return (
+    FOCUS_LEVELS.find((level) => level.key === key) ??
+    FOCUS_LEVELS.find((level) => level.key === DEFAULT_LEVEL_KEY)!
+  );
+}
 
 export function getThemeLabel(key: string): string {
   return FOCUS_THEMES.find((theme) => theme.key === key)?.label ?? key;
