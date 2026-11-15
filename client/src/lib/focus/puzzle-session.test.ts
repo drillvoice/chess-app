@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseLichessPuzzle } from './lichess-puzzles';
 import { MATE_IN_2_RAW } from './test-fixtures';
 import {
+  isCapture,
   playOpponentReply,
   revealSolution,
   solutionSan,
@@ -44,5 +45,14 @@ describe('puzzle session', () => {
     expect(revealed.status).toBe('failed');
     expect(revealed.lastMove).toBe('g6g2');
     expect(solutionSan(puzzle)).toEqual(['Be3+', 'Bxe3', 'Qxg2#']);
+  });
+});
+
+describe('isCapture', () => {
+  it('tells captures from quiet moves', () => {
+    // From the puzzle position: Be3+ is quiet, and after it Bxe3 captures.
+    expect(isCapture(puzzle.fen, 'g5e3')).toBe(false);
+    const { state } = submitMove(startPuzzle(puzzle), 'g5e3');
+    expect(isCapture(state.fen, 'b6e3')).toBe(true);
   });
 });

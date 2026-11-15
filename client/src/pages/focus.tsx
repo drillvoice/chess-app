@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
-import { ExternalLink, Eye, Loader2, SkipForward, Target } from 'lucide-react';
+import { ExternalLink, Eye, Loader2, SkipForward, Target, Volume2, VolumeX } from 'lucide-react';
+import {
+  isMoveSoundEnabled,
+  playMoveSound,
+  setMoveSoundEnabled,
+  subscribeMoveSoundPref,
+} from '@/lib/move-sound';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -29,9 +35,16 @@ import {
 } from '@/lib/focus/lichess-puzzles';
 import { handleLichessUnauthorized } from '@/lib/lichess-auth';
 import { syncPlayedPuzzles } from '@/lib/focus/played-puzzles';
+import {
+  clearFocusSession,
+  loadFocusSession,
+  saveFocusSession,
+  type Feedback,
+} from '@/lib/focus/session-store';
 import { useLichessConnection } from '@/hooks/use-lichess-connection';
 import LichessAccountConnect from '@/components/lichess-account-connect';
 import {
+  isCapture,
   playOpponentReply,
   revealSolution,
   solutionSan,
@@ -51,8 +64,6 @@ import {
 const BATCH_SIZE = 20;
 const PREFS_KEY = 'focus-practice-prefs';
 const REPLY_DELAY_MS = 450;
-
-type Feedback = 'find' | 'correct' | 'wrong' | 'solved' | 'revealed';
 
 interface Tally {
   attempted: number;
@@ -132,16 +143,20 @@ function LevelOptions({ showRelative }: { showRelative: boolean }) {
 export default function FocusPage() {
   const { toast } = useToast();
   const initialPrefs = useMemo(loadPrefs, []);
-  const [theme, setTheme] = useState(initialPrefs.theme);
-  const [levelKey, setLevelKey] = useState(initialPrefs.levelKey);
+  // A session saved before the phone unloaded the app, or before navigating away.
+  const resumed = useMemo(() => loadFocusSession(), []);
+  const [theme, setTheme] = useState(resumed?.theme ?? initialPrefs.theme);
+  const [levelKey, setLevelKey] = useState(resumed?.levelKey ?? initialPrefs.levelKey);
   const [rated, setRated] = useState(initialPrefs.rated);
 
-  const [queue, setQueue] = useState<FocusPuzzle[]>([]);
-  const [index, setIndex] = useState(0);
-  const [state, setState] = useState<PuzzleState | null>(null);
-  const [feedback, setFeedback] = useState<Feedback>('find');
-  const [tally, setTally] = useState<Tally>({ attempted: 0, clean: 0 });
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [queue, setQueue] = useState<FocusPuzzle[]>(resumed?.queue ?? []);
+  const [index, setIndex] = useState(resumed?.index ?? 0);
+  const [state, setState] = useState<PuzzleState | null>(resumed?.state ?? null);
+  const [feedback, setFeedback] = useState<Feedback>(resumed?.feedback ?? 'find');
+  const [tally, setTally] = useState<Tally>(resumed?.tally ?? { attempted: 0, clean: 0 });
+  // Session time counts only while the app is visible, so time in other apps isn't logged.
+  const activeMs = useRef(resumed?.activeMs ?? 0);
+  const visibleSince = useRef<number | null>(resumed ? Date.now() : null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
@@ -151,22 +166,22 @@ export default function FocusPage() {
     null,
   );
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const seenIds = useRef(new Set<string>());
+  const seenIds = useRef(new Set<string>(resumed?.seenIds ?? []));
 
   const connection = useLichessConnection();
   const token = connection?.accessToken ?? null;
   // A relative level only makes sense with an account; fall back to the default without one.
   const level = getLevel(!token && getLevel(levelKey).relative ? DEFAULT_LEVEL_KEY : levelKey);
   // Results not yet accepted by Lichess, grouped by theme + rated (one POST per group).
-  const pendingResults = useRef(new Map<string, PuzzleResult[]>());
+  const pendingResults = useRef(new Map<string, PuzzleResult[]>(resumed?.pendingResults ?? []));
   // Puzzles already played on Lichess, filled in the background (see syncPlayedPuzzles).
   // Fixed levels are fetched anonymously, so this replaces Lichess's unseen-only filter.
   const playedIds = useRef(new Set<string>());
   // Levels used this session, for the logged session's notes.
-  const [levelsUsed, setLevelsUsed] = useState<string[]>([]);
+  const [levelsUsed, setLevelsUsed] = useState<string[]>(resumed?.levelsUsed ?? []);
   // Shown after a mid-puzzle level change, until the next puzzle appears.
   const [levelChangePending, setLevelChangePending] = useState(false);
-  const [puzzleNumber, setPuzzleNumber] = useState(0);
+  const [puzzleNumber, setPuzzleNumber] = useState(resumed?.puzzleNumber ?? 0);
   const [lichessRating, setLichessRating] = useState<number | null>(null);
   const [ratingDiffs, setRatingDiffs] = useState<Record<string, number>>({});
   const [resultSyncError, setResultSyncError] = useState<string | null>(null);
@@ -224,6 +239,7 @@ export default function FocusPage() {
           (r) => !sent.has(r.id),
         );
         pendingResults.current.set(groupKey, remaining);
+        saveSession.current();
         setRatingDiffs((d) => ({ ...d, ...response.ratingDiffs }));
         if (response.rating !== null) setLichessRating(response.rating);
         setResultSyncError(null);
@@ -253,6 +269,72 @@ export default function FocusPage() {
     pendingResults.current.set(groupKey, [...list, { id: puzzleId, win }]);
     void flushResults();
   };
+
+  // Send results a previous visit couldn't (e.g. the app was unloaded mid-request).
+  useEffect(() => {
+    void flushResults();
+  }, [flushResults]);
+
+  const elapsedActiveMs = () =>
+    activeMs.current + (visibleSince.current === null ? 0 : Date.now() - visibleSince.current);
+
+  // Always points at the latest state, so pagehide/visibility handlers save current values.
+  const saveSession = useRef<() => void>(() => {});
+  saveSession.current = () => {
+    if (!state) return;
+    saveFocusSession({
+      theme,
+      levelKey: level.key,
+      queue,
+      index,
+      state,
+      feedback,
+      tally,
+      activeMs: elapsedActiveMs(),
+      levelsUsed,
+      puzzleNumber,
+      seenIds: Array.from(seenIds.current),
+      pendingResults: Array.from(pendingResults.current).filter(([, r]) => r.length > 0),
+    });
+  };
+
+  useEffect(() => {
+    saveSession.current();
+  }, [state, queue, index, feedback, tally, levelsUsed, puzzleNumber, theme, levelKey]);
+
+  useEffect(() => {
+    // Phones unload backgrounded apps without warning; hidden/pagehide is the last
+    // reliable moment to save. Pause the session clock while away.
+    const onHide = () => {
+      if (visibleSince.current !== null) {
+        activeMs.current += Date.now() - visibleSince.current;
+        visibleSince.current = null;
+      }
+      saveSession.current();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onHide();
+      else if (visibleSince.current === null && activeMs.current > 0)
+        visibleSince.current = Date.now();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onHide);
+      // Navigating to another tab in the app unmounts this page: save on the way out.
+      saveSession.current();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (resumed) {
+      toast({
+        title: `Resumed your ${getThemeLabel(resumed.theme)} practice`,
+        description: `${resumed.tally.clean}/${resumed.tally.attempted} solved first try so far`,
+      });
+    }
+  }, [resumed, toast]);
 
   useEffect(() => () => clearTimeout(replyTimer.current ?? undefined), []);
 
@@ -308,7 +390,8 @@ export default function FocusPage() {
     setTally({ attempted: 0, clean: 0 });
     setLevelsUsed([level.label]);
     setPuzzleNumber(0);
-    setStartedAt(Date.now());
+    activeMs.current = 0;
+    visibleSince.current = Date.now();
     showPuzzle(batch[0]);
   };
 
@@ -356,10 +439,13 @@ export default function FocusPage() {
 
   const tryMove = (from: Square, to: Square, promotion?: PromotionPiece) => {
     if (!state || state.status !== 'playing') return;
-    const { state: next, verdict } = submitMove(state, `${from}${to}${promotion ?? ''}`);
+    const uci = `${from}${to}${promotion ?? ''}`;
+    const { state: next, verdict } = submitMove(state, uci);
     setSelected(null);
     if (verdict === 'illegal') return;
     setState(next);
+    // A wrong move isn't played on the board, so it makes no sound.
+    if (verdict !== 'wrong') playMoveSound(isCapture(state.fen, uci) ? 'capture' : 'move');
     if (verdict === 'wrong') {
       setFeedback('wrong');
       return;
@@ -371,9 +457,15 @@ export default function FocusPage() {
     }
     setFeedback('correct');
     replyTimer.current = setTimeout(() => {
-      setState((current) => (current ? playOpponentReply(current) : current));
+      const reply = next.puzzle.solution[next.ply];
+      const replied = playOpponentReply(next);
+      setState(replied);
+      if (reply) playMoveSound(isCapture(next.fen, reply) ? 'capture' : 'move');
     }, REPLY_DELAY_MS);
   };
+
+  const [soundOn, setSoundOn] = useState(isMoveSoundEnabled);
+  useEffect(() => subscribeMoveSoundPref(() => setSoundOn(isMoveSoundEnabled())), []);
 
   const chess = useMemo(() => (state ? new Chess(state.fen) : null), [state]);
   const myColor = state ? solverColor(state.puzzle) : 'w';
@@ -412,15 +504,20 @@ export default function FocusPage() {
   };
 
   const endAndLog = async () => {
-    if (tally.attempted === 0) {
-      setStartedAt(null);
+    const stopSession = () => {
+      clearFocusSession();
+      activeMs.current = 0;
+      visibleSince.current = null;
       setState(null);
+    };
+    if (tally.attempted === 0) {
+      stopSession();
       return;
     }
     setLogging(true);
     await flushResults();
     try {
-      const minutes = Math.max(1, Math.round((Date.now() - (startedAt ?? Date.now())) / 60000));
+      const minutes = Math.max(1, Math.round(elapsedActiveMs() / 60000));
       const { createSession } = await import('@/lib/firebase');
       await createSession({
         type: 'tactics',
@@ -440,8 +537,7 @@ export default function FocusPage() {
         title: 'Session logged',
         description: `${tally.clean}/${tally.attempted} ${getThemeLabel(theme)} puzzles in ${minutes} min`,
       });
-      setStartedAt(null);
-      setState(null);
+      stopSession();
     } catch (error) {
       console.error('[Focus] Failed to log tactics session', error);
       toast({
@@ -478,6 +574,17 @@ export default function FocusPage() {
       <div className="flex items-center gap-2">
         <Target className="h-6 w-6 text-[#1E40AF]" />
         <h1 className="text-2xl font-bold text-gray-900">Focus practice</h1>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto"
+          aria-label={soundOn ? 'Mute move sounds' : 'Unmute move sounds'}
+          aria-pressed={soundOn}
+          title={soundOn ? 'Move sounds on' : 'Move sounds off'}
+          onClick={() => setMoveSoundEnabled(!soundOn)}
+        >
+          {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+        </Button>
       </div>
 
       {!state && (
