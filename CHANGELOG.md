@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.12.0] - 15 November 2026
+
+- **Fix "Start practice" hanging when connected to Lichess**: before fetching puzzles, the app downloaded your Lichess puzzle history (to skip ones you've already played) and waited for it. Lichess streams that history at 20 entries a second, so for an account with a long history the button spun for 30 seconds before giving up. Practice now starts straight away; the history downloads in the background and puzzles you've played are skipped as it arrives
+- Your puzzle history is now remembered on this device, so after the first download each visit only fetches what you've played since — a second or two instead of minutes. An interrupted first download picks up where it left off
+- **Change level mid-session**: a Level picker sits above each puzzle. The puzzle you're on stays; the next one comes from the new level. Your score and timer carry on, and the logged session notes every level you used (e.g. "Beginner (~1000) → Easy (~1100)")
+- Fetching a fresh batch now retries once instead of twice, as each anonymous fetch counts against Lichess's hourly limit
+
 ## [2.11.0] - 15 November 2026
 
 - **Focus practice**: a new Focus tab drills Lichess puzzles on a single theme — pin, fork, skewer, discovered attack, mate in 2, back-rank mate, rook endgames and 25 more. Solve on the board (it turns to your side and highlights the opponent's last move); a wrong move can be retried but counts as a miss, and any checkmating move is accepted, as on Lichess. Show solution, skip, or open the puzzle on Lichess. Puzzles load 20 at a time, with more fetched automatically
