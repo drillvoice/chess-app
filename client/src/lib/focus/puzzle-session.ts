@@ -35,6 +35,34 @@ export function startPuzzle(puzzle: FocusPuzzle): PuzzleState {
   };
 }
 
+/**
+ * Rebuild a puzzle part-way through, e.g. when resuming a saved session. The
+ * board is replayed from the solution rather than trusted from storage. A
+ * puzzle saved on the opponent's turn (between the player's move and the
+ * scripted reply) gets that reply played, so the board is never stuck.
+ */
+export function restorePuzzleState(
+  puzzle: FocusPuzzle,
+  ply: number,
+  status: PuzzleStatus,
+  mistake: boolean,
+): PuzzleState {
+  if (!Number.isInteger(ply) || ply < 0 || ply > puzzle.solution.length) {
+    throw new Error(`Puzzle ${puzzle.id}: invalid saved ply ${ply}`);
+  }
+  if (status === 'failed') return revealSolution({ ...startPuzzle(puzzle), mistake: true });
+  const chess = boardAt(puzzle, ply);
+  const restored: PuzzleState = {
+    puzzle,
+    ply,
+    fen: chess.fen(),
+    lastMove: ply > 0 ? puzzle.solution[ply - 1] : puzzle.lastMove,
+    status: status === 'solved' || ply >= puzzle.solution.length ? 'solved' : 'playing',
+    mistake,
+  };
+  return playOpponentReply(restored);
+}
+
 /** Colour the player is solving for. */
 export function solverColor(puzzle: FocusPuzzle): 'w' | 'b' {
   return new Chess(puzzle.fen).turn();

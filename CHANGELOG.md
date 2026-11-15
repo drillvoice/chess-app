@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file.
 
 - **Move sounds in Focus practice**: a short wooden "tock" when a piece lands, for your moves and the opponent's replies, with a sharper, heavier knock for captures. A wrong move isn't played on the board, so it stays silent. The sounds are generated in the browser rather than loaded from files, so they work offline
 - A speaker button next to the Focus practice title mutes or unmutes them; the choice is remembered on this device. On iPhone, the ring/silent switch also silences them
+- **Focus practice no longer loses your place**: switching to another app often sent you back to the start screen with your progress gone — phones unload backgrounded apps to free memory, and the session only lived in memory. The session is now saved on your device as you go (the puzzle list, the puzzle you're on and how far into it, your score and levels) and picks up exactly where you left off, including after navigating to another tab in the app and back. A saved session is kept for 24 hours; End practice clears it
+- If the app was unloaded between your move and the opponent's reply, the reply is played when you come back, so the board is never stuck. Lichess results that hadn't been sent yet are kept and sent on return
+- Logged session time now counts only while the app is open, so time spent in other apps no longer inflates the duration
 
 ## [2.12.0] - 15 November 2026
 
