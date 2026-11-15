@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.14.0] - 15 November 2026
+
+- **Session timer in Focus practice**: a clock next to "Solved first try" shows how long the current session has run. It's the same time that gets logged with the session, so it pauses while you're in another app and carries on when a session is resumed
+
 ## [2.13.0] - 15 November 2026
 
 - **Move sounds in Focus practice**: a short wooden "tock" when a piece lands, for your moves and the opponent's replies, with a sharper, heavier knock for captures. A wrong move isn't played on the board, so it stays silent. The sounds are generated in the browser rather than loaded from files, so they work offline
