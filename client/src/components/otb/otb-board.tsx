@@ -39,7 +39,9 @@ export default function OtbBoard({
 
   return (
     <div className="w-full rounded-xl border border-gray-200 bg-white p-3">
-      <div className="mx-auto grid max-w-lg grid-cols-8 gap-0 overflow-hidden rounded-md border border-gray-300">
+      {/* touch-manipulation: taps register instantly (no double-tap-zoom wait), and quick
+          taps on the same square can't zoom the page. */}
+      <div className="mx-auto grid max-w-lg touch-manipulation select-none grid-cols-8 gap-0 overflow-hidden rounded-md border border-gray-300">
         {ranks.flatMap((rank, rankIndex) =>
           files.map((file) => {
             const square = `${file}${rank}` as Square;
@@ -57,7 +59,7 @@ export default function OtbBoard({
                 key={square}
                 type="button"
                 className={cn(
-                  'relative flex aspect-square w-full items-center justify-center overflow-hidden transition-colors',
+                  'relative flex aspect-square w-full items-center justify-center overflow-hidden',
                   darkSquare ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
                   isHighlighted && (darkSquare ? 'bg-[#aaa23a]' : 'bg-[#cdd26a]'),
                   isSelected && 'ring-4 ring-inset ring-blue-500',
