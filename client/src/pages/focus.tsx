@@ -19,7 +19,16 @@ import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
 import type { PieceView } from '@/lib/otb/chess';
 import type { PromotionPiece, Square } from '@/lib/otb/types';
-import { fetchFocusPuzzles, type FocusPuzzle } from '@/lib/focus/lichess-puzzles';
+import {
+  fetchFocusPuzzles,
+  LichessUnauthorizedError,
+  submitPuzzleResults,
+  type FocusPuzzle,
+  type PuzzleResult,
+} from '@/lib/focus/lichess-puzzles';
+import { handleLichessUnauthorized } from '@/lib/lichess-auth';
+import { useLichessConnection } from '@/hooks/use-lichess-connection';
+import LichessAccountConnect from '@/components/lichess-account-connect';
 import {
   playOpponentReply,
   revealSolution,
@@ -103,6 +112,65 @@ export default function FocusPage() {
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seenIds = useRef(new Set<string>());
 
+  const connection = useLichessConnection();
+  const token = connection?.accessToken ?? null;
+  // Results not yet accepted by Lichess, grouped by theme (the POST is per theme).
+  const pendingResults = useRef(new Map<string, PuzzleResult[]>());
+  const [lichessRating, setLichessRating] = useState<number | null>(null);
+  const [ratingDiffs, setRatingDiffs] = useState<Record<string, number>>({});
+  const [resultSyncError, setResultSyncError] = useState<string | null>(null);
+
+  const onUnauthorized = useCallback(() => {
+    handleLichessUnauthorized();
+    pendingResults.current.clear();
+    toast({
+      title: 'Lichess disconnected',
+      description: new LichessUnauthorizedError().message,
+      variant: 'destructive',
+    });
+  }, [toast]);
+
+  /** Send any queued results to Lichess. Best effort: failures stay queued for the next try. */
+  const flushResults = useCallback(async () => {
+    if (!token) return;
+    for (const [resultTheme, results] of Array.from(pendingResults.current)) {
+      if (results.length === 0) continue;
+      try {
+        const response = await submitPuzzleResults(resultTheme, results, token);
+        const sent = new Set(results.map((r) => r.id));
+        const remaining = (pendingResults.current.get(resultTheme) ?? []).filter(
+          (r) => !sent.has(r.id),
+        );
+        pendingResults.current.set(resultTheme, remaining);
+        setRatingDiffs((d) => ({ ...d, ...response.ratingDiffs }));
+        if (response.rating !== null) setLichessRating(response.rating);
+        setResultSyncError(null);
+      } catch (error) {
+        if (error instanceof LichessUnauthorizedError) {
+          onUnauthorized();
+          return;
+        }
+        console.error('[Focus] Failed to send puzzle results to Lichess', {
+          theme: resultTheme,
+          count: results.length,
+          error,
+        });
+        setResultSyncError(
+          `Couldn't send ${results.length} result(s) to Lichess — will retry. ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }, [token, onUnauthorized]);
+
+  const recordOnLichess = (puzzleId: string, win: boolean) => {
+    if (!token) return;
+    const list = pendingResults.current.get(theme) ?? [];
+    pendingResults.current.set(theme, [...list, { id: puzzleId, win }]);
+    void flushResults();
+  };
+
   useEffect(() => () => clearTimeout(replyTimer.current ?? undefined), []);
 
   const loadBatch = useCallback(
@@ -110,12 +178,13 @@ export default function FocusPage() {
       setLoading(true);
       setLoadError(null);
       try {
-        const batch = await fetchFocusPuzzles(theme, difficulty, BATCH_SIZE);
+        const batch = await fetchFocusPuzzles(theme, difficulty, BATCH_SIZE, { token });
         const fresh = batch.filter((p) => !seenIds.current.has(p.id));
         fresh.forEach((p) => seenIds.current.add(p.id));
         if (fresh.length === 0) throw new Error('Lichess sent only puzzles you have already seen');
         return fresh;
       } catch (error) {
+        if (error instanceof LichessUnauthorizedError) onUnauthorized();
         const message = error instanceof Error ? error.message : String(error);
         console.error('[Focus] Failed to load puzzles', { theme, difficulty, append, error });
         setLoadError(message);
@@ -124,7 +193,7 @@ export default function FocusPage() {
         setLoading(false);
       }
     },
-    [theme, difficulty],
+    [theme, difficulty, token, onUnauthorized],
   );
 
   const showPuzzle = useCallback((puzzle: FocusPuzzle) => {
@@ -146,7 +215,9 @@ export default function FocusPage() {
     showPuzzle(batch[0]);
   };
 
-  const finishPuzzle = (finalState: PuzzleState) => {
+  const finishPuzzle = (finalState: PuzzleState, sendToLichess = true) => {
+    const win = finalState.status === 'solved' && !finalState.mistake;
+    if (sendToLichess) recordOnLichess(finalState.puzzle.id, win);
     setTally((t) => ({
       attempted: t.attempted + 1,
       clean: t.clean + (finalState.status === 'solved' && !finalState.mistake ? 1 : 0),
@@ -155,7 +226,10 @@ export default function FocusPage() {
 
   const nextPuzzle = async () => {
     // A puzzle skipped mid-solve still counts as attempted (and missed).
-    if (state?.status === 'playing') finishPuzzle({ ...state, mistake: true });
+    // Only tell Lichess if a move was actually tried; an untouched skip isn't a loss there.
+    if (state?.status === 'playing') {
+      finishPuzzle({ ...state, mistake: true }, state.ply > 0 || state.mistake);
+    }
     const nextIndex = index + 1;
     if (nextIndex < queue.length) {
       setIndex(nextIndex);
@@ -233,6 +307,7 @@ export default function FocusPage() {
       return;
     }
     setLogging(true);
+    await flushResults();
     try {
       const minutes = Math.max(1, Math.round((Date.now() - (startedAt ?? Date.now())) / 60000));
       const { createSession } = await import('@/lib/firebase');
@@ -338,6 +413,9 @@ export default function FocusPage() {
                 </Select>
               </div>
             </div>
+            <div className="rounded-md border border-gray-200 p-3">
+              <LichessAccountConnect returnPath="/focus" />
+            </div>
             <Button onClick={startSet} disabled={loading} className="w-full sm:w-auto">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Start {getThemeLabel(theme)} practice
@@ -376,9 +454,28 @@ export default function FocusPage() {
                   Solution: {solutionSan(state.puzzle).join(' ')}
                 </p>
               )}
-              <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-700">
-                Solved first try: <strong>{tally.clean}</strong> / {tally.attempted}
+              <div className="space-y-1 rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+                <div>
+                  Solved first try: <strong>{tally.clean}</strong> / {tally.attempted}
+                </div>
+                {connection && (
+                  <div>
+                    Lichess puzzle rating: <strong>{lichessRating ?? '—'}</strong>
+                    {ratingDiffs[state.puzzle.id] !== undefined && (
+                      <span
+                        className={
+                          ratingDiffs[state.puzzle.id] >= 0 ? 'text-green-700' : 'text-red-600'
+                        }
+                      >
+                        {' '}
+                        ({ratingDiffs[state.puzzle.id] >= 0 ? '+' : ''}
+                        {ratingDiffs[state.puzzle.id]})
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
+              {resultSyncError && <p className="text-xs text-amber-700">{resultSyncError}</p>}
               <div className="flex flex-wrap gap-2">
                 {state.status === 'playing' ? (
                   <Button variant="outline" onClick={reveal}>

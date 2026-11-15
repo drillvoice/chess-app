@@ -23,6 +23,7 @@ const Info = lazy(routeLoaders['/info']);
 const OtbPage = lazy(routeLoaders['/otb']);
 const OpeningsPage = lazy(routeLoaders['/openings']);
 const FocusPage = lazy(routeLoaders['/focus']);
+const LichessCallbackPage = lazy(() => import('@/pages/lichess-callback'));
 const NotFound = lazy(() => import('@/pages/not-found'));
 
 function Router() {
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/activity" component={Activity} />
         <Route path="/account" component={AccountPage} />
         <Route path="/info" component={Info} />
+        <Route path="/lichess-callback" component={LichessCallbackPage} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

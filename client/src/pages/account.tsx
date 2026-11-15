@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { LichessSettingsContent } from '@/components/lichess-settings';
+import LichessAccountConnect from '@/components/lichess-account-connect';
 import FirebaseAuth from '@/components/firebase-auth';
 import { TagConfigurationContent } from '@/components/tag-configuration';
 import {
@@ -113,6 +114,10 @@ ${diagnostics.errors.map((error) => `  - ${error}`).join('\n')}
             <AccordionItem value="lichess">
               <AccordionTrigger>Lichess integration</AccordionTrigger>
               <AccordionContent>
+                <div className="mb-4 space-y-2 border-b pb-4">
+                  <h3 className="text-sm font-semibold">Lichess account (puzzles)</h3>
+                  <LichessAccountConnect returnPath="/account" />
+                </div>
                 <LichessSettingsContent />
               </AccordionContent>
             </AccordionItem>

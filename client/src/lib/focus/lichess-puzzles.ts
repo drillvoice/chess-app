@@ -105,45 +105,51 @@ export function parseLichessPuzzle(raw: unknown): FocusPuzzle {
   };
 }
 
-/**
- * Fetch a batch of themed puzzles straight from Lichess. The endpoint is public
- * and CORS-enabled, so no proxy or token is needed. Malformed puzzles are
- * skipped (with a warning) rather than failing the whole batch.
- */
-export async function fetchFocusPuzzles(
-  theme: string,
-  difficulty: FocusDifficulty,
-  count = 20,
-  fetchImpl: typeof fetch = fetch,
-): Promise<FocusPuzzle[]> {
-  const params = new URLSearchParams({ nb: String(count), difficulty });
-  const url = `https://lichess.org/api/puzzle/batch/${encodeURIComponent(theme)}?${params}`;
+export class LichessUnauthorizedError extends Error {
+  constructor() {
+    super('Your Lichess connection has expired or was revoked. Please reconnect.');
+    this.name = 'LichessUnauthorizedError';
+  }
+}
+
+interface LichessRequestOptions {
+  /** Lichess OAuth token; when set, only unseen puzzles are served. */
+  token?: string | null;
+  fetchImpl?: typeof fetch;
+}
+
+async function lichessRequest(
+  url: string,
+  init: RequestInit,
+  { token, fetchImpl = fetch }: LichessRequestOptions,
+): Promise<unknown> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (init.body) headers['Content-Type'] = 'application/json';
 
   let response: Response;
   try {
-    response = await fetchImpl(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(15000),
-    });
+    response = await fetchImpl(url, { ...init, headers, signal: AbortSignal.timeout(15000) });
   } catch (error) {
     throw new Error(
       `Could not reach Lichess: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+  if (response.status === 401 && token) throw new LichessUnauthorizedError();
   if (!response.ok) {
     const detail = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 160);
     throw new Error(
       `Lichess puzzle request failed (status ${response.status})${detail ? `: ${detail}` : ''}`,
     );
   }
+  return response.json();
+}
 
-  const body = (await response.json()) as { puzzles?: unknown };
-  if (!Array.isArray(body?.puzzles)) {
-    throw new Error('Unexpected response from Lichess: no puzzle list');
-  }
-
+function parseBatch(body: unknown, theme: string): FocusPuzzle[] {
+  const list = (body as { puzzles?: unknown } | null)?.puzzles;
+  if (!Array.isArray(list)) throw new Error('Unexpected response from Lichess: no puzzle list');
   const puzzles: FocusPuzzle[] = [];
-  for (const raw of body.puzzles) {
+  for (const raw of list) {
     try {
       puzzles.push(parseLichessPuzzle(raw));
     } catch (error) {
@@ -154,4 +160,63 @@ export async function fetchFocusPuzzles(
     throw new Error(`Lichess returned no usable puzzles for theme "${theme}"`);
   }
   return puzzles;
+}
+
+const batchUrl = (theme: string) =>
+  `https://lichess.org/api/puzzle/batch/${encodeURIComponent(theme)}`;
+
+/**
+ * Fetch a batch of themed puzzles straight from Lichess. The endpoint is public
+ * and CORS-enabled; with a token, Lichess only serves puzzles the user hasn't
+ * seen and pitches difficulty relative to their puzzle rating. Malformed
+ * puzzles are skipped (with a warning) rather than failing the whole batch.
+ */
+export async function fetchFocusPuzzles(
+  theme: string,
+  difficulty: FocusDifficulty,
+  count = 20,
+  options: LichessRequestOptions = {},
+): Promise<FocusPuzzle[]> {
+  const params = new URLSearchParams({ nb: String(count), difficulty });
+  const body = await lichessRequest(`${batchUrl(theme)}?${params}`, {}, options);
+  return parseBatch(body, theme);
+}
+
+export interface PuzzleResult {
+  id: string;
+  win: boolean;
+}
+
+export interface SubmitResultsResponse {
+  /** Rating change per submitted puzzle id (missing if Lichess didn't rate it). */
+  ratingDiffs: Record<string, number>;
+  /** User's Lichess puzzle rating after these results, if reported. */
+  rating: number | null;
+}
+
+/** Record results on the user's Lichess account (rated, like solving on the site). */
+export async function submitPuzzleResults(
+  theme: string,
+  results: PuzzleResult[],
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SubmitResultsResponse> {
+  const body = (await lichessRequest(
+    `${batchUrl(theme)}?nb=0`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ solutions: results.map((r) => ({ ...r, rated: true })) }),
+    },
+    { token, fetchImpl },
+  )) as { rounds?: unknown; glicko?: { rating?: unknown } } | null;
+
+  const ratingDiffs: Record<string, number> = {};
+  if (Array.isArray(body?.rounds)) {
+    for (const round of body.rounds as Array<{ id?: unknown; ratingDiff?: unknown }>) {
+      const diff = Number(round?.ratingDiff);
+      if (typeof round?.id === 'string' && Number.isFinite(diff)) ratingDiffs[round.id] = diff;
+    }
+  }
+  const rating = Number(body?.glicko?.rating);
+  return { ratingDiffs, rating: Number.isFinite(rating) ? Math.round(rating) : null };
 }
