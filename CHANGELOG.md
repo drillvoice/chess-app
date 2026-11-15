@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.11.0] - 15 November 2026
+
+- **Focus practice**: a new Focus tab drills Lichess puzzles on a single theme — pin, fork, skewer, discovered attack, mate in 2, back-rank mate, rook endgames and 25 more. Solve on the board (it turns to your side and highlights the opponent's last move); a wrong move can be retried but counts as a miss, and any checkmating move is accepted, as on Lichess. Show solution, skip, or open the puzzle on Lichess. Puzzles load 20 at a time, with more fetched automatically
+- **Puzzle levels** at fixed ratings — Beginner (~1000), Easy (~1100), Intermediate (~1400), Advanced (~1800), Expert (~2050) — so quick, easy drills are available whatever your own puzzle rating is
+- **Log it as a session**: "End & log tactics session" records the time spent, puzzles attempted and puzzles solved first try as a normal tactics session, so it counts towards stats and goals
+- **Connect your Lichess account** (Focus page, or Settings → Lichess integration) using Lichess's own sign-in. When connected, puzzles you've already played on Lichess are skipped and each result is saved to your Lichess puzzle history. An extra set of levels relative to your Lichess rating becomes available
+- **"Count toward my Lichess puzzle rating"** switch, off by default: unrated results still go into your Lichess history, so puzzles don't repeat, but your rating doesn't move. Turn it on to play rated, with your rating and the change per puzzle shown as you go
+- The Lichess sign-in stays on the device where you connect — it is not synced to your cloud backup, so connect once per device. A "Use a personal token instead" option covers home-screen installs where the sign-in redirect doesn't return to the app
+
 ## [2.10.0] - 6 September 2026
 
 - **Mistake stats**: the Activity page has a new section above Training history that counts how often each mistake tag has been recorded on your games, most frequent first, with a bar showing each tag against your most common one. Tags you've been adding since 2.8.0 finally add up to something you can read
