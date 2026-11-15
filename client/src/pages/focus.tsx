@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
-import { ExternalLink, Eye, Loader2, SkipForward, Target, Volume2, VolumeX } from 'lucide-react';
+import {
+  Clock,
+  ExternalLink,
+  Eye,
+  Loader2,
+  SkipForward,
+  Target,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import {
   isMoveSoundEnabled,
   playMoveSound,
@@ -35,6 +44,7 @@ import {
 } from '@/lib/focus/lichess-puzzles';
 import { handleLichessUnauthorized } from '@/lib/lichess-auth';
 import { syncPlayedPuzzles } from '@/lib/focus/played-puzzles';
+import { formatDuration } from '@/lib/focus/format-duration';
 import {
   clearFocusSession,
   loadFocusSession,
@@ -277,6 +287,16 @@ export default function FocusPage() {
 
   const elapsedActiveMs = () =>
     activeMs.current + (visibleSince.current === null ? 0 : Date.now() - visibleSince.current);
+
+  // Re-render once a second so the session clock ticks. It reads elapsedActiveMs, so it
+  // matches the logged duration and stands still while the app is in the background.
+  const [, setClockTick] = useState(0);
+  const sessionActive = state !== null;
+  useEffect(() => {
+    if (!sessionActive) return;
+    const id = setInterval(() => setClockTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [sessionActive]);
 
   // Always points at the latest state, so pagehide/visibility handlers save current values.
   const saveSession = useRef<() => void>(() => {});
@@ -695,8 +715,18 @@ export default function FocusPage() {
                 </p>
               )}
               <div className="space-y-1 rounded-md bg-gray-50 p-3 text-sm text-gray-700">
-                <div>
-                  Solved first try: <strong>{tally.clean}</strong> / {tally.attempted}
+                <div className="flex items-center justify-between gap-2">
+                  <span>
+                    Solved first try: <strong>{tally.clean}</strong> / {tally.attempted}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 tabular-nums"
+                    aria-label="Session time"
+                    title="Session time (paused while the app is in the background)"
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    {formatDuration(elapsedActiveMs())}
+                  </span>
                 </div>
                 {connection && (
                   <div>
