@@ -23,12 +23,12 @@ import type { PromotionPiece, Square } from '@/lib/otb/types';
 import {
   fetchFocusPuzzles,
   LichessUnauthorizedError,
-  fetchPlayedPuzzleIds,
   submitPuzzleResults,
   type FocusPuzzle,
   type PuzzleResult,
 } from '@/lib/focus/lichess-puzzles';
 import { handleLichessUnauthorized } from '@/lib/lichess-auth';
+import { syncPlayedPuzzles } from '@/lib/focus/played-puzzles';
 import { useLichessConnection } from '@/hooks/use-lichess-connection';
 import LichessAccountConnect from '@/components/lichess-account-connect';
 import {
@@ -104,6 +104,31 @@ function pieceMapFromFen(fen: string): Record<string, PieceView> {
 
 const GROUPS = ['Motifs', 'Mates', 'Phases', 'Goals'] as const;
 
+function LevelOptions({ showRelative }: { showRelative: boolean }) {
+  return (
+    <SelectContent>
+      <SelectGroup>
+        <SelectLabel>Fixed rating</SelectLabel>
+        {FOCUS_LEVELS.filter((l) => !l.relative).map((l) => (
+          <SelectItem key={l.key} value={l.key}>
+            {l.label}
+          </SelectItem>
+        ))}
+      </SelectGroup>
+      {showRelative && (
+        <SelectGroup>
+          <SelectLabel>Relative to my Lichess rating</SelectLabel>
+          {FOCUS_LEVELS.filter((l) => l.relative).map((l) => (
+            <SelectItem key={l.key} value={l.key}>
+              {l.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      )}
+    </SelectContent>
+  );
+}
+
 export default function FocusPage() {
   const { toast } = useToast();
   const initialPrefs = useMemo(loadPrefs, []);
@@ -134,8 +159,14 @@ export default function FocusPage() {
   const level = getLevel(!token && getLevel(levelKey).relative ? DEFAULT_LEVEL_KEY : levelKey);
   // Results not yet accepted by Lichess, grouped by theme + rated (one POST per group).
   const pendingResults = useRef(new Map<string, PuzzleResult[]>());
-  // Lichess puzzle history, fetched once per page visit for fixed-level filtering.
-  const playedIds = useRef<Set<string> | null>(null);
+  // Puzzles already played on Lichess, filled in the background (see syncPlayedPuzzles).
+  // Fixed levels are fetched anonymously, so this replaces Lichess's unseen-only filter.
+  const playedIds = useRef(new Set<string>());
+  // Levels used this session, for the logged session's notes.
+  const [levelsUsed, setLevelsUsed] = useState<string[]>([]);
+  // Shown after a mid-puzzle level change, until the next puzzle appears.
+  const [levelChangePending, setLevelChangePending] = useState(false);
+  const [puzzleNumber, setPuzzleNumber] = useState(0);
   const [lichessRating, setLichessRating] = useState<number | null>(null);
   const [ratingDiffs, setRatingDiffs] = useState<Record<string, number>>({});
   const [resultSyncError, setResultSyncError] = useState<string | null>(null);
@@ -149,6 +180,31 @@ export default function FocusPage() {
       variant: 'destructive',
     });
   }, [toast]);
+
+  const username = connection?.username ?? null;
+  useEffect(() => {
+    playedIds.current = new Set();
+    if (!token || !username) return;
+    // Never block practice on this: Lichess streams history at 20 entries/second.
+    const controller = new AbortController();
+    syncPlayedPuzzles({
+      token,
+      username,
+      signal: controller.signal,
+      onIds: (ids) => ids.forEach((id) => playedIds.current.add(id)),
+    }).catch((error) => {
+      if (controller.signal.aborted) return;
+      if (error instanceof LichessUnauthorizedError) {
+        onUnauthorized();
+        return;
+      }
+      console.warn('[Focus] Could not sync Lichess puzzle history; repeats possible', {
+        username,
+        error,
+      });
+    });
+    return () => controller.abort();
+  }, [token, username, onUnauthorized]);
 
   /** Send any queued results to Lichess. Best effort: failures stay queued for the next try. */
   const flushResults = useCallback(async () => {
@@ -205,24 +261,14 @@ export default function FocusPage() {
       setLoading(true);
       setLoadError(null);
       try {
-        // Fixed levels are fetched anonymously (so Lichess pitches them at an absolute
-        // rating), which loses its unseen-only filter; filter against history instead.
-        if (token && !level.relative && playedIds.current === null) {
-          try {
-            playedIds.current = await fetchPlayedPuzzleIds(token);
-          } catch (error) {
-            if (error instanceof LichessUnauthorizedError) throw error;
-            console.warn('[Focus] Could not load Lichess puzzle history; repeats possible', error);
-            playedIds.current = new Set();
-          }
-        }
         const fetchToken = level.relative ? token : null;
-        for (let attempt = 0; attempt < 3; attempt++) {
+        // Two tries at most: an anonymous batch costs Lichess's rate limit one point per puzzle.
+        for (let attempt = 0; attempt < 2; attempt++) {
           const batch = await fetchFocusPuzzles(theme, level.difficulty, BATCH_SIZE, {
             token: fetchToken,
           });
           const fresh = batch.filter(
-            (p) => !seenIds.current.has(p.id) && !playedIds.current?.has(p.id),
+            (p) => !seenIds.current.has(p.id) && !playedIds.current.has(p.id),
           );
           fresh.forEach((p) => seenIds.current.add(p.id));
           if (fresh.length > 0) return fresh;
@@ -246,6 +292,8 @@ export default function FocusPage() {
   const showPuzzle = useCallback((puzzle: FocusPuzzle) => {
     clearTimeout(replyTimer.current ?? undefined);
     setState(startPuzzle(puzzle));
+    setPuzzleNumber((n) => n + 1);
+    setLevelChangePending(false);
     setFeedback('find');
     setSelected(null);
   }, []);
@@ -258,6 +306,8 @@ export default function FocusPage() {
     setQueue(batch);
     setIndex(0);
     setTally({ attempted: 0, clean: 0 });
+    setLevelsUsed([level.label]);
+    setPuzzleNumber(0);
     setStartedAt(Date.now());
     showPuzzle(batch[0]);
   };
@@ -277,7 +327,9 @@ export default function FocusPage() {
     if (state?.status === 'playing') {
       finishPuzzle({ ...state, mistake: true }, state.ply > 0 || state.mistake);
     }
-    const nextIndex = index + 1;
+    // History may have streamed in since this batch was fetched; skip anything now known.
+    let nextIndex = index + 1;
+    while (nextIndex < queue.length && playedIds.current.has(queue[nextIndex].id)) nextIndex++;
     if (nextIndex < queue.length) {
       setIndex(nextIndex);
       showPuzzle(queue[nextIndex]);
@@ -285,9 +337,21 @@ export default function FocusPage() {
     }
     const more = await loadBatch(true);
     if (!more) return;
-    setQueue((q) => [...q, ...more]);
-    setIndex(nextIndex);
+    setQueue((q) => [...q.slice(0, index + 1), ...more]);
+    setIndex(index + 1);
     showPuzzle(more[0]);
+  };
+
+  /** Switch level mid-session: the current puzzle stays, the next one uses the new level. */
+  const changeLevel = (key: string) => {
+    const next = getLevel(key);
+    if (next.key === level.key) return;
+    setLevelKey(next.key);
+    savePrefs({ theme, levelKey: next.key, rated });
+    setQueue((q) => q.slice(0, index + 1));
+    setLevelsUsed((used) => (used.includes(next.label) ? used : [...used, next.label]));
+    setLoadError(null);
+    setLevelChangePending(true);
   };
 
   const tryMove = (from: Square, to: Square, promotion?: PromotionPiece) => {
@@ -364,7 +428,10 @@ export default function FocusPage() {
         duration: minutes,
         puzzlesAttempted: tally.attempted,
         puzzlesCorrect: tally.clean,
-        tacticsNotes: `Focus practice: ${getThemeLabel(theme)} (${level.label}, Lichess puzzles)`,
+        tacticsNotes: `Focus practice: ${getThemeLabel(theme)} (${(levelsUsed.length
+          ? levelsUsed
+          : [level.label]
+        ).join(' → ')}, Lichess puzzles)`,
       });
       ['sessions', 'statistics', 'weekly-goal', 'weekly-activity'].forEach((key) =>
         queryClient.invalidateQueries({ queryKey: [key] }),
@@ -447,26 +514,7 @@ export default function FocusPage() {
                   <SelectTrigger id="focus-level">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Fixed rating</SelectLabel>
-                      {FOCUS_LEVELS.filter((l) => !l.relative).map((l) => (
-                        <SelectItem key={l.key} value={l.key}>
-                          {l.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                    {token && (
-                      <SelectGroup>
-                        <SelectLabel>Relative to my Lichess rating</SelectLabel>
-                        {FOCUS_LEVELS.filter((l) => l.relative).map((l) => (
-                          <SelectItem key={l.key} value={l.key}>
-                            {l.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                  </SelectContent>
+                  <LevelOptions showRelative={!!token} />
                 </Select>
               </div>
             </div>
@@ -511,8 +559,24 @@ export default function FocusPage() {
           />
           <Card>
             <CardContent className="space-y-4 p-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="focus-session-level" className="shrink-0 text-sm text-gray-600">
+                  Level
+                </Label>
+                <Select value={level.key} onValueChange={changeLevel}>
+                  <SelectTrigger id="focus-session-level" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <LevelOptions showRelative={!!token} />
+                </Select>
+              </div>
+              {levelChangePending && (
+                <p className="-mt-2 text-xs text-gray-500">
+                  New level starts from the next puzzle.
+                </p>
+              )}
               <div className="text-sm text-gray-500">
-                {getThemeLabel(theme)} · puzzle {index + 1}
+                {getThemeLabel(theme)} · puzzle {puzzleNumber}
                 {state.puzzle.rating !== null && ` · rated ${state.puzzle.rating}`}
               </div>
               <p className={`text-lg font-semibold ${feedbackColor[feedback]}`} aria-live="polite">

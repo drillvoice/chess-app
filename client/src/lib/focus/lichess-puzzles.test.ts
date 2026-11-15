@@ -4,7 +4,6 @@ import {
   LichessUnauthorizedError,
   parseLichessPuzzle,
   submitPuzzleResults,
-  fetchPlayedPuzzleIds,
 } from './lichess-puzzles';
 import { MATE_IN_2_RAW } from './test-fixtures';
 
@@ -137,27 +136,6 @@ describe('authenticated requests', () => {
         { id: 'b', win: false, rated: true },
       ],
     });
-  });
-});
-
-describe('fetchPlayedPuzzleIds', () => {
-  it('collects ids from the ndjson history, tolerating a torn last line', async () => {
-    const body =
-      [
-        JSON.stringify({ date: 1, win: true, puzzle: { id: 'aaa' } }),
-        JSON.stringify({ date: 2, win: false, puzzle: { id: 'bbb' } }),
-      ].join('\n') + '\n{"date":3,"puz';
-    const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) => new Response(body));
-    const ids = await fetchPlayedPuzzleIds('lip_abc', 100, fetchImpl as typeof fetch);
-    expect(Array.from(ids)).toEqual(['aaa', 'bbb']);
-    expect(fetchImpl.mock.calls[0][0]).toBe('https://lichess.org/api/puzzle/activity?max=100');
-  });
-
-  it('reports an expired token', async () => {
-    const fetchImpl = vi.fn(async () => new Response('', { status: 401 }));
-    await expect(
-      fetchPlayedPuzzleIds('dead', 10, fetchImpl as typeof fetch),
-    ).rejects.toBeInstanceOf(LichessUnauthorizedError);
   });
 });
 
