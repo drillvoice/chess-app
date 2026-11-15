@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Home, TrendingUp, User as UserIcon, Crown, BookOpen } from 'lucide-react';
+import { Home, TrendingUp, User as UserIcon, Crown, BookOpen, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { prefetchRoute } from '@/lib/route-loaders';
 
@@ -10,6 +10,7 @@ export default function Navigation() {
     { path: '/', label: 'Home', icon: Home },
     { path: '/activity', label: 'Activity', icon: TrendingUp },
     { path: '/openings', label: 'Openings', icon: BookOpen },
+    { path: '/focus', label: 'Focus', icon: Target },
     { path: '/otb', label: 'OTB', icon: Crown },
     { path: '/account', label: 'Settings', icon: UserIcon },
   ];
