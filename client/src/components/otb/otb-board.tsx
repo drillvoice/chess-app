@@ -19,6 +19,8 @@ interface OtbBoardProps {
   isFlipped: boolean;
   isTableMode: boolean;
   onSquareTap: (square: Square) => void;
+  /** Squares to tint, e.g. the from/to of the last move. */
+  highlightSquares?: Square[];
 }
 
 export default function OtbBoard({
@@ -28,6 +30,7 @@ export default function OtbBoard({
   isFlipped,
   isTableMode,
   onSquareTap,
+  highlightSquares = [],
 }: OtbBoardProps) {
   const files = isFlipped ? [...FILES].reverse() : FILES;
   const ranks = isFlipped ? [...RANKS].reverse() : RANKS;
@@ -44,6 +47,7 @@ export default function OtbBoard({
             const darkSquare = isDarkSquare(square);
             const isSelected = selectedSquare === square;
             const isLegalTarget = legalTargets.includes(square);
+            const isHighlighted = highlightSquares.includes(square);
             const rotatePiece = isTableMode && rankIndex < 4;
             const showFileCoordinate = rank === bottomRank;
             const showRankCoordinate = file === rightFile;
@@ -55,6 +59,7 @@ export default function OtbBoard({
                 className={cn(
                   'relative flex aspect-square w-full items-center justify-center overflow-hidden transition-colors',
                   darkSquare ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
+                  isHighlighted && (darkSquare ? 'bg-[#aaa23a]' : 'bg-[#cdd26a]'),
                   isSelected && 'ring-4 ring-inset ring-blue-500',
                 )}
                 onClick={() => onSquareTap(square)}

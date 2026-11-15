@@ -5,6 +5,7 @@ import { logger } from './logger';
 export const routeLoaders = {
   '/activity': () => import('@/pages/activity'),
   '/openings': () => import('@/pages/openings'),
+  '/focus': () => import('@/pages/focus'),
   '/otb': () => import('@/pages/otb'),
   '/account': () => import('@/pages/account'),
   '/info': () => import('@/pages/info'),

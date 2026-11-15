@@ -1,0 +1,157 @@
+import { Chess } from 'chess.js';
+import type { FocusDifficulty } from './themes';
+
+export interface FocusPuzzle {
+  id: string;
+  rating: number | null;
+  themes: string[];
+  /** Position the player has to solve (opponent's last move already played). */
+  fen: string;
+  /** UCI move that led to `fen`, for highlighting. */
+  lastMove: string | null;
+  /** Full solution in UCI: player move, opponent reply, player move, ... */
+  solution: string[];
+  gameId: string | null;
+}
+
+const UCI_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
+
+/** Play a UCI move on a chess.js board, returning the SAN or null if illegal. */
+export function playUci(chess: Chess, uci: string): string | null {
+  if (!UCI_PATTERN.test(uci)) return null;
+  try {
+    const move = chess.move({
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci.length === 5 ? uci[4] : undefined,
+    });
+    return move ? move.san : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Turn one entry of the Lichess puzzle API response into a FocusPuzzle.
+ * The batch endpoint gives the game PGN (ending with the opponent's move that
+ * sets up the puzzle) rather than a FEN, so the position is rebuilt by replaying
+ * it. Throws with context if the payload is malformed or the solution is illegal.
+ */
+export function parseLichessPuzzle(raw: unknown): FocusPuzzle {
+  const record = raw as {
+    game?: { id?: unknown; pgn?: unknown };
+    puzzle?: {
+      id?: unknown;
+      rating?: unknown;
+      themes?: unknown;
+      solution?: unknown;
+      fen?: unknown;
+      lastMove?: unknown;
+    };
+  } | null;
+  const puzzle = record?.puzzle;
+  const id = typeof puzzle?.id === 'string' ? puzzle.id : null;
+  if (!id) throw new Error('Lichess puzzle is missing an id');
+
+  const solution = Array.isArray(puzzle?.solution)
+    ? puzzle.solution.filter((m): m is string => typeof m === 'string')
+    : [];
+  if (solution.length === 0) throw new Error(`Lichess puzzle ${id} has no solution`);
+
+  const chess = new Chess();
+  let lastMove: string | null = typeof puzzle?.lastMove === 'string' ? puzzle.lastMove : null;
+  if (typeof puzzle?.fen === 'string' && puzzle.fen.trim()) {
+    try {
+      chess.load(puzzle.fen);
+    } catch (error) {
+      throw new Error(
+        `Lichess puzzle ${id} has an invalid FEN: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  } else {
+    const pgn = typeof record?.game?.pgn === 'string' ? record.game.pgn : '';
+    const sans = pgn.split(/\s+/).filter(Boolean);
+    if (sans.length === 0) throw new Error(`Lichess puzzle ${id} has neither FEN nor PGN`);
+    for (const san of sans) {
+      let move;
+      try {
+        move = chess.move(san);
+      } catch {
+        move = null;
+      }
+      if (!move) throw new Error(`Lichess puzzle ${id}: could not replay PGN move "${san}"`);
+      lastMove = `${move.from}${move.to}${move.promotion ?? ''}`;
+    }
+  }
+
+  const fen = chess.fen();
+  for (const uci of solution) {
+    if (!playUci(chess, uci)) {
+      throw new Error(`Lichess puzzle ${id}: solution move "${uci}" is illegal`);
+    }
+  }
+
+  const rating = Number(puzzle?.rating);
+  return {
+    id,
+    rating: Number.isFinite(rating) ? rating : null,
+    themes: Array.isArray(puzzle?.themes)
+      ? puzzle.themes.filter((t): t is string => typeof t === 'string')
+      : [],
+    fen,
+    lastMove,
+    solution,
+    gameId: typeof record?.game?.id === 'string' ? record.game.id : null,
+  };
+}
+
+/**
+ * Fetch a batch of themed puzzles straight from Lichess. The endpoint is public
+ * and CORS-enabled, so no proxy or token is needed. Malformed puzzles are
+ * skipped (with a warning) rather than failing the whole batch.
+ */
+export async function fetchFocusPuzzles(
+  theme: string,
+  difficulty: FocusDifficulty,
+  count = 20,
+  fetchImpl: typeof fetch = fetch,
+): Promise<FocusPuzzle[]> {
+  const params = new URLSearchParams({ nb: String(count), difficulty });
+  const url = `https://lichess.org/api/puzzle/batch/${encodeURIComponent(theme)}?${params}`;
+
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (error) {
+    throw new Error(
+      `Could not reach Lichess: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!response.ok) {
+    const detail = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 160);
+    throw new Error(
+      `Lichess puzzle request failed (status ${response.status})${detail ? `: ${detail}` : ''}`,
+    );
+  }
+
+  const body = (await response.json()) as { puzzles?: unknown };
+  if (!Array.isArray(body?.puzzles)) {
+    throw new Error('Unexpected response from Lichess: no puzzle list');
+  }
+
+  const puzzles: FocusPuzzle[] = [];
+  for (const raw of body.puzzles) {
+    try {
+      puzzles.push(parseLichessPuzzle(raw));
+    } catch (error) {
+      console.warn('[Focus] Skipping malformed Lichess puzzle:', error);
+    }
+  }
+  if (puzzles.length === 0) {
+    throw new Error(`Lichess returned no usable puzzles for theme "${theme}"`);
+  }
+  return puzzles;
+}

@@ -1,0 +1,436 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Chess } from 'chess.js';
+import { ExternalLink, Eye, Loader2, SkipForward, Target } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { queryClient } from '@/lib/queryClient';
+import OtbBoard from '@/components/otb/otb-board';
+import PromotionPicker from '@/components/otb/promotion-picker';
+import type { PieceView } from '@/lib/otb/chess';
+import type { PromotionPiece, Square } from '@/lib/otb/types';
+import { fetchFocusPuzzles, type FocusPuzzle } from '@/lib/focus/lichess-puzzles';
+import {
+  playOpponentReply,
+  revealSolution,
+  solutionSan,
+  solverColor,
+  startPuzzle,
+  submitMove,
+  type PuzzleState,
+} from '@/lib/focus/puzzle-session';
+import {
+  FOCUS_DIFFICULTIES,
+  FOCUS_THEMES,
+  getThemeLabel,
+  type FocusDifficulty,
+} from '@/lib/focus/themes';
+
+const BATCH_SIZE = 20;
+const PREFS_KEY = 'focus-practice-prefs';
+const REPLY_DELAY_MS = 450;
+
+type Feedback = 'find' | 'correct' | 'wrong' | 'solved' | 'revealed';
+
+interface Tally {
+  attempted: number;
+  clean: number;
+}
+
+function loadPrefs(): { theme: string; difficulty: FocusDifficulty } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}');
+    const theme = FOCUS_THEMES.some((t) => t.key === parsed.theme) ? parsed.theme : 'pin';
+    const difficulty = FOCUS_DIFFICULTIES.some((d) => d.key === parsed.difficulty)
+      ? parsed.difficulty
+      : 'normal';
+    return { theme, difficulty };
+  } catch {
+    return { theme: 'pin', difficulty: 'normal' };
+  }
+}
+
+function savePrefs(theme: string, difficulty: FocusDifficulty) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme, difficulty }));
+  } catch {
+    // Remembering the last theme is a convenience only.
+  }
+}
+
+function pieceMapFromFen(fen: string): Record<string, PieceView> {
+  const map: Record<string, PieceView> = {};
+  for (const row of new Chess(fen).board()) {
+    for (const cell of row) {
+      if (cell) map[cell.square] = { color: cell.color, type: cell.type };
+    }
+  }
+  return map;
+}
+
+const GROUPS = ['Motifs', 'Mates', 'Phases', 'Goals'] as const;
+
+export default function FocusPage() {
+  const { toast } = useToast();
+  const initialPrefs = useMemo(loadPrefs, []);
+  const [theme, setTheme] = useState(initialPrefs.theme);
+  const [difficulty, setDifficulty] = useState<FocusDifficulty>(initialPrefs.difficulty);
+
+  const [queue, setQueue] = useState<FocusPuzzle[]>([]);
+  const [index, setIndex] = useState(0);
+  const [state, setState] = useState<PuzzleState | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>('find');
+  const [tally, setTally] = useState<Tally>({ attempted: 0, clean: 0 });
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [logging, setLogging] = useState(false);
+
+  const [selected, setSelected] = useState<Square | null>(null);
+  const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(
+    null,
+  );
+  const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seenIds = useRef(new Set<string>());
+
+  useEffect(() => () => clearTimeout(replyTimer.current ?? undefined), []);
+
+  const loadBatch = useCallback(
+    async (append: boolean) => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const batch = await fetchFocusPuzzles(theme, difficulty, BATCH_SIZE);
+        const fresh = batch.filter((p) => !seenIds.current.has(p.id));
+        fresh.forEach((p) => seenIds.current.add(p.id));
+        if (fresh.length === 0) throw new Error('Lichess sent only puzzles you have already seen');
+        return fresh;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[Focus] Failed to load puzzles', { theme, difficulty, append, error });
+        setLoadError(message);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [theme, difficulty],
+  );
+
+  const showPuzzle = useCallback((puzzle: FocusPuzzle) => {
+    clearTimeout(replyTimer.current ?? undefined);
+    setState(startPuzzle(puzzle));
+    setFeedback('find');
+    setSelected(null);
+  }, []);
+
+  const startSet = async () => {
+    savePrefs(theme, difficulty);
+    seenIds.current = new Set();
+    const batch = await loadBatch(false);
+    if (!batch) return;
+    setQueue(batch);
+    setIndex(0);
+    setTally({ attempted: 0, clean: 0 });
+    setStartedAt(Date.now());
+    showPuzzle(batch[0]);
+  };
+
+  const finishPuzzle = (finalState: PuzzleState) => {
+    setTally((t) => ({
+      attempted: t.attempted + 1,
+      clean: t.clean + (finalState.status === 'solved' && !finalState.mistake ? 1 : 0),
+    }));
+  };
+
+  const nextPuzzle = async () => {
+    // A puzzle skipped mid-solve still counts as attempted (and missed).
+    if (state?.status === 'playing') finishPuzzle({ ...state, mistake: true });
+    const nextIndex = index + 1;
+    if (nextIndex < queue.length) {
+      setIndex(nextIndex);
+      showPuzzle(queue[nextIndex]);
+      return;
+    }
+    const more = await loadBatch(true);
+    if (!more) return;
+    setQueue((q) => [...q, ...more]);
+    setIndex(nextIndex);
+    showPuzzle(more[0]);
+  };
+
+  const tryMove = (from: Square, to: Square, promotion?: PromotionPiece) => {
+    if (!state || state.status !== 'playing') return;
+    const { state: next, verdict } = submitMove(state, `${from}${to}${promotion ?? ''}`);
+    setSelected(null);
+    if (verdict === 'illegal') return;
+    setState(next);
+    if (verdict === 'wrong') {
+      setFeedback('wrong');
+      return;
+    }
+    if (verdict === 'solved') {
+      setFeedback('solved');
+      finishPuzzle(next);
+      return;
+    }
+    setFeedback('correct');
+    replyTimer.current = setTimeout(() => {
+      setState((current) => (current ? playOpponentReply(current) : current));
+    }, REPLY_DELAY_MS);
+  };
+
+  const chess = useMemo(() => (state ? new Chess(state.fen) : null), [state]);
+  const myColor = state ? solverColor(state.puzzle) : 'w';
+  const myTurn = !!state && state.status === 'playing' && chess?.turn() === myColor;
+
+  const legalTargets = useMemo<Square[]>(() => {
+    if (!chess || !selected || !myTurn) return [];
+    return chess.moves({ square: selected, verbose: true }).map((m) => m.to as Square);
+  }, [chess, selected, myTurn]);
+
+  const onSquareTap = (square: Square) => {
+    if (!chess || !myTurn) return;
+    const piece = chess.get(square);
+    if (selected && legalTargets.includes(square)) {
+      const needsPromotion = chess
+        .moves({ square: selected, verbose: true })
+        .some((m) => m.to === square && m.promotion);
+      if (needsPromotion) {
+        setPendingPromotion({ from: selected, to: square });
+        return;
+      }
+      tryMove(selected, square);
+      return;
+    }
+    setSelected(piece && piece.color === myColor ? square : null);
+  };
+
+  const reveal = () => {
+    if (!state || state.status !== 'playing') return;
+    clearTimeout(replyTimer.current ?? undefined);
+    const revealed = revealSolution(state);
+    setState(revealed);
+    setFeedback('revealed');
+    setSelected(null);
+    finishPuzzle(revealed);
+  };
+
+  const endAndLog = async () => {
+    if (tally.attempted === 0) {
+      setStartedAt(null);
+      setState(null);
+      return;
+    }
+    setLogging(true);
+    try {
+      const minutes = Math.max(1, Math.round((Date.now() - (startedAt ?? Date.now())) / 60000));
+      const { createSession } = await import('@/lib/firebase');
+      await createSession({
+        type: 'tactics',
+        date: new Date(),
+        duration: minutes,
+        puzzlesAttempted: tally.attempted,
+        puzzlesCorrect: tally.clean,
+        tacticsNotes: `Focus practice: ${getThemeLabel(theme)} (${difficulty}, Lichess puzzles)`,
+      });
+      ['sessions', 'statistics', 'weekly-goal', 'weekly-activity'].forEach((key) =>
+        queryClient.invalidateQueries({ queryKey: [key] }),
+      );
+      toast({
+        title: 'Session logged',
+        description: `${tally.clean}/${tally.attempted} ${getThemeLabel(theme)} puzzles in ${minutes} min`,
+      });
+      setStartedAt(null);
+      setState(null);
+    } catch (error) {
+      console.error('[Focus] Failed to log tactics session', error);
+      toast({
+        title: 'Could not log session',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  const lastMoveSquares = state?.lastMove
+    ? ([state.lastMove.slice(0, 2), state.lastMove.slice(2, 4)] as Square[])
+    : [];
+  const sideName = myColor === 'w' ? 'White' : 'Black';
+  const feedbackText: Record<Feedback, string> = {
+    find: `${sideName} to move — find the ${getThemeLabel(theme).toLowerCase()} idea.`,
+    correct: 'Correct! Keep going.',
+    wrong: 'Not quite — try again.',
+    solved: state?.mistake ? 'Solved (after a miss).' : 'Solved first try!',
+    revealed: 'Solution shown.',
+  };
+  const feedbackColor: Record<Feedback, string> = {
+    find: 'text-gray-700',
+    correct: 'text-green-700',
+    wrong: 'text-red-600',
+    solved: 'text-green-700',
+    revealed: 'text-amber-700',
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-[1240px] space-y-4">
+      <div className="flex items-center gap-2">
+        <Target className="h-6 w-6 text-[#1E40AF]" />
+        <h1 className="text-2xl font-bold text-gray-900">Focus practice</h1>
+      </div>
+
+      {!state && (
+        <Card>
+          <CardContent className="space-y-4 p-4 md:p-6">
+            <p className="text-sm text-gray-600">
+              Pick a theme and drill Lichess puzzles that feature it. Your score can be logged as a
+              tactics session when you finish.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="focus-theme">Theme</Label>
+                <Select value={theme} onValueChange={setTheme}>
+                  <SelectTrigger id="focus-theme">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GROUPS.map((group) => (
+                      <SelectGroup key={group}>
+                        <SelectLabel>{group}</SelectLabel>
+                        {FOCUS_THEMES.filter((t) => t.group === group).map((t) => (
+                          <SelectItem key={t.key} value={t.key}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="focus-difficulty">Difficulty</Label>
+                <Select
+                  value={difficulty}
+                  onValueChange={(v) => setDifficulty(v as FocusDifficulty)}
+                >
+                  <SelectTrigger id="focus-difficulty">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOCUS_DIFFICULTIES.map((d) => (
+                      <SelectItem key={d.key} value={d.key}>
+                        {d.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button onClick={startSet} disabled={loading} className="w-full sm:w-auto">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Start {getThemeLabel(theme)} practice
+            </Button>
+            {loadError && (
+              <p role="alert" className="text-sm text-red-600">
+                {loadError}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {state && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <OtbBoard
+            pieceMap={pieceMapFromFen(state.fen)}
+            selectedSquare={selected}
+            legalTargets={legalTargets}
+            isFlipped={myColor === 'b'}
+            isTableMode={false}
+            onSquareTap={onSquareTap}
+            highlightSquares={lastMoveSquares}
+          />
+          <Card>
+            <CardContent className="space-y-4 p-4">
+              <div className="text-sm text-gray-500">
+                {getThemeLabel(theme)} · puzzle {index + 1}
+                {state.puzzle.rating !== null && ` · rated ${state.puzzle.rating}`}
+              </div>
+              <p className={`text-lg font-semibold ${feedbackColor[feedback]}`} aria-live="polite">
+                {feedbackText[feedback]}
+              </p>
+              {state.status !== 'playing' && (
+                <p className="text-sm text-gray-700">
+                  Solution: {solutionSan(state.puzzle).join(' ')}
+                </p>
+              )}
+              <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+                Solved first try: <strong>{tally.clean}</strong> / {tally.attempted}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {state.status === 'playing' ? (
+                  <Button variant="outline" onClick={reveal}>
+                    <Eye className="mr-2 h-4 w-4" /> Show solution
+                  </Button>
+                ) : null}
+                <Button onClick={nextPuzzle} disabled={loading}>
+                  {loading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <SkipForward className="mr-2 h-4 w-4" />
+                  )}
+                  {state.status === 'playing' ? 'Skip' : 'Next puzzle'}
+                </Button>
+              </div>
+              {loadError && (
+                <p role="alert" className="text-sm text-red-600">
+                  {loadError}
+                </p>
+              )}
+              <a
+                href={`https://lichess.org/training/${state.puzzle.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"
+              >
+                View on Lichess <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <div className="border-t pt-4">
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={endAndLog}
+                  disabled={logging}
+                >
+                  {logging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {tally.attempted > 0 ? 'End & log tactics session' : 'End practice'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <PromotionPicker
+        open={pendingPromotion !== null}
+        onSelect={(piece) => {
+          if (pendingPromotion) tryMove(pendingPromotion.from, pendingPromotion.to, piece);
+          setPendingPromotion(null);
+        }}
+        onCancel={() => setPendingPromotion(null)}
+      />
+    </div>
+  );
+}
