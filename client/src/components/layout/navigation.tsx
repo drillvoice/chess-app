@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Home, TrendingUp, User as UserIcon, Crown, BookOpen, Target } from 'lucide-react';
+import { Home, TrendingUp, Settings, Crown, BookOpen, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { prefetchRoute } from '@/lib/route-loaders';
 
@@ -7,12 +7,13 @@ export default function Navigation() {
   const [location, navigate] = useLocation();
 
   const navItems = [
-    { path: '/', label: 'Home', icon: Home },
+    // Home and Settings are icon-only to leave room for the text tabs.
+    { path: '/', label: 'Home', icon: Home, iconOnly: true },
     { path: '/activity', label: 'Activity', icon: TrendingUp },
     { path: '/openings', label: 'Openings', icon: BookOpen },
     { path: '/focus', label: 'Focus', icon: Target },
     { path: '/otb', label: 'OTB', icon: Crown },
-    { path: '/account', label: 'Settings', icon: UserIcon },
+    { path: '/account', label: 'Settings', icon: Settings, iconOnly: true },
   ];
 
   return (
@@ -37,18 +38,22 @@ export default function Navigation() {
                     key={item.path}
                     type="button"
                     aria-label={item.label}
+                    title={item.iconOnly ? item.label : undefined}
                     aria-current={isActive ? 'page' : undefined}
                     onClick={() => navigate(item.path)}
                     onPointerEnter={() => prefetchRoute(item.path)}
                     onFocus={() => prefetchRoute(item.path)}
                     onTouchStart={() => prefetchRoute(item.path)}
                     className={cn(
-                      'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1 py-2 text-[10px] font-medium leading-none transition-colors sm:gap-2 sm:px-3 sm:text-sm md:px-5 md:py-2.5',
+                      'flex items-center justify-center gap-1 rounded-md px-1 py-2 text-[10px] font-medium leading-none transition-colors sm:gap-2 sm:px-3 sm:text-sm md:px-5 md:py-2.5',
+                      item.iconOnly ? 'flex-none px-2.5 sm:px-3 md:px-4' : 'min-w-0 flex-auto',
                       isActive ? 'bg-white text-[#1E40AF]' : 'text-white hover:bg-blue-700',
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span className="block truncate text-center sm:text-left">{item.label}</span>
+                    {!item.iconOnly && (
+                      <span className="block truncate text-center sm:text-left">{item.label}</span>
+                    )}
                   </button>
                 );
               })}

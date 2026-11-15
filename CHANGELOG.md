@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 - **Connect your Lichess account** (Focus page, or Settings → Lichess integration) using Lichess's own sign-in. When connected, puzzles you've already played on Lichess are skipped and each result is saved to your Lichess puzzle history. An extra set of levels relative to your Lichess rating becomes available
 - **"Count toward my Lichess puzzle rating"** switch, off by default: unrated results still go into your Lichess history, so puzzles don't repeat, but your rating doesn't move. Turn it on to play rated, with your rating and the change per puzzle shown as you go
 - The Lichess sign-in stays on the device where you connect — it is not synced to your cloud backup, so connect once per device. A "Use a personal token instead" option covers home-screen installs where the sign-in redirect doesn't return to the app
+- **Slimmer menu**: Home and Settings are now icon-only (a house and a cog), and each tab sizes to its label, so all six tabs read in full on a phone
 
 ## [2.10.0] - 6 September 2026
 
