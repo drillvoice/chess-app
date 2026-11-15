@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
-import { ExternalLink, Eye, Loader2, SkipForward, Target } from 'lucide-react';
+import { ExternalLink, Eye, Loader2, SkipForward, Target, Volume2, VolumeX } from 'lucide-react';
+import {
+  isMoveSoundEnabled,
+  playMoveSound,
+  setMoveSoundEnabled,
+  subscribeMoveSoundPref,
+} from '@/lib/move-sound';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -32,6 +38,7 @@ import { syncPlayedPuzzles } from '@/lib/focus/played-puzzles';
 import { useLichessConnection } from '@/hooks/use-lichess-connection';
 import LichessAccountConnect from '@/components/lichess-account-connect';
 import {
+  isCapture,
   playOpponentReply,
   revealSolution,
   solutionSan,
@@ -356,10 +363,13 @@ export default function FocusPage() {
 
   const tryMove = (from: Square, to: Square, promotion?: PromotionPiece) => {
     if (!state || state.status !== 'playing') return;
-    const { state: next, verdict } = submitMove(state, `${from}${to}${promotion ?? ''}`);
+    const uci = `${from}${to}${promotion ?? ''}`;
+    const { state: next, verdict } = submitMove(state, uci);
     setSelected(null);
     if (verdict === 'illegal') return;
     setState(next);
+    // A wrong move isn't played on the board, so it makes no sound.
+    if (verdict !== 'wrong') playMoveSound(isCapture(state.fen, uci) ? 'capture' : 'move');
     if (verdict === 'wrong') {
       setFeedback('wrong');
       return;
@@ -371,9 +381,15 @@ export default function FocusPage() {
     }
     setFeedback('correct');
     replyTimer.current = setTimeout(() => {
-      setState((current) => (current ? playOpponentReply(current) : current));
+      const reply = next.puzzle.solution[next.ply];
+      const replied = playOpponentReply(next);
+      setState(replied);
+      if (reply) playMoveSound(isCapture(next.fen, reply) ? 'capture' : 'move');
     }, REPLY_DELAY_MS);
   };
+
+  const [soundOn, setSoundOn] = useState(isMoveSoundEnabled);
+  useEffect(() => subscribeMoveSoundPref(() => setSoundOn(isMoveSoundEnabled())), []);
 
   const chess = useMemo(() => (state ? new Chess(state.fen) : null), [state]);
   const myColor = state ? solverColor(state.puzzle) : 'w';
@@ -478,6 +494,17 @@ export default function FocusPage() {
       <div className="flex items-center gap-2">
         <Target className="h-6 w-6 text-[#1E40AF]" />
         <h1 className="text-2xl font-bold text-gray-900">Focus practice</h1>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto"
+          aria-label={soundOn ? 'Mute move sounds' : 'Unmute move sounds'}
+          aria-pressed={soundOn}
+          title={soundOn ? 'Move sounds on' : 'Move sounds off'}
+          onClick={() => setMoveSoundEnabled(!soundOn)}
+        >
+          {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+        </Button>
       </div>
 
       {!state && (

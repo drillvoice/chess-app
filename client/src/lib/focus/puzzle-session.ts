@@ -102,3 +102,9 @@ export function solutionSan(puzzle: FocusPuzzle): string[] {
   const chess = new Chess(puzzle.fen);
   return puzzle.solution.map((uci) => playUci(chess, uci) ?? uci);
 }
+
+/** Whether a UCI move from this position captures (including en passant). */
+export function isCapture(fen: string, uci: string): boolean {
+  const san = playUci(new Chess(fen), uci);
+  return san !== null && san.includes('x');
+}

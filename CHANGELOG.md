@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.13.0] - 15 November 2026
+
+- **Move sounds in Focus practice**: a short wooden "tock" when a piece lands, for your moves and the opponent's replies, with a sharper, heavier knock for captures. A wrong move isn't played on the board, so it stays silent. The sounds are generated in the browser rather than loaded from files, so they work offline
+- A speaker button next to the Focus practice title mutes or unmutes them; the choice is remembered on this device. On iPhone, the ring/silent switch also silences them
+
 ## [2.12.0] - 15 November 2026
 
 - **Fix "Start practice" hanging when connected to Lichess**: before fetching puzzles, the app downloaded your Lichess puzzle history (to skip ones you've already played) and waited for it. Lichess streams that history at 20 entries a second, so for an account with a long history the button spun for 30 seconds before giving up. Practice now starts straight away; the history downloads in the background and puzzles you've played are skipped as it arrives
