@@ -73,7 +73,8 @@ import {
 
 const BATCH_SIZE = 20;
 const PREFS_KEY = 'focus-practice-prefs';
-const REPLY_DELAY_MS = 450;
+// Long enough to see your own move land, short enough not to hold up the next one.
+const REPLY_DELAY_MS = 200;
 
 interface Tally {
   attempted: number;

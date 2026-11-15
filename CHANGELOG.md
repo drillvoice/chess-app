@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.14.1] - 16 November 2026
+
+- **Snappier move entry in Focus practice**: the opponent's reply now comes 200ms after your move instead of 450ms, so you can play your next move sooner
+- The board now tells phone browsers that taps aren't zoom gestures, so a tap registers immediately rather than after the browser waits to see if a double-tap follows, and tapping the same square twice quickly can no longer zoom the page. Square highlights also appear instantly instead of fading in. This applies to the OTB board too
+
 ## [2.14.0] - 15 November 2026
 
 - **Session timer in Focus practice**: a clock next to "Solved first try" shows how long the current session has run. It's the same time that gets logged with the session, so it pauses while you're in another app and carries on when a session is resumed
