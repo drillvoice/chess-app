@@ -15,6 +15,7 @@ export let where: typeof import('firebase/firestore').where;
 export let orderBy: typeof import('firebase/firestore').orderBy;
 export let onSnapshot: typeof import('firebase/firestore').onSnapshot;
 export let Timestamp: typeof import('firebase/firestore').Timestamp;
+export let runTransaction: typeof import('firebase/firestore').runTransaction;
 
 export let onAuthStateChanged: typeof import('firebase/auth').onAuthStateChanged;
 export let signInAnonymously: typeof import('firebase/auth').signInAnonymously;
@@ -44,6 +45,7 @@ export async function ensureFirebase() {
       orderBy,
       onSnapshot,
       Timestamp,
+      runTransaction,
     } = firestore);
   }
   if (!onAuthStateChanged) {

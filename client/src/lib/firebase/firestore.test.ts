@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const getSessions = vi.fn();
 const addSession = vi.fn();
+const addSessionIfAbsent = vi.fn();
+const mockCreateSessionInCloudIfAbsent = vi.fn();
 const clearStatistics = vi.fn();
 const getCachedStatistics = vi.fn();
 const setCachedStatistics = vi.fn();
@@ -14,6 +16,7 @@ vi.mock('../offline-storage', () => ({
     getSessions,
     setSessions: vi.fn(),
     addSession,
+    addSessionIfAbsent,
     updateSession: vi.fn(),
     getSession: vi.fn(),
     removeSession: vi.fn(),
@@ -46,6 +49,7 @@ vi.mock('../migration', () => ({
 
 vi.mock('./sync-engine', () => ({
   upsertSessionToCloud: mockUpsertSessionToCloud,
+  createSessionInCloudIfAbsent: mockCreateSessionInCloudIfAbsent,
   markSessionDeletedInCloud: vi.fn(),
   syncDailyGoalsToCloud: vi.fn(),
   initializeCloudSyncForCurrentUser: vi.fn(),
@@ -178,5 +182,100 @@ describe('createSession cloud durability mode', () => {
 
     expect(addSession).toHaveBeenCalled();
     expect(mockUpsertSessionToCloud).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createSession import mode', () => {
+  const gameEnd = new Date('2024-05-01T10:00:00.000Z');
+  const importedGame = {
+    type: 'game',
+    platform: 'lichess',
+    date: gameEnd,
+    needsReview: true,
+  } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearStatistics.mockResolvedValue(undefined);
+    mockGetCurrentUserId.mockReturnValue('uid-1');
+    mockCreateSessionInCloudIfAbsent.mockResolvedValue(true);
+  });
+
+  it('writes only where absent and dates updatedAt at the game, not now', async () => {
+    addSessionIfAbsent.mockResolvedValue(true);
+    vi.resetModules();
+    const { createSession } = await import('./firestore');
+
+    const created = await createSession(importedGame, gameEnd.getTime(), {
+      imported: true,
+      awaitCloudWrite: true,
+    });
+
+    expect(addSession).not.toHaveBeenCalled();
+    expect(addSessionIfAbsent).toHaveBeenCalledTimes(1);
+    expect((created as { updatedAt?: Date }).updatedAt).toEqual(gameEnd);
+    // Never a merge-write: that would overwrite a copy archived elsewhere.
+    expect(mockUpsertSessionToCloud).not.toHaveBeenCalled();
+    expect(mockCreateSessionInCloudIfAbsent).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the cloud write when the game is already stored locally', async () => {
+    addSessionIfAbsent.mockResolvedValue(false);
+    vi.resetModules();
+    const { createSession } = await import('./firestore');
+
+    await createSession(importedGame, gameEnd.getTime(), {
+      imported: true,
+      awaitCloudWrite: true,
+    });
+
+    expect(mockCreateSessionInCloudIfAbsent).not.toHaveBeenCalled();
+    expect(mockUpsertSessionToCloud).not.toHaveBeenCalled();
+  });
+});
+
+describe('selectSessionsNeedingReview', () => {
+  const lichessGame = (id: number, endedAt: string, needsReview: boolean) =>
+    ({
+      id,
+      type: 'game',
+      platform: 'lichess',
+      date: new Date(endedAt),
+      needsReview,
+    }) as any;
+
+  it('hides every copy of a game once any copy was reviewed or archived', async () => {
+    const { selectSessionsNeedingReview } = await import('./firestore');
+    // Two devices imported the same game under different ids; the phone's copy
+    // was archived, the desktop's copy still says it needs review.
+    const sessions = [
+      lichessGame(1, '2024-05-01T10:00:00.000Z', false),
+      lichessGame(2, '2024-05-01T10:00:00.000Z', true),
+      lichessGame(3, '2024-05-02T10:00:00.000Z', true),
+    ];
+
+    expect(selectSessionsNeedingReview(sessions).map((s) => s.id)).toEqual([3]);
+  });
+
+  it('shows a game imported twice only once', async () => {
+    const { selectSessionsNeedingReview } = await import('./firestore');
+    const sessions = [
+      lichessGame(1, '2024-05-01T10:00:00.000Z', true),
+      lichessGame(2, '2024-05-01T10:00:00.000Z', true),
+    ];
+
+    expect(selectSessionsNeedingReview(sessions)).toHaveLength(1);
+  });
+
+  it('leaves sessions from other platforms alone', async () => {
+    const { selectSessionsNeedingReview } = await import('./firestore');
+    const sameTime = new Date('2024-05-01T10:00:00.000Z');
+    const sessions = [
+      { id: 1, type: 'game', platform: 'chess.com', date: sameTime, needsReview: true },
+      { id: 2, type: 'game', platform: 'chess.com', date: sameTime, needsReview: true },
+      lichessGame(3, '2024-05-01T10:00:00.000Z', false),
+    ] as any[];
+
+    expect(selectSessionsNeedingReview(sessions).map((s) => s.id)).toEqual([1, 2]);
   });
 });

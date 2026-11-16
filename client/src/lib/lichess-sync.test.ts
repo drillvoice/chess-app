@@ -76,11 +76,15 @@ describe('startLichessSync', () => {
     expect(url.searchParams.get('since')).toBe('2000');
 
     expect(localStorage.getItem('lichess-last-game-testuser')).toBe('2000');
+    // Keyed on the game, so a second device importing it names the same record,
+    // and in import mode so that record is never overwritten.
     expect(createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         platform: 'lichess',
         gameResult: 'win',
       }),
+      2000,
+      { imported: true },
     );
 
     expect(invalidateQueriesMock).toHaveBeenCalledTimes(3);

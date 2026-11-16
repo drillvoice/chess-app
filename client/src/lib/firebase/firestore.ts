@@ -15,6 +15,7 @@ import '../session-event-bridge';
 import { logger } from '../logger';
 import { getCurrentUserId } from './core';
 import {
+  createSessionInCloudIfAbsent,
   fetchSessionsFromCloudForVerification,
   initializeCloudSyncForCurrentUser,
   markSessionDeletedInCloud,
@@ -67,23 +68,48 @@ export async function getSessionsByType(type: string): Promise<TrainingSession[]
   }
 }
 
+/**
+ * The key that identifies one Lichess game across its copies: the game's end
+ * time, which the importer stores as the session date (see lichess-sync).
+ */
+function lichessGameKey(session: TrainingSession): number | null {
+  if (session.type !== 'game' || session.platform !== 'lichess') return null;
+  const endedAt = new Date(session.date).getTime();
+  return Number.isFinite(endedAt) ? endedAt : null;
+}
+
+/**
+ * Games still waiting for review, with duplicate imports collapsed.
+ *
+ * Before Lichess imports had game-derived ids, two devices importing the same
+ * game created two separate sessions, and cloud sync gave every device both.
+ * Those copies are still in people's logs. Reviewing or archiving one cleared
+ * only that copy, so the twin kept the game in the queue on every device. An
+ * import always starts out needing review, so a Lichess copy that no longer
+ * does was reviewed or archived by the user: the whole game is done. Pending
+ * copies of the same game are shown once.
+ */
+export function selectSessionsNeedingReview(sessions: TrainingSession[]): TrainingSession[] {
+  const reviewedGames = new Set<number>();
+  for (const session of sessions) {
+    const key = lichessGameKey(session);
+    if (key != null && session.needsReview !== true) reviewedGames.add(key);
+  }
+
+  const shownGames = new Set<number>();
+  return sessions.filter((session) => {
+    if (session.needsReview !== true) return false;
+    const key = lichessGameKey(session);
+    if (key == null) return true;
+    if (reviewedGames.has(key) || shownGames.has(key)) return false;
+    shownGames.add(key);
+    return true;
+  });
+}
+
 export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
-  logger.debug('getSessionsNeedingReview called');
   try {
-    const allSessions = await getAllSessions();
-    const filteredSessions = allSessions.filter((session) => {
-      logger.debug(
-        'Filtering session:',
-        session.id,
-        'needsReview:',
-        session.needsReview,
-        'type:',
-        typeof session.needsReview,
-      );
-      return session.needsReview === true;
-    });
-    logger.debug('getSessionsNeedingReview - filtered sessions:', filteredSessions);
-    return filteredSessions;
+    return selectSessionsNeedingReview(await getAllSessions());
   } catch (error) {
     logger.error('Error getting sessions needing review:', error);
     return [];
@@ -124,6 +150,15 @@ function canSyncToCloud(): boolean {
 
 interface CreateSessionOptions {
   awaitCloudWrite?: boolean;
+  /**
+   * The session is an automatic import whose `id` identifies the source game
+   * (see lichess-sync). An import is a claim that the game exists, not an edit,
+   * so it must never replace a copy already stored here or in the cloud — that
+   * copy may have been reviewed, archived or deleted on another device. It is
+   * written only where absent, and its `updatedAt` is the game's own date
+   * rather than now, so recency resolution ranks every real edit above it.
+   */
+  imported?: boolean;
 }
 
 export async function createSession(
@@ -144,7 +179,7 @@ export async function createSession(
     id: sessionId,
     date: sessionDate,
     createdAt: now,
-    updatedAt: now,
+    updatedAt: options.imported ? sessionDate : now,
     needsReview: insertSession.needsReview ?? false,
   } as TrainingSession;
 
@@ -152,7 +187,15 @@ export async function createSession(
 
   // Save locally FIRST - this is always the source of truth
   try {
-    await offlineStorage.addSession(newSession);
+    if (options.imported) {
+      const written = await offlineStorage.addSessionIfAbsent(newSession);
+      if (!written) {
+        logger.debug(`createSession - import ${sessionId} already stored; leaving it untouched`);
+        return newSession;
+      }
+    } else {
+      await offlineStorage.addSession(newSession);
+    }
     await offlineStorage.clearStatistics();
 
     // Update caches immediately
@@ -162,18 +205,22 @@ export async function createSession(
 
     queueMicrotask(() => updateStatisticsInBackground());
 
+    const writeToCloud = options.imported
+      ? () => createSessionInCloudIfAbsent(newSession).then(() => undefined)
+      : () => upsertSessionToCloud(newSession);
+
     if (canSyncToCloud()) {
       if (options.awaitCloudWrite) {
         try {
-          await upsertSessionToCloud(newSession);
+          await writeToCloud();
         } catch (error) {
           logger.warn('Synchronous cloud sync failed for created session:', error);
           throw new Error('Failed to sync created session to cloud');
         }
       } else {
         queueMicrotask(() => {
-          upsertSessionToCloud(newSession).catch((error) => {
-            logger.warn('Background cloud sync failed for created session:', error);
+          writeToCloud().catch((error) => {
+            logger.warn(`Background cloud sync failed for created session ${sessionId}:`, error);
           });
         });
       }

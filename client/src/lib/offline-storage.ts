@@ -21,6 +21,7 @@ export const offlineStorage = {
   setSessions: sessions.setSessions,
   mergeSessions: sessions.mergeSessions,
   addSession: sessions.addSession,
+  addSessionIfAbsent: sessions.addSessionIfAbsent,
   updateSession: sessions.updateSession,
   getSession: sessions.getSession,
   removeSession: sessions.removeSession,
