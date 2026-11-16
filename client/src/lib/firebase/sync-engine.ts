@@ -599,12 +599,27 @@ export async function startRealtimeSync(): Promise<() => void> {
     publishStatus({ state: 'error', lastError: message });
   };
 
+  // Metadata changes are subscribed to only so the switch from the cached
+  // snapshot to the server's one is seen even when the data is identical — the
+  // duplicate merge below must not act on a stale cache. Those metadata-only
+  // events carry no data, so they are not applied.
+  let snapshotCount = 0;
+  let duplicateMergeScheduled = false;
   const unsubscribeSessions = onSnapshot(
     query(sessionsRef),
+    { includeMetadataChanges: true },
     (snapshot) => {
-      sessionSnapshotChain = sessionSnapshotChain
-        .then(() => applySessionsSnapshot(snapshot))
-        .catch(handleSessionsSnapshotError);
+      snapshotCount += 1;
+      const hasDataChanges = snapshotCount === 1 || snapshot.docChanges().length > 0;
+      if (hasDataChanges) {
+        sessionSnapshotChain = sessionSnapshotChain
+          .then(() => applySessionsSnapshot(snapshot))
+          .catch(handleSessionsSnapshotError);
+      }
+      if (!snapshot.metadata.fromCache && !duplicateMergeScheduled) {
+        duplicateMergeScheduled = true;
+        sessionSnapshotChain = sessionSnapshotChain.then(scheduleDuplicateLichessMerge);
+      }
     },
     (error) => {
       void handleSessionsSnapshotError(error);
@@ -765,6 +780,27 @@ export async function startRealtimeSync(): Promise<() => void> {
   };
 
   return stopRealtimeSyncFn;
+}
+
+/**
+ * Fold duplicate Lichess game copies left by older imports into one session
+ * (see lichess-duplicates). Runs once per sync start, after the first snapshot
+ * from the server has been applied, so it sees every copy and every delete the
+ * other devices made. It is idempotent and a no-op once no duplicates remain.
+ * Loaded lazily: the merge module depends on the data layer, which depends on
+ * this one.
+ */
+function scheduleDuplicateLichessMerge(): void {
+  void import('../lichess-duplicates')
+    .then(({ mergeDuplicateLichessGames }) => mergeDuplicateLichessGames())
+    .then(({ gamesMerged }) => {
+      if (gamesMerged > 0) {
+        void queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      }
+    })
+    .catch((error) => {
+      logger.error('Merging duplicate Lichess games failed', error);
+    });
 }
 
 export async function initializeCloudSyncForCurrentUser(): Promise<MigrationSummary | null> {
