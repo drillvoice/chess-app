@@ -159,3 +159,55 @@ describe('delete tombstones', () => {
     expect(await offlineStorage.getSessionsForSync()).toEqual([]);
   });
 });
+
+describe('addSessionIfAbsent', () => {
+  it('writes a session whose id is not stored yet', async () => {
+    const date = new Date('2026-01-15T12:00:00.000Z');
+    const written = await offlineStorage.addSessionIfAbsent({
+      id: 7,
+      type: 'game',
+      date,
+      needsReview: true,
+    } as never);
+
+    expect(written).toBe(true);
+    const [stored] = await offlineStorage.getSessions();
+    expect(stored.needsReview).toBe(true);
+  });
+
+  it('leaves an already-reviewed copy untouched', async () => {
+    const date = new Date('2026-01-15T12:00:00.000Z');
+    await offlineStorage.setSessions([
+      { id: 7, type: 'game', date, needsReview: false, gameComments: 'reviewed' } as never,
+    ]);
+
+    const written = await offlineStorage.addSessionIfAbsent({
+      id: 7,
+      type: 'game',
+      date,
+      needsReview: true,
+      gameComments: '',
+    } as never);
+
+    expect(written).toBe(false);
+    const [stored] = await offlineStorage.getSessions();
+    expect(stored.needsReview).toBe(false);
+    expect(stored.gameComments).toBe('reviewed');
+  });
+
+  it('does not resurrect a deleted session', async () => {
+    const date = new Date('2026-01-15T12:00:00.000Z');
+    await offlineStorage.setSessions([{ id: 7, type: 'game', date, needsReview: true } as never]);
+    await offlineStorage.deleteSession(7);
+
+    const written = await offlineStorage.addSessionIfAbsent({
+      id: 7,
+      type: 'game',
+      date,
+      needsReview: true,
+    } as never);
+
+    expect(written).toBe(false);
+    expect(await offlineStorage.getSessions()).toHaveLength(0);
+  });
+});

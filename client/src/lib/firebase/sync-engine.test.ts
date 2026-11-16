@@ -86,6 +86,26 @@ describe('mergeSessionCollections', () => {
 });
 
 describe('reconcileRealtimeSnapshot', () => {
+  it('lets a game archived on another device win over a late re-import of it', () => {
+    // An import is dated (updatedAt) at the game's end, so the archive — made
+    // after the game — always ranks above it, however late the import ran.
+    const gameEnd = '2025-01-01T10:00:00.000Z';
+    const lateImport = makeSession(1, gameEnd, gameEnd, {
+      type: 'game',
+      needsReview: true,
+    } as Partial<TrainingSession>);
+    const archivedElsewhere = makeSession(1, gameEnd, '2025-01-01T12:00:00.000Z', {
+      type: 'game',
+      needsReview: false,
+    } as Partial<TrainingSession>);
+
+    const result = reconcileRealtimeSnapshot([lateImport], [archivedElsewhere]);
+
+    expect(result.nextLocal).toHaveLength(1);
+    expect(result.nextLocal[0].needsReview).toBe(false);
+    expect(result.sessionsToUpload).toEqual([]);
+  });
+
   it('keeps local-only sessions and marks them for upload', () => {
     const local = [makeSession(1, '2025-01-01T10:00:00.000Z')];
     const remote = [makeSession(2, '2025-01-02T10:00:00.000Z')];

@@ -89,6 +89,7 @@ vi.mock('firebase/firestore', () => ({
   limit: vi.fn(),
   onSnapshot: vi.fn(),
   Timestamp: { now: vi.fn(() => new Date()), fromDate: vi.fn(() => new Date()) },
+  runTransaction: vi.fn(),
 }));
 
 vi.mock('firebase/auth', () => ({

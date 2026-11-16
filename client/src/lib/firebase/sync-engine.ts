@@ -16,6 +16,7 @@ import {
   getSessionsCollection,
   onSnapshot,
   query,
+  runTransaction,
   setDoc,
   Timestamp,
 } from './core';
@@ -40,6 +41,7 @@ import {
   serializeRepertoireForCloud,
 } from './sync/repertoire-sync';
 import { logger } from '../logger';
+import { queryClient } from '../queryClient';
 import type { OpeningRepertoire } from '../opening-trainer/types';
 
 export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
@@ -545,6 +547,11 @@ export async function startRealtimeSync(): Promise<() => void> {
         reconciledLocalOnlyCount: sessionsToUpload.length,
       });
       await offlineStorage.setSessions(nextLocal);
+      // The review queue reads IndexedDB through its own query, which nothing
+      // else refreshes when a snapshot lands. Without this, a game archived or
+      // reviewed on another device stays in this device's queue until the
+      // next periodic refetch or a reload.
+      void queryClient.invalidateQueries({ queryKey: ['pending-review'] });
       await Promise.all([
         offlineStorage.setLastSyncedTimestamp(Date.now()),
         offlineStorage.setSyncLastSuccessAt(Date.now()),
@@ -798,6 +805,31 @@ export async function upsertSessionToCloud(session: TrainingSession): Promise<vo
   if (!uid) return;
   const sessionDoc = doc(await getSessionsCollection(uid), session.id.toString());
   await setDoc(sessionDoc, serializeSessionForCloud(session), { merge: true });
+}
+
+/**
+ * Write a session to the cloud only if no document with its id exists yet —
+ * tombstones included. Lichess imports go through here: their ids come from
+ * the game, so a device whose local copy had not caught up yet (the import poll
+ * can run before the first cloud snapshot lands) produces the same id as the
+ * original import. A plain merge-write would then overwrite the copy another
+ * device already reviewed or archived with a fresh `needsReview: true`, and the
+ * game would be back in every device's review queue. The transaction reads from
+ * the server, so an offline device skips the write instead of trusting a stale
+ * cache; snapshot reconciliation uploads the session later if it is still
+ * missing. Returns whether it wrote.
+ */
+export async function createSessionInCloudIfAbsent(session: TrainingSession): Promise<boolean> {
+  await ensureFirebase();
+  const uid = resolveUid();
+  if (!uid) return false;
+  const sessionDoc = doc(await getSessionsCollection(uid), session.id.toString());
+  return runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(sessionDoc);
+    if (existing.exists()) return false;
+    transaction.set(sessionDoc, serializeSessionForCloud(session));
+    return true;
+  });
 }
 
 export async function markSessionDeletedInCloud(id: number): Promise<void> {

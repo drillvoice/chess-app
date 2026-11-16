@@ -174,6 +174,23 @@ async function loadImportedGameKeys(): Promise<Set<number>> {
   return keys;
 }
 
+/**
+ * The session id for an imported Lichess game: its end time in milliseconds.
+ *
+ * Imports used to take `Date.now()` like any hand-logged session, so two devices
+ * importing the same game — the usual case, since every device polls Lichess
+ * and the poll can run before the cloud snapshot has delivered the other
+ * device's copy — produced two unrelated sessions. Archiving or reviewing one
+ * left the other in the queue, on every device. Keyed on the game instead, a
+ * second import names the same record, and `createSession`'s `imported` mode
+ * leaves whatever copy already exists alone. `lastMoveAt` is the same value
+ * the duplicate check above keys on; it could only collide with a hand-logged
+ * session saved in the very millisecond the game ended.
+ */
+export function lichessSessionId(lastMoveAt: number): number {
+  return Math.trunc(lastMoveAt);
+}
+
 // Global sync management
 let currentSyncFunction: (() => void) | null = null;
 let currentUsername: string | null = null;
@@ -311,7 +328,7 @@ export function startLichessSync(username: string) {
 
         try {
           debugLog(`💾 [Lichess Sync Poll] Saving session to Firebase...`);
-          await createSession(session);
+          await createSession(session, lichessSessionId(lastMoveAt), { imported: true });
           debugLog(`✅ [Lichess Sync Poll] Session saved successfully`);
         } catch (err) {
           console.error('[Lichess Sync Poll] Failed to save session:', err);
@@ -461,7 +478,7 @@ export async function triggerManualSync(): Promise<{
       }
 
       try {
-        await createSession(session);
+        await createSession(session, lichessSessionId(lastMoveAt), { imported: true });
         importedKeys.add(lastMoveAt);
         lastTimestamp = lastMoveAt;
         localStorage.setItem(key, String(lastTimestamp));

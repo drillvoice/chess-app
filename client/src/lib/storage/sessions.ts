@@ -201,6 +201,21 @@ export async function addSession(session: TrainingSession): Promise<void> {
   });
 }
 
+/**
+ * Insert a session only when no row with its id exists yet — tombstones count
+ * as existing. Used for Lichess imports, whose ids are derived from the game
+ * itself: a second import of the same game must never replace the stored copy,
+ * which may already be reviewed, tagged or deleted. Returns whether it wrote.
+ */
+export async function addSessionIfAbsent(session: TrainingSession): Promise<boolean> {
+  return withStores([SESSIONS, META] as const, 'readwrite', async ({ sessions, cache_meta }) => {
+    if (await sessions.get(session.id)) return false;
+    await sessions.put({ ...session, date: session.date.toISOString() });
+    await cache_meta.put({ key: 'sessions_last_updated', value: Date.now() });
+    return true;
+  });
+}
+
 export async function updateSession(
   id: number,
   updateData: Partial<TrainingSession>,
