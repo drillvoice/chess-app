@@ -53,6 +53,7 @@ import {
 } from '@/lib/focus/session-store';
 import { useLichessConnection } from '@/hooks/use-lichess-connection';
 import LichessAccountConnect from '@/components/lichess-account-connect';
+import FocusModeTabs from '@/components/focus/focus-mode-tabs';
 import {
   isCapture,
   playOpponentReply,
@@ -595,10 +596,15 @@ export default function FocusPage() {
       <div className="flex items-center gap-2">
         <Target className="h-6 w-6 text-[#1E40AF]" />
         <h1 className="text-2xl font-bold text-gray-900">Focus practice</h1>
+        {!state && (
+          <div className="ml-auto">
+            <FocusModeTabs active="practice" />
+          </div>
+        )}
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto"
+          className={state ? 'ml-auto' : undefined}
           aria-label={soundOn ? 'Mute move sounds' : 'Unmute move sounds'}
           aria-pressed={soundOn}
           title={soundOn ? 'Move sounds on' : 'Move sounds off'}

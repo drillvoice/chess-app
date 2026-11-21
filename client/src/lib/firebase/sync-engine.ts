@@ -43,6 +43,7 @@ import {
 import { logger } from '../logger';
 import { queryClient } from '../queryClient';
 import type { OpeningRepertoire } from '../opening-trainer/types';
+import { normalizeAttempt, reconcileAttempts, type CampaignAttempt } from '../campaign/attempts';
 
 export { mergeSessionCollections, mergeSettingsForSync, reconcileRealtimeSnapshot };
 
@@ -733,6 +734,38 @@ export async function startRealtimeSync(): Promise<() => void> {
     },
   );
 
+  const unsubscribeCampaign = onSnapshot(
+    query(campaignAttemptsCollection(uid)),
+    async (snapshot) => {
+      const remote: CampaignAttempt[] = [];
+      for (const entry of snapshot.docs) {
+        const attempt = normalizeAttempt({ ...entry.data(), id: entry.data()?.id ?? entry.id });
+        if (attempt) remote.push(attempt);
+        else logger.warn(`Ignoring invalid cloud campaign attempt ${entry.id}`);
+      }
+      const local = await offlineStorage.getCampaignAttempts();
+      const { missingLocally, missingRemotely } = reconcileAttempts(local, remote);
+      if (missingLocally.length > 0) {
+        await offlineStorage.putCampaignAttempts(missingLocally);
+        queryClient.invalidateQueries({ queryKey: ['campaign-attempts'] });
+      }
+      if (missingRemotely.length > 0) {
+        queueMicrotask(() => {
+          for (const attempt of missingRemotely) {
+            upsertCampaignAttemptToCloud(attempt).catch((error) => {
+              logger.warn(`Failed to backfill campaign attempt ${attempt.id} to cloud`, error);
+            });
+          }
+        });
+      }
+    },
+    (error) => {
+      // Keep campaign sync failures isolated from the primary session status.
+      const message = error instanceof Error ? error.message : 'Campaign sync failed';
+      logger.warn('Cloud campaign sync error:', message);
+    },
+  );
+
   const unsubscribeSessionsReplaced = sessionEvents.on('sessionsReplaced', () => {
     queueMicrotask(() => {
       backfillMissingLocalSessionsToCloud()
@@ -776,6 +809,7 @@ export async function startRealtimeSync(): Promise<() => void> {
     unsubscribeSettings();
     unsubscribeGoals();
     unsubscribeRepertoires();
+    unsubscribeCampaign();
     unsubscribeSessionsReplaced();
   };
 
@@ -899,6 +933,17 @@ export async function syncDailyGoalsToCloud(settings: DailyGoalSettings): Promis
   if (!uid) return;
   const goalsRef = doc(db, 'users', uid, 'settings', 'dailyGoals');
   await setDoc(goalsRef, serializeDailyGoalsForCloud(settings), { merge: true });
+}
+
+function campaignAttemptsCollection(uid: string) {
+  return collection(db, 'users', uid, 'campaignAttempts');
+}
+
+export async function upsertCampaignAttemptToCloud(attempt: CampaignAttempt): Promise<void> {
+  await ensureFirebase();
+  const uid = resolveUid();
+  if (!uid) return;
+  await setDoc(doc(campaignAttemptsCollection(uid), attempt.id), attempt);
 }
 
 function repertoiresCollection(uid: string) {

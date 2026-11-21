@@ -31,7 +31,10 @@ export default function Navigation() {
             <div className="flex min-w-0 gap-1 overflow-hidden rounded-lg bg-blue-800 p-1 md:p-1.5">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location === item.path;
+                // Sub-pages (e.g. /focus/campaign) keep their section's tab highlighted.
+                const isActive =
+                  location === item.path ||
+                  (item.path !== '/' && location.startsWith(`${item.path}/`));
 
                 return (
                   <button
