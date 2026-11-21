@@ -1,4 +1,5 @@
 import { findNode } from './chapters';
+import { isPlacementNodeId } from './placement';
 import { TRIAL_MS, TRIAL_TARGET } from './trial-rules';
 
 /**
@@ -33,7 +34,8 @@ function finiteInRange(value: unknown, min: number, max: number): number | null 
 export function normalizeAttempt(raw: unknown): CampaignAttempt | null {
   const r = raw as Partial<Record<keyof CampaignAttempt, unknown>> | null;
   if (!r || typeof r.id !== 'string' || !r.id) return null;
-  if (typeof r.nodeId !== 'string' || !findNode(r.nodeId)) return null;
+  if (typeof r.nodeId !== 'string') return null;
+  if (!findNode(r.nodeId) && !isPlacementNodeId(r.nodeId)) return null;
   if (typeof r.startedAt !== 'string' || !Number.isFinite(Date.parse(r.startedAt))) return null;
   const durationMs = finiteInRange(r.durationMs, 0, TRIAL_MS * 2);
   const attempted = finiteInRange(r.attempted, 0, MAX_PUZZLES);

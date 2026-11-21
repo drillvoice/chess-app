@@ -7,10 +7,13 @@ import { formatDuration } from '@/lib/focus/format-duration';
 import { TRIAL_TARGET } from '@/lib/campaign/trial-rules';
 import FocusModeTabs from '@/components/focus/focus-mode-tabs';
 import TrialRunner from '@/components/campaign/trial-runner';
+import PlacementRunner from '@/components/campaign/placement-runner';
+import { Button } from '@/components/ui/button';
 import { StarRow } from '@/components/campaign/star-row';
 import { chapterLevel, findNode, type CampaignNode } from '@/lib/campaign/chapters';
 import {
   currentChapterId,
+  placementSummary,
   nodeProgress,
   type ChapterProgress,
   type NodeProgress,
@@ -90,7 +93,16 @@ function ChapterCard({
   progress: Map<string, NodeProgress>;
   onPlay: (nodeId: string) => void;
 }) {
-  const { chapter, unlocked, status, clearedCount, bossBeaten, stars, maxStars } = entry;
+  const {
+    chapter,
+    unlocked,
+    status,
+    clearedCount,
+    bossBeaten,
+    skippedByPlacement,
+    stars,
+    maxStars,
+  } = entry;
   const total = chapter.nodes.length;
   return (
     <Card className={cn(!unlocked && 'opacity-70')}>
@@ -134,6 +146,7 @@ function ChapterCard({
               <span className="mt-2 flex items-center gap-3 text-xs text-gray-600">
                 <span>
                   {clearedCount}/{total} cleared{bossBeaten && ' · boss beaten'}
+                  {skippedByPlacement && ' · skipped by placement'}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-hidden />
@@ -172,13 +185,23 @@ function ChapterCard({
 export default function CampaignPage() {
   const { chapters, progress, isLoading, error } = useCampaign();
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Open the furthest unlocked chapter once progress has loaded (and when a new one unlocks).
   const current = isLoading ? null : currentChapterId(chapters);
   useEffect(() => {
-    if (current) setExpanded((prev) => (prev.has(current) ? prev : new Set(prev).add(current)));
+    // Collapse the rest so the chapter you're on (e.g. after placement) is what you see.
+    if (current) setExpanded(new Set([current]));
   }, [current]);
+
+  if (placing) return <PlacementRunner onExit={() => setPlacing(false)} />;
+
+  const placement = placementSummary(progress);
+  const anyBossBeaten = chapters.some((c) => c.bossBeaten);
+  const placedChapter = chapters.find(
+    (_, i) => i === Math.min(placement.passedThrough + 1, chapters.length - 1),
+  );
 
   const active = activeNodeId ? findNode(activeNodeId) : null;
   if (active) {
@@ -213,6 +236,33 @@ export default function CampaignPage() {
           {error instanceof Error ? error.message : String(error)}
         </p>
       )}
+      {!isLoading &&
+        (!placement.taken && !anyBossBeaten ? (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="flex flex-col gap-3 p-4 pt-4 sm:flex-row sm:items-center md:p-4 md:pt-4">
+              <div className="flex-1 text-sm text-gray-700">
+                <span className="block font-semibold text-gray-900">
+                  Already a strong player? Take the placement test.
+                </span>
+                Short rounds of mixed puzzles that climb through the rating bands, so you can skip
+                the chapters you don’t need. About 2–12 minutes.
+              </div>
+              <Button onClick={() => setPlacing(true)}>Take the placement test</Button>
+            </CardContent>
+          </Card>
+        ) : placement.taken ? (
+          <p className="text-sm text-gray-600">
+            Placement test: started at Chapter {placedChapter?.chapter.number} (
+            {placedChapter?.chapter.title}).{' '}
+            <button
+              type="button"
+              className="font-medium text-blue-700 hover:underline"
+              onClick={() => setPlacing(true)}
+            >
+              Retake
+            </button>
+          </p>
+        ) : null)}
       {isLoading ? (
         <div className="flex justify-center py-10">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
