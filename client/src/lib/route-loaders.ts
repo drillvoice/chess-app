@@ -6,6 +6,7 @@ export const routeLoaders = {
   '/activity': () => import('@/pages/activity'),
   '/openings': () => import('@/pages/openings'),
   '/focus': () => import('@/pages/focus'),
+  '/focus/campaign': () => import('@/pages/campaign'),
   '/otb': () => import('@/pages/otb'),
   '/account': () => import('@/pages/account'),
   '/info': () => import('@/pages/info'),

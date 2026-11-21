@@ -9,6 +9,7 @@ const STORES = [
   'account_snapshots',
   'otb_games',
   'opening_repertoires',
+  'campaign_attempts',
 ] as const;
 
 export async function clearAll(): Promise<void> {

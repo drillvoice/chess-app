@@ -8,6 +8,7 @@ import * as meta from './storage/meta';
 import * as snapshots from './storage/snapshots';
 import * as otbGames from './storage/otb-games';
 import * as openingRepertoires from './storage/opening-repertoires';
+import * as campaignAttempts from './storage/campaign-attempts';
 import { clearAll } from './storage/clear';
 
 export const offlineStorage = {
@@ -72,6 +73,10 @@ export const offlineStorage = {
   saveOpeningRepertoire: openingRepertoires.saveOpeningRepertoire,
   deleteOpeningRepertoire: openingRepertoires.deleteOpeningRepertoire,
   setOpeningRepertoires: openingRepertoires.setOpeningRepertoires,
+  // campaign
+  getCampaignAttempts: campaignAttempts.getCampaignAttempts,
+  addCampaignAttempt: campaignAttempts.addCampaignAttempt,
+  putCampaignAttempts: campaignAttempts.putCampaignAttempts,
   // maintenance
   clearAll,
   clear: clearAll,

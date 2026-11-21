@@ -2,6 +2,7 @@ import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { TrainingSession, DailyGoalSettings } from '@shared/schema';
 import type { OtbGame } from '../otb/types';
 import type { OpeningRepertoire } from '../opening-trainer/types';
+import type { CampaignAttempt } from '../campaign/attempts';
 
 interface ChessLoggerDB extends DBSchema {
   sessions: {
@@ -50,12 +51,16 @@ interface ChessLoggerDB extends DBSchema {
     value: OpeningRepertoire;
     indexes: { updatedAt: string };
   };
+  campaign_attempts: {
+    key: string;
+    value: CampaignAttempt;
+  };
 }
 
 export type DB = IDBPDatabase<ChessLoggerDB>;
 
 const DB_NAME = 'chess-logger-offline';
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
@@ -86,6 +91,10 @@ export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
     if (!db.objectStoreNames.contains('opening_repertoires')) {
       const store = db.createObjectStore('opening_repertoires', { keyPath: 'id' });
       store.createIndex('updatedAt', 'updatedAt');
+    }
+    // v10 adds campaign trial attempts (append-only, synced as a union by id).
+    if (!db.objectStoreNames.contains('campaign_attempts')) {
+      db.createObjectStore('campaign_attempts', { keyPath: 'id' });
     }
     // v9 drops `sync_queue`: nothing has written to it since sync became
     // snapshot-reconciled, and leftover entries in an existing database would
