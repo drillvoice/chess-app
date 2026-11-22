@@ -227,7 +227,9 @@ export async function createSession(
     }
   } catch (error) {
     logger.error('Failed to save session locally:', error);
-    throw new Error('Failed to save session offline');
+    // Keep the underlying cause visible: the bare message hid what actually went wrong.
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to save session offline: ${cause}`, { cause: error });
   }
 
   // Refresh pending review queries so UI reflects latest data

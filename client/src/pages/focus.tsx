@@ -18,6 +18,17 @@ import {
 } from '@/lib/move-sound';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -525,13 +536,21 @@ export default function FocusPage() {
     finishPuzzle(revealed);
   };
 
+  const stopSession = () => {
+    clearFocusSession();
+    activeMs.current = 0;
+    visibleSince.current = null;
+    setState(null);
+  };
+
+  // Escape hatch: end the session without logging it, e.g. when saving keeps failing.
+  const discardSession = () => {
+    void flushResults(); // Puzzle results still go to Lichess; only the log entry is skipped.
+    stopSession();
+    toast({ title: 'Session discarded', description: 'Nothing was logged.' });
+  };
+
   const endAndLog = async () => {
-    const stopSession = () => {
-      clearFocusSession();
-      activeMs.current = 0;
-      visibleSince.current = null;
-      setState(null);
-    };
     if (tally.attempted === 0) {
       stopSession();
       return;
@@ -791,6 +810,33 @@ export default function FocusPage() {
                   {logging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {tally.attempted > 0 ? 'End & log tactics session' : 'End practice'}
                 </Button>
+                {tally.attempted > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="mt-2 w-full text-gray-600"
+                        disabled={logging}
+                      >
+                        Discard session without logging
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Discard this session?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          The {tally.attempted} puzzle{tally.attempted === 1 ? '' : 's'} in this
+                          session won&apos;t be logged as a training session. Your Lichess puzzle
+                          results are unaffected.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep session</AlertDialogCancel>
+                        <AlertDialogAction onClick={discardSession}>Discard</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </CardContent>
           </Card>
