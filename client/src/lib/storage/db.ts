@@ -64,6 +64,19 @@ const DB_NAME = 'chess-logger-offline';
 const DB_VERSION = 10;
 
 const openPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
+  // A newer build (another tab, or this PWA relaunched after an update) needs to upgrade the
+  // schema. Holding our connection open would block it, and this page's code is now older than
+  // the data, so writes from it would fail ("Failed to save session offline"). Step aside and
+  // reload into the new build. In-progress work that matters (e.g. a focus session) is persisted
+  // to localStorage and resumes after the reload.
+  blocking(_currentVersion, newVersion, event) {
+    console.error(`Database upgrade to v${newVersion} requested by a newer build; reloading.`);
+    (event.target as IDBDatabase).close();
+    location.reload();
+  },
+  terminated() {
+    console.error('Local database connection was closed unexpectedly by the browser.');
+  },
   upgrade(db) {
     if (!db.objectStoreNames.contains('sessions')) {
       const store = db.createObjectStore('sessions', { keyPath: 'id' });
