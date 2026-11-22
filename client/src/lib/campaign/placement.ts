@@ -1,9 +1,10 @@
 import { CAMPAIGN } from './chapters';
+import { TWO_STAR_MS_PER_PUZZLE } from './trial-rules';
 
 /**
  * Placement test: a ladder of short rounds, one per chapter's rating band,
  * each drawing mixed puzzles from that chapter's themes (like its boss).
- * A round is 5 puzzles in 2:30, which is ★★ trial pace, and passes with 4
+ * A round is 5 puzzles at ★★ trial pace (3:00), and passes with 4
  * clean. Passing a round unlocks the next chapter, so you start at the band
  * of the first round you fail. Lower chapters stay open to play but aren't
  * required. Placement only ever opens chapters; a worse retake locks nothing.
@@ -13,7 +14,8 @@ import { CAMPAIGN } from './chapters';
  */
 export const PLACEMENT_ROUND_SIZE = 5;
 export const PLACEMENT_PASS = 4;
-export const PLACEMENT_ROUND_MS = 150_000;
+/** Same per-puzzle pace as ★★ in a trial. */
+export const PLACEMENT_ROUND_MS = PLACEMENT_ROUND_SIZE * TWO_STAR_MS_PER_PUZZLE;
 
 const PREFIX = 'placement:';
 

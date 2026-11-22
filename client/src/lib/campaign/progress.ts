@@ -8,7 +8,7 @@ export const OPEN_WINDOW = 3;
 
 export interface NodeProgress {
   bestStars: Stars;
-  /** Best pace (clean solves per 5 min); see trialPace. */
+  /** Best pace (clean solves per PACE_WINDOW_MS); see trialPace. */
   bestPace: number | null;
   /** Most clean solves in one trial. */
   bestClean: number;

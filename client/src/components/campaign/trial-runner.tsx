@@ -10,6 +10,10 @@ import { chapterLevel, type CampaignChapter, type CampaignNode } from '@/lib/cam
 import { INITIAL_PUZZLES } from '@/lib/campaign/trial-puzzles';
 import {
   BOSS_CLEAR_STARS,
+  MAX_MISSES,
+  ONE_STAR_CLEAN,
+  THREE_STAR_MS,
+  trialEnd,
   starsFor,
   TRIAL_MS,
   TRIAL_TARGET,
@@ -20,12 +24,10 @@ import type { CampaignAttempt } from '@/lib/campaign/attempts';
 import type { NodeProgress } from '@/lib/campaign/progress';
 import { saveCampaignAttempt } from '@/lib/firebase/campaign';
 import { CAMPAIGN_QUERY_KEY } from '@/hooks/use-campaign';
-import { useTimedPuzzleRun, type RunResult, type RunTally } from '@/hooks/use-timed-puzzle-run';
+import { useTimedPuzzleRun, type RunResult } from '@/hooks/use-timed-puzzle-run';
 import { logCampaignSession } from '@/lib/campaign/log-session';
 import RunBoard, { SolvedBar } from './run-board';
 import { StarRow } from './star-row';
-
-const trialEndRule = (tally: RunTally) => (tally.clean >= TRIAL_TARGET ? 'completed' : null);
 
 interface Props {
   chapter: CampaignChapter;
@@ -84,7 +86,7 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
     difficulty: level.difficulty,
     timeLimitMs: TRIAL_MS,
     batchSize: INITIAL_PUZZLES,
-    endRule: trialEndRule,
+    endRule: trialEnd,
     onFinish,
   });
   const { phase, loadError, load, start, tally } = run;
@@ -130,18 +132,18 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
             <ul className="space-y-1 text-sm text-gray-700">
               <li>
                 Solve <strong>{TRIAL_TARGET}</strong> puzzles in{' '}
-                <strong>{formatDuration(TRIAL_MS)}</strong>. Any wrong move or skip counts as a miss
-                and moves on.
+                <strong>{formatDuration(TRIAL_MS)}</strong>. A wrong move or skip is a miss. You can
+                afford <strong>{MAX_MISSES}</strong>; the next one ends the trial.
               </li>
               <li className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="inline-flex items-center gap-1">
-                  <StarRow stars={1} size="sm" /> 6 solved
+                  <StarRow stars={1} size="sm" /> {ONE_STAR_CLEAN} solved
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <StarRow stars={2} size="sm" /> 10 in 5:00
+                  <StarRow stars={2} size="sm" /> {TRIAL_TARGET} in {formatDuration(TRIAL_MS)}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <StarRow stars={3} size="sm" /> 10 in 3:00
+                  <StarRow stars={3} size="sm" /> {TRIAL_TARGET} in {formatDuration(THREE_STAR_MS)}
                 </span>
               </li>
               <li>
@@ -206,7 +208,9 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
               <strong>{result.clean}</strong> solved of {result.attempted} ·{' '}
               {result.completedMs !== null
                 ? `target hit in ${formatDuration(result.completedMs)}`
-                : 'time up'}
+                : result.attempted - result.clean > MAX_MISSES
+                  ? 'out of misses'
+                  : 'time up'}
             </p>
             <p className="text-sm text-gray-600">
               Pace: <strong>{pace.toFixed(1)}</strong> per 5 min
@@ -214,7 +218,8 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
             </p>
             {isBoss && !bossBeaten && (
               <p className="text-sm text-gray-600">
-                You need {TRIAL_TARGET} solved within {formatDuration(TRIAL_MS)} to beat the boss.
+                You need {TRIAL_TARGET} solved within {formatDuration(TRIAL_MS)}, with at most{' '}
+                {MAX_MISSES} misses, to beat the boss.
               </p>
             )}
             {saving && (
@@ -248,6 +253,7 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
             clean={tally.clean}
             target={TRIAL_TARGET}
             missed={tally.attempted - tally.clean}
+            maxMisses={MAX_MISSES}
           />
         }
       />
