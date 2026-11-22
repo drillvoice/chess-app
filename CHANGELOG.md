@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.15.0] - 22 November 2026
+
+- **Campaign mode**: a new Campaign tab beside Free practice on the Focus page turns tactics practice into a sequence to work through instead of a list of themes. There are five chapters, one per rating band: Beginner (~1000), Easy (~1100), Intermediate (~1400), Advanced (~1800) and Expert (~2050). Each chapter replays every theme from earlier chapters at its own band, adds a few new ones, and finishes with Opening, Middlegame and Endgame puzzles. By Expert it covers 31 Lichess themes
+- **Timed trials**: each node is a trial on one theme. Solve 10 puzzles in 6:00 with no more than 3 misses; a wrong move or skip is a miss, and the 4th one ends the trial. Stars: ★ for 6 solved, ★★ for 10 in 6:00, ★★★ for 10 in 4:00. Each node shows your best result, and your pace (solves per 5 minutes) is shown when you start and finish a trial, so you can track improvement over time
+- **Unlocking**: one star clears a node and opens the next, with up to three open to choose from at a time rather than the whole list
+- **Boss trials**: clearing every node in a chapter unlocks its boss, a mix of puzzles from the chapter's themes. You aren't told the theme until each puzzle is over. Beating the boss takes ★★ and unlocks the next chapter
+- **Placement test**: experienced players can skip the early chapters. The test is a ladder of short rounds, one per rating band and each mixing that band's themes: 5 puzzles in 3:00, passed with 4 solved. The first round you fail is the chapter you start in. Chapters below it stay open to play but aren't needed to progress, and a retake can only open chapters, never lock them
+- **Focused map**: the chapter you're working on is shown first. Later chapters are one-line "Coming up" rows, earlier and skipped chapters fold into a single "Earlier chapters" row, and locked nodes inside a chapter collapse into "N more to unlock"
+- Leaving the app pauses a trial's clock, but the puzzle on screen counts as a miss when you come back, so stepping away can't be used to look a position up
+- Every trial is logged as a tactics session so it counts towards stats and goals, and the placement test is logged as one session
+- Campaign progress is saved on this device and synced to your cloud backup when signed in. This bumps the local database version, so on the first load after updating the app waits for any other open tab to close before it can upgrade
+
 ## [2.14.1] - 16 November 2026
 
 - **Snappier move entry in Focus practice**: the opponent's reply now comes 200ms after your move instead of 450ms, so you can play your next move sooner

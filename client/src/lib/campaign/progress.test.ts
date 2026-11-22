@@ -37,11 +37,11 @@ describe('summarizeAttempts', () => {
     const id = beginner.nodes[0].id;
     const summary = summarizeAttempts([
       attempt(id, 7),
-      attempt(id, 10, 200_000),
+      attempt(id, 10, 300_000),
       attempt(id, 4),
     ]).get(id)!;
     expect(summary.bestStars).toBe(2);
-    expect(summary.bestPace).toBe(15);
+    expect(summary.bestPace).toBe(10);
     expect(summary.attempts).toBe(3);
   });
 });

@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useCampaign } from '@/hooks/use-campaign';
 import { formatDuration } from '@/lib/focus/format-duration';
-import { TRIAL_TARGET } from '@/lib/campaign/trial-rules';
+import { MAX_MISSES, TRIAL_MS, TRIAL_TARGET } from '@/lib/campaign/trial-rules';
 import FocusModeTabs from '@/components/focus/focus-mode-tabs';
 import TrialRunner from '@/components/campaign/trial-runner';
 import PlacementRunner from '@/components/campaign/placement-runner';
@@ -316,9 +316,10 @@ export default function CampaignPage() {
       </div>
       {!isLoading && (!hasPlayed || showHelp) && (
         <p className="text-sm text-gray-600">
-          Each node is a timed trial: solve 10 Lichess puzzles of one theme in 5 minutes. One star
-          clears a node and opens the next; clear a chapter to face its boss, a mix of every theme
-          so far. Beat the boss to move up a rating band.
+          Each node is a timed trial: solve {TRIAL_TARGET} Lichess puzzles of one theme in{' '}
+          {formatDuration(TRIAL_MS)}, with no more than {MAX_MISSES} misses. One star clears a node
+          and opens the next; clear a chapter to face its boss, a mix of every theme so far. Beat
+          the boss to move up a rating band.
         </p>
       )}
       {error && (
@@ -336,7 +337,7 @@ export default function CampaignPage() {
                   Already a strong player? Take the placement test.
                 </span>
                 Short rounds of mixed puzzles that climb through the rating bands, so you can skip
-                the chapters you don’t need. About 2–12 minutes.
+                the chapters you don’t need. About 2–15 minutes.
               </div>
               <Button onClick={() => setPlacing(true)}>Take the placement test</Button>
             </CardContent>

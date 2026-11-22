@@ -124,11 +124,14 @@ export function SolvedBar({
   clean,
   target,
   missed,
+  maxMisses,
   label,
 }: {
   clean: number;
   target: number;
   missed: number;
+  /** When set, misses are shown against this allowance (the next one ends the run). */
+  maxMisses?: number;
   label?: string;
 }) {
   return (
@@ -137,7 +140,13 @@ export function SolvedBar({
         <span>
           {label ?? 'Solved'} <strong className="text-gray-900">{clean}</strong> / {target}
         </span>
-        <span>{missed} missed</span>
+        {maxMisses === undefined ? (
+          <span>{missed} missed</span>
+        ) : (
+          <span className={missed >= maxMisses ? 'font-semibold text-red-600' : undefined}>
+            Misses {missed} / {maxMisses}
+          </span>
+        )}
       </div>
       <div
         className="h-2 overflow-hidden rounded-full bg-gray-200"
