@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chess-training-v5';
+const CACHE_NAME = 'chess-training-v6';
 const RUNTIME_CACHE = 'chess-training-runtime';
 const API_CACHE = 'chess-training-api';
 const STATIC_CACHE = 'chess-training-static';
@@ -289,15 +289,21 @@ async function handleStaticAsset(request) {
 async function handleNavigationRequest(request) {
   try {
     const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
+    // Only SPA routes (no file extension) share the app shell; e.g. /privacy.html is its own page.
+    const isAppRoute = !new URL(request.url).pathname.split('/').pop().includes('.');
+    if (networkResponse.ok && isAppRoute) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
+      // This is a single-page app: every route serves the same index.html. Keep exactly one
+      // cached copy (under '/') so the offline fallback is always the newest build seen.
+      // Caching per path left /settings, /tactics etc. holding HTML from different deploys, and
+      // an offline launch could boot a build older than the IndexedDB schema already on the
+      // device (VersionError: "requested version (9) is less than the existing version (10)").
+      cache.put('/', networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
-    // Fallback to cached version or app shell
-    const cachedResponse = await caches.match(request) || 
-                          await caches.match('/');
+    // Fallback to the single cached app shell
+    const cachedResponse = await caches.match('/');
     return cachedResponse || new Response('Offline', { status: 503 });
   }
 }

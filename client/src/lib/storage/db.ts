@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
+import { purgeCachedAppShell } from '@/lib/utils';
 import type { TrainingSession, DailyGoalSettings } from '@shared/schema';
 import type { OtbGame } from '../otb/types';
 import type { OpeningRepertoire } from '../opening-trainer/types';
@@ -62,7 +63,7 @@ export type DB = IDBPDatabase<ChessLoggerDB>;
 const DB_NAME = 'chess-logger-offline';
 const DB_VERSION = 10;
 
-export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
+const openPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
     if (!db.objectStoreNames.contains('sessions')) {
       const store = db.createObjectStore('sessions', { keyPath: 'id' });
@@ -106,6 +107,41 @@ export const dbPromise = openDB<ChessLoggerDB>(DB_NAME, DB_VERSION, {
     }
   },
 });
+
+const STALE_BUILD_RELOAD_KEY = 'idb-version-error-reload-at';
+
+// A VersionError means this device's database was already upgraded by a newer build, so the code
+// running now is stale (e.g. an old cached page served while offline). The user's data is intact
+// but unreadable by this build. Reload once into the latest version instead of leaving every
+// storage call failing; the guard stops a loop when the network still can't deliver a new build,
+// and the rethrown error then surfaces with an explanation instead of the bare IndexedDB message.
+function handleOpenError(error: unknown): never {
+  if (error instanceof DOMException && error.name === 'VersionError') {
+    let shouldReload = false;
+    try {
+      const lastReloadAt = Number(sessionStorage.getItem(STALE_BUILD_RELOAD_KEY)) || 0;
+      if (Date.now() - lastReloadAt > 30_000) {
+        sessionStorage.setItem(STALE_BUILD_RELOAD_KEY, String(Date.now()));
+        shouldReload = true;
+      }
+    } catch {
+      // No sessionStorage means no loop guard: just surface the error.
+    }
+    console.error('Local database is newer than this app build; reloading:', error);
+    if (shouldReload) {
+      void purgeCachedAppShell()
+        .catch((purgeError) => console.error('Failed to purge cached app shell:', purgeError))
+        .finally(() => location.reload());
+    }
+    throw new Error(
+      `This copy of the app is out of date for the data on this device (${error.message}). ` +
+        'Your data is safe. Reconnect to the internet and reload to update the app.',
+    );
+  }
+  throw error;
+}
+
+export const dbPromise: Promise<DB> = openPromise.catch(handleOpenError);
 
 export async function getDB(): Promise<DB> {
   return dbPromise;
