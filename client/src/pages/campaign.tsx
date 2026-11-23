@@ -227,10 +227,10 @@ function ChapterCard({
               progress={nodeProgress(progress, chapter.boss.id)}
               onPlay={() => onPlay(chapter.boss.id)}
             />
-            {chapter.retiredThemes.length > 0 && (
+            {chapter.skippedThemes.length > 0 && (
               <p className="col-span-full px-1 pt-1 text-xs text-gray-500">
-                Already done at a lower level (Lichess has no harder ones):{' '}
-                {chapter.retiredThemes.map(getThemeLabel).join(', ')}.
+                Skipped at this level (Lichess has too few puzzles this hard):{' '}
+                {chapter.skippedThemes.map(getThemeLabel).join(', ')}.
               </p>
             )}
           </div>

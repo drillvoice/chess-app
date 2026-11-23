@@ -33,11 +33,11 @@ export interface CampaignChapter {
   /** Regular and phase nodes in unlock order; the boss is separate. */
   nodes: CampaignNode[];
   /**
-   * Earlier themes that are *not* revisited here because Lichess has no real
-   * puzzles for them at this band (see THEME_CEILING): they count as done at
-   * the last chapter that had them.
+   * Earlier themes that are *not* revisited here because Lichess has too few
+   * puzzles for them at this band (see THEME_GAPS). They may return in a later
+   * chapter if Lichess has enough there.
    */
-  retiredThemes: string[];
+  skippedThemes: string[];
   boss: CampaignNode & { name: string; intro: string };
 }
 
@@ -53,19 +53,20 @@ interface ChapterSpec {
 }
 
 /**
- * The last chapter whose rating band Lichess can genuinely serve for a theme.
- * Lichess widens the rating window when a theme runs dry at the requested
- * difficulty, so asking for e.g. back-rank mates at "harder" quietly returns
- * ~1400 puzzles under an "Advanced (~1800)" label. A theme listed here is not
- * revisited (nor mixed into the boss) in any later chapter: it is effectively
- * completed at its ceiling. Themes not listed go all the way to Expert.
+ * Chapters (by id) whose rating band Lichess can't genuinely serve for a theme.
+ * Lichess falls back to neighbouring difficulty buckets when a theme runs thin,
+ * so asking for e.g. back-rank mates at "harder" quietly returns ~1600 puzzles
+ * under an "Advanced (~1800)" label. A theme is not revisited (nor mixed into
+ * the boss) in a chapter listed here. Gaps needn't be contiguous: a theme can
+ * be thin at one band and plentiful at the next, and then it simply skips one.
  *
- * Measured against the live API (Nov 2026): a band counts as served when the
- * median rating of a 50-puzzle anonymous batch lands at least halfway from the
- * band below to the band itself. Re-measure before changing; node ids for a
- * retired theme simply stop appearing, so old attempts on them are harmless.
+ * Measured against the live API (Nov 2026) with anonymous 50-puzzle batches: a
+ * band counts as served when the median rating is within ~125 of the band's
+ * label (Easy 975, Intermediate 1275, Advanced 1675, Expert 1925), averaged
+ * over several batches for borderline themes. Re-measure before changing; a
+ * skipped node simply stops appearing, so old attempts on it are harmless.
  */
-export const THEME_CEILING: Partial<Record<string, string>> = {
+export const THEME_GAPS: Partial<Record<string, string[]>> = {
   // FILLED_BY_PROBE
 };
 
@@ -147,12 +148,9 @@ const SPECS: ChapterSpec[] = [
 function buildChapters(): CampaignChapter[] {
   const seen: string[] = [];
   return SPECS.map((spec, i) => {
-    const withinCeiling = (theme: string) => {
-      const ceiling = THEME_CEILING[theme];
-      return ceiling === undefined || SPECS.findIndex((s) => s.id === ceiling) >= i;
-    };
-    const revisits = seen.filter(withinCeiling);
-    const retiredThemes = seen.filter((theme) => !withinCeiling(theme));
+    const served = (theme: string) => !THEME_GAPS[theme]?.includes(spec.id);
+    const revisits = seen.filter(served);
+    const skippedThemes = seen.filter((theme) => !served(theme));
     seen.push(...spec.newThemes);
     // Revisits first as a warm-up at the new band, then the new themes, then phases.
     const ordered = [...revisits, ...spec.newThemes];
@@ -173,7 +171,7 @@ function buildChapters(): CampaignChapter[] {
         ...ordered.map((theme) => node(theme, 'trial')),
         ...PHASE_THEMES.map((theme) => node(theme, 'phase')),
       ],
-      retiredThemes,
+      skippedThemes,
       boss: {
         id: `${spec.id}:boss`,
         chapterId: spec.id,
