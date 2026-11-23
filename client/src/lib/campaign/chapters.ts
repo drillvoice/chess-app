@@ -32,6 +32,12 @@ export interface CampaignChapter {
   levelKey: string;
   /** Regular and phase nodes in unlock order; the boss is separate. */
   nodes: CampaignNode[];
+  /**
+   * Earlier themes that are *not* revisited here because Lichess has no real
+   * puzzles for them at this band (see THEME_CEILING): they count as done at
+   * the last chapter that had them.
+   */
+  retiredThemes: string[];
   boss: CampaignNode & { name: string; intro: string };
 }
 
@@ -45,6 +51,23 @@ interface ChapterSpec {
   bossName: string;
   bossIntro: string;
 }
+
+/**
+ * The last chapter whose rating band Lichess can genuinely serve for a theme.
+ * Lichess widens the rating window when a theme runs dry at the requested
+ * difficulty, so asking for e.g. back-rank mates at "harder" quietly returns
+ * ~1400 puzzles under an "Advanced (~1800)" label. A theme listed here is not
+ * revisited (nor mixed into the boss) in any later chapter: it is effectively
+ * completed at its ceiling. Themes not listed go all the way to Expert.
+ *
+ * Measured against the live API (Nov 2026): a band counts as served when the
+ * median rating of a 50-puzzle anonymous batch lands at least halfway from the
+ * band below to the band itself. Re-measure before changing; node ids for a
+ * retired theme simply stop appearing, so old attempts on them are harmless.
+ */
+export const THEME_CEILING: Partial<Record<string, string>> = {
+  // FILLED_BY_PROBE
+};
 
 /** Broad themes played just before each boss. */
 const PHASE_THEMES = ['opening', 'middlegame', 'endgame'];
@@ -124,7 +147,12 @@ const SPECS: ChapterSpec[] = [
 function buildChapters(): CampaignChapter[] {
   const seen: string[] = [];
   return SPECS.map((spec, i) => {
-    const revisits = [...seen];
+    const withinCeiling = (theme: string) => {
+      const ceiling = THEME_CEILING[theme];
+      return ceiling === undefined || SPECS.findIndex((s) => s.id === ceiling) >= i;
+    };
+    const revisits = seen.filter(withinCeiling);
+    const retiredThemes = seen.filter((theme) => !withinCeiling(theme));
     seen.push(...spec.newThemes);
     // Revisits first as a warm-up at the new band, then the new themes, then phases.
     const ordered = [...revisits, ...spec.newThemes];
@@ -145,6 +173,7 @@ function buildChapters(): CampaignChapter[] {
         ...ordered.map((theme) => node(theme, 'trial')),
         ...PHASE_THEMES.map((theme) => node(theme, 'phase')),
       ],
+      retiredThemes,
       boss: {
         id: `${spec.id}:boss`,
         chapterId: spec.id,
