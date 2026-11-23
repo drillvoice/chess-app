@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.16.0] - 23 November 2026
+
+- **Campaign themes come in sets of three**: a chapter's themes now open three at a time, and the next set opens only once every node in the current set is cleared **and** the set totals at least 6★ (★★ on average). A strong result can make up for a weak one: ★★★ + ★★ + ★ passes. This replaces the old rule, where one star opened the next node. The aim is to master a few themes before moving on rather than clearing a whole chapter on one-star runs
+- The boss now opens once every set is passed, so ★ on every node is no longer enough to reach it
+- The locked row in a chapter shows what the current set still needs, e.g. "4/6★ to open the next set in Pin, Skewer, Discovered attack", and How it works explains the rule
+- Nodes you've already cleared stay playable even if the new rule closes their set. Nodes that were open but never played are locked again until their set opens
+- **Themes skipped where Lichess runs out of hard puzzles**: when a theme has too few puzzles at a band, Lichess quietly serves easier ones, e.g. back-rank mates labelled "Advanced (~1800)" came back at ~1600. Those themes are now left out of that chapter and its boss: mate in 1 at Expert; back-rank mate at Advanced and Expert; smothered mate from Intermediate up; and promotion, sacrifice, mate in 3 and rook endgames at Advanced (they return at Expert). Each chapter lists the themes it skips. Attempts on skipped nodes are kept but no longer count towards that chapter
+
 ## [2.15.0] - 22 November 2026
 
 - **Campaign mode**: a new Campaign tab beside Free practice on the Focus page turns tactics practice into a sequence to work through instead of a list of themes. There are five chapters, one per rating band: Beginner (~1000), Easy (~1100), Intermediate (~1400), Advanced (~1800) and Expert (~2050). Each chapter replays every theme from earlier chapters at its own band, adds a few new ones, and finishes with Opening, Middlegame and Endgame puzzles. By Expert it covers 31 Lichess themes
