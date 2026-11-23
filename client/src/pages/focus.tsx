@@ -44,7 +44,7 @@ import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
-import type { PieceView } from '@/lib/otb/chess';
+import { pieceMapFromFen } from '@/lib/otb/chess';
 import type { PromotionPiece, Square } from '@/lib/otb/types';
 import {
   fetchFocusPuzzles,
@@ -124,16 +124,6 @@ function savePrefs(prefs: FocusPrefs) {
   } catch {
     // Remembering the last choices is a convenience only.
   }
-}
-
-function pieceMapFromFen(fen: string): Record<string, PieceView> {
-  const map: Record<string, PieceView> = {};
-  for (const row of new Chess(fen).board()) {
-    for (const cell of row) {
-      if (cell) map[cell.square] = { color: cell.color, type: cell.type };
-    }
-  }
-  return map;
 }
 
 const GROUPS = ['Motifs', 'Mates', 'Phases', 'Goals'] as const;

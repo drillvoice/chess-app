@@ -1,25 +1,15 @@
 import type { ReactNode } from 'react';
-import { Chess } from 'chess.js';
 import { Clock, Loader2, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import OtbBoard from '@/components/otb/otb-board';
 import PromotionPicker from '@/components/otb/promotion-picker';
-import type { PieceView } from '@/lib/otb/chess';
+import { pieceMapFromFen } from '@/lib/otb/chess';
 import type { Square } from '@/lib/otb/types';
 import { formatDuration } from '@/lib/focus/format-duration';
 import { getThemeLabel } from '@/lib/focus/themes';
+import { solutionSan } from '@/lib/focus/puzzle-session';
 import type { RunFlash, TimedPuzzleRun } from '@/hooks/use-timed-puzzle-run';
-
-function pieceMapFromFen(fen: string): Record<string, PieceView> {
-  const map: Record<string, PieceView> = {};
-  for (const row of new Chess(fen).board()) {
-    for (const cell of row) {
-      if (cell) map[cell.square] = { color: cell.color, type: cell.type };
-    }
-  }
-  return map;
-}
 
 const FLASH_COLOR: Record<RunFlash, string> = {
   find: 'text-gray-700',
@@ -41,11 +31,14 @@ interface Props {
 export default function RunBoard({ run, title, progress, revealThemesFrom }: Props) {
   const { state, flash, remainingMs, myColor } = run;
   const sideName = myColor === 'w' ? 'White' : 'Black';
+  // After a miss the board shows the move that should have been played.
+  const missedMove =
+    flash === 'missed' && state && state.ply > 0 ? solutionSan(state.puzzle)[state.ply - 1] : null;
   const flashText: Record<RunFlash, string> = {
     find: revealThemesFrom ? `${sideName} to move — find the tactic.` : `${sideName} to move.`,
     correct: 'Correct — keep going.',
     solved: 'Solved!',
-    missed: 'Missed — here’s the line.',
+    missed: missedMove ? `Missed — it was ${missedMove}.` : 'Missed.',
   };
   const lastMoveSquares = state?.lastMove
     ? ([state.lastMove.slice(0, 2), state.lastMove.slice(2, 4)] as Square[])
@@ -87,6 +80,11 @@ export default function RunBoard({ run, title, progress, revealThemesFrom }: Pro
             <p className={`text-lg font-semibold ${FLASH_COLOR[flash]}`} aria-live="polite">
               {flashText[flash]}
             </p>
+            {flash === 'missed' && (
+              <p className="-mt-2 text-sm text-gray-500">
+                You can go through it with the engine after the run.
+              </p>
+            )}
             {revealThemesFrom && state && state.status !== 'playing' && (
               <p className="text-sm text-gray-500">
                 Theme:{' '}

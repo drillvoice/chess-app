@@ -125,6 +125,25 @@ export function revealSolution(state: PuzzleState): PuzzleState {
   };
 }
 
+/**
+ * After a miss during a timed run: play just the move that should have been
+ * played, and end the puzzle there. One move is readable at a glance, unlike
+ * jumping to the end of a long line. The full line is for the review screen.
+ */
+export function revealNextMove(state: PuzzleState): PuzzleState {
+  const { puzzle } = state;
+  const ply = Math.min(state.ply + 1, puzzle.solution.length);
+  const chess = boardAt(puzzle, ply);
+  return {
+    ...state,
+    ply,
+    fen: chess.fen(),
+    lastMove: puzzle.solution[ply - 1] ?? state.lastMove,
+    status: 'failed',
+    mistake: true,
+  };
+}
+
 /** SAN of the full solution line, for display after the puzzle ends. */
 export function solutionSan(puzzle: FocusPuzzle): string[] {
   const chess = new Chess(puzzle.fen);

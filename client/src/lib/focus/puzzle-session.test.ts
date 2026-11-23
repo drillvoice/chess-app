@@ -4,6 +4,7 @@ import { MATE_IN_2_RAW } from './test-fixtures';
 import {
   isCapture,
   playOpponentReply,
+  revealNextMove,
   revealSolution,
   solutionSan,
   solverColor,
@@ -54,5 +55,18 @@ describe('isCapture', () => {
     expect(isCapture(puzzle.fen, 'g5e3')).toBe(false);
     const { state } = submitMove(startPuzzle(puzzle), 'g5e3');
     expect(isCapture(state.fen, 'b6e3')).toBe(true);
+  });
+
+  it('reveals only the next move after a miss', () => {
+    const first = revealNextMove(startPuzzle(puzzle));
+    expect(first.status).toBe('failed');
+    expect(first.ply).toBe(1);
+    expect(first.lastMove).toBe('g5e3');
+
+    // Mid-line: after the reply, a miss shows the final mating move only.
+    const mid = playOpponentReply(submitMove(startPuzzle(puzzle), 'g5e3').state);
+    const second = revealNextMove(mid);
+    expect(second.ply).toBe(3);
+    expect(second.lastMove).toBe('g6g2');
   });
 });

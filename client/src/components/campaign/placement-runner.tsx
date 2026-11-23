@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
-import { ArrowLeft, CheckCircle2, Flag, Loader2, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Flag, Loader2, Search, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,8 @@ import { saveCampaignAttempt } from '@/lib/firebase/campaign';
 import { logCampaignSession } from '@/lib/campaign/log-session';
 import { CAMPAIGN_QUERY_KEY } from '@/hooks/use-campaign';
 import { useTimedPuzzleRun, type RunResult } from '@/hooks/use-timed-puzzle-run';
+import type { MissedPuzzle } from '@/lib/campaign/missed-puzzle';
+import MistakeReview from './mistake-review';
 import RunBoard, { SolvedBar } from './run-board';
 
 /** Mixed puzzles fetched per round: three themes, so the round isn't one motif. */
@@ -30,6 +32,8 @@ interface RoundOutcome {
   chapterIndex: number;
   attempt: CampaignAttempt;
   passed: boolean;
+  /** Puzzles missed in this round, for the review. */
+  misses: MissedPuzzle[];
 }
 
 function RoundView({
@@ -50,7 +54,7 @@ function RoundView({
   const [saving, setSaving] = useState(false);
 
   const onFinish = useCallback(
-    async (run: RunResult) => {
+    async (run: RunResult, misses: MissedPuzzle[]) => {
       onRunningChange(false);
       const attempt: CampaignAttempt = {
         id: nanoid(),
@@ -71,7 +75,12 @@ function RoundView({
         });
       }
       setSaving(false);
-      onDone({ chapterIndex: roundIndex, attempt, passed: placementRoundPassed(run.clean) });
+      onDone({
+        chapterIndex: roundIndex,
+        attempt,
+        passed: placementRoundPassed(run.clean),
+        misses,
+      });
     },
     [chapter.id, roundIndex, onDone, onRunningChange, toast],
   );
@@ -191,6 +200,7 @@ export default function PlacementRunner({ onExit }: { onExit: () => void }) {
   const [roundIndex, setRoundIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<RoundOutcome[]>([]);
   const [finished, setFinished] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const running = useRef(false);
   const logged = useRef(false);
 
@@ -256,6 +266,18 @@ export default function PlacementRunner({ onExit }: { onExit: () => void }) {
     </div>
   );
 
+  const allMisses = outcomes.flatMap((o) => o.misses);
+
+  if (finished && reviewing && allMisses.length > 0) {
+    return (
+      <MistakeReview
+        misses={allMisses}
+        title="Placement test"
+        onClose={() => setReviewing(false)}
+      />
+    );
+  }
+
   if (finished) {
     const placedIndex = startingChapterIndex(passedThrough(outcomes));
     const placed = CAMPAIGN[placedIndex];
@@ -290,7 +312,15 @@ export default function PlacementRunner({ onExit }: { onExit: () => void }) {
                 ' You passed every round, so the whole campaign is open. The Expert boss is the last challenge.'}
               {' Placement only ever opens chapters. A retake can’t lock anything.'}
             </p>
-            <Button onClick={onExit}>Go to the campaign</Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {allMisses.length > 0 && (
+                <Button variant="outline" onClick={() => setReviewing(true)}>
+                  <Search className="mr-2 h-4 w-4" /> Review {allMisses.length} mistake
+                  {allMisses.length === 1 ? '' : 's'}
+                </Button>
+              )}
+              <Button onClick={onExit}>Go to the campaign</Button>
+            </div>
           </CardContent>
         </Card>
       </div>
