@@ -60,14 +60,23 @@ interface ChapterSpec {
  * the boss) in a chapter listed here. Gaps needn't be contiguous: a theme can
  * be thin at one band and plentiful at the next, and then it simply skips one.
  *
- * Measured against the live API (Nov 2026) with anonymous 50-puzzle batches: a
- * band counts as served when the median rating is within ~125 of the band's
- * label (Easy 975, Intermediate 1275, Advanced 1675, Expert 1925), averaged
- * over several batches for borderline themes. Re-measure before changing; a
- * skipped node simply stops appearing, so old attempts on it are harmless.
+ * Measured against the live API (Nov 2026) by pooling 2–4 anonymous 50-puzzle
+ * batches per theme and band. Most themes come back at a median of ~1400
+ * (normal), ~1750 (harder) and ~2000 (hardest); a band is a gap when the median
+ * falls under 1275 / 1650 / 1900 respectively. Themes Lichess has truly run
+ * out of show it plainly: back-rank and smothered mates return ~1630 at both
+ * harder and hardest, with a tenth of them under ~1450. Re-measure before
+ * changing; a skipped node simply stops appearing, so old attempts on it are
+ * harmless.
  */
 export const THEME_GAPS: Partial<Record<string, string[]>> = {
-  // FILLED_BY_PROBE
+  mateIn1: ['expert'], // hardest ~1640
+  backRankMate: ['advanced', 'expert'], // harder ~1630, hardest ~1620
+  promotion: ['advanced'], // harder ~1640; hardest ~1990
+  smotheredMate: ['intermediate', 'advanced', 'expert'], // ~1260 / ~1620 / ~1640
+  sacrifice: ['advanced'], // harder ~1630; hardest ~2180
+  mateIn3: ['advanced'], // harder ~1630; hardest ~2030
+  rookEndgame: ['advanced'], // harder ~1610; hardest ~1990
 };
 
 /** Broad themes played just before each boss. */
