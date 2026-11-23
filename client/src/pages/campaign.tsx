@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useCampaign } from '@/hooks/use-campaign';
 import { formatDuration } from '@/lib/focus/format-duration';
+import { getThemeLabel } from '@/lib/focus/themes';
 import { MAX_MISSES, TRIAL_MS, TRIAL_TARGET } from '@/lib/campaign/trial-rules';
 import FocusModeTabs from '@/components/focus/focus-mode-tabs';
 import TrialRunner from '@/components/campaign/trial-runner';
@@ -226,6 +227,12 @@ function ChapterCard({
               progress={nodeProgress(progress, chapter.boss.id)}
               onPlay={() => onPlay(chapter.boss.id)}
             />
+            {chapter.skippedThemes.length > 0 && (
+              <p className="col-span-full px-1 pt-1 text-xs text-gray-500">
+                Skipped at this level (Lichess has too few puzzles this hard):{' '}
+                {chapter.skippedThemes.map(getThemeLabel).join(', ')}.
+              </p>
+            )}
           </div>
         )}
       </CardContent>

@@ -32,6 +32,12 @@ export interface CampaignChapter {
   levelKey: string;
   /** Regular and phase nodes in unlock order; the boss is separate. */
   nodes: CampaignNode[];
+  /**
+   * Earlier themes that are *not* revisited here because Lichess has too few
+   * puzzles for them at this band (see THEME_GAPS). They may return in a later
+   * chapter if Lichess has enough there.
+   */
+  skippedThemes: string[];
   boss: CampaignNode & { name: string; intro: string };
 }
 
@@ -45,6 +51,33 @@ interface ChapterSpec {
   bossName: string;
   bossIntro: string;
 }
+
+/**
+ * Chapters (by id) whose rating band Lichess can't genuinely serve for a theme.
+ * Lichess falls back to neighbouring difficulty buckets when a theme runs thin,
+ * so asking for e.g. back-rank mates at "harder" quietly returns ~1600 puzzles
+ * under an "Advanced (~1800)" label. A theme is not revisited (nor mixed into
+ * the boss) in a chapter listed here. Gaps needn't be contiguous: a theme can
+ * be thin at one band and plentiful at the next, and then it simply skips one.
+ *
+ * Measured against the live API (Nov 2026) by pooling 2–4 anonymous 50-puzzle
+ * batches per theme and band. Most themes come back at a median of ~1400
+ * (normal), ~1750 (harder) and ~2000 (hardest); a band is a gap when the median
+ * falls under 1275 / 1650 / 1900 respectively. Themes Lichess has truly run
+ * out of show it plainly: back-rank and smothered mates return ~1630 at both
+ * harder and hardest, with a tenth of them under ~1450. Re-measure before
+ * changing; a skipped node simply stops appearing, so old attempts on it are
+ * harmless.
+ */
+export const THEME_GAPS: Partial<Record<string, string[]>> = {
+  mateIn1: ['expert'], // hardest ~1640
+  backRankMate: ['advanced', 'expert'], // harder ~1630, hardest ~1620
+  promotion: ['advanced'], // harder ~1640; hardest ~1990
+  smotheredMate: ['intermediate', 'advanced', 'expert'], // ~1260 / ~1620 / ~1640
+  sacrifice: ['advanced'], // harder ~1630; hardest ~2180
+  mateIn3: ['advanced'], // harder ~1630; hardest ~2030
+  rookEndgame: ['advanced'], // harder ~1610; hardest ~1990
+};
 
 /** Broad themes played just before each boss. */
 const PHASE_THEMES = ['opening', 'middlegame', 'endgame'];
@@ -124,7 +157,9 @@ const SPECS: ChapterSpec[] = [
 function buildChapters(): CampaignChapter[] {
   const seen: string[] = [];
   return SPECS.map((spec, i) => {
-    const revisits = [...seen];
+    const served = (theme: string) => !THEME_GAPS[theme]?.includes(spec.id);
+    const revisits = seen.filter(served);
+    const skippedThemes = seen.filter((theme) => !served(theme));
     seen.push(...spec.newThemes);
     // Revisits first as a warm-up at the new band, then the new themes, then phases.
     const ordered = [...revisits, ...spec.newThemes];
@@ -145,6 +180,7 @@ function buildChapters(): CampaignChapter[] {
         ...ordered.map((theme) => node(theme, 'trial')),
         ...PHASE_THEMES.map((theme) => node(theme, 'phase')),
       ],
+      skippedThemes,
       boss: {
         id: `${spec.id}:boss`,
         chapterId: spec.id,
