@@ -4,7 +4,7 @@ import { CAMPAIGN } from './chapters';
 import {
   campaignProgress,
   currentChapterId,
-  OPEN_WINDOW,
+  SET_SIZE,
   placementSummary,
   summarizeAttempts,
 } from './progress';
@@ -29,8 +29,18 @@ function attempt(
 }
 
 const beginner = CAMPAIGN[0];
+/** ★ on a node: cleared but not mastered. */
+const oneStar = (id: string) => attempt(id, 6);
+/** ★★: the full target inside the time limit. */
+const twoStars = (id: string) => attempt(id, 10, 300_000);
+/** ★★★: the full target inside the three-star time. */
+const threeStars = (id: string) => attempt(id, 10, 200_000);
+/** Pass every set in a chapter (★★ everywhere). */
 const clearAll = (chapterIndex: number) =>
-  CAMPAIGN[chapterIndex].nodes.map((node) => attempt(node.id, 6));
+  CAMPAIGN[chapterIndex].nodes.map((node) => twoStars(node.id));
+const ids = (from: number, to: number) => beginner.nodes.slice(from, to).map((node) => node.id);
+const openIds = (status: Record<string, string>) =>
+  beginner.nodes.filter((node) => status[node.id] === 'open').map((node) => node.id);
 
 describe('summarizeAttempts', () => {
   it('keeps the best stars and pace per node', () => {
@@ -47,24 +57,49 @@ describe('summarizeAttempts', () => {
 });
 
 describe('campaignProgress', () => {
-  it('starts with the first chapter open and a window of nodes', () => {
+  it('starts with the first chapter open and only the first set playable', () => {
     const [first, second] = campaignProgress(new Map());
     expect(first.unlocked).toBe(true);
     expect(second.unlocked).toBe(false);
-    const open = first.chapter.nodes.filter((node) => first.status[node.id] === 'open');
-    expect(open.map((node) => node.id)).toEqual(
-      beginner.nodes.slice(0, OPEN_WINDOW).map((node) => node.id),
-    );
+    expect(openIds(first.status)).toEqual(ids(0, SET_SIZE));
     expect(first.status[beginner.boss.id]).toBe('locked');
+    expect(first.gate).toEqual({
+      nodeIds: ids(0, SET_SIZE),
+      stars: 0,
+      starsNeeded: 6,
+      uncleared: 3,
+    });
   });
 
-  it('opens the next node as one is cleared, keeping the window size', () => {
-    const progress = summarizeAttempts([attempt(beginner.nodes[1].id, 6)]);
+  it('keeps the next set shut while the current one is cleared on one star each', () => {
+    const progress = summarizeAttempts(ids(0, SET_SIZE).map(oneStar));
     const [first] = campaignProgress(progress);
-    expect(first.status[beginner.nodes[1].id]).toBe('cleared');
-    const open = beginner.nodes.filter((node) => first.status[node.id] === 'open');
-    expect(open).toHaveLength(OPEN_WINDOW);
-    expect(first.status[beginner.nodes[OPEN_WINDOW].id]).toBe('open');
+    expect(first.clearedCount).toBe(SET_SIZE);
+    expect(openIds(first.status)).toEqual([]);
+    expect(first.status[beginner.nodes[SET_SIZE].id]).toBe('locked');
+    expect(first.gate).toMatchObject({ stars: 3, starsNeeded: 6, uncleared: 0 });
+  });
+
+  it('opens the next set once the current one averages two stars', () => {
+    // ★★★ + ★★ + ★ = 6: a strong node carries a weak one.
+    const [a, b, c] = ids(0, SET_SIZE);
+    const [first] = campaignProgress(summarizeAttempts([threeStars(a), twoStars(b), oneStar(c)]));
+    expect(openIds(first.status)).toEqual(ids(SET_SIZE, 2 * SET_SIZE));
+    expect(first.gate?.nodeIds).toEqual(ids(SET_SIZE, 2 * SET_SIZE));
+  });
+
+  it('needs every node in the set cleared, whatever the star total', () => {
+    const [a, b] = ids(0, SET_SIZE);
+    const [first] = campaignProgress(summarizeAttempts([threeStars(a), threeStars(b)]));
+    expect(first.gate).toMatchObject({ stars: 6, uncleared: 1 });
+    expect(first.status[beginner.nodes[SET_SIZE].id]).toBe('locked');
+  });
+
+  it('keeps a node that was already cleared playable even if its set is shut', () => {
+    const later = beginner.nodes[SET_SIZE].id;
+    const [first] = campaignProgress(summarizeAttempts([oneStar(later)]));
+    expect(first.status[later]).toBe('cleared');
+    expect(first.status[beginner.nodes[SET_SIZE + 1].id]).toBe('locked');
   });
 
   it('does not count a zero-star attempt as a clear', () => {
@@ -72,8 +107,14 @@ describe('campaignProgress', () => {
     expect(campaignProgress(progress)[0].status[beginner.nodes[0].id]).toBe('open');
   });
 
-  it('opens the boss once every node is cleared, and needs two stars to beat it', () => {
+  it('opens the boss once every set is passed, and needs two stars to beat it', () => {
+    const allOneStar = beginner.nodes.map((node) => oneStar(node.id));
+    expect(campaignProgress(summarizeAttempts(allOneStar))[0].status[beginner.boss.id]).toBe(
+      'locked',
+    );
+
     let chapters = campaignProgress(summarizeAttempts(clearAll(0)));
+    expect(chapters[0].gate).toBeNull();
     expect(chapters[0].status[beginner.boss.id]).toBe('open');
     expect(chapters[1].unlocked).toBe(false);
 
@@ -107,7 +148,7 @@ describe('campaignProgress', () => {
     expect(chapters.map((c) => c.skippedByPlacement)).toEqual([true, true, false, false, false]);
     expect(currentChapterId(chapters)).toBe('intermediate');
     expect(placementSummary(progress)).toEqual({ taken: true, passedThrough: 1 });
-    // Skipped chapters still start with their usual window of open nodes.
+    // Skipped chapters still start with their first set open.
     expect(chapters[0].status[CAMPAIGN[0].nodes[0].id]).toBe('open');
   });
 
