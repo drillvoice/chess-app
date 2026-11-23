@@ -118,6 +118,17 @@ These are hard-won from a long debugging saga (a corrupt SRS stat made
 
 ## Conventions
 
+- **Every pull request bumps the version and updates the changelog.** In the same PR:
+  - bump `version` with `npm version <x.y.z> --no-git-tag-version`, which updates
+    `package.json` and `package-lock.json` together. Use semver: patch for fixes, minor for new
+    features or behaviour changes, major for breaking changes such as data a previous version
+    can't read.
+  - add a `## [x.y.z] - D Month YYYY` section to `CHANGELOG.md` just below
+    `## [Unreleased]`, written for users in the style of the existing entries.
+  - fetch `origin/main` first. If a PR merged since your branch started already took that
+    version, rebase and take the next one. If an earlier PR shipped without a bump, include
+    its changes in your entry.
+
 - Conventional Commits preferred (e.g., `feat(tactics): add puzzles ratio`)
 - Prettier: single quotes, semicolons, 100 char width, trailing commas
 - TypeScript strict mode enabled
