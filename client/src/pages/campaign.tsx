@@ -16,6 +16,8 @@ import {
   currentChapterId,
   placementSummary,
   nodeProgress,
+  SET_SIZE,
+  SET_STARS_PER_NODE,
   type ChapterProgress,
   type NodeProgress,
   type NodeStatus,
@@ -59,7 +61,7 @@ function NodeTile({
       </span>
       <span className="mt-2 flex items-center justify-between gap-2 text-xs">
         {locked ? (
-          <span>{isBoss ? 'Clear every node to face the boss' : 'Locked'}</span>
+          <span>{isBoss ? 'Pass every set to face the boss' : 'Locked'}</span>
         ) : (
           <>
             <StarRow stars={progress.bestStars} size="sm" />
@@ -100,10 +102,14 @@ function ChapterCard({
     status,
     clearedCount,
     bossBeaten,
+    gate,
     skippedByPlacement,
     stars,
     maxStars,
   } = entry;
+  const gateTitles = gate
+    ? chapter.nodes.filter((n) => gate.nodeIds.includes(n.id)).map((n) => n.title)
+    : [];
   const total = chapter.nodes.length;
   // Locked nodes fold into one row so the ones you can play stay on screen.
   const [showLocked, setShowLocked] = useState(false);
@@ -193,13 +199,25 @@ function ChapterCard({
                     'Hide locked nodes'
                   ) : (
                     <>
-                      <span className="font-medium text-gray-700">
-                        {lockedNodes.length} more to unlock
-                      </span>
-                      <span className="hidden sm:inline">
-                        {' '}
-                        · {lockedNodes.map((n) => n.title).join(', ')}
-                      </span>
+                      {gate ? (
+                        <>
+                          <span className="font-medium text-gray-700">
+                            {gate.stars}/{gate.starsNeeded}
+                            <Star
+                              className="mx-0.5 inline h-3 w-3 fill-amber-400 align-[-1px] text-amber-500"
+                              aria-label="stars"
+                            />
+                            to open the next set
+                          </span>{' '}
+                          <span className="block sm:inline">
+                            in {gateTitles.join(', ')} · {lockedNodes.length} locked
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-medium text-gray-700">
+                          {lockedNodes.length} more to unlock
+                        </span>
+                      )}
                     </>
                   )}
                 </span>
@@ -324,9 +342,10 @@ export default function CampaignPage() {
       {!isLoading && (!hasPlayed || showHelp) && (
         <p className="text-sm text-gray-600">
           Each node is a timed trial: solve {TRIAL_TARGET} Lichess puzzles of one theme in{' '}
-          {formatDuration(TRIAL_MS)}, with no more than {MAX_MISSES} misses. One star clears a node
-          and opens the next; clear a chapter to face its boss, a mix of every theme so far. Beat
-          the boss to move up a rating band.
+          {formatDuration(TRIAL_MS)}, with no more than {MAX_MISSES} misses. One star clears a node.
+          Themes come in sets of {SET_SIZE}: clear each one and average {SET_STARS_PER_NODE} stars
+          across the set to open the next. Pass every set to face the chapter's boss, a mix of every
+          theme so far, and beat the boss to move up a rating band.
         </p>
       )}
       {error && (
