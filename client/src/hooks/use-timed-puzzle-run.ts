@@ -10,7 +10,7 @@ import { loadPlayedCache } from '@/lib/focus/played-puzzles';
 import {
   isCapture,
   playOpponentReply,
-  revealSolution,
+  revealNextMove,
   solverColor,
   startPuzzle,
   submitMove,
@@ -18,10 +18,11 @@ import {
 } from '@/lib/focus/puzzle-session';
 import type { CampaignNode } from '@/lib/campaign/chapters';
 import { fetchTrialPuzzles, REFILL_BELOW } from '@/lib/campaign/trial-puzzles';
+import type { MissedPuzzle, MissReason } from '@/lib/campaign/missed-puzzle';
 
 const REPLY_DELAY_MS = 200;
 const AFTER_SOLVE_MS = 400;
-/** Long enough to see the right move after a miss. */
+/** Long enough to see the right move after a miss (the full line is in the review). */
 const AFTER_MISS_MS = 1200;
 
 export type RunPhase = 'loading' | 'ready' | 'running' | 'done' | 'error';
@@ -51,7 +52,8 @@ interface Options {
   batchSize: number;
   /** Checked after every puzzle: whether the run is over. */
   endRule: (tally: RunTally) => RunEnd;
-  onFinish: (result: RunResult) => void;
+  /** `misses` is the run's missed puzzles, for review (not part of the saved result). */
+  onFinish: (result: RunResult, misses: MissedPuzzle[]) => void;
 }
 
 /**
@@ -78,6 +80,9 @@ export function useTimedPuzzleRun({
   const [state, setState] = useState<PuzzleState | null>(null);
   const [flash, setFlash] = useState<RunFlash>('find');
   const [tally, setTally] = useState<RunTally>({ attempted: 0, clean: 0 });
+  /** Puzzles missed this run, in order, for the post-run review. */
+  const [misses, setMisses] = useState<MissedPuzzle[]>([]);
+  const missesRef = useRef<MissedPuzzle[]>([]);
   const [selected, setSelected] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(
     null,
@@ -184,12 +189,15 @@ export function useTimedPuzzleRun({
     runningSince.current = null;
     setPhaseBoth('done');
     setSelected(null);
-    optionsRef.current.onFinish({
-      startedAt: startedAt.current,
-      durationMs,
-      ...tallyRef.current,
-      completedMs: completed ? durationMs : null,
-    });
+    optionsRef.current.onFinish(
+      {
+        startedAt: startedAt.current,
+        durationMs,
+        ...tallyRef.current,
+        completedMs: completed ? durationMs : null,
+      },
+      missesRef.current,
+    );
   }, []);
 
   const showAt = useCallback(
@@ -257,17 +265,27 @@ export function useTimedPuzzleRun({
     runningSince.current = Date.now();
     tallyRef.current = { attempted: 0, clean: 0 };
     setTally(tallyRef.current);
+    missesRef.current = [];
+    setMisses([]);
     setPhaseBoth('running');
     showAt(0);
   };
 
-  /** Count the puzzle on screen as missed, show its line, then move on. */
+  /** Count the puzzle on screen as missed, show the right move, then move on. */
   const miss = useCallback(
-    (delayMs: number) => {
+    (delayMs: number, reason: MissReason, wrongMove: string | null = null) => {
       const current = stateRef.current;
       if (!current || current.status !== 'playing' || phaseRef.current !== 'running') return;
       clearTimers();
-      setStateBoth(revealSolution({ ...current, mistake: true }));
+      const missed: MissedPuzzle = {
+        puzzle: current.puzzle,
+        ply: current.ply,
+        wrongMove,
+        reason,
+      };
+      missesRef.current = [...missesRef.current, missed];
+      setMisses(missesRef.current);
+      setStateBoth(revealNextMove({ ...current, mistake: true }));
       setFlash('missed');
       setSelected(null);
       if (record(false)) return;
@@ -305,7 +323,7 @@ export function useTimedPuzzleRun({
           title: 'Clock paused while you were away',
           description: 'The puzzle on screen counts as missed.',
         });
-        miss(0);
+        miss(0, 'away');
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -320,7 +338,7 @@ export function useTimedPuzzleRun({
     setSelected(null);
     if (verdict === 'illegal') return;
     if (verdict === 'wrong') {
-      miss(AFTER_MISS_MS);
+      miss(AFTER_MISS_MS, 'wrong', uci);
       return;
     }
     playMoveSound(isCapture(current.fen, uci) ? 'capture' : 'move');
@@ -383,7 +401,8 @@ export function useTimedPuzzleRun({
     selected,
     legalTargets,
     onSquareTap,
-    skip: () => miss(0),
+    misses,
+    skip: () => miss(0, 'skipped'),
     pendingPromotion,
     choosePromotion: (piece: PromotionPiece) => {
       if (pendingPromotion) tryMove(pendingPromotion.from, pendingPromotion.to, piece);

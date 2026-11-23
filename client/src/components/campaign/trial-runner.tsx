@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { nanoid } from 'nanoid';
-import { ArrowLeft, Loader2, RotateCcw, Swords } from 'lucide-react';
+import { ArrowLeft, Loader2, RotateCcw, Search, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,7 @@ import { saveCampaignAttempt } from '@/lib/firebase/campaign';
 import { CAMPAIGN_QUERY_KEY } from '@/hooks/use-campaign';
 import { useTimedPuzzleRun, type RunResult } from '@/hooks/use-timed-puzzle-run';
 import { logCampaignSession } from '@/lib/campaign/log-session';
+import MistakeReview from './mistake-review';
 import RunBoard, { SolvedBar } from './run-board';
 import { StarRow } from './star-row';
 
@@ -43,6 +44,7 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
   const isBoss = node.kind === 'boss';
   const [result, setResult] = useState<CampaignAttempt | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
 
   const onFinish = useCallback(
     async (run: RunResult) => {
@@ -104,6 +106,7 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
 
   const retry = () => {
     setResult(null);
+    setReviewing(false);
     void load();
   };
 
@@ -186,6 +189,16 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
     );
   }
 
+  if (phase === 'done' && result && reviewing && run.misses.length > 0) {
+    return (
+      <MistakeReview
+        misses={run.misses}
+        title={`${node.title} · Chapter ${chapter.number}`}
+        onClose={() => setReviewing(false)}
+      />
+    );
+  }
+
   if (phase === 'done' && result) {
     const stars = starsFor(result) as Stars;
     const pace = trialPace(result);
@@ -228,6 +241,12 @@ export default function TrialRunner({ chapter, node, previous, onExit }: Props) 
               </p>
             )}
             <div className="flex flex-wrap justify-center gap-2">
+              {run.misses.length > 0 && (
+                <Button variant="outline" onClick={() => setReviewing(true)}>
+                  <Search className="mr-2 h-4 w-4" /> Review {run.misses.length} mistake
+                  {run.misses.length === 1 ? '' : 's'}
+                </Button>
+              )}
               <Button variant="outline" onClick={retry} disabled={saving}>
                 <RotateCcw className="mr-2 h-4 w-4" /> Try again
               </Button>

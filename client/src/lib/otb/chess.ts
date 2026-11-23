@@ -51,6 +51,17 @@ export function getPieceMap(game: OtbGame): Record<string, PieceView> {
   return map;
 }
 
+/** Piece map for a FEN, in the shape OtbBoard draws. */
+export function pieceMapFromFen(fen: string): Record<string, PieceView> {
+  const map: Record<string, PieceView> = {};
+  for (const row of new Chess(fen).board()) {
+    for (const cell of row) {
+      if (cell) map[cell.square] = { color: cell.color, type: cell.type };
+    }
+  }
+  return map;
+}
+
 export function getLegalDestinations(game: OtbGame, from: Square): Square[] {
   try {
     const chess = toChess(game);
