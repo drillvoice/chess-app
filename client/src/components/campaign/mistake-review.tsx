@@ -276,16 +276,23 @@ export default function MistakeReview({ misses, title, onClose }: Props) {
     return { from, moves: uciLineToSan(puzzle.fen, cursor.line).slice(from) };
   }, [exploring, cursor.line, solution, puzzle.fen]);
 
-  // Best move in green, the alternatives fainter in blue (one arrow per distinct move).
-  const arrows: BoardArrow[] = engine.lines
-    .map((line) => line.pv[0])
-    .filter((move, i, all): move is string => !!move && all.indexOf(move) === i)
-    .map((move, i) => ({
-      from: move.slice(0, 2) as Square,
-      to: move.slice(2, 4) as Square,
-      color: i === 0 ? '#15781b' : '#003088',
-      opacity: i === 0 ? 0.8 : 0.4,
-    }));
+  // Keep the board readable: one green arrow for the right move, plus a red one for the
+  // move you played when you're on the position where you went wrong. Elsewhere the
+  // green arrow is Stockfish's best move (if analysis is on).
+  const atMistake = cursor.ply === miss.ply && sameStart(cursor.line, solution, miss.ply);
+  const toArrow = (uci: string, color: string): BoardArrow => ({
+    from: uci.slice(0, 2) as Square,
+    to: uci.slice(2, 4) as Square,
+    color,
+    opacity: 0.8,
+  });
+  const bestMove = atMistake ? solution[miss.ply] : engine.lines[0]?.pv[0];
+  const arrows: BoardArrow[] = [
+    ...(bestMove ? [toArrow(bestMove, '#15781b')] : []),
+    ...(atMistake && miss.wrongMove && miss.wrongMove !== bestMove
+      ? [toArrow(miss.wrongMove, '#b91c1c')]
+      : []),
+  ];
 
   const sideToMove = chess.turn() === 'w' ? 'White' : 'Black';
   const themes = puzzle.themes.map(getThemeLabel).join(', ');
