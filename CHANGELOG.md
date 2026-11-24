@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.16.1] - 24 November 2026
+
+- **Clearer mistake review board**: on the position where you went wrong, the board now shows just two arrows: the correct move in green and the move you played in red. Elsewhere it shows only Stockfish's best move in green, without the fainter blue arrows for alternative lines (they're still listed under the engine lines)
+
 ## [2.16.0] - 23 November 2026
 
 - **Campaign themes come in sets of three**: a chapter's themes now open three at a time, and the next set opens only once every node in the current set is cleared **and** the set totals at least 6★ (★★ on average). A strong result can make up for a weak one: ★★★ + ★★ + ★ passes. This replaces the old rule, where one star opened the next node. The aim is to master a few themes before moving on rather than clearing a whole chapter on one-star runs
